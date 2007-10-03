@@ -73,7 +73,8 @@ biblio_file_id : char*</string>
     <void property="attributes"> 
      <void property="text"> 
       <string>name : char *
-attribs : struct stat</string> 
+attribs : struct stat
+hidden : enum</string> 
      </void> 
     </void> 
     <void property="name"> 
@@ -84,8 +85,8 @@ attribs : struct stat</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>466.4798473529561</double> 
-     <double>125.12157416157802</double> 
+     <double>451.0201548579207</double> 
+     <double>110.85108878154536</double> 
     </void> 
    </object> 
   </void> 
@@ -126,8 +127,8 @@ children()</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>465.4798473529561</double> 
-     <double>272.1215741615781</double> 
+     <double>207.42190339736564</double> 
+     <double>268.55395281656996</double> 
     </void> 
    </object> 
   </void> 
@@ -196,7 +197,7 @@ children()</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>217.58850537668968</double> 
+     <double>463.75437818225294</double> 
      <double>273.6217087746859</double> 
     </void> 
    </object> 
@@ -309,8 +310,8 @@ after moving or renaming those files</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>116.5857864376269</double> 
-     <double>121.33809511662426</double> 
+     <double>58.314637802493564</double> 
+     <double>126.09492357663513</double> 
     </void> 
    </object> 
   </void> 
@@ -390,14 +391,15 @@ BurnSource</string>
       <string>Class diagram for the public tree. Note that getters and setters are not shown,
 to improve readability. Note also that not all the attributes will have public getters
 or/and setters.
-El-Torito related information is shown in another diagram.</string> 
+El-Torito related information is shown in another diagram.
+We don&apos;t show the several functions in Dir to manage the tree.</string> 
      </void> 
     </void> 
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>458.2051942088828</double> 
-     <double>28.284271247461895</double> 
+     <double>433.2318447938257</double> 
+     <double>11.635371637423802</double> 
     </void> 
    </object> 
   </void> 
