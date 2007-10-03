@@ -137,7 +137,20 @@ Phases:
 3.2.3 Bootable information
 --------------------------
 
-[TODO]
+	- Addition of a boot image to a volume. 
+		- In most cases, the catalog and the boot image itself is added to the
+		  iso tree. 
+		- Alternatively, user can select to add a hidden images, i.e., images 
+		  that don't appear in the iso tree.
+	- Modification of boot image attributes:
+		- bootable flag
+		- load segment
+		- load size
+	- Automatic patching of isolinux images. User needs to set whether to apply
+	  this.
+	- Reading of El-Torito info from multisession images. Modification of its
+	  attributes.
+	- Removing of El-Torito images
 
 
 3.2.4 Other operations
