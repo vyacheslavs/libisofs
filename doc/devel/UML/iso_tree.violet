@@ -5,26 +5,6 @@
    <object id="ClassNode0" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
-      <string>size : off_t</string> 
-     </void> 
-    </void> 
-    <void property="name"> 
-     <void property="text"> 
-      <string>SplittedFile</string> 
-     </void> 
-    </void> 
-   </object> 
-   <object class="java.awt.geom.Point2D$Double"> 
-    <void method="setLocation"> 
-     <double>185.9954940382799</double> 
-     <double>488.5066209425904</double> 
-    </void> 
-   </object> 
-  </void> 
-  <void method="addNode"> 
-   <object id="ClassNode1" class="com.horstmann.violet.ClassNode"> 
-    <void property="attributes"> 
-     <void property="text"> 
       <string>volume_id : char*
 publisher_id : char*
 data_preparer_id : char*
@@ -49,7 +29,7 @@ biblio_file_id : char*</string>
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode2" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode1" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
       <string>sort_weight : int</string> 
@@ -69,7 +49,7 @@ biblio_file_id : char*</string>
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode3" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode2" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
       <string>name : char *
@@ -91,7 +71,7 @@ hidden : enum</string>
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode4" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode3" class="com.horstmann.violet.ClassNode"> 
     <void property="methods"> 
      <void property="text"> 
       <string>add(XXX)
@@ -113,7 +93,7 @@ children()</string>
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode5" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode4" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
       <string>dest : char*</string> 
@@ -127,13 +107,13 @@ children()</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>207.42190339736564</double> 
-     <double>268.55395281656996</double> 
+     <double>142.01551207221596</double> 
+     <double>273.3107812765808</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode6" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode5" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
       <string>block : uint32_t</string> 
@@ -147,13 +127,13 @@ children()</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>403.78427912403913</double> 
-     <double>384.61454979256314</double> 
+     <double>448.9741494941426</double> 
+     <double>377.47930710254684</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode7" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode6" class="com.horstmann.violet.ClassNode"> 
     <void property="name"> 
      <void property="text"> 
       <string>FilteredFile</string> 
@@ -162,13 +142,13 @@ children()</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>326.99881031378334</double> 
-     <double>487.9929640225687</double> 
+     <double>210.45651304351662</double> 
+     <double>377.3967023273157</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode8" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode7" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
       <string>path : char *</string> 
@@ -182,13 +162,13 @@ children()</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>258.5917557335331</double> 
-     <double>380.2361355625578</double> 
+     <double>329.9441826336963</double> 
+     <double>383.80375690756597</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode9" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode8" class="com.horstmann.violet.ClassNode"> 
     <void property="name"> 
      <void property="text"> 
       <string>Special</string> 
@@ -220,8 +200,8 @@ Filter</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>520.0</double> 
-     <double>450.0</double> 
+     <double>190.0</double> 
+     <double>460.0</double> 
     </void> 
    </object> 
   </void> 
@@ -229,31 +209,13 @@ Filter</string>
    <object idref="InterfaceNode0"/> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>534.5857864376269</double> 
-     <double>482.33809511662446</double> 
+     <double>196.85096577685422</double> 
+     <double>491.85175203664653</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="NoteNode0" class="com.horstmann.violet.NoteNode"> 
-    <void property="text"> 
-     <void property="text"> 
-      <string>Another alternative, maybe better, is to allow
-splitted and filtered files not only for local files, but for 
-any kind of files. In that case, both classes should have 
-a File attribute</string> 
-     </void> 
-    </void> 
-   </object> 
-   <object class="java.awt.geom.Point2D$Double"> 
-    <void method="setLocation"> 
-     <double>144.5857864376269</double> 
-     <double>578.3380951166248</double> 
-    </void> 
-   </object> 
-  </void> 
-  <void method="addNode"> 
-   <object id="ClassNode10" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode9" class="com.horstmann.violet.ClassNode"> 
     <void property="attributes"> 
      <void property="text"> 
       <string>name : char*</string> 
@@ -291,13 +253,13 @@ DataSource</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>855.5857864376269</double> 
-     <double>573.3380951166248</double> 
+     <double>639.1500915071317</double> 
+     <double>437.7684840063146</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="NoteNode1" class="com.horstmann.violet.NoteNode"> 
+   <object id="NoteNode0" class="com.horstmann.violet.NoteNode"> 
     <void property="text"> 
      <void property="text"> 
       <string>In addition to the dest as a path, it could
@@ -310,13 +272,13 @@ after moving or renaming those files</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>58.314637802493564</double> 
-     <double>126.09492357663513</double> 
+     <double>16.152744527534395</double> 
+     <double>121.33809511662423</double> 
     </void> 
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="NoteNode2" class="com.horstmann.violet.NoteNode"> 
+   <object id="NoteNode1" class="com.horstmann.violet.NoteNode"> 
     <void property="text"> 
      <void property="text"> 
       <string>Image is a context for the creation of images. Its &quot;static&quot;
@@ -338,7 +300,7 @@ the new files, thus it is suitable for a new session
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode11" class="com.horstmann.violet.ClassNode"> 
+   <object id="ClassNode10" class="com.horstmann.violet.ClassNode"> 
     <void property="name"> 
      <void property="text"> 
       <string>Ecma119Source</string> 
@@ -412,20 +374,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
     </void> 
    </object> 
+   <object idref="ClassNode1"/> 
    <object idref="ClassNode2"/> 
-   <object idref="ClassNode3"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
-    <void property="bentStyle"> 
-     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
-    </void> 
-    <void property="endArrowHead"> 
-     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
-    </void> 
-   </object> 
-   <object idref="ClassNode5"/> 
-   <object idref="ClassNode3"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -437,7 +387,19 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
     </void> 
    </object> 
    <object idref="ClassNode4"/> 
+   <object idref="ClassNode2"/> 
+  </void> 
+  <void method="connect"> 
+   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
+    <void property="bentStyle"> 
+     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
+    </void> 
+    <void property="endArrowHead"> 
+     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
+    </void> 
+   </object> 
    <object idref="ClassNode3"/> 
+   <object idref="ClassNode2"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -454,8 +416,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="BLACK_DIAMOND"/> 
     </void> 
    </object> 
-   <object idref="ClassNode4"/> 
    <object idref="ClassNode3"/> 
+   <object idref="ClassNode2"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -466,8 +428,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
     </void> 
    </object> 
-   <object idref="ClassNode9"/> 
-   <object idref="ClassNode3"/> 
+   <object idref="ClassNode8"/> 
+   <object idref="ClassNode2"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -484,8 +446,20 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="BLACK_DIAMOND"/> 
     </void> 
    </object> 
+   <object idref="ClassNode0"/> 
+   <object idref="ClassNode3"/> 
+  </void> 
+  <void method="connect"> 
+   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
+    <void property="bentStyle"> 
+     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
+    </void> 
+    <void property="endArrowHead"> 
+     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
+    </void> 
+   </object> 
+   <object idref="ClassNode7"/> 
    <object idref="ClassNode1"/> 
-   <object idref="ClassNode4"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -496,20 +470,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
     </void> 
    </object> 
-   <object idref="ClassNode8"/> 
-   <object idref="ClassNode2"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
-    <void property="bentStyle"> 
-     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
-    </void> 
-    <void property="endArrowHead"> 
-     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
-    </void> 
-   </object> 
-   <object idref="ClassNode6"/> 
-   <object idref="ClassNode2"/> 
+   <object idref="ClassNode5"/> 
+   <object idref="ClassNode1"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -523,8 +485,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <string>1 parent</string> 
     </void> 
    </object> 
+   <object idref="ClassNode2"/> 
    <object idref="ClassNode3"/> 
-   <object idref="ClassNode4"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -535,42 +497,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="V"/> 
     </void> 
    </object> 
-   <object idref="ClassNode7"/> 
+   <object idref="ClassNode6"/> 
    <object idref="InterfaceNode0"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.NoteEdge"/> 
-   <object idref="ClassNode0"/> 
-   <object idref="NoteNode0"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.NoteEdge"/> 
-   <object idref="ClassNode7"/> 
-   <object idref="NoteNode0"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
-    <void property="bentStyle"> 
-     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
-    </void> 
-    <void property="endArrowHead"> 
-     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
-    </void> 
-   </object> 
-   <object idref="ClassNode0"/> 
-   <object idref="ClassNode8"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
-    <void property="bentStyle"> 
-     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
-    </void> 
-    <void property="endArrowHead"> 
-     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
-    </void> 
-   </object> 
-   <object idref="ClassNode7"/> 
-   <object idref="ClassNode8"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -587,8 +515,8 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.ArrowHead" field="BLACK_DIAMOND"/> 
     </void> 
    </object> 
-   <object idref="ClassNode10"/> 
-   <object idref="ClassNode1"/> 
+   <object idref="ClassNode9"/> 
+   <object idref="ClassNode0"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -602,7 +530,7 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <string>0..1 src</string> 
     </void> 
    </object> 
-   <object idref="ClassNode10"/> 
+   <object idref="ClassNode9"/> 
    <object idref="InterfaceNode1"/> 
   </void> 
   <void method="connect"> 
@@ -617,18 +545,18 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.LineStyle" field="DOTTED"/> 
     </void> 
    </object> 
-   <object idref="ClassNode6"/> 
+   <object idref="ClassNode5"/> 
    <object idref="InterfaceNode1"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.NoteEdge"/> 
-   <object idref="ClassNode5"/> 
-   <object idref="NoteNode1"/> 
+   <object idref="ClassNode4"/> 
+   <object idref="NoteNode0"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.NoteEdge"/> 
-   <object idref="ClassNode10"/> 
-   <object idref="NoteNode2"/> 
+   <object idref="ClassNode9"/> 
+   <object idref="NoteNode1"/> 
   </void> 
   <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
@@ -642,7 +570,7 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <object class="com.horstmann.violet.LineStyle" field="DOTTED"/> 
     </void> 
    </object> 
-   <object idref="ClassNode11"/> 
+   <object idref="ClassNode10"/> 
    <object idref="InterfaceNode2"/> 
   </void> 
   <void method="connect"> 
@@ -657,8 +585,35 @@ We don&apos;t show the several functions in Dir to manage the tree.</string>
      <string>{create}</string> 
     </void> 
    </object> 
+   <object idref="ClassNode9"/> 
    <object idref="ClassNode10"/> 
-   <object idref="ClassNode11"/> 
+  </void> 
+  <void method="connect"> 
+   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
+    <void property="bentStyle"> 
+     <object class="com.horstmann.violet.BentStyle" field="VHV"/> 
+    </void> 
+    <void property="endArrowHead"> 
+     <object class="com.horstmann.violet.ArrowHead" field="TRIANGLE"/> 
+    </void> 
+   </object> 
+   <object idref="ClassNode6"/> 
+   <object idref="ClassNode1"/> 
+  </void> 
+  <void method="connect"> 
+   <object class="com.horstmann.violet.ClassRelationshipEdge"> 
+    <void property="bentStyle"> 
+     <object class="com.horstmann.violet.BentStyle" field="VH"/> 
+    </void> 
+    <void property="endArrowHead"> 
+     <object class="com.horstmann.violet.ArrowHead" field="V"/> 
+    </void> 
+    <void property="startArrowHead"> 
+     <object class="com.horstmann.violet.ArrowHead" field="BLACK_DIAMOND"/> 
+    </void> 
+   </object> 
+   <object idref="ClassNode6"/> 
+   <object idref="ClassNode1"/> 
   </void> 
  </object> 
 </java> 
