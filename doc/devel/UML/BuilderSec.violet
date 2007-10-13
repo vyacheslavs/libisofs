@@ -34,7 +34,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>192.0</double> 
-     <double>196.0</double> 
+     <double>209.0</double> 
     </void> 
    </object> 
   </void> 
@@ -43,7 +43,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>274.0</double> 
-     <double>189.0</double> 
+     <double>202.0</double> 
     </void> 
    </object> 
   </void> 
@@ -179,7 +179,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>683.0</double> 
-     <double>292.0</double> 
+     <double>305.0</double> 
     </void> 
    </object> 
   </void> 
@@ -188,7 +188,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>571.756828460011</double> 
-     <double>315.0</double> 
+     <double>328.0</double> 
     </void> 
    </object> 
   </void> 
@@ -197,7 +197,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>306.0</double> 
-     <double>338.0</double> 
+     <double>351.0</double> 
     </void> 
    </object> 
   </void> 
@@ -206,7 +206,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>331.97135964975513</double> 
-     <double>361.0</double> 
+     <double>374.0</double> 
     </void> 
    </object> 
   </void> 
@@ -215,7 +215,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>363.97135964975513</double> 
-     <double>444.0</double> 
+     <double>457.0</double> 
     </void> 
    </object> 
   </void> 
@@ -223,8 +223,8 @@
    <object idref="LifelineNode5"/> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>417.41169736595504</double> 
-     <double>467.0</double> 
+     <double>418.8259109283281</double> 
+     <double>480.0</double> 
     </void> 
    </object> 
   </void> 
@@ -233,7 +233,7 @@
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>363.97135964975513</double> 
-     <double>550.0</double> 
+     <double>563.0</double> 
     </void> 
    </object> 
   </void> 
@@ -321,8 +321,8 @@ and add it to parent dir</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>380.5462768008707</double> 
-     <double>196.21917397544897</double> 
+     <double>379.1320632384976</double> 
+     <double>217.4323774110454</double> 
     </void> 
    </object> 
   </void> 
@@ -331,7 +331,7 @@ and add it to parent dir</string>
     <void id="Rectangle2D$Double2" property="bounds"> 
      <void method="setRect"> 
       <double>327.03195662574825</double> 
-      <double>205.73283089547073</double> 
+      <double>218.46075295682857</double> 
       <double>0.0</double> 
       <double>0.0</double> 
      </void> 
@@ -343,7 +343,7 @@ and add it to parent dir</string>
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>327.03195662574825</double> 
-     <double>205.73283089547073</double> 
+     <double>218.46075295682857</double> 
     </void> 
    </object> 
   </void> 
@@ -389,8 +389,8 @@ and add it to parent dir</string>
    <object id="PointNode4" class="com.horstmann.violet.PointNode"> 
     <void id="Rectangle2D$Double4" property="bounds"> 
      <void method="setRect"> 
-      <double>316.3290925907238</double> 
-      <double>343.68085623578634</double> 
+      <double>314.9148790283507</double> 
+      <double>359.23720542189034</double> 
       <double>0.0</double> 
       <double>0.0</double> 
      </void> 
@@ -401,8 +401,8 @@ and add it to parent dir</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>316.3290925907238</double> 
-     <double>343.68085623578634</double> 
+     <double>314.9148790283507</double> 
+     <double>359.23720542189034</double> 
     </void> 
    </object> 
   </void> 
@@ -410,7 +410,7 @@ and add it to parent dir</string>
    <object id="NoteNode3" class="com.horstmann.violet.NoteNode"> 
     <void property="text"> 
      <void property="text"> 
-      <string>6. The conversion is not needed, si
+      <string>6. The conversion is not needed, so
 the builder just creates a FileTreeNode</string> 
      </void> 
     </void> 
@@ -426,8 +426,8 @@ the builder just creates a FileTreeNode</string>
    <object id="PointNode5" class="com.horstmann.violet.PointNode"> 
     <void id="Rectangle2D$Double5" property="bounds"> 
      <void method="setRect"> 
-      <double>520.8727163711918</double> 
-      <double>390.0599337208925</double> 
+      <double>522.2869299335649</double> 
+      <double>399.9594286575042</double> 
       <double>0.0</double> 
       <double>0.0</double> 
      </void> 
@@ -438,8 +438,8 @@ the builder just creates a FileTreeNode</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>520.8727163711918</double> 
-     <double>390.0599337208925</double> 
+     <double>522.2869299335649</double> 
+     <double>399.9594286575042</double> 
     </void> 
    </object> 
   </void> 
@@ -478,8 +478,8 @@ the builder just creates a FileTreeNode</string>
    <object id="PointNode6" class="com.horstmann.violet.PointNode"> 
     <void id="Rectangle2D$Double6" property="bounds"> 
      <void method="setRect"> 
-      <double>536.3324088662272</double> 
-      <double>437.6282183210013</double> 
+      <double>534.9181953038541</double> 
+      <double>453.1845675071054</double> 
       <double>0.0</double> 
       <double>0.0</double> 
      </void> 
@@ -490,8 +490,8 @@ the builder just creates a FileTreeNode</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>536.3324088662272</double> 
-     <double>437.6282183210013</double> 
+     <double>534.9181953038541</double> 
+     <double>453.1845675071054</double> 
     </void> 
    </object> 
   </void> 
@@ -499,8 +499,8 @@ the builder just creates a FileTreeNode</string>
    <object id="PointNode7" class="com.horstmann.violet.PointNode"> 
     <void id="Rectangle2D$Double7" property="bounds"> 
      <void method="setRect"> 
-      <double>485.19650292111015</double> 
-      <double>514.9266807961782</double> 
+      <double>482.368075796364</double> 
+      <double>524.8261757327898</double> 
       <double>0.0</double> 
       <double>0.0</double> 
      </void> 
@@ -511,8 +511,8 @@ the builder just creates a FileTreeNode</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>485.19650292111015</double> 
-     <double>514.9266807961782</double> 
+     <double>482.368075796364</double> 
+     <double>524.8261757327898</double> 
     </void> 
    </object> 
   </void> 
@@ -558,7 +558,7 @@ the builder just creates a FileTreeNode</string>
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
      <double>363.97135964975513</double> 
-     <double>643.0</double> 
+     <double>656.0</double> 
     </void> 
    </object> 
   </void> 
@@ -582,8 +582,8 @@ the builder just creates a FileTreeNode</string>
    <object id="PointNode9" class="com.horstmann.violet.PointNode"> 
     <void id="Rectangle2D$Double9" property="bounds"> 
      <void method="setRect"> 
-      <double>371.938166904124</double> 
-      <double>654.780879378743</double> 
+      <double>373.3523804664971</double> 
+      <double>666.0945878777277</double> 
       <double>0.0</double> 
       <double>0.0</double> 
      </void> 
@@ -594,8 +594,8 @@ the builder just creates a FileTreeNode</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>371.938166904124</double> 
-     <double>654.780879378743</double> 
+     <double>373.3523804664971</double> 
+     <double>666.0945878777277</double> 
     </void> 
    </object> 
   </void> 
@@ -745,7 +745,11 @@ the builder just creates a FileTreeNode</string>
    <object idref="LifelineNode3"/> 
   </void> 
   <void method="connect"> 
-   <object class="com.horstmann.violet.CallEdge"/> 
+   <object class="com.horstmann.violet.CallEdge"> 
+    <void property="middleLabel"> 
+     <string>get(path)</string> 
+    </void> 
+   </object> 
    <object idref="ActivationBarNode1"/> 
    <object idref="ActivationBarNode0"/> 
   </void> 
