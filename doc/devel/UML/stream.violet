@@ -292,17 +292,18 @@ to the contents of another stream.</string>
    </object> 
   </void> 
   <void method="addNode"> 
-   <object id="ClassNode8" class="com.horstmann.violet.ClassNode"> 
+   <object id="InterfaceNode2" class="com.horstmann.violet.InterfaceNode"> 
     <void property="name"> 
      <void property="text"> 
-      <string>SourceFile</string> 
+      <string>«interface»
+SourceFile</string> 
      </void> 
     </void> 
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>886.7119036079306</double> 
-     <double>251.73001410241085</double> 
+     <double>920.6530291048848</double> 
+     <double>248.90158697766475</double> 
     </void> 
    </object> 
   </void> 
@@ -466,6 +467,16 @@ to the contents of another stream.</string>
    <object idref="InterfaceNode1"/> 
   </void> 
   <void method="connect"> 
+   <object class="com.horstmann.violet.NoteEdge"/> 
+   <object idref="InterfaceNode1"/> 
+   <object idref="NoteNode2"/> 
+  </void> 
+  <void method="connect"> 
+   <object class="com.horstmann.violet.NoteEdge"/> 
+   <object idref="ClassNode1"/> 
+   <object idref="NoteNode0"/> 
+  </void> 
+  <void method="connect"> 
    <object class="com.horstmann.violet.ClassRelationshipEdge"> 
     <void property="bentStyle"> 
      <object class="com.horstmann.violet.BentStyle" field="HVH"/> 
@@ -475,17 +486,7 @@ to the contents of another stream.</string>
     </void> 
    </object> 
    <object idref="ClassNode1"/> 
-   <object idref="ClassNode8"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.NoteEdge"/> 
-   <object idref="InterfaceNode1"/> 
-   <object idref="NoteNode2"/> 
-  </void> 
-  <void method="connect"> 
-   <object class="com.horstmann.violet.NoteEdge"/> 
-   <object idref="ClassNode1"/> 
-   <object idref="NoteNode0"/> 
+   <object idref="InterfaceNode2"/> 
   </void> 
  </object> 
 </java> 
