@@ -280,8 +280,8 @@ BurnSource</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>1346.0915916838594</double> 
-     <double>425.9484445198948</double> 
+     <double>1335.6119487863941</double> 
+     <double>398.7730655710078</double> 
     </void> 
    </object> 
   </void> 
@@ -341,8 +341,8 @@ BurnSource</string>
    </object> 
    <object class="java.awt.geom.Point2D$Double"> 
     <void method="setLocation"> 
-     <double>1340.0</double> 
-     <double>400.0</double> 
+     <double>1330.0</double> 
+     <double>370.0</double> 
     </void> 
    </object> 
   </void> 
