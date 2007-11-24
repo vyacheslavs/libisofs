@@ -51,6 +51,7 @@
 <pathentry kind="src" path="src"/>
 <pathentry kind="out" path=""/>
 <pathentry kind="con" path="org.eclipse.cdt.make.core.DISCOVERED_SCANNER_INFO"/>
+<pathentry kind="src" path="test"/>
 </item>
 </data>
 </cdtproject>
