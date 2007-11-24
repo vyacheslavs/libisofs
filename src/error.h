@@ -5,14 +5,17 @@
  * modify it under the terms of the GNU General Public License version 2 as 
  * published by the Free Software Foundation. See COPYING file for details.
  */
+#ifndef LIBISO_ERROR_H_
+#define LIBISO_ERROR_H_
 
-#include "tree.h"
-#include "libisofs.h"
-
-
-/**
- * Increments the reference counting of the given node.
+/*
+ * Return values for libisofs functions, mainly error codes
+ * TODO #00003 make this header public
  */
-void iso_node_ref(IsoTreeNode *node) {
-	node->refcount++;
-}
+
+#define ISO_SUCCESS				1
+#define ISO_NULL_POINTER		-1
+
+
+
+#endif /*LIBISO_ERROR_H_*/

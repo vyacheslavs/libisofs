@@ -10,9 +10,12 @@ lib_LTLIBRARIES = src/libisofs.la
 src_libisofs_la_LDFLAGS = \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 src_libisofs_la_SOURCES = \
-	src/tree.h \
-	src/tree.c \
-	src/image.h 
+	src/node.h \
+	src/node.c \
+	src/image.h \
+	src/fsource.h \
+	src/fs_local.c \
+	src/stream.h 
 libinclude_HEADERS = \
 	src/libisofs.h
 

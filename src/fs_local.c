@@ -6,11 +6,10 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-#include "libisofs.h"
+ 
+/*
+ * Filesystem/FileSource implementation to access the local filesystem.
+ */
 
+#include "fsource.h"
 
-int main(int argc, char **argv)
-{
-	IsoNode *node;
-	
-}

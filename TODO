@@ -6,6 +6,8 @@ TODO
 ====
 
 #00001 (tree.h) -> consider adding new timestamps to IsoTreeNode
+#00002 (tree.h) -> handle deletion of each kind of node 
+#00003 make error.h header public
 
 FIXME
 =====

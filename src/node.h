@@ -5,8 +5,8 @@
  * modify it under the terms of the GNU General Public License version 2 as 
  * published by the Free Software Foundation. See COPYING file for details.
  */
-#ifndef LIBISO_TREE_H_
-#define LIBISO_TREE_H_
+#ifndef LIBISO_NODE_H_
+#define LIBISO_NODE_H_
 
 /*
  * Definitions for the public iso tree
@@ -19,9 +19,9 @@
 #include <unistd.h>
 
 /**
- * The type of an IsoTreeNode.
+ * The type of an IsoNode.
  */
-enum IsoTreeNodeType {
+enum IsoNodeType {
     LIBISO_DIR,
     LIBISO_FILE,
     LIBISO_SYMLINK,
@@ -32,18 +32,19 @@ enum IsoTreeNodeType {
 /**
  * 
  */
-struct Iso_Tree_Node {
+struct Iso_Node
+{
     /*
      * Initilized to 1, originally owned by user, until added to another node.
      * Then it is owned by the parent node, so the user must take his own ref 
      * if needed. With the exception of the creation functions, none of the
-     * other libisofs functions that return an IsoTreeNode increment its 
+     * other libisofs functions that return an IsoNode increment its 
      * refcount. This is responsablity of the client, if (s)he needs it.
      */
     int refcount;
 
-    /**< Type of the IsoTreeNode, do not confuse with mode */
-    enum IsoTreeNodeType type;
+    /**< Type of the IsoNode, do not confuse with mode */
+    enum IsoNodeType type;
 
     char *name; /**< Real name, supossed to be in UTF-8 */
 
@@ -63,18 +64,29 @@ struct Iso_Tree_Node {
      * It is a circular list where the last child points to the first
      * and viceversa.
      */
-    IsoTreeNode *prev;
-    IsoTreeNode *next;
+    IsoNode *prev;
+    IsoNode *next;
 };
 
-struct IsoDir {
-    IsoTreeNode node;
+struct Iso_Dir
+{
+    IsoNode node;
 
     size_t nchildren; /**< The number of children of this directory. */
-    struct IsoTreeNode *children; /**< list of children. ptr to first child */
+    struct IsoNode *children; /**< list of children. ptr to first child */
 };
 
-//void iso_node_unref(IsoTreeNode *node);
+struct Iso_File
+{
+    IsoNode node;
+
+	/** 
+	 * It sorts the order in which the file data is written to the CD image.
+	 * Higher weighting filesare written at the beginning of image 
+	 */
+    int sort_weight;
+    
+};
 
 
-#endif /*TREE_H_*/
+#endif /*LIBISO_NODE_H_*/
