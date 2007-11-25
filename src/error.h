@@ -14,8 +14,23 @@
  */
 
 #define ISO_SUCCESS				1
-#define ISO_NULL_POINTER		-1
+#define ISO_ERROR				-1
+#define ISO_NULL_POINTER		-2
+#define ISO_OUT_OF_MEM			-3
+#define ISO_MEM_ERROR			-4
+#define ISO_INTERRUPTED			-5
+#define ISO_WRONG_ARG_VALUE		-6
 
+#define ISO_FILE_ERROR					-100
+#define ISO_FILE_ALREADY_OPENNED		-101
+#define ISO_FILE_ACCESS_DENIED			-102
+#define ISO_FILE_BAD_PATH				-103
+#define ISO_FILE_DOESNT_EXIST			-104
+#define ISO_FILE_NOT_OPENNED			-105
+#define ISO_FILE_IS_DIR					-106
+#define ISO_FILE_READ_ERROR				-107
+#define ISO_FILE_IS_NOT_DIR				-108
+#define ISO_FILE_IS_NOT_SYMLINK			-109
 
 
 #endif /*LIBISO_ERROR_H_*/

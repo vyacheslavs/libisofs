@@ -14,6 +14,7 @@ src_libisofs_la_SOURCES = \
 	src/node.c \
 	src/image.h \
 	src/fsource.h \
+	src/fsource.c \
 	src/fs_local.c \
 	src/stream.h 
 libinclude_HEADERS = \
