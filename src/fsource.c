@@ -21,3 +21,16 @@ void iso_file_source_unref(IsoFileSource *src)
 		free(src);
 	}
 }
+
+void iso_filesystem_ref(IsoFilesystem *fs)
+{
+	++fs->refcount;
+}
+
+void iso_filesystem_unref(IsoFilesystem *fs)
+{
+	if (--fs->refcount == 0) {
+		fs->free(fs);
+		free(fs);
+	}
+}

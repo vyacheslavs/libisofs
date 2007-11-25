@@ -31,9 +31,19 @@ struct Iso_Filesystem
      * @return
      *    1 on success, < 0 on error
      */
-    int (*get_root)(IsoFilesystem *fs, IsoFileSource *root);
+    int (*get_root)(IsoFilesystem *fs, IsoFileSource **root);
 
+	/**
+	 * 
+	 * 
+	 */
+    int (*get_by_path)(IsoFilesystem *fs, const char *path, 
+                       IsoFileSource **file);
 
+    void (*free)(IsoFilesystem *fs);
+
+    int refcount;
+    void *data;
 };
 
 struct Iso_File_Source
@@ -177,6 +187,17 @@ void iso_file_source_unref(IsoFileSource *src);
  * While this is usually called by corresponding method in IsoFilesystem
  * object, for local filesystem it is legal to call this directly.
  */
-int iso_file_source_new_lfs(char *path, IsoFileSource **src);
+int iso_file_source_new_lfs(const char *path, IsoFileSource **src);
+
+void iso_filesystem_ref(IsoFilesystem *fs);
+void iso_filesystem_unref(IsoFilesystem *fs);
+
+/**
+ * Create a new IsoFilesystem to deal with local filesystem.
+ * 
+ * @return
+ *     1 sucess, < 0 error
+ */
+int iso_local_filesystem_new(IsoFilesystem **fs);
 
 #endif /*LIBISO_FSOURCE_H_*/

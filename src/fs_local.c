@@ -238,9 +238,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
 
             /* create the new FileSrc */
             ret = iso_file_source_new_lfs(path, child);
-            if (ret < 0) {
-                free(path);
-            }
+            free(path);
             return ret;
         }
     default:
@@ -316,7 +314,7 @@ void lfs_free(IsoFileSource *src)
  * @return
  *     1 success, < 0 error
  */
-int iso_file_source_new_lfs(char *path, IsoFileSource **src)
+int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
 {
     IsoFileSource *lfs_src;
     _LocalFsFileSource *data;
@@ -337,7 +335,7 @@ int iso_file_source_new_lfs(char *path, IsoFileSource **src)
     }
 
     /* fill struct */
-    data->path = path;
+    data->path = strdup(path);
     data->openned = 0;
 
     lfs_src->refcount = 1;
@@ -356,4 +354,51 @@ int iso_file_source_new_lfs(char *path, IsoFileSource **src)
     return ISO_SUCCESS;
 }
 
+static
+int lfs_get_root(IsoFilesystem *fs, IsoFileSource **root)
+{
+	if (fs == NULL || root == NULL) {
+        return ISO_NULL_POINTER;
+    }
+	return iso_file_source_new_lfs("/", root);
+}
 
+static
+int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
+{
+	if (fs == NULL || path == NULL || file == NULL) {
+        return ISO_NULL_POINTER;
+    }
+	return iso_file_source_new_lfs(path, file);
+}
+
+static
+void lfs_fs_free(IsoFilesystem *fs)
+{
+	/* nothing to do */
+	return;
+}
+    
+int iso_local_filesystem_new(IsoFilesystem **fs)
+{
+	IsoFilesystem *lfs;
+	
+	if (fs == NULL) {
+        return ISO_NULL_POINTER;
+    }
+	
+	lfs = malloc(sizeof(IsoFilesystem));
+    if (lfs == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    
+    /* fill struct */
+    lfs->refcount = 1;
+    lfs->data = NULL; /* we don't need private data */
+    lfs->get_root = lfs_get_root;
+    lfs->get_by_path = lfs_get_by_path;
+    lfs->free = lfs_fs_free;
+	
+	*fs = lfs;
+	return ISO_SUCCESS;
+}
