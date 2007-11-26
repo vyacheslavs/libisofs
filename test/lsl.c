@@ -111,6 +111,7 @@ int main(int argc, char **argv)
 
         while (dir->readdir(dir, &file) == 1) {
             print_file_src(file);
+            iso_file_source_unref(file);
         }
 
         res = dir->close(dir);
@@ -121,7 +122,8 @@ int main(int argc, char **argv)
     } else {
         print_file_src(dir);
     }
-
-
+    
+    iso_file_source_unref(dir);
+    iso_filesystem_unref(fs);
     return 0;
 }

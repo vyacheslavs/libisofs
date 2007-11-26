@@ -151,6 +151,7 @@ int lfs_open(IsoFileSource *src)
 static
 int lfs_close(IsoFileSource *src)
 {
+    int ret;
     _LocalFsFileSource *data;
 
     if (src == NULL) {
@@ -160,12 +161,19 @@ int lfs_close(IsoFileSource *src)
     data = src->data;
     switch(data->openned) {
     case 1: /* not dir */
-        return close(data->info.fd) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
+        ret = close(data->info.fd) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
+        break;
     case 2: /* directory */
-        return closedir(data->info.dir) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
+        ret = closedir(data->info.dir) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
+        break;
     default:
-        return ISO_FILE_NOT_OPENNED;
+        ret = ISO_FILE_NOT_OPENNED;
+        break;
     }
+    if (ret == ISO_SUCCESS) {
+        data->openned = 0;
+    }
+    return ret;
 }
 
 static

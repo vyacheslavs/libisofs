@@ -67,6 +67,8 @@ int main(int argc, char **argv)
         }
         file->close(file);
     }
-
+    
+    iso_file_source_unref(file);
+    iso_filesystem_unref(fs);
     return 0;
 }

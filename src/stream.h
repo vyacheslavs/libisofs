@@ -29,16 +29,17 @@ struct Iso_Stream
 	
 	/**
 	 * Close the Stream.
+     * @return 1 on success, < 0 on error
 	 */
-	void (*close)(IsoStream *stream);
+	int (*close)(IsoStream *stream);
 	
+    
 	// Stream should read in 2k blocks!
 	//...
+    
 	
 	int refcount;
-	
-	
-	
+	void *data;
 }
 
 #endif /*STREAM_H_*/
