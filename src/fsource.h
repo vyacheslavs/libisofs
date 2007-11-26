@@ -58,6 +58,14 @@ struct Iso_File_Source
      *     freed by the user.
      */
     const char* (*get_path)(IsoFileSource *src);
+    
+    /**
+     * Get the name of the file, with the dir component of the path. 
+     * 
+     * @return
+     *     the name of the file, it should be freed when no more needed.
+     */
+    char* (*get_name)(IsoFileSource *src);
 
     /**
      * Get information about the file.

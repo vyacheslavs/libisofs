@@ -21,3 +21,4 @@ Makefile
 test/iso
 *.lo
 *.la
+./test/lsl

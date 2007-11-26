@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <libgen.h>
 #include <string.h>
 
 typedef struct
@@ -43,6 +44,18 @@ const char* lfs_get_path(IsoFileSource *src)
     return data->path;
 }
 
+static
+char* lfs_get_name(IsoFileSource *src)
+{
+    char *name, *p;
+    _LocalFsFileSource *data;
+    data = src->data;
+    p = strdup(data->path); /* because basename() might modify its arg */
+    name = strdup(basename(p));
+    free(p);    
+    return name;
+}
+    
 static
 int lfs_lstat(IsoFileSource *src, struct stat *info)
 {
@@ -336,11 +349,22 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
 
     /* fill struct */
     data->path = strdup(path);
+    {
+        /* remove trailing '/' */
+        int len = strlen(path);
+        if (len > 1) {
+            /* don't remove / for root! */
+            if (path[len-1] == '/') {
+                data->path[len-1] = '\0';
+            }
+        }
+    }
     data->openned = 0;
 
     lfs_src->refcount = 1;
     lfs_src->data = data;
     lfs_src->get_path = lfs_get_path;
+    lfs_src->get_name = lfs_get_name;
     lfs_src->lstat = lfs_lstat;
     lfs_src->open = lfs_open;
     lfs_src->close = lfs_close;
