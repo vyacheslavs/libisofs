@@ -24,11 +24,16 @@ libinclude_HEADERS = \
 
 ## Build test applications
 noinst_PROGRAMS = \
-	test/lsl 
+	test/lsl \
+	test/cat 
 
 test_lsl_CPPFLAGS = -Isrc
 test_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 test_lsl_SOURCES = test/lsl.c
+
+test_cat_CPPFLAGS = -Isrc
+test_cat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+test_cat_SOURCES = test/cat.c
 
 
 ## Build unit test

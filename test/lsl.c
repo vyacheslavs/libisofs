@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 /*
  * Little test program to test filesystem implementations.
@@ -40,8 +41,6 @@ print_permissions(mode_t mode)
 static void
 print_type(mode_t mode)
 {
-    char type[1];
-
     switch(mode & S_IFMT) {
     case S_IFSOCK: printf("[S] "); break;
     case S_IFLNK: printf("[L] "); break;
@@ -61,8 +60,14 @@ print_file_src(IsoFileSource *file)
     print_type(info.st_mode);
     print_permissions(info.st_mode);
     name = file->get_name(file);
-    printf(" %s\n", name);
+    printf(" %s", name);
     free(name);
+    if (S_ISLNK(info.st_mode)) {
+        char buf[PATH_MAX];
+        file->readlink(file, buf, PATH_MAX);
+        printf(" -> %s\n", buf);
+    }
+    printf("\n");
 }
 
 int main(int argc, char **argv)
@@ -74,7 +79,7 @@ int main(int argc, char **argv)
     struct stat info;
 
     if (argc != 2) {
-        fprintf(stderr, "Usage: iso /path/to/dir\n");
+        fprintf(stderr, "Usage: lsl /path/to/file\n");
         return 1;
     }
 
@@ -97,7 +102,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    //TODO check dir vs file
     if (S_ISDIR(info.st_mode)) {
         res = dir->open(dir);
         if (res < 0) {

@@ -22,3 +22,4 @@ test/iso
 *.lo
 *.la
 ./test/lsl
+./test/cat
