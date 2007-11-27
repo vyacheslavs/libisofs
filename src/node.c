@@ -50,7 +50,73 @@ void iso_node_set_name(IsoNode *node, const char *name)
  * The returned string belongs to the node and should not be modified nor
  * freed. Use strdup if you really need your own copy.
  */
-const char *iso_node_get_name(IsoNode *node)
+const char *iso_node_get_name(const IsoNode *node)
 {
     return node->name;
+}
+
+/**
+ * Set the permissions for the node. This attribute is only useful when 
+ * Rock Ridge extensions are enabled.
+ * 
+ * @param mode 
+ *     bitmask with the permissions of the node, as specified in 'man 2 stat'.
+ *     The file type bitfields will be ignored, only file permissions will be
+ *     modified.
+ */
+void iso_node_set_permissions(IsoNode *node, mode_t mode)
+{
+    node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
+}
+
+/** 
+ * Get the permissions for the node 
+ */
+mode_t iso_node_get_permissions(const IsoNode *node)
+{
+    return node->mode & ~S_IFMT;
+}
+
+/** 
+ * Get the mode of the node, both permissions and file type, as specified in
+ * 'man 2 stat'.
+ */
+mode_t iso_node_get_mode(const IsoNode *node)
+{
+    return node->mode;
+}
+
+
+/**
+ * Set the user id for the node. This attribute is only useful when 
+ * Rock Ridge extensions are enabled.
+ */
+void iso_node_set_uid(IsoNode *node, uid_t uid)
+{
+    node->uid = uid;
+}
+
+/**
+ * Get the user id of the node.
+ */
+uid_t iso_node_get_uid(const IsoNode *node)
+{
+    return node->uid;
+}
+
+/**
+ * Set the group id for the node. This attribute is only useful when 
+ * Rock Ridge extensions are enabled.
+ */
+void iso_node_set_gid(IsoNode *node, gid_t gid)
+{
+    node->gid = gid;
+}
+
+/**
+ * Get the group id of the node.
+ */
+gid_t iso_node_get_gid(const IsoNode *node)
+{
+    return node->gid;
 }

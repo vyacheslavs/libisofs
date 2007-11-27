@@ -30,6 +30,16 @@ enum IsoNodeType {
 };
 
 /**
+ * Flag used to hide a file in the RR/ISO or Joliet tree.
+ * 
+ * \see iso_tree_node_set_hidden
+ */
+enum IsoHideNodeFlag {
+    LIBISO_HIDE_ON_RR = 1 << 0,
+    LIBISO_HIDE_ON_JOLIET = 1 << 1
+};
+
+/**
  * 
  */
 struct Iso_Node
@@ -56,6 +66,8 @@ struct Iso_Node
     time_t atime; /**< time of last access */
     time_t mtime; /**< time of last modification */
     time_t ctime; /**< time of last status change */
+    
+    int hidden; /**< whether the node will be hidden, see IsoHideNodeFlag */   
 
     struct IsoDir *parent; /**< parent node, NULL for root */
 
@@ -88,5 +100,11 @@ struct Iso_File
     
 };
 
+struct Iso_Symlink
+{
+    IsoNode node;
+    
+    char *dest;
+};
 
 #endif /*LIBISO_NODE_H_*/
