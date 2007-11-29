@@ -22,31 +22,33 @@ libinclude_HEADERS = \
 
 ## ========================================================================= ##
 
-## Build test applications
+## Build demo applications
 noinst_PROGRAMS = \
-	test/lsl \
-	test/cat 
+	demo/lsl \
+	demo/cat 
 
-test_lsl_CPPFLAGS = -Isrc
-test_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
-test_lsl_SOURCES = test/lsl.c
+demo_lsl_CPPFLAGS = -Isrc
+demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_lsl_SOURCES = demo/lsl.c
 
-test_cat_CPPFLAGS = -Isrc
-test_cat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
-test_cat_SOURCES = test/cat.c
+demo_cat_CPPFLAGS = -Isrc
+demo_cat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_cat_SOURCES = demo/cat.c
 
 
 ## Build unit test
  
-#check_PROGRAMS = \
-#	test/test
+check_PROGRAMS = \
+	test/test
 	
-#test_test_CPPFLAGS = -Ilibisofs
-#test_test_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS) -lcunit
-#test_test_LDFLAGS = -L.. -lm
+test_test_CPPFLAGS = -Isrc
+test_test_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS) -lcunit
+test_test_LDFLAGS = -L.. -lm
 	
-#test_test_SOURCES = \
-#	test/test_exclude.c 
+test_test_SOURCES = \
+	test/test.h \
+	test/test.c \
+	test/test_node.c 
 
 ## ========================================================================= ##
 
