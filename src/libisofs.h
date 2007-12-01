@@ -124,4 +124,14 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child);
  */
 int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
 
+/**
+ * Get the number of children of a directory.
+ * 
+ * @return
+ *     >= 0 number of items, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if dir is NULL
+ */
+int iso_dir_get_nchildren(IsoDir *dir);
+
 #endif /*LIBISO_LIBISOFS_H_*/

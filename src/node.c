@@ -198,3 +198,19 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
     *node = pos;
     return 1;
 }
+
+/**
+ * Get the number of children of a directory.
+ * 
+ * @return
+ *     >= 0 number of items, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if dir is NULL
+ */
+int iso_dir_get_nchildren(IsoDir *dir)
+{
+    if (dir == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    return dir->nchildren;
+}
