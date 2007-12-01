@@ -214,3 +214,57 @@ int iso_dir_get_nchildren(IsoDir *dir)
     }
     return dir->nchildren;
 }
+
+int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
+{
+    IsoDirIter *it;
+    
+    if (dir == NULL || iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    it = malloc(sizeof(IsoDirIter));
+    if (it == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    
+    it->dir = dir;
+    it->pos = dir->children;
+    
+    *iter = it;
+    return ISO_SUCCESS;
+}
+
+int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node)
+{
+    IsoNode *n;
+    if (iter == NULL || node == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    n = iter->pos;
+    if (n == NULL) {
+        return 0;
+    }
+    if (n->parent != iter->dir) {
+        /* this can happen if the node has been moved to another dir */
+        return ISO_ERROR;
+    }
+    *node = n;
+    iter->pos = n->next;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Check if there're more children.
+ * 
+ * @return
+ *     1 dir has more elements, 0 no, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if iter is NULL
+ */
+int iso_dir_iter_has_next(IsoDirIter *iter)
+{
+    if (iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    return iter->pos == NULL ? 0 : 1;
+}

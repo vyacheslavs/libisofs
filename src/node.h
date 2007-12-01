@@ -107,4 +107,14 @@ struct Iso_Symlink
     char *dest;
 };
 
+
+/**
+ * An iterator for directory children.
+ */
+struct Iso_Dir_Iter
+{
+    const IsoDir *dir;
+    IsoNode *pos;
+};
+
 #endif /*LIBISO_NODE_H_*/

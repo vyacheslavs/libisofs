@@ -13,6 +13,7 @@
 typedef struct Iso_Node IsoNode;
 typedef struct Iso_Dir IsoDir;
 typedef struct Iso_Symlink IsoSymlink;
+typedef struct Iso_Dir_Iter IsoDirIter;
 
 /**
  * Increments the reference counting of the given node.
@@ -133,5 +134,68 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
  *         ISO_NULL_POINTER, if dir is NULL
  */
 int iso_dir_get_nchildren(IsoDir *dir);
+
+/**
+ * Get an iterator for the children of the given dir.
+ * 
+ * You can iterate over the children with iso_dir_iter_next. When finished,
+ * you should free the iterator with iso_dir_iter_free.
+ * You musn't delete a child of the same dir, using iso_node_take() or
+ * iso_node_remove(), while you're using the iterator. You can use 
+ * iso_node_take_iter() or iso_node_remove_iter() instead.
+ * 
+ * You can use the iterator in the way like this
+ * 
+ * IsoDirIter *iter;
+ * IsoNode *node;
+ * if ( iso_dir_get_children(dir, &iter) != 1 ) {
+ *     // handle error
+ * }
+ * while ( iso_dir_iter_next(iter, &node) == 1 ) {
+ *     // do something with the child
+ * }
+ * iso_dir_iter_free(iter);
+ * 
+ * An iterator is intended to be used in a single iteration over the
+ * children of a dir. Thus, it should be treated as a temporary object,
+ * and free as soon as possible. 
+ *  
+ * @return
+ *     1 success, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if dir or iter are NULL
+ *         ISO_OUT_OF_MEM
+ */
+int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter);
+
+/**
+ * Get the next child.
+ * Take care that the node is owned by its parent, and will be unref() when
+ * the parent is freed. If you want your own ref to it, call iso_node_ref()
+ * on it.
+ * 
+ * @return
+ *     1 success, 0 if dir has no more elements, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if node or iter are NULL
+ *         ISO_ERROR, on wrong iter usage, usual caused by modiying the
+ *         dir during iteration
+ */
+int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node);
+
+/**
+ * Check if there're more children.
+ * 
+ * @return
+ *     1 dir has more elements, 0 no, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if iter is NULL
+ */
+int iso_dir_iter_has_next(IsoDirIter *iter);
+
+/** 
+ * Free a dir iterator.
+ */
+void iso_dir_iter_free(IsoDirIter *iter);
 
 #endif /*LIBISO_LIBISOFS_H_*/
