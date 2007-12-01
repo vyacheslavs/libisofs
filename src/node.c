@@ -6,8 +6,9 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-#include "node.h"
 #include "libisofs.h"
+#include "node.h"
+#include "error.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -119,4 +120,81 @@ void iso_node_set_gid(IsoNode *node, gid_t gid)
 gid_t iso_node_get_gid(const IsoNode *node)
 {
     return node->gid;
+}
+
+/**
+ * Add a new node to a dir. Note that this function don't add a new ref to
+ * the node, so you don't need to free it, it will be automatically freed
+ * when the dir is deleted. Of course, if you want to keep using the node
+ * after the dir life, you need to iso_node_ref() it.
+ * 
+ * @param dir 
+ *     the dir where to add the node
+ * @param child 
+ *     the node to add. You must ensure that the node hasn't previously added
+ *     to other dir, and that the node name is unique inside the child.
+ *     Otherwise this function will return a failure, and the child won't be
+ *     inserted.
+ * @return
+ *     number of nodes in dir if succes, < 0 otherwise
+ */
+int iso_dir_add_node(IsoDir *dir, IsoNode *child)
+{
+    IsoNode **pos;
+    
+    if (dir == NULL || child == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if ((IsoNode*)dir == child) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (child->parent != NULL) {
+        return ISO_NODE_ALREADY_ADDED;
+    }
+    
+    pos = &(dir->children);
+    while (*pos != NULL && strcmp((*pos)->name, child->name) < 0) {
+        pos = &((*pos)->next);
+    }
+    if (*pos != NULL && !strcmp((*pos)->name, child->name)) {
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+    
+    child->next = *pos;
+    *pos = child;
+    child->parent = dir;
+    
+    return ++dir->nchildren;
+}
+
+/**
+ * Locate a node inside a given dir.
+ * 
+ * @param name
+ *     The name of the node
+ * @param node
+ *     Location for a pointer to the node, it will filled with NULL if the dir 
+ *     doesn't have a child with the given name.
+ * @return 
+ *     1 node found, 0 child has no such node, < 0 error
+ */
+int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
+{
+    IsoNode *pos;
+    if (dir == NULL || name == NULL || node == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    pos = dir->children;
+    while (pos != NULL && strcmp(pos->name, name) < 0) {
+        pos = pos->next;
+    }
+    
+    if (pos == NULL || strcmp(pos->name, name)) {
+        *node = NULL;
+        return 0; /* node not found */
+    }
+    
+    *node = pos;
+    return 1;
 }

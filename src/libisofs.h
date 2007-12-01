@@ -84,4 +84,44 @@ void iso_node_set_gid(IsoNode *node, gid_t gid);
  */
 gid_t iso_node_get_gid(const IsoNode *node);
 
+/**
+ * Add a new node to a dir. Note that this function don't add a new ref to
+ * the node, so you don't need to free it, it will be automatically freed
+ * when the dir is deleted. Of course, if you want to keep using the node
+ * after the dir life, you need to iso_node_ref() it.
+ * 
+ * @param dir 
+ *     the dir where to add the node
+ * @param child 
+ *     the node to add. You must ensure that the node hasn't previously added
+ *     to other dir, and that the node name is unique inside the child.
+ *     Otherwise this function will return a failure, and the child won't be
+ *     inserted.
+ * @return
+ *     number of nodes in dir if succes, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if dir or child are NULL
+ *         ISO_NODE_ALREADY_ADDED, if child is already added to other dir 
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_WRONG_ARG_VALUE, if child == dir
+ */
+int iso_dir_add_node(IsoDir *dir, IsoNode *child);
+
+/**
+ * Locate a node inside a given dir.
+ * 
+ * @param name
+ *     The name of the node
+ * @param node
+ *     Location for a pointer to the node, it will filled with NULL if the dir 
+ *     doesn't have a child with the given name.
+ *     The node will be owned by the dir and shouldn't be unref(). Just call
+ *     iso_node_ref() to get your own reference to the node.
+ * @return 
+ *     1 node found, 0 child has no such node, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if dir, node or name are NULL
+ */
+int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
+
 #endif /*LIBISO_LIBISOFS_H_*/

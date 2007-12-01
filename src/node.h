@@ -69,7 +69,7 @@ struct Iso_Node
     
     int hidden; /**< whether the node will be hidden, see IsoHideNodeFlag */   
 
-    struct IsoDir *parent; /**< parent node, NULL for root */
+    IsoDir *parent; /**< parent node, NULL for root */
 
     /*
      * Pointers to the doubled linked list of children in a dir.
@@ -85,7 +85,7 @@ struct Iso_Dir
     IsoNode node;
 
     size_t nchildren; /**< The number of children of this directory. */
-    struct IsoNode *children; /**< list of children. ptr to first child */
+    IsoNode *children; /**< list of children. ptr to first child */
 };
 
 struct Iso_File

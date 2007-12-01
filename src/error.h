@@ -21,6 +21,9 @@
 #define ISO_INTERRUPTED			-5
 #define ISO_WRONG_ARG_VALUE		-6
 
+#define ISO_NODE_ALREADY_ADDED          -50
+#define ISO_NODE_NAME_NOT_UNIQUE        -51
+
 #define ISO_FILE_ERROR					-100
 #define ISO_FILE_ALREADY_OPENNED		-101
 #define ISO_FILE_ACCESS_DENIED			-102
