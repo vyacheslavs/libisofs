@@ -198,4 +198,29 @@ int iso_dir_iter_has_next(IsoDirIter *iter);
  */
 void iso_dir_iter_free(IsoDirIter *iter);
 
+/**
+ * Removes a child from a directory.
+ * The child is not freed, so you will become the owner of the node. Later
+ * you can add the node to another dir (calling iso_dir_add_node), or free
+ * it if you don't need it (with iso_node_unref).
+ * 
+ * @return 
+ *     1 on success, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if node is NULL
+ *         ISO_NODE_NOT_ADDED_TO_DIR, if node doesn't belong to a dir
+ */
+int iso_node_take(IsoNode *node);
+
+/**
+ * Removes a child from a directory and free (unref) it.
+ * If you want to keep the child alive, you need to iso_node_ref() it
+ * before this call, but in that case iso_node_take() is a better
+ * alternative.
+ * 
+ * @return 
+ *     1 on success, < 0 error
+ */
+int iso_node_remove(IsoNode *node);
+
 #endif /*LIBISO_LIBISOFS_H_*/

@@ -29,7 +29,21 @@ void iso_node_ref(IsoNode *node)
 void iso_node_unref(IsoNode *node)
 {
     if (--node->refcount == 0) {
-        /* TODO #00002 handle deletion of each kind of node */
+        switch(node->type) {
+        case LIBISO_DIR:
+            {
+                IsoNode *child = ((IsoDir*)node)->children;
+                while (child != NULL) {
+                    IsoNode *tmp = child->next;
+                    iso_node_unref(child);
+                    child = tmp;
+                }
+            }
+            break;
+        default:
+            /* TODO #00002 handle deletion of each kind of node */
+            break;    
+        }
         free(node->name);
         free(node);
     }
@@ -267,4 +281,67 @@ int iso_dir_iter_has_next(IsoDirIter *iter)
         return ISO_NULL_POINTER;
     }
     return iter->pos == NULL ? 0 : 1;
+}
+
+static IsoNode**
+iso_dir_find_node(IsoDir *dir, IsoNode *node)
+{
+    IsoNode **pos;
+    pos = &(dir->children);
+    while (*pos != NULL && *pos != node) {
+        pos = &((*pos)->next);
+    } 
+    return pos;
+}
+
+/**
+ * Removes a child from a directory.
+ * The child is not freed, so you will become the owner of the node. Later
+ * you can add the node to another dir (calling iso_dir_add_node), or free
+ * it if you don't need it (with iso_node_unref).
+ * 
+ * @return 
+ *     1 on success, < 0 error
+ */
+int iso_node_take(IsoNode *node)
+{
+    IsoNode **pos;
+    IsoDir* dir;
+    
+    if (node == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    dir = node->parent;
+    if (dir == NULL) {
+        return ISO_NODE_NOT_ADDED_TO_DIR;
+    }
+    pos = iso_dir_find_node(dir, node);
+    if (pos == NULL) {
+        /* should never occur */
+        return ISO_ERROR;
+    }
+    *pos = node->next;
+    node->parent = NULL;
+    node->next = NULL;
+    dir->nchildren--;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Removes a child from a directory and free (unref) it.
+ * If you want to keep the child alive, you need to iso_node_ref() it
+ * before this call, but in that case iso_node_take() is a better
+ * alternative.
+ * 
+ * @return 
+ *     1 on success, < 0 error
+ */
+int iso_node_remove(IsoNode *node)
+{
+    int ret;
+    ret = iso_node_take(node);
+    if (ret == ISO_SUCCESS) {
+        iso_node_unref(node);
+    }
+    return ret;
 }

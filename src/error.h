@@ -23,6 +23,7 @@
 
 #define ISO_NODE_ALREADY_ADDED          -50
 #define ISO_NODE_NAME_NOT_UNIQUE        -51
+#define ISO_NODE_NOT_ADDED_TO_DIR       -52
 
 #define ISO_FILE_ERROR					-100
 #define ISO_FILE_ALREADY_OPENNED		-101
