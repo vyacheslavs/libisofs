@@ -10,9 +10,12 @@ lib_LTLIBRARIES = src/libisofs.la
 src_libisofs_la_LDFLAGS = \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 src_libisofs_la_SOURCES = \
+	src/builder.h \
+	src/error.h \
 	src/node.h \
 	src/node.c \
 	src/image.h \
+	src/image.c \
 	src/fsource.h \
 	src/fsource.c \
 	src/fs_local.c \

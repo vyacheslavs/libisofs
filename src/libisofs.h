@@ -9,13 +9,41 @@
 #define LIBISO_LIBISOFS_H_
 
 #include <sys/stat.h>
- 
+
+typedef struct Iso_Image IsoImage;
+
 typedef struct Iso_Node IsoNode;
 typedef struct Iso_Dir IsoDir;
 typedef struct Iso_Symlink IsoSymlink;
 typedef struct Iso_File IsoFile;
 
 typedef struct Iso_Dir_Iter IsoDirIter;
+
+/**
+ * Create a new image, empty.
+ * 
+ * The image will be owned by you and should be unref() when no more needed.
+ * 
+ * @param name
+ *     Name of the image. This will be used as volset_id and volume_id.
+ * @param image
+ *     Location where the image pointer will be stored.
+ * @return
+ *     1 sucess, < 0 error
+ */
+int iso_image_new(const char *name, IsoImage **image);
+
+/**
+ * Increments the reference counting of the given image.
+ */
+void iso_image_ref(IsoImage *image);
+
+/**
+ * Decrements the reference couting of the given image.
+ * If it reaches 0, the image is free, together with its tree nodes (whether 
+ * their refcount reach 0 too, of course).
+ */
+void iso_image_unref(IsoImage *image);
 
 /**
  * Increments the reference counting of the given node.

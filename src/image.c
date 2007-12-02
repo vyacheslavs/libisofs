@@ -1,0 +1,86 @@
+/*
+ * Copyright (c) 2007 Vreixo Formoso
+ * 
+ * This file is part of the libisofs project; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License version 2 as 
+ * published by the Free Software Foundation. See COPYING file for details.
+ */
+
+#include "libisofs.h"
+#include "image.h"
+#include "error.h"
+#include "node.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+/**
+ * Create a new image, empty.
+ * 
+ * The image will be owned by you and should be unref() when no more needed.
+ * 
+ * @param name
+ *     Name of the image. This will be used as volset_id and volume_id.
+ * @param image
+ *     Location where the image pointer will be stored.
+ * @return
+ *     1 sucess, < 0 error
+ */
+int iso_image_new(const char *name, IsoImage **image)
+{
+    int res;
+    IsoImage *img;
+    
+    if (image == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    img = calloc(1, sizeof(IsoImage));
+    if (img == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    /* fill image fields */
+    res = iso_node_new_root(&img->root);
+    if (res < 0) {
+        free(img);
+        return res;
+    }
+    img->refcount = 1;
+    if (name != NULL) {
+        img->volset_id = strdup(name);
+        img->volume_id = strdup(name);
+    }
+    *image = img;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Increments the reference counting of the given image.
+ */
+void iso_image_ref(IsoImage *image)
+{
+    ++image->refcount;
+}
+
+/**
+ * Decrements the reference couting of the given image.
+ * If it reaches 0, the image is free, together with its tree nodes (whether 
+ * their refcount reach 0 too, of course).
+ */
+void iso_image_unref(IsoImage *image)
+{
+    if (--image->refcount == 0) {
+        /* we need to free the image */
+        iso_node_unref((IsoNode*)image->root);
+        free(image->volset_id);
+        free(image->volume_id);
+        free(image->publisher_id);
+        free(image->data_preparer_id);
+        free(image->system_id);
+        free(image->application_id);
+        free(image->copyright_file_id);
+        free(image->abstract_file_id);
+        free(image->biblio_file_id);
+    }
+}
