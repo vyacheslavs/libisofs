@@ -84,3 +84,111 @@ void iso_image_unref(IsoImage *image)
         free(image->biblio_file_id);
     }
 }
+
+IsoDir *iso_image_get_root(const IsoImage *image)
+{
+    return image->root;
+}
+
+void iso_image_set_volset_id(IsoImage *image, const char *volset_id)
+{
+    free(image->volset_id);
+    image->volset_id = strdup(volset_id);
+}
+
+const char *iso_image_get_volset_id(const IsoImage *image)
+{
+    return image->volset_id;
+}
+
+void iso_image_set_volume_id(IsoImage *image, const char *volume_id)
+{
+    free(image->volume_id);
+    image->volume_id = strdup(volume_id);
+}
+
+const char *iso_image_get_volume_id(const IsoImage *image)
+{
+    return image->volume_id;
+}
+
+void iso_image_set_publisher_id(IsoImage *image, const char *publisher_id)
+{
+    free(image->publisher_id);
+    image->publisher_id = strdup(publisher_id);
+}
+
+const char *iso_image_get_publisher_id(const IsoImage *image)
+{
+    return image->publisher_id;
+}
+
+void iso_image_set_data_preparer_id(IsoImage *image,
+                     const char *data_preparer_id)
+{
+    free(image->data_preparer_id);
+    image->data_preparer_id = strdup(data_preparer_id);
+}
+
+const char *iso_image_get_data_preparer_id(const IsoImage *image)
+{
+    return image->data_preparer_id;
+}
+
+void iso_image_set_system_id(IsoImage *image, const char *system_id)
+{
+    free(image->system_id);
+    image->system_id = strdup(system_id);
+}
+
+const char *iso_image_get_system_id(const IsoImage *image)
+{
+    return image->system_id;
+}
+
+void iso_image_set_application_id(IsoImage *image, const char *application_id)
+{
+    free(image->application_id);
+    image->application_id = strdup(application_id);
+}
+
+const char *iso_image_get_application_id(const IsoImage *image)
+{
+    return image->application_id;
+}
+
+void iso_image_set_copyright_file_id(IsoImage *image,
+                     const char *copyright_file_id)
+{
+    free(image->copyright_file_id);
+    image->copyright_file_id = strdup(copyright_file_id);
+}
+
+const char *iso_image_get_copyright_file_id(const IsoImage *image)
+{
+    return image->copyright_file_id;
+}
+
+void iso_image_set_abstract_file_id(IsoImage *image,
+                     const char *abstract_file_id)
+{
+    free(image->abstract_file_id);
+    image->abstract_file_id = strdup(abstract_file_id);
+}
+
+const char *iso_image_get_abstract_file_id(const IsoImage *image)
+{
+    return image->abstract_file_id;
+}
+
+void iso_image_set_biblio_file_id(IsoImage *image,
+                     const char *biblio_file_id)
+{
+    free(image->biblio_file_id);
+    image->biblio_file_id = strdup(biblio_file_id);
+}
+
+const char *iso_image_get_biblio_file_id(const IsoImage *image)
+{
+    return image->biblio_file_id;
+}

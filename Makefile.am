@@ -51,7 +51,8 @@ test_test_LDFLAGS = -L.. -lm
 test_test_SOURCES = \
 	test/test.h \
 	test/test.c \
-	test/test_node.c 
+	test/test_node.c \
+	test/test_image.c 
 
 ## ========================================================================= ##
 

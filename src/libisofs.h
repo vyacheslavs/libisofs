@@ -46,6 +46,128 @@ void iso_image_ref(IsoImage *image);
 void iso_image_unref(IsoImage *image);
 
 /**
+ * Get the root directory of the image.
+ * No extra ref is added to it, so you musn't unref it. Use iso_node_ref()
+ * if you want to get your own reference.
+ */
+IsoDir *iso_image_get_root(const IsoImage *image);
+
+/**
+ * Fill in the volset identifier for a image.
+ */
+void iso_image_set_volset_id(IsoImage *image, const char *volset_id);
+
+/** 
+ * Get the volset identifier. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_volset_id(const IsoImage *image);
+
+/**
+ * Fill in the volume identifier for a image.
+ */
+void iso_image_set_volume_id(IsoImage *image, const char *volume_id);
+
+/** 
+ * Get the volume identifier. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_volume_id(const IsoImage *image);
+
+/**
+ * Fill in the publisher for a image.
+ */
+void iso_image_set_publisher_id(IsoImage *image, const char *publisher_id);
+
+/** 
+ * Get the publisher of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_publisher_id(const IsoImage *image);
+
+/**
+ * Fill in the data preparer for a image.
+ */
+void iso_image_set_data_preparer_id(IsoImage *image,
+                     const char *data_preparer_id);
+
+/** 
+ * Get the data preparer of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_data_preparer_id(const IsoImage *image);
+
+/**
+ * Fill in the system id for a image. Up to 32 characters.
+ */
+void iso_image_set_system_id(IsoImage *image, const char *system_id);
+
+/** 
+ * Get the system id of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_system_id(const IsoImage *image);
+
+/**
+ * Fill in the application id for a image. Up to 128 chars.
+ */
+void iso_image_set_application_id(IsoImage *image, const char *application_id);
+
+/** 
+ * Get the application id of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_application_id(const IsoImage *image);
+
+/**
+ * Fill copyright information for the image. Usually this refers
+ * to a file on disc. Up to 37 characters.
+ */
+void iso_image_set_copyright_file_id(IsoImage *image,
+                     const char *copyright_file_id);
+
+/** 
+ * Get the copyright information of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_copyright_file_id(const IsoImage *image);
+
+/**
+ * Fill abstract information for the image. Usually this refers
+ * to a file on disc. Up to 37 characters.
+ */
+void iso_image_set_abstract_file_id(IsoImage *image,
+                     const char *abstract_file_id);
+
+/** 
+ * Get the abstract information of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_abstract_file_id(const IsoImage *image);
+
+/**
+ * Fill biblio information for the image. Usually this refers
+ * to a file on disc. Up to 37 characters.
+ */
+void iso_image_set_biblio_file_id(IsoImage *image,
+                     const char *biblio_file_id);
+
+/** 
+ * Get the biblio information of a image. 
+ * The returned string is owned by the image and should not be freed nor
+ * changed.
+ */
+const char *iso_image_get_biblio_file_id(const IsoImage *image);
+
+/**
  * Increments the reference counting of the given node.
  */
 void iso_node_ref(IsoNode *node);

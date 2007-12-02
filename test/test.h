@@ -5,5 +5,6 @@
 #include "libisofs.h"
 
 void add_node_suite();
+void add_image_suite();
 
 #endif /*TEST_H_*/
