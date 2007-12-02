@@ -289,6 +289,95 @@ void test_iso_dir_get_children()
     free(dir);
 }
 
+void test_iso_node_take()
+{
+    int result;
+    IsoDir *dir;
+    IsoNode *node1, *node2, *node3;
+    
+    /* init dir with default values, not all field need to be initialized */
+    dir = malloc(sizeof(IsoDir));
+    dir->children = NULL;
+    dir->nchildren = 0;
+    
+    /* 1st node to be added */
+    node1 = calloc(1, sizeof(IsoNode));
+    node1->name = "Node1";
+    
+    /* addition of node to an empty dir */
+    result = iso_dir_add_node(dir, node1);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* and take it */
+    result = iso_node_take(node1);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 0);
+    CU_ASSERT_PTR_NULL(dir->children);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_NULL(node1->parent);
+    
+    /* insert it again */
+    result = iso_dir_add_node(dir, node1);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* addition of a 2nd node, to be inserted before */
+    node2 = calloc(1, sizeof(IsoNode));
+    node2->name = "A node to be added first";
+    result = iso_dir_add_node(dir, node2);
+    CU_ASSERT_EQUAL(result, 2);
+    
+    /* take first child */
+    result = iso_node_take(node2);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    CU_ASSERT_PTR_EQUAL(dir->children, node1);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, dir);
+    CU_ASSERT_PTR_NULL(node2->next);
+    CU_ASSERT_PTR_NULL(node2->parent);
+    
+    /* insert node 2 again */
+    result = iso_dir_add_node(dir, node2);
+    CU_ASSERT_EQUAL(result, 2);
+    
+    /* now take last child */
+    result = iso_node_take(node1);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    CU_ASSERT_PTR_EQUAL(dir->children, node2);
+    CU_ASSERT_PTR_NULL(node2->next);
+    CU_ASSERT_PTR_EQUAL(node2->parent, dir);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_NULL(node1->parent);
+    
+    /* insert again node1... */
+    result = iso_dir_add_node(dir, node1);
+    CU_ASSERT_EQUAL(result, 2);
+    
+    /* ...and a 3rd child, to be inserted last */
+    node3 = calloc(1, sizeof(IsoNode));
+    node3->name = "This node will be inserted last";
+    result = iso_dir_add_node(dir, node3);
+    CU_ASSERT_EQUAL(result, 3);
+    
+    /* and take the node in the middle */
+    result = iso_node_take(node1);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 2);
+    CU_ASSERT_PTR_EQUAL(dir->children, node2);
+    CU_ASSERT_PTR_EQUAL(node2->next, node3);
+    CU_ASSERT_PTR_EQUAL(node2->parent, dir);
+    CU_ASSERT_PTR_NULL(node3->next);
+    CU_ASSERT_PTR_EQUAL(node3->parent, dir);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_NULL(node1->parent);
+    
+    free(node1);
+    free(node2);
+    free(node3);
+    free(dir);
+}
+
 void add_node_suite()
 {
 	CU_pSuite pSuite = CU_add_suite("Node Test Suite", NULL, NULL);
@@ -296,4 +385,5 @@ void add_node_suite()
     CU_add_test(pSuite, "iso_dir_add_node()", test_iso_dir_add_node);
     CU_add_test(pSuite, "iso_dir_get_node()", test_iso_dir_get_node);
     CU_add_test(pSuite, "iso_dir_get_children()", test_iso_dir_get_children);
+    CU_add_test(pSuite, "iso_node_take()", test_iso_node_take);
 }
