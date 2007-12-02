@@ -36,6 +36,7 @@ void iso_node_unref(IsoNode *node)
                 IsoNode *child = ((IsoDir*)node)->children;
                 while (child != NULL) {
                     IsoNode *tmp = child->next;
+                    child->parent = NULL;
                     iso_node_unref(child);
                     child = tmp;
                 }
