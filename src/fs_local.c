@@ -99,6 +99,45 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
     }
     return ISO_SUCCESS;
 }
+    
+static
+int lfs_stat(IsoFileSource *src, struct stat *info)
+{
+    _LocalFsFileSource *data;
+
+    if (src == NULL || info == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = src->data;
+
+    if (stat(data->path, info) != 0) {
+        int err;
+
+        /* error, choose an appropriate return code */
+        switch(errno) {
+        case EACCES:
+            err = ISO_FILE_ACCESS_DENIED;
+            break;
+        case ENOTDIR:
+        case ENAMETOOLONG:
+        case ELOOP:
+            err = ISO_FILE_BAD_PATH;
+            break;
+        case ENOENT:
+            err = ISO_FILE_DOESNT_EXIST;
+            break;
+        case EFAULT:
+        case ENOMEM:
+            err = ISO_MEM_ERROR;
+            break;
+        default:
+            err = ISO_FILE_ERROR;
+            break;
+        }
+        return err;
+    }
+    return ISO_SUCCESS;
+}
 
 static
 int lfs_open(IsoFileSource *src)
@@ -391,6 +430,7 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
     lfs_src->get_path = lfs_get_path;
     lfs_src->get_name = lfs_get_name;
     lfs_src->lstat = lfs_lstat;
+    lfs_src->stat = lfs_stat;
     lfs_src->open = lfs_open;
     lfs_src->close = lfs_close;
     lfs_src->read = lfs_read;

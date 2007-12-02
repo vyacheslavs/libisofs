@@ -82,6 +82,22 @@ struct Iso_File_Source
      *         ISO_NULL_POINTER
      */
     int (*lstat)(IsoFileSource *src, struct stat *info);
+    
+    /**
+     * Get information about the file. If the file is a symlink, the info
+     * returned refers to the destination.
+     * 
+     * @return
+     *    1 success, < 0 error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*stat)(IsoFileSource *src, struct stat *info);
 
     /**
      * Opens the source.
