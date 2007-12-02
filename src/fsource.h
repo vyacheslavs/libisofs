@@ -42,7 +42,9 @@ struct Iso_Filesystem
 
     void (*free)(IsoFilesystem *fs);
 
-    int refcount;
+    /* TODO each file will take a ref to IsoFilesystem, so maybe a 64bits
+     * integer is a better choose for this */
+    unsigned int refcount;
     void *data;
 };
 
@@ -170,6 +172,15 @@ struct Iso_File_Source
      * 
      */
     int (*readlink)(IsoFileSource *src, char *buf, size_t bufsiz);
+    
+    /**
+     * Get the filesystem for this source. No extra ref is added, so you
+     * musn't unref the IsoFilesystem.
+     * 
+     * @return
+     *     The filesystem, NULL on error
+     */
+    IsoFilesystem* (*get_filesystem)(IsoFileSource *src);
 
     /**
      * Free implementation specific data. Should never be called by user.

@@ -13,6 +13,7 @@
  */
 
 #include "libisofs.h"
+#include "stream.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -97,7 +98,7 @@ struct Iso_File
 	 * Higher weighting filesare written at the beginning of image 
 	 */
     int sort_weight;
-    
+    IsoStream *stream;
 };
 
 struct Iso_Symlink

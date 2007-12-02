@@ -13,6 +13,8 @@
 typedef struct Iso_Node IsoNode;
 typedef struct Iso_Dir IsoDir;
 typedef struct Iso_Symlink IsoSymlink;
+typedef struct Iso_File IsoFile;
+
 typedef struct Iso_Dir_Iter IsoDirIter;
 
 /**

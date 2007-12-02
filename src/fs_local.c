@@ -24,6 +24,11 @@
 #include <libgen.h>
 #include <string.h>
 
+/*
+ * We can share a local filesystem object, as it has no private atts.
+ */
+IsoFilesystem *lfs = NULL;
+
 typedef struct
 {
     /* IsoFilesystem *fs; It seems not needed */
@@ -315,6 +320,12 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 }
 
 static
+IsoFilesystem* lfs_get_filesystem(IsoFileSource *src)
+{
+    return src == NULL ? NULL : lfs;
+}
+
+static
 void lfs_free(IsoFileSource *src)
 {
     _LocalFsFileSource *data;
@@ -328,6 +339,7 @@ void lfs_free(IsoFileSource *src)
 
     free(data->path);
     free(data);
+    iso_filesystem_unref(lfs);
 }
 
 /**
@@ -342,6 +354,11 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
 
     if (src == NULL) {
         return ISO_NULL_POINTER;
+    }
+
+    if (lfs == NULL) {
+        /* this should never happen */
+        return ISO_ERROR;
     }
 
     /* allocate memory */
@@ -379,7 +396,11 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
     lfs_src->read = lfs_read;
     lfs_src->readdir = lfs_readdir;
     lfs_src->readlink = lfs_readlink;
+    lfs_src->get_filesystem = lfs_get_filesystem;
     lfs_src->free = lfs_free;
+    
+    /* take a ref to local filesystem */
+    iso_filesystem_ref(lfs);
 
     /* return */
     *src = lfs_src;
@@ -413,24 +434,27 @@ void lfs_fs_free(IsoFilesystem *fs)
     
 int iso_local_filesystem_new(IsoFilesystem **fs)
 {
-	IsoFilesystem *lfs;
-	
 	if (fs == NULL) {
         return ISO_NULL_POINTER;
     }
 	
-	lfs = malloc(sizeof(IsoFilesystem));
-    if (lfs == NULL) {
-        return ISO_OUT_OF_MEM;
+    if (lfs != NULL) {
+        /* just take a new ref */
+        iso_filesystem_ref(lfs);
+    } else {
+        
+    	lfs = malloc(sizeof(IsoFilesystem));
+        if (lfs == NULL) {
+            return ISO_OUT_OF_MEM;
+        }
+        
+        /* fill struct */
+        lfs->refcount = 1;
+        lfs->data = NULL; /* we don't need private data */
+        lfs->get_root = lfs_get_root;
+        lfs->get_by_path = lfs_get_by_path;
+        lfs->free = lfs_fs_free;
     }
-    
-    /* fill struct */
-    lfs->refcount = 1;
-    lfs->data = NULL; /* we don't need private data */
-    lfs->get_root = lfs_get_root;
-    lfs->get_by_path = lfs_get_by_path;
-    lfs->free = lfs_fs_free;
-	
 	*fs = lfs;
 	return ISO_SUCCESS;
 }
