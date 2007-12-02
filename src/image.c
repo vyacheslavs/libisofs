@@ -10,6 +10,7 @@
 #include "image.h"
 #include "error.h"
 #include "node.h"
+#include "messages.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,9 +41,19 @@ int iso_image_new(const char *name, IsoImage **image)
         return ISO_MEM_ERROR;
     }
     
+    /* create message messenger */
+    res = libiso_msgs_new(&img->messenger, 0);
+    if (res <= 0) {
+        free(img);
+        return ISO_MEM_ERROR;
+    }
+    libiso_msgs_set_severities(img->messenger, LIBISO_MSGS_SEV_NEVER,
+                               LIBISO_MSGS_SEV_FATAL, name, 0);
+    
     /* fill image fields */
     res = iso_node_new_root(&img->root);
     if (res < 0) {
+        libiso_msgs_destroy(&img->messenger, 0);
         free(img);
         return res;
     }
@@ -73,6 +84,7 @@ void iso_image_unref(IsoImage *image)
     if (--image->refcount == 0) {
         /* we need to free the image */
         iso_node_unref((IsoNode*)image->root);
+        libiso_msgs_destroy(&image->messenger, 0);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
