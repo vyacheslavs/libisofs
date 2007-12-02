@@ -256,6 +256,7 @@ int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node)
     }
     n = iter->pos;
     if (n == NULL) {
+        *node = NULL;
         return 0;
     }
     if (n->parent != iter->dir) {
@@ -281,6 +282,11 @@ int iso_dir_iter_has_next(IsoDirIter *iter)
         return ISO_NULL_POINTER;
     }
     return iter->pos == NULL ? 0 : 1;
+}
+
+void iso_dir_iter_free(IsoDirIter *iter)
+{
+    free(iter);
 }
 
 static IsoNode**
