@@ -164,7 +164,12 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child)
     if ((IsoNode*)dir == child) {
         return ISO_WRONG_ARG_VALUE;
     }
-    if (child->parent != NULL) {
+    
+    /* 
+     * check if child is already added to another dir, or if child
+     * is the root node, where parent == itself
+     */
+    if (child->parent != NULL || child->parent == (IsoDir*)child) {
         return ISO_NODE_ALREADY_ADDED;
     }
     
@@ -405,6 +410,9 @@ int iso_node_new_root(IsoDir **root)
     dir->node.type = LIBISO_DIR;
     dir->node.atime = dir->node.ctime = dir->node.mtime = time(NULL);
     dir->node.mode = S_IFDIR | 0555;
+    
+    /* set parent to itself, to prevent root to be added to another dir */
+    dir->node.parent = dir;
     *root = dir;
     return ISO_SUCCESS;
 }
