@@ -351,3 +351,44 @@ int iso_node_remove(IsoNode *node)
     }
     return ret;
 }
+
+/* TODO #00005 optimize iso_dir_iter_take */
+int iso_dir_iter_take(IsoDirIter *iter)
+{
+    IsoNode *pos;
+    if (iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    pos = iter->dir->children;
+    if (iter->pos == pos) {
+        return ISO_ERROR;
+    }
+    while (pos != NULL && pos->next == iter->pos) {
+        pos = pos->next;
+    }
+    if (pos == NULL) {
+        return ISO_ERROR;
+    }
+    return iso_node_take(pos);
+}
+
+int iso_dir_iter_remove(IsoDirIter *iter)
+{
+    IsoNode *pos;
+    if (iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    pos = iter->dir->children;
+    if (iter->pos == pos) {
+        return ISO_ERROR;
+    }
+    while (pos != NULL && pos->next == iter->pos) {
+        pos = pos->next;
+    }
+    if (pos == NULL) {
+        return ISO_ERROR;
+    }
+    return iso_node_remove(pos);
+}
+

@@ -136,6 +136,31 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
 int iso_dir_get_nchildren(IsoDir *dir);
 
 /**
+ * Removes a child from a directory.
+ * The child is not freed, so you will become the owner of the node. Later
+ * you can add the node to another dir (calling iso_dir_add_node), or free
+ * it if you don't need it (with iso_node_unref).
+ * 
+ * @return 
+ *     1 on success, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if node is NULL
+ *         ISO_NODE_NOT_ADDED_TO_DIR, if node doesn't belong to a dir
+ */
+int iso_node_take(IsoNode *node);
+
+/**
+ * Removes a child from a directory and free (unref) it.
+ * If you want to keep the child alive, you need to iso_node_ref() it
+ * before this call, but in that case iso_node_take() is a better
+ * alternative.
+ * 
+ * @return 
+ *     1 on success, < 0 error
+ */
+int iso_node_remove(IsoNode *node);
+
+/**
  * Get an iterator for the children of the given dir.
  * 
  * You can iterate over the children with iso_dir_iter_next. When finished,
@@ -199,28 +224,37 @@ int iso_dir_iter_has_next(IsoDirIter *iter);
 void iso_dir_iter_free(IsoDirIter *iter);
 
 /**
- * Removes a child from a directory.
- * The child is not freed, so you will become the owner of the node. Later
- * you can add the node to another dir (calling iso_dir_add_node), or free
- * it if you don't need it (with iso_node_unref).
+ * Removes a child from a directory during an iteration, without freeing it.
+ * It's like iso_node_take(), but to be used during a directory iteration.
+ * The node removed will be the last returned by the iteration.
  * 
- * @return 
- *     1 on success, < 0 error
+ * The behavior on two call to this function without calling iso_dir_iter_next
+ * between then is undefined, and should never occur. (TODO protect against this?)
+ * 
+ * @return
+ *     1 on succes, < 0 error
  *     Possible errors:
- *         ISO_NULL_POINTER, if node is NULL
- *         ISO_NODE_NOT_ADDED_TO_DIR, if node doesn't belong to a dir
+ *         ISO_NULL_POINTER, if iter is NULL
+ *         ISO_ERROR, on wrong iter usage, for example by call this before
+ *         iso_dir_iter_next.
  */
-int iso_node_take(IsoNode *node);
+int iso_dir_iter_take(IsoDirIter *iter);
 
 /**
- * Removes a child from a directory and free (unref) it.
- * If you want to keep the child alive, you need to iso_node_ref() it
- * before this call, but in that case iso_node_take() is a better
- * alternative.
+ * Removes a child from a directory during an iteration and unref() it.
+ * It's like iso_node_remove(), but to be used during a directory iteration.
+ * The node removed will be the last returned by the iteration.
  * 
- * @return 
- *     1 on success, < 0 error
+ * The behavior on two call to this function without calling iso_tree_iter_next
+ * between then is undefined, and should never occur. (TODO protect against this?)
+ * 
+ * @return
+ *     1 on succes, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if iter is NULL
+ *         ISO_ERROR, on wrong iter usage, for example by call this before
+ *         iso_dir_iter_next.
  */
-int iso_node_remove(IsoNode *node);
+int iso_dir_iter_remove(IsoDirIter *iter);
 
 #endif /*LIBISO_LIBISOFS_H_*/
