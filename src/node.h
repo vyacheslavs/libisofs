@@ -73,11 +73,8 @@ struct Iso_Node
     IsoDir *parent; /**< parent node, NULL for root */
 
     /*
-     * Pointers to the doubled linked list of children in a dir.
-     * It is a circular list where the last child points to the first
-     * and viceversa.
+     * Pointer to the linked list of children in a dir.
      */
-    IsoNode *prev;
     IsoNode *next;
 };
 
@@ -117,5 +114,7 @@ struct Iso_Dir_Iter
     const IsoDir *dir;
     IsoNode *pos;
 };
+
+int iso_node_new_root(IsoDir **root);
 
 #endif /*LIBISO_NODE_H_*/

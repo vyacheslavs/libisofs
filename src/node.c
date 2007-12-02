@@ -12,6 +12,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /**
  * Increments the reference counting of the given node.
@@ -392,3 +393,17 @@ int iso_dir_iter_remove(IsoDirIter *iter)
     return iso_node_remove(pos);
 }
 
+int iso_node_new_root(IsoDir **root)
+{
+    IsoDir *dir;
+    
+    dir = calloc(1, sizeof(IsoDir));
+    if (dir == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    dir->node.type = LIBISO_DIR;
+    dir->node.atime = dir->node.ctime = dir->node.mtime = time(NULL);
+    dir->node.mode = S_IFDIR | 0555;
+    *root = dir;
+    return ISO_SUCCESS;
+}
