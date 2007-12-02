@@ -41,6 +41,4 @@ struct Iso_Image {
     struct libiso_msgs *messenger;
 };
 
-
-
 #endif /*LIBISO_IMAGE_H_*/

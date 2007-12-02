@@ -19,11 +19,12 @@ src_libisofs_la_SOURCES = \
 	src/fsource.h \
 	src/fsource.c \
 	src/fs_local.c \
-	src/messages.h  \
-	src/messages.c  \
-	src/libiso_msgs.h  \
-	src/libiso_msgs.c  \
-	src/stream.h 
+	src/messages.h \
+	src/messages.c \
+	src/libiso_msgs.h \
+	src/libiso_msgs.c \
+	src/stream.h  \
+	src/stream.c 
 libinclude_HEADERS = \
 	src/libisofs.h
 

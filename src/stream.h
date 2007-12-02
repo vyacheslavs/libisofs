@@ -11,6 +11,7 @@
 /*
  * Definitions of streams.
  */
+#include "fsource.h"
 
 /*
  * Some functions here will be moved to libisofs.h when we expose 
@@ -37,6 +38,8 @@ struct Iso_Stream
 
     /**
      * Get the size (in bytes) of the stream.
+     * @return
+     *      The size, or -1 on error
      */
     off_t (*get_size)(IsoStream *stream);
 
@@ -59,11 +62,36 @@ struct Iso_Stream
      * 
      * This function doesn't take into account if the file has been modified
      * between the two reads. 
+     * 
+     * @return
+     *     1 if stream is repeatable, 0 if not, < 0 on error
      */
     int (*is_repeatable)(IsoStream *stream);
+
+    /**
+     * Free implementation specific data. Should never be called by user.
+     * Use iso_stream_unref() instead.
+     */
+    void (*free)(IsoStream *stream);
 
     int refcount;
     void *data;
 };
+
+void iso_stream_ref(IsoStream *stream);
+void iso_stream_unref(IsoStream *stream);
+
+/**
+ * Create a stream to read from a IsoFileSource.
+ * The stream will take the ref. to the IsoFileSource, so after a successfully
+ * exectution of this function, you musn't unref() the source, unless you
+ * take an extra ref.
+ * 
+ * @return
+ *      1 sucess, < 0 error
+ *      Possible errors:
+ * 
+ */
+int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream);
 
 #endif /*STREAM_H_*/
