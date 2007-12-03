@@ -9,6 +9,7 @@
 #include "libisofs.h"
 #include "node.h"
 #include "error.h"
+#include "stream.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +41,12 @@ void iso_node_unref(IsoNode *node)
                     iso_node_unref(child);
                     child = tmp;
                 }
+            }
+            break;
+        case LIBISO_FILE:
+            {
+                IsoFile *file = (IsoFile*) node;
+                iso_stream_unref(file->stream);
             }
             break;
         default:
