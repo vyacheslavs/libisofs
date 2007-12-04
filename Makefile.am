@@ -11,6 +11,7 @@ src_libisofs_la_LDFLAGS = \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 src_libisofs_la_SOURCES = \
 	src/builder.h \
+	src/builder.c \
 	src/error.h \
 	src/node.h \
 	src/node.c \

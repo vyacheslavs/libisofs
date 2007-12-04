@@ -18,17 +18,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-/**
- * The type of an IsoNode.
- */
-enum IsoNodeType {
-    LIBISO_DIR,
-    LIBISO_FILE,
-    LIBISO_SYMLINK,
-    LIBISO_SPECIAL,
-    LIBISO_BOOT
-};
+#include <stdint.h>
 
 /**
  * Flag used to hide a file in the RR/ISO or Joliet tree.
@@ -89,6 +79,11 @@ struct Iso_Dir
 struct Iso_File
 {
     IsoNode node;
+    
+    /**
+     * Location of a file extent in a ms disc, 0 for newly added file
+     */
+    uint32_t msblock;
 
 	/** 
 	 * It sorts the order in which the file data is written to the CD image.

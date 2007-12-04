@@ -18,7 +18,8 @@
  * Builder.
  */
 
-#include "node.h"
+#include "libisofs.h"
+#include "fsource.h"
 
 typedef struct Iso_Node_Builder IsoNodeBuilder;
 
@@ -26,18 +27,41 @@ struct Iso_Node_Builder
 {
 
     /**
+     * Create a new IsoFile from an IsoFileSource. Name, permissions
+     * and other attributes are taken from src, but a regular file will
+     * always be created, even if src is another kind of file.
+     * 
+     * In that case, if the implementation can't do the conversion, it
+     * should fail propertly.
+     * 
+     * On sucess, the ref. to src will be owned by file, so you musn't
+     * unref it.
      * 
      * @return
      *    1 on success, < 0 on error
      */
-    int (*create_file)(const IsoFileSource *src, IsoFile **file);
+    int (*create_file)(IsoNodeBuilder *builder, IsoFileSource *src, 
+                       IsoFile **file);
     
-    
+    /**
+     * Free implementation specific data. Should never be called by user.
+     * Use iso_node_builder_unref() instead.
+     */
+    void (*free)(IsoNodeBuilder *builder);
     
     int refcount;
     void *data;
 };
 
+void iso_node_builder_ref(IsoNodeBuilder *builder);
+void iso_node_builder_unref(IsoNodeBuilder *builder);
 
+/**
+ * Create a new basic builder ...
+ * 
+ * @return
+ *     1 success, < 0 error
+ */
+int iso_node_basic_builder_new(IsoNodeBuilder **builder);
 
 #endif /*LIBISO_BUILDER_H_*/

@@ -20,6 +20,17 @@ typedef struct Iso_File IsoFile;
 typedef struct Iso_Dir_Iter IsoDirIter;
 
 /**
+ * The type of an IsoNode.
+ */
+enum IsoNodeType {
+    LIBISO_DIR,
+    LIBISO_FILE,
+    LIBISO_SYMLINK,
+    LIBISO_SPECIAL,
+    LIBISO_BOOT
+};
+
+/**
  * Create a new image, empty.
  * 
  * The image will be owned by you and should be unref() when no more needed.
