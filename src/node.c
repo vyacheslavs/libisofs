@@ -161,7 +161,7 @@ gid_t iso_node_get_gid(const IsoNode *node)
  * @return
  *     number of nodes in dir if succes, < 0 otherwise
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child)
+int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
 {
     IsoNode **pos;
     
@@ -185,7 +185,20 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child)
         pos = &((*pos)->next);
     }
     if (*pos != NULL && !strcmp((*pos)->name, child->name)) {
-        return ISO_NODE_NAME_NOT_UNIQUE;
+        /* a node with same name already exists */
+        if (replace == 0) {
+            return ISO_NODE_NAME_NOT_UNIQUE;
+        } else if (replace == 1) {
+            child->next = (*pos)->next;
+            (*pos)->parent = NULL;
+            (*pos)->next = NULL;
+            iso_node_unref(*pos);
+            *pos = child;
+            child->parent = dir;
+            return dir->nchildren;
+        } else {
+            return ISO_WRONG_ARG_VALUE;
+        }
     }
     
     child->next = *pos;

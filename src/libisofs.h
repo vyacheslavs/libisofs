@@ -261,15 +261,23 @@ gid_t iso_node_get_gid(const IsoNode *node);
  *     to other dir, and that the node name is unique inside the child.
  *     Otherwise this function will return a failure, and the child won't be
  *     inserted.
+ * @param replace
+ *     if the dir already contains a node with the same name, whether to
+ *     replace or not the old node with this. 
+ *      - 0 not replace (will fail with ISO_NODE_NAME_NOT_UNIQUE)
+ *      - 1 replace 
+ *      TODO #00006 define more values
+ *          to replace only if both are the same kind of file
+ *          if both are dirs, add contents (and what to do with conflicts?)
  * @return
  *     number of nodes in dir if succes, < 0 otherwise
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir or child are NULL
  *         ISO_NODE_ALREADY_ADDED, if child is already added to other dir 
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
- *         ISO_WRONG_ARG_VALUE, if child == dir
+ *         ISO_WRONG_ARG_VALUE, if child == dir, or replace != (0,1)
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child);
+int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace);
 
 /**
  * Locate a node inside a given dir.
