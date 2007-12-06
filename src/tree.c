@@ -46,6 +46,9 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     if (parent == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
+    if (dir) {
+        *dir = NULL;
+    }
     
     /* find place where to insert */
     pos = &(parent->children);
@@ -84,7 +87,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     
     /* add to dir */
     node->node.parent = parent;
-    node->node.next = (*pos)->next;
+    node->node.next = *pos;
     *pos = (IsoNode*)node;
     
     if (dir) {
@@ -172,7 +175,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     
     /* add to dir */
     node->node.parent = parent;
-    node->node.next = (*pos)->next;
+    node->node.next = *pos;
     *pos = (IsoNode*)node;
     
     if (link) {
@@ -272,7 +275,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     
     /* add to dir */
     node->node.parent = parent;
-    node->node.next = (*pos)->next;
+    node->node.next = *pos;
     *pos = (IsoNode*)node;
     
     if (special) {
