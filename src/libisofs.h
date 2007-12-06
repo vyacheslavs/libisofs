@@ -253,6 +253,36 @@ void iso_node_set_gid(IsoNode *node, gid_t gid);
  */
 gid_t iso_node_get_gid(const IsoNode *node);
 
+/** 
+ * Set the time of last modification of the file
+ */
+void iso_node_set_mtime(IsoNode *node, time_t time);
+
+/** 
+ * Get the time of last modification of the file
+ */
+time_t iso_node_get_mtime(const IsoNode *node);
+
+/** 
+ * Set the time of last access to the file
+ */
+void iso_node_set_atime(IsoNode *node, time_t time);
+
+/** 
+ * Get the time of last access to the file 
+ */
+time_t iso_node_get_atime(const IsoNode *node);
+
+/** 
+ * Set the time of last status change of the file 
+ */
+void iso_node_set_ctime(IsoNode *node, time_t time);
+
+/** 
+ * Get the time of last status change of the file 
+ */
+time_t iso_node_get_ctime(const IsoNode *node);
+
 /**
  * Add a new node to a dir. Note that this function don't add a new ref to
  * the node, so you don't need to free it, it will be automatically freed
