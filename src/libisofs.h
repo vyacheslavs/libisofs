@@ -191,11 +191,15 @@ void iso_node_ref(IsoNode *node);
 void iso_node_unref(IsoNode *node);
 
 /**
- * Set the name of a node.
+ * Set the name of a node. Note that if the node is already added to a dir
+ * this can fail if dir already contains a node with the new name.
  * 
- * @param name  The name in UTF-8 encoding
+ * @param name 
+ *      The name in UTF-8 encoding
+ * @return 
+ *      1 on success, < 0 on error
  */
-void iso_node_set_name(IsoNode *node, const char *name);
+int iso_node_set_name(IsoNode *node, const char *name);
 
 /**
  * Get the name of a node (in UTF-8).
@@ -289,10 +293,12 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace);
  *     doesn't have a child with the given name.
  *     The node will be owned by the dir and shouldn't be unref(). Just call
  *     iso_node_ref() to get your own reference to the node.
+ *     Note that you can pass NULL is the only thing you want to do is check
+ *     if a node with such name already exists on dir.
  * @return 
  *     1 node found, 0 child has no such node, < 0 error
  *     Possible errors:
- *         ISO_NULL_POINTER, if dir, node or name are NULL
+ *         ISO_NULL_POINTER, if dir or name are NULL
  */
 int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
 

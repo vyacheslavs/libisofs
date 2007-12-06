@@ -68,10 +68,17 @@ void iso_node_unref(IsoNode *node)
  * 
  * @param name  The name in UTF-8 encoding
  */
-void iso_node_set_name(IsoNode *node, const char *name)
+int iso_node_set_name(IsoNode *node, const char *name)
 {
+    if (node->parent != NULL) {
+        /* check if parent already has a node with same name */
+        if (iso_dir_get_node(node->parent, name, NULL) == 1) {
+            return ISO_NODE_NAME_NOT_UNIQUE;
+        }
+    }
     free(node->name);
     node->name = strdup(name);
+    return node->name != NULL ? ISO_SUCCESS : ISO_MEM_ERROR; 
 }
 
 /**
@@ -221,13 +228,19 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
  * @param node
  *     Location for a pointer to the node, it will filled with NULL if the dir 
  *     doesn't have a child with the given name.
+ *     The node will be owned by the dir and shouldn't be unref(). Just call
+ *     iso_node_ref() to get your own reference to the node.
+ *     Note that you can pass NULL is the only thing you want to do is check
+ *     if a node with such name already exists on dir.
  * @return 
  *     1 node found, 0 child has no such node, < 0 error
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if dir or name are NULL
  */
 int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
 {
     IsoNode *pos;
-    if (dir == NULL || name == NULL || node == NULL) {
+    if (dir == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
     
@@ -237,11 +250,15 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
     }
     
     if (pos == NULL || strcmp(pos->name, name)) {
-        *node = NULL;
+        if (node) {
+            *node = NULL;
+        }
         return 0; /* node not found */
     }
     
-    *node = pos;
+    if (node) {
+        *node = pos;
+    }
     return 1;
 }
 
