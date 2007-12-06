@@ -4,12 +4,11 @@ static void create_test_suite()
 {
 	add_node_suite();
     add_image_suite();
+    add_tree_suite();
 } 
 
 int main(int argc, char **argv)
 {
-	CU_pSuite pSuite = NULL;
-
 	/* initialize the CUnit test registry */
 	if (CUE_SUCCESS != CU_initialize_registry())
 		return CU_get_error();

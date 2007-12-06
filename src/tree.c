@@ -130,6 +130,9 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     if (parent == NULL || name == NULL || dest == NULL) {
         return ISO_NULL_POINTER;
     }
+    if (link) {
+        *link = NULL;
+    }
     
     /* find place where to insert */
     pos = &(parent->children);
@@ -232,8 +235,11 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     if (parent == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
-    if (mode & (S_IFLNK | S_IFREG | S_IFDIR)) {
+    if (S_ISLNK(mode) || S_ISREG(mode) || S_ISDIR(mode)) {
         return ISO_WRONG_ARG_VALUE;
+    }
+    if (special) {
+        *special = NULL;
     }
     
     /* find place where to insert */
