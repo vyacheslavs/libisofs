@@ -180,3 +180,103 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     }
     return ++parent->nchildren;
 }
+
+/**
+ * Add a new special file to the directory tree. As far as libisofs concerns,
+ * an special file is a block device, a character device, a FIFO (named pipe)
+ * or a socket. You can choose the specific kind of file you want to add
+ * by setting mode propertly (see man 2 stat).
+ * 
+ * Note that special files are only written to image when Rock Ridge 
+ * extensions are enabled. Moreover, a special file is just a directory entry
+ * in the image tree, no data is written beyond that.
+ * 
+ * Owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ * 
+ * @param parent
+ *      the dir where the new special file will be created
+ * @param name
+ *      name for the new special file. If a node with same name already exists 
+ *      on parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param mode
+ *      file type and permissions for the new node. Note that you can't
+ *      specify any kind of file here, only special types are allowed. i.e,
+ *      S_IFSOCK, S_IFBLK, S_IFCHR and S_IFIFO are valid types; S_IFLNK, 
+ *      S_IFREG and S_IFDIR aren't.
+ * @param dev
+ *      device ID, equivalent to the st_rdev field in man 2 stat.
+ * @param special
+ *      place where to store a pointer to the newly created special file. No 
+ *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      really need it. You can pass NULL in this parameter if you don't need 
+ *      the pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_MEM_ERROR
+ * 
+ */
+int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode, 
+                             dev_t dev, IsoSpecial **special)
+{
+    IsoSpecial *node;
+    IsoNode **pos;
+    time_t now;
+    
+    if (parent == NULL || name == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (mode & (S_IFLNK | S_IFREG | S_IFDIR)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
+    /* find place where to insert */
+    pos = &(parent->children);
+    while (*pos != NULL && strcmp((*pos)->name, name) < 0) {
+        pos = &((*pos)->next);
+    }
+    if (*pos != NULL && !strcmp((*pos)->name, name)) {
+        /* a node with same name already exists */
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+    
+    node = calloc(1, sizeof(IsoSpecial));
+    if (node == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    node->node.refcount = 1;
+    node->node.type = LIBISO_SPECIAL;
+    node->node.name = strdup(name);
+    if (node->node.name == NULL) {
+        free(node);
+        return ISO_MEM_ERROR;
+    }
+    
+    node->node.mode = mode;
+    node->dev = dev;
+    
+    /* atts from parent */
+    node->node.uid = parent->node.uid;
+    node->node.gid = parent->node.gid;
+    node->node.hidden = parent->node.hidden;
+    
+    /* current time */
+    now = time(NULL);
+    node->node.atime = now;
+    node->node.ctime = now;
+    node->node.mtime = now;
+    
+    /* add to dir */
+    node->node.parent = parent;
+    node->node.next = (*pos)->next;
+    *pos = (IsoNode*)node;
+    
+    if (special) {
+        *special = node;
+    }
+    return ++parent->nchildren;
+}

@@ -16,6 +16,7 @@ typedef struct Iso_Node IsoNode;
 typedef struct Iso_Dir IsoDir;
 typedef struct Iso_Symlink IsoSymlink;
 typedef struct Iso_File IsoFile;
+typedef struct Iso_Special IsoSpecial;
 
 typedef struct Iso_Dir_Iter IsoDirIter;
 
@@ -482,7 +483,7 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
  * @param parent 
  *      the dir where the new symlink will be created
  * @param name
- *      name for the new dir. If a node with same name already exists on
+ *      name for the new symlink. If a node with same name already exists on
  *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
  * @param dest
  *      destination of the link
@@ -500,6 +501,48 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
  */
 int iso_tree_add_new_symlink(IsoDir *parent, const char *name, 
                              const char *dest, IsoSymlink **link);
+
+/**
+ * Add a new special file to the directory tree. As far as libisofs concerns,
+ * an special file is a block device, a character device, a FIFO (named pipe)
+ * or a socket. You can choose the specific kind of file you want to add
+ * by setting mode propertly (see man 2 stat).
+ * 
+ * Note that special files are only written to image when Rock Ridge 
+ * extensions are enabled. Moreover, a special file is just a directory entry
+ * in the image tree, no data is written beyond that.
+ * 
+ * Owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ * 
+ * @param parent
+ *      the dir where the new special file will be created
+ * @param name
+ *      name for the new special file. If a node with same name already exists 
+ *      on parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param mode
+ *      file type and permissions for the new node. Note that you can't
+ *      specify any kind of file here, only special types are allowed. i.e,
+ *      S_IFSOCK, S_IFBLK, S_IFCHR and S_IFIFO are valid types; S_IFLNK, 
+ *      S_IFREG and S_IFDIR aren't.
+ * @param dev
+ *      device ID, equivalent to the st_rdev field in man 2 stat.
+ * @param special
+ *      place where to store a pointer to the newly created special file. No 
+ *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      really need it. You can pass NULL in this parameter if you don't need 
+ *      the pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_WRONG_ARG_VALUE if you select a incorrect mode
+ *         ISO_MEM_ERROR
+ * 
+ */
+int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode, 
+                             dev_t dev, IsoSpecial **special);
 
 #define ISO_MSGS_MESSAGE_LEN 4096
 

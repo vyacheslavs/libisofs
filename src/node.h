@@ -100,6 +100,11 @@ struct Iso_Symlink
     char *dest;
 };
 
+struct Iso_Special
+{
+    IsoNode node;
+    dev_t dev;
+};
 
 /**
  * An iterator for directory children.
