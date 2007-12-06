@@ -70,15 +70,31 @@ void iso_node_unref(IsoNode *node)
  */
 int iso_node_set_name(IsoNode *node, const char *name)
 {
+    char *new;
     if (node->parent != NULL) {
         /* check if parent already has a node with same name */
         if (iso_dir_get_node(node->parent, name, NULL) == 1) {
             return ISO_NODE_NAME_NOT_UNIQUE;
         }
     }
+    new = strdup(name);
+    if (new == NULL) {
+        return ISO_MEM_ERROR;
+    }
     free(node->name);
-    node->name = strdup(name);
-    return node->name != NULL ? ISO_SUCCESS : ISO_MEM_ERROR; 
+    node->name = new;
+    if (node->parent != NULL) {
+        IsoDir *parent;
+        int res;
+        /* take and add again to ensure correct children order */
+        parent = node->parent;
+        iso_node_take(node);
+        res = iso_dir_add_node(parent, node, 0);
+        if (res < 0) {
+            return res;
+        }
+    }
+    return ISO_SUCCESS; 
 }
 
 /**
