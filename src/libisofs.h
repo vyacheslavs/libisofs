@@ -428,6 +428,73 @@ int iso_dir_iter_take(IsoDirIter *iter);
  */
 int iso_dir_iter_remove(IsoDirIter *iter);
 
+/**
+ * Get the destination of a node (in UTF-8).
+ * The returned string belongs to the node and should not be modified nor
+ * freed. Use strdup if you really need your own copy.
+ */
+const char *iso_symlink_get_dest(const IsoSymlink *link);
+
+/**
+ * Set the destination of a link.
+ */
+void iso_symlink_set_dest(IsoSymlink *link, const char *dest);
+
+/**
+ * Add a new directory to the iso tree. Permissions, owner and hidden atts
+ * are taken from parent, you can modify them later.
+ * 
+ * @param parent 
+ *      the dir where the new directory will be created
+ * @param name
+ *      name for the new dir. If a node with same name already exists on
+ *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param dir
+ *      place where to store a pointer to the newly created dir. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent or name are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_MEM_ERROR
+ */
+int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
+
+/*
+TODO #00007 expose Strem and thi function:
+int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
+*/
+
+/**
+ * Add a new symlink to the directory tree. Permissions are set to 0777, 
+ * owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ *  
+ * @param parent 
+ *      the dir where the new symlink will be created
+ * @param name
+ *      name for the new dir. If a node with same name already exists on
+ *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param dest
+ *      destination of the link
+ * @param link
+ *      place where to store a pointer to the newly created link. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_MEM_ERROR
+ */
+int iso_tree_add_new_symlink(IsoDir *parent, const char *name, 
+                             const char *dest, IsoSymlink **link);
+
 #define ISO_MSGS_MESSAGE_LEN 4096
 
 /** 

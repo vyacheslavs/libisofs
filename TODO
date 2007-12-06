@@ -11,6 +11,7 @@ TODO
 #00004 (fsource-h) -> Add a get_mime_type() function.
 #00005 (node.c) -> optimize iso_dir_iter_take. 
 #00006 (libisofs.h) -> define more replace values when adding a node to a dir
+#00007 (libisofs.h) -> expose iso_tree_add_new_file
 
 FIXME
 =====

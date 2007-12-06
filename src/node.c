@@ -419,6 +419,25 @@ int iso_dir_iter_remove(IsoDirIter *iter)
     return iso_node_remove(pos);
 }
 
+/**
+ * Get the destination of a node (in UTF-8).
+ * The returned string belongs to the node and should not be modified nor
+ * freed. Use strdup if you really need your own copy.
+ */
+const char *iso_symlink_get_dest(const IsoSymlink *link)
+{
+    return link->dest;
+}
+
+/**
+ * Set the destination of a link.
+ */
+void iso_symlink_set_dest(IsoSymlink *link, const char *dest)
+{
+    free(link->dest);
+    link->dest = strdup(dest);
+}
+
 int iso_node_new_root(IsoDir **root)
 {
     IsoDir *dir;
