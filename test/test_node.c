@@ -10,6 +10,143 @@
 #include <stdlib.h>
 
 static
+void test_iso_node_set_permissions()
+{
+    IsoNode *node;
+    node = malloc(sizeof(IsoNode));
+    
+    node->mode = S_IFDIR | 0777;
+    
+    /* set permissions propertly */
+    iso_node_set_permissions(node, 0555);
+    CU_ASSERT_EQUAL(node->mode, S_IFDIR | 0555);
+    iso_node_set_permissions(node, 0640);
+    CU_ASSERT_EQUAL(node->mode, S_IFDIR | 0640);
+    
+    /* try to change file type via this call */
+    iso_node_set_permissions(node, S_IFBLK | 0440);
+    CU_ASSERT_EQUAL(node->mode, S_IFDIR | 0440);
+    
+    free(node);
+}
+
+static
+void test_iso_node_get_permissions()
+{
+    IsoNode *node;
+    mode_t mode;
+    
+    node = malloc(sizeof(IsoNode));
+    node->mode = S_IFDIR | 0777;
+    
+    mode = iso_node_get_permissions(node);
+    CU_ASSERT_EQUAL(mode, 0777);
+    
+    iso_node_set_permissions(node, 0640);
+    mode = iso_node_get_permissions(node);
+    CU_ASSERT_EQUAL(mode, 0640);
+    
+    iso_node_set_permissions(node, S_IFBLK | 0440);
+    mode = iso_node_get_permissions(node);
+    CU_ASSERT_EQUAL(mode, 0440);
+   
+    free(node);
+}
+
+static
+void test_iso_node_get_mode()
+{
+    IsoNode *node;
+    mode_t mode;
+    
+    node = malloc(sizeof(IsoNode));
+    node->mode = S_IFDIR | 0777;
+    
+    mode = iso_node_get_mode(node);
+    CU_ASSERT_EQUAL(mode, S_IFDIR | 0777);
+    
+    iso_node_set_permissions(node, 0640);
+    mode = iso_node_get_mode(node);
+    CU_ASSERT_EQUAL(mode, S_IFDIR | 0640);
+    
+    iso_node_set_permissions(node, S_IFBLK | 0440);
+    mode = iso_node_get_mode(node);
+    CU_ASSERT_EQUAL(mode, S_IFDIR | 0440);
+   
+    free(node);
+}
+
+static
+void test_iso_node_set_uid()
+{
+    IsoNode *node;
+    node = malloc(sizeof(IsoNode));
+    
+    node->uid = 0;
+    
+    iso_node_set_uid(node, 23);
+    CU_ASSERT_EQUAL(node->uid, 23);
+    iso_node_set_uid(node, 0);
+    CU_ASSERT_EQUAL(node->uid, 0);
+    
+    free(node);
+}
+
+static
+void test_iso_node_get_uid()
+{
+    IsoNode *node;
+    uid_t uid;
+    
+    node = malloc(sizeof(IsoNode));
+    node->uid = 0;
+    
+    uid = iso_node_get_uid(node);
+    CU_ASSERT_EQUAL(uid, 0);
+    
+    iso_node_set_uid(node, 25);
+    uid = iso_node_get_uid(node);
+    CU_ASSERT_EQUAL(uid, 25);
+   
+    free(node);
+}
+
+static
+void test_iso_node_set_gid()
+{
+    IsoNode *node;
+    node = malloc(sizeof(IsoNode));
+    
+    node->gid = 0;
+    
+    iso_node_set_gid(node, 23);
+    CU_ASSERT_EQUAL(node->gid, 23);
+    iso_node_set_gid(node, 0);
+    CU_ASSERT_EQUAL(node->gid, 0);
+    
+    free(node);
+}
+
+static
+void test_iso_node_get_gid()
+{
+    IsoNode *node;
+    gid_t gid;
+    
+    node = malloc(sizeof(IsoNode));
+    node->gid = 0;
+    
+    gid = iso_node_get_gid(node);
+    CU_ASSERT_EQUAL(gid, 0);
+    
+    iso_node_set_gid(node, 25);
+    gid = iso_node_get_gid(node);
+    CU_ASSERT_EQUAL(gid, 25);
+   
+    free(node);
+}
+
+static
 void test_iso_dir_add_node()
 {
     int result;
@@ -26,7 +163,7 @@ void test_iso_dir_add_node()
     node1->name = "Node1";
     
     /* addition of node to an empty dir */
-    result = iso_dir_add_node(dir, node1);
+    result = iso_dir_add_node(dir, node1, 0);
     CU_ASSERT_EQUAL(result, 1);
     CU_ASSERT_EQUAL(dir->nchildren, 1);
     CU_ASSERT_PTR_EQUAL(dir->children, node1);
@@ -37,7 +174,7 @@ void test_iso_dir_add_node()
     node2 = calloc(1, sizeof(IsoNode));
     node2->name = "A node to be added first";
     
-    result = iso_dir_add_node(dir, node2);
+    result = iso_dir_add_node(dir, node2, 0);
     CU_ASSERT_EQUAL(result, 2);
     CU_ASSERT_EQUAL(dir->nchildren, 2);
     CU_ASSERT_PTR_EQUAL(dir->children, node2);
@@ -49,7 +186,7 @@ void test_iso_dir_add_node()
     node3 = calloc(1, sizeof(IsoNode));
     node3->name = "This node will be inserted last";
     
-    result = iso_dir_add_node(dir, node3);
+    result = iso_dir_add_node(dir, node3, 0);
     CU_ASSERT_EQUAL(result, 3);
     CU_ASSERT_EQUAL(dir->nchildren, 3);
     CU_ASSERT_PTR_EQUAL(dir->children, node2);
@@ -59,18 +196,18 @@ void test_iso_dir_add_node()
     CU_ASSERT_PTR_EQUAL(node3->parent, dir);
     
     /* force some failures */
-    result = iso_dir_add_node(NULL, node3);
+    result = iso_dir_add_node(NULL, node3, 0);
     CU_ASSERT_EQUAL(result, ISO_NULL_POINTER);
-    result = iso_dir_add_node(dir, NULL);
+    result = iso_dir_add_node(dir, NULL, 0);
     CU_ASSERT_EQUAL(result, ISO_NULL_POINTER);
     
-    result = iso_dir_add_node(dir, (IsoNode*)dir);
+    result = iso_dir_add_node(dir, (IsoNode*)dir, 0);
     CU_ASSERT_EQUAL(result, ISO_WRONG_ARG_VALUE);
     
     /* a node with same name */
     node4 = calloc(1, sizeof(IsoNode));
     node4->name = "This node will be inserted last";
-    result = iso_dir_add_node(dir, node4);
+    result = iso_dir_add_node(dir, node4, 0);
     CU_ASSERT_EQUAL(result, ISO_NODE_NAME_NOT_UNIQUE);
     CU_ASSERT_EQUAL(dir->nchildren, 3);
     CU_ASSERT_PTR_EQUAL(dir->children, node2);
@@ -83,7 +220,7 @@ void test_iso_dir_add_node()
     node5 = calloc(1, sizeof(IsoNode));
     node5->name = "other node";
     node5->parent = (IsoDir*)node4;
-    result = iso_dir_add_node(dir, node5);
+    result = iso_dir_add_node(dir, node5, 0);
     CU_ASSERT_EQUAL(result, ISO_NODE_ALREADY_ADDED);
     
     free(node1);
@@ -115,7 +252,7 @@ void test_iso_dir_get_node()
     /* add a node */
     node1 = calloc(1, sizeof(IsoNode));
     node1->name = "Node1";
-    result = iso_dir_add_node(dir, node1);
+    result = iso_dir_add_node(dir, node1, 0);
     
     /* try to find a node not existent */
     result = iso_dir_get_node(dir, "a inexistent name", &node);
@@ -130,7 +267,7 @@ void test_iso_dir_get_node()
     /* add another node */
     node2 = calloc(1, sizeof(IsoNode));
     node2->name = "A node to be added first";
-    result = iso_dir_add_node(dir, node2);
+    result = iso_dir_add_node(dir, node2, 0);
     
     /* try to find a node not existent */
     result = iso_dir_get_node(dir, "a inexistent name", &node);
@@ -148,7 +285,7 @@ void test_iso_dir_get_node()
     /* insert another node */
     node3 = calloc(1, sizeof(IsoNode));
     node3->name = "This node will be inserted last";
-    result = iso_dir_add_node(dir, node3);
+    result = iso_dir_add_node(dir, node3, 0);
     
     /* get again */
     result = iso_dir_get_node(dir, "a inexistent name", &node);
@@ -163,8 +300,12 @@ void test_iso_dir_get_node()
     CU_ASSERT_EQUAL(result, ISO_NULL_POINTER);
     result = iso_dir_get_node(dir, NULL, &node);
     CU_ASSERT_EQUAL(result, ISO_NULL_POINTER);
+    
+    /* and try with null node */
     result = iso_dir_get_node(dir, "asas", NULL);
-    CU_ASSERT_EQUAL(result, ISO_NULL_POINTER);
+    CU_ASSERT_EQUAL(result, 0);
+    result = iso_dir_get_node(dir, "This node will be inserted last", NULL);
+    CU_ASSERT_EQUAL(result, 1);
     
     free(node1);
     free(node2);
@@ -198,7 +339,7 @@ void test_iso_dir_get_children()
     /* 1st node to be added */
     node1 = calloc(1, sizeof(IsoNode));
     node1->name = "Node1";
-    result = iso_dir_add_node(dir, node1);
+    result = iso_dir_add_node(dir, node1, 0);
     CU_ASSERT_EQUAL(dir->nchildren, 1);
     
     /* test iteration again */
@@ -223,7 +364,7 @@ void test_iso_dir_get_children()
     /* add another node */
     node2 = calloc(1, sizeof(IsoNode));
     node2->name = "A node to be added first";
-    result = iso_dir_add_node(dir, node2);
+    result = iso_dir_add_node(dir, node2, 0);
     CU_ASSERT_EQUAL(result, 2);
     
     result = iso_dir_get_children(dir, &iter);
@@ -252,7 +393,7 @@ void test_iso_dir_get_children()
     /* addition of a 3rd node, to be inserted last */
     node3 = calloc(1, sizeof(IsoNode));
     node3->name = "This node will be inserted last";
-    result = iso_dir_add_node(dir, node3);
+    result = iso_dir_add_node(dir, node3, 0);
     CU_ASSERT_EQUAL(result, 3);
     
     result = iso_dir_get_children(dir, &iter);
@@ -305,7 +446,7 @@ void test_iso_node_take()
     node1->name = "Node1";
     
     /* addition of node to an empty dir */
-    result = iso_dir_add_node(dir, node1);
+    result = iso_dir_add_node(dir, node1, 0);
     CU_ASSERT_EQUAL(result, 1);
     
     /* and take it */
@@ -317,13 +458,13 @@ void test_iso_node_take()
     CU_ASSERT_PTR_NULL(node1->parent);
     
     /* insert it again */
-    result = iso_dir_add_node(dir, node1);
+    result = iso_dir_add_node(dir, node1, 0);
     CU_ASSERT_EQUAL(result, 1);
     
     /* addition of a 2nd node, to be inserted before */
     node2 = calloc(1, sizeof(IsoNode));
     node2->name = "A node to be added first";
-    result = iso_dir_add_node(dir, node2);
+    result = iso_dir_add_node(dir, node2, 0);
     CU_ASSERT_EQUAL(result, 2);
     
     /* take first child */
@@ -337,7 +478,7 @@ void test_iso_node_take()
     CU_ASSERT_PTR_NULL(node2->parent);
     
     /* insert node 2 again */
-    result = iso_dir_add_node(dir, node2);
+    result = iso_dir_add_node(dir, node2, 0);
     CU_ASSERT_EQUAL(result, 2);
     
     /* now take last child */
@@ -351,13 +492,13 @@ void test_iso_node_take()
     CU_ASSERT_PTR_NULL(node1->parent);
     
     /* insert again node1... */
-    result = iso_dir_add_node(dir, node1);
+    result = iso_dir_add_node(dir, node1, 0);
     CU_ASSERT_EQUAL(result, 2);
     
     /* ...and a 3rd child, to be inserted last */
     node3 = calloc(1, sizeof(IsoNode));
     node3->name = "This node will be inserted last";
-    result = iso_dir_add_node(dir, node3);
+    result = iso_dir_add_node(dir, node3, 0);
     CU_ASSERT_EQUAL(result, 3);
     
     /* and take the node in the middle */
@@ -378,12 +519,72 @@ void test_iso_node_take()
     free(dir);
 }
 
+static
+void test_iso_node_set_name()
+{
+    int result;
+    IsoDir *dir;
+    IsoNode *node1, *node2;
+    
+    /* init dir with default values, not all field need to be initialized */
+    dir = malloc(sizeof(IsoDir));
+    dir->children = NULL;
+    dir->nchildren = 0;
+    
+    /* cretae a node */
+    node1 = calloc(1, sizeof(IsoNode));
+    node1->name = strdup("Node1");
+    
+    /* check name change */
+    result = iso_node_set_name(node1, "New name");
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_STRING_EQUAL(node1->name, "New name");
+    
+    /* add node dir */
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* check name change */
+    result = iso_node_set_name(node1, "Another name");
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_STRING_EQUAL(node1->name, "Another name");
+    
+    /* addition of a 2nd node */
+    node2 = calloc(1, sizeof(IsoNode));
+    node2->name = strdup("A node to be added first");
+    result = iso_dir_add_node(dir, node2, 0);
+    CU_ASSERT_EQUAL(result, 2);
+    
+    result = iso_node_set_name(node2, "New name");
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_STRING_EQUAL(node2->name, "New name");
+    
+    /* and now try to give an existing name */
+    result = iso_node_set_name(node2, "Another name");
+    CU_ASSERT_EQUAL(result, ISO_NODE_NAME_NOT_UNIQUE);
+    CU_ASSERT_STRING_EQUAL(node2->name, "New name");
+    
+    free(node1->name);
+    free(node2->name);
+    free(node1);
+    free(node2);
+    free(dir);
+}
+
 void add_node_suite()
 {
 	CU_pSuite pSuite = CU_add_suite("Node Test Suite", NULL, NULL);
 	
+    CU_add_test(pSuite, "iso_node_set_permissions()", test_iso_node_set_permissions);
+    CU_add_test(pSuite, "iso_node_get_permissions()", test_iso_node_get_permissions);
+    CU_add_test(pSuite, "iso_node_get_mode()", test_iso_node_get_mode);
+    CU_add_test(pSuite, "iso_node_set_uid()", test_iso_node_set_uid);
+    CU_add_test(pSuite, "iso_node_get_uid()", test_iso_node_get_uid);
+    CU_add_test(pSuite, "iso_node_set_gid()", test_iso_node_set_gid);
+    CU_add_test(pSuite, "iso_node_get_gid()", test_iso_node_get_gid);
     CU_add_test(pSuite, "iso_dir_add_node()", test_iso_dir_add_node);
     CU_add_test(pSuite, "iso_dir_get_node()", test_iso_dir_get_node);
     CU_add_test(pSuite, "iso_dir_get_children()", test_iso_dir_get_children);
     CU_add_test(pSuite, "iso_node_take()", test_iso_node_take);
+    CU_add_test(pSuite, "iso_node_set_name()", test_iso_node_set_name);
 }

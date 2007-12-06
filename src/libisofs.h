@@ -539,7 +539,6 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE if you select a incorrect mode
  *         ISO_MEM_ERROR
- * 
  */
 int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode, 
                              dev_t dev, IsoSpecial **special);
