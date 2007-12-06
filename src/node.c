@@ -49,6 +49,11 @@ void iso_node_unref(IsoNode *node)
                 iso_stream_unref(file->stream);
             }
             break;
+        case LIBISO_SYMLINK:
+            {
+                IsoSymlink *link = (IsoSymlink*) node;
+                free(link->dest);
+            }
         default:
             /* TODO #00002 handle deletion of each kind of node */
             break;    
