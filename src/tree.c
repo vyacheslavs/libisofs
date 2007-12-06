@@ -90,7 +90,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     if (dir) {
         *dir = node;
     }
-    return ISO_SUCCESS;
+    return ++parent->nchildren;
 }
 
 /**
@@ -178,5 +178,5 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     if (link) {
         *link = node;
     }
-    return ISO_SUCCESS;
+    return ++parent->nchildren;
 }
