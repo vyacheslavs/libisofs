@@ -18,6 +18,6 @@ int test_mocked_fs_add_dir(IsoFilesystem *fs, const char *path,
                             struct stat info);
 
 int test_mocked_fs_add_symlink(IsoFilesystem *fs, const char *path, 
-                            struct stat info, const char *dest);
+                               struct stat info, const char *dest);
 
 #endif /*MOCKED_FSRC_H_*/

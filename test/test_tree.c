@@ -289,6 +289,24 @@ void test_iso_tree_add_node_dir()
     result = test_mocked_fs_add_dir(fs, "/dir/a child node", info);
     CU_ASSERT_EQUAL(result, 1);
     
+    info.st_mode = S_IFDIR | 0750;
+    info.st_uid = 40;
+    info.st_gid = 41;
+    info.st_atime = 4234523;
+    info.st_ctime = 4234432;
+    info.st_mtime = 4111123;
+    result = test_mocked_fs_add_dir(fs, "/dir/another one", info);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    info.st_mode = S_IFDIR | 0755;
+    info.st_uid = 50;
+    info.st_gid = 51;
+    info.st_atime = 5234523;
+    info.st_ctime = 5234432;
+    info.st_mtime = 5111123;
+    result = test_mocked_fs_add_dir(fs, "/zzzz", info);
+    CU_ASSERT_EQUAL(result, 1);
+    
     /* and now insert those files to the image */
     result = iso_tree_add_node(image, root, "/dir", &node1);
     CU_ASSERT_EQUAL(result, 1);
@@ -326,8 +344,160 @@ void test_iso_tree_add_node_dir()
     CU_ASSERT_PTR_NULL(((IsoDir*)node2)->children);
     CU_ASSERT_EQUAL(((IsoDir*)node2)->nchildren, 0);
     
+    result = iso_tree_add_node(image, root, "/dir/another one", &node3);
+    CU_ASSERT_EQUAL(result, 3);
+    CU_ASSERT_EQUAL(root->nchildren, 3);
+    CU_ASSERT_PTR_EQUAL(root->children, node2);
+    CU_ASSERT_PTR_EQUAL(node2->next, node3);
+    CU_ASSERT_PTR_EQUAL(node3->next, node1);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_PTR_EQUAL(node2->parent, root);
+    CU_ASSERT_PTR_EQUAL(node3->parent, root);
+    CU_ASSERT_EQUAL(node3->type, LIBISO_DIR);
+    CU_ASSERT_STRING_EQUAL(node3->name, "another one");
+    CU_ASSERT_EQUAL(node3->mode, S_IFDIR | 0750);
+    CU_ASSERT_EQUAL(node3->uid, 40);
+    CU_ASSERT_EQUAL(node3->gid, 41);
+    CU_ASSERT_EQUAL(node3->atime, 4234523);
+    CU_ASSERT_EQUAL(node3->ctime, 4234432);
+    CU_ASSERT_EQUAL(node3->mtime, 4111123);
+    CU_ASSERT_PTR_NULL(((IsoDir*)node3)->children);
+    CU_ASSERT_EQUAL(((IsoDir*)node3)->nchildren, 0);
+    
+    result = iso_tree_add_node(image, root, "/zzzz", &node4);
+    CU_ASSERT_EQUAL(result, 4);
+    CU_ASSERT_EQUAL(root->nchildren, 4);
+    CU_ASSERT_PTR_EQUAL(root->children, node2);
+    CU_ASSERT_PTR_EQUAL(node2->next, node3);
+    CU_ASSERT_PTR_EQUAL(node3->next, node1);
+    CU_ASSERT_PTR_EQUAL(node1->next, node4);
+    CU_ASSERT_PTR_NULL(node4->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_PTR_EQUAL(node2->parent, root);
+    CU_ASSERT_PTR_EQUAL(node3->parent, root);
+    CU_ASSERT_PTR_EQUAL(node4->parent, root);
+    CU_ASSERT_EQUAL(node4->type, LIBISO_DIR);
+    CU_ASSERT_STRING_EQUAL(node4->name, "zzzz");
+    CU_ASSERT_EQUAL(node4->mode, S_IFDIR | 0755);
+    CU_ASSERT_EQUAL(node4->uid, 50);
+    CU_ASSERT_EQUAL(node4->gid, 51);
+    CU_ASSERT_EQUAL(node4->atime, 5234523);
+    CU_ASSERT_EQUAL(node4->ctime, 5234432);
+    CU_ASSERT_EQUAL(node4->mtime, 5111123);
+    CU_ASSERT_PTR_NULL(((IsoDir*)node4)->children);
+    CU_ASSERT_EQUAL(((IsoDir*)node4)->nchildren, 0);
+    
     iso_image_unref(image);
 }
+
+static
+void test_iso_tree_add_node_link()
+{
+    int result;
+    IsoDir *root;
+    IsoNode *node1, *node2, *node3, *node4;
+    IsoImage *image;
+    IsoFilesystem *fs;
+    struct stat info;
+    
+    result = iso_image_new("volume_id", &image);
+    CU_ASSERT_EQUAL(result, 1);
+    root = iso_image_get_root(image);
+    CU_ASSERT_PTR_NOT_NULL(root);
+    
+    /* replace image filesystem with out mockep one */
+    iso_filesystem_unref(image->fs);
+    result = test_mocked_filesystem_new(&fs);
+    CU_ASSERT_EQUAL(result, 1);
+    image->fs = fs;
+    
+    /* add some files to the filesystem */
+    info.st_mode = S_IFLNK | 0777;
+    info.st_uid = 12;
+    info.st_gid = 13;
+    info.st_atime = 123444;
+    info.st_ctime = 123555;
+    info.st_mtime = 123666;
+    result = test_mocked_fs_add_symlink(fs, "/link1", info, "/home/me");
+    CU_ASSERT_EQUAL(result, 1);
+    
+    info.st_mode = S_IFLNK | 0555;
+    info.st_uid = 22;
+    info.st_gid = 23;
+    info.st_atime = 223444;
+    info.st_ctime = 223555;
+    info.st_mtime = 223666;
+    result = test_mocked_fs_add_symlink(fs, "/another link", info, "/");
+    CU_ASSERT_EQUAL(result, 1);
+    
+    info.st_mode = S_IFLNK | 0750;
+    info.st_uid = 32;
+    info.st_gid = 33;
+    info.st_atime = 323444;
+    info.st_ctime = 323555;
+    info.st_mtime = 323666;
+    result = test_mocked_fs_add_symlink(fs, "/this will be the last", info, "/etc");
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* and now insert those files to the image */
+    result = iso_tree_add_node(image, root, "/link1", &node1);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(root->nchildren, 1);
+    CU_ASSERT_PTR_EQUAL(root->children, node1);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_EQUAL(node1->type, LIBISO_SYMLINK);
+    CU_ASSERT_STRING_EQUAL(node1->name, "link1");
+    CU_ASSERT_EQUAL(node1->mode, S_IFLNK | 0777);
+    CU_ASSERT_EQUAL(node1->uid, 12);
+    CU_ASSERT_EQUAL(node1->gid, 13);
+    CU_ASSERT_EQUAL(node1->atime, 123444);
+    CU_ASSERT_EQUAL(node1->ctime, 123555);
+    CU_ASSERT_EQUAL(node1->mtime, 123666);
+    CU_ASSERT_STRING_EQUAL(((IsoSymlink*)node1)->dest, "/home/me");
+    
+    result = iso_tree_add_node(image, root, "/another link", &node2);
+    CU_ASSERT_EQUAL(result, 2);
+    CU_ASSERT_EQUAL(root->nchildren, 2);
+    CU_ASSERT_PTR_EQUAL(root->children, node2);
+    CU_ASSERT_PTR_EQUAL(node2->next, node1);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_PTR_EQUAL(node2->parent, root);
+    CU_ASSERT_EQUAL(node2->type, LIBISO_SYMLINK);
+    CU_ASSERT_STRING_EQUAL(node2->name, "another link");
+    CU_ASSERT_EQUAL(node2->mode, S_IFLNK | 0555);
+    CU_ASSERT_EQUAL(node2->uid, 22);
+    CU_ASSERT_EQUAL(node2->gid, 23);
+    CU_ASSERT_EQUAL(node2->atime, 223444);
+    CU_ASSERT_EQUAL(node2->ctime, 223555);
+    CU_ASSERT_EQUAL(node2->mtime, 223666);
+    CU_ASSERT_STRING_EQUAL(((IsoSymlink*)node2)->dest, "/");
+    
+    result = iso_tree_add_node(image, root, "/this will be the last", &node3);
+    CU_ASSERT_EQUAL(result, 3);
+    CU_ASSERT_EQUAL(root->nchildren, 3);
+    CU_ASSERT_PTR_EQUAL(root->children, node2);
+    CU_ASSERT_PTR_EQUAL(node2->next, node1);
+    CU_ASSERT_PTR_EQUAL(node1->next, node3);
+    CU_ASSERT_PTR_NULL(node3->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_PTR_EQUAL(node2->parent, root);
+    CU_ASSERT_PTR_EQUAL(node3->parent, root);
+    CU_ASSERT_EQUAL(node3->type, LIBISO_SYMLINK);
+    CU_ASSERT_STRING_EQUAL(node3->name, "this will be the last");
+    CU_ASSERT_EQUAL(node3->mode, S_IFLNK | 0750);
+    CU_ASSERT_EQUAL(node3->uid, 32);
+    CU_ASSERT_EQUAL(node3->gid, 33);
+    CU_ASSERT_EQUAL(node3->atime, 323444);
+    CU_ASSERT_EQUAL(node3->ctime, 323555);
+    CU_ASSERT_EQUAL(node3->mtime, 323666);
+    CU_ASSERT_STRING_EQUAL(((IsoSymlink*)node3)->dest, "/etc");
+    
+    iso_image_unref(image);
+}
+
 
 void add_tree_suite()
 {
@@ -337,5 +507,6 @@ void add_tree_suite()
     CU_add_test(pSuite, "iso_tree_add_new_symlink()", test_iso_tree_add_new_symlink);
     CU_add_test(pSuite, "iso_tree_add_new_special()", test_iso_tree_add_new_special);
     CU_add_test(pSuite, "iso_tree_add_node() [1. dir]", test_iso_tree_add_node_dir);
+    CU_add_test(pSuite, "iso_tree_add_node() [2. symlink]", test_iso_tree_add_node_link);
 
 }
