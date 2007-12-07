@@ -22,6 +22,18 @@ typedef struct Iso_Dir_Iter IsoDirIter;
 
 /**
  * The type of an IsoNode.
+ * 
+ * When an user gets an IsoNode from an image, (s)he can use
+ * iso_node_get_type() to get the current type of the node, and then
+ * cast to the appropriate subtype. For example:
+ * 
+ * ...
+ * IsoNode *node;
+ * res = iso_dir_iter_next(iter, &node);
+ * if (res == 1 && iso_node_get_type(node) == LIBISO_DIR) {
+ *      IsoDir *dir = (IsoDir *)node;
+ *      ...
+ * }
  */
 enum IsoNodeType {
     LIBISO_DIR,
@@ -190,6 +202,11 @@ void iso_node_ref(IsoNode *node);
  * its children will be unref() too.
  */
 void iso_node_unref(IsoNode *node);
+
+/**
+ * Get the type of an IsoNode.
+ */
+enum IsoNodeType iso_node_get_type(IsoNode *node);
 
 /**
  * Set the name of a node. Note that if the node is already added to a dir

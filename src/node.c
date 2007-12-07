@@ -64,6 +64,14 @@ void iso_node_unref(IsoNode *node)
 }
 
 /**
+ * Get the type of an IsoNode.
+ */
+enum IsoNodeType iso_node_get_type(IsoNode *node)
+{
+    return node->type;
+}
+
+/**
  * Set the name of a node.
  * 
  * @param name  The name in UTF-8 encoding
