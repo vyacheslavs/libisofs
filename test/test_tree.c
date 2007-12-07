@@ -4,8 +4,11 @@
 
 #include "libisofs.h"
 #include "node.h"
-#include "test.h"
 #include "error.h"
+#include "image.h"
+
+#include "test.h"
+#include "mocked_fsrc.h"
 
 #include <stdlib.h>
 
@@ -246,6 +249,86 @@ void test_iso_tree_add_new_special()
     iso_image_unref(image);
 }
 
+static
+void test_iso_tree_add_node_dir()
+{
+    int result;
+    IsoDir *root;
+    IsoNode *node1, *node2, *node3, *node4;
+    IsoImage *image;
+    IsoFilesystem *fs;
+    struct stat info;
+    
+    result = iso_image_new("volume_id", &image);
+    CU_ASSERT_EQUAL(result, 1);
+    root = iso_image_get_root(image);
+    CU_ASSERT_PTR_NOT_NULL(root);
+    
+    /* replace image filesystem with out mockep one */
+    iso_filesystem_unref(image->fs);
+    result = test_mocked_filesystem_new(&fs);
+    CU_ASSERT_EQUAL(result, 1);
+    image->fs = fs;
+    
+    /* add some files to the filesystem */
+    info.st_mode = S_IFDIR | 0550;
+    info.st_uid = 20;
+    info.st_gid = 21;
+    info.st_atime = 234523;
+    info.st_ctime = 23432432;
+    info.st_mtime = 1111123;
+    result = test_mocked_fs_add_dir(fs, "/dir", info);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    info.st_mode = S_IFDIR | 0555;
+    info.st_uid = 30;
+    info.st_gid = 31;
+    info.st_atime = 3234523;
+    info.st_ctime = 3234432;
+    info.st_mtime = 3111123;
+    result = test_mocked_fs_add_dir(fs, "/dir/a child node", info);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* and now insert those files to the image */
+    result = iso_tree_add_node(image, root, "/dir", &node1);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(root->nchildren, 1);
+    CU_ASSERT_PTR_EQUAL(root->children, node1);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_EQUAL(node1->type, LIBISO_DIR);
+    CU_ASSERT_STRING_EQUAL(node1->name, "dir");
+    CU_ASSERT_EQUAL(node1->mode, S_IFDIR | 0550);
+    CU_ASSERT_EQUAL(node1->uid, 20);
+    CU_ASSERT_EQUAL(node1->gid, 21);
+    CU_ASSERT_EQUAL(node1->atime, 234523);
+    CU_ASSERT_EQUAL(node1->ctime, 23432432);
+    CU_ASSERT_EQUAL(node1->mtime, 1111123);
+    CU_ASSERT_PTR_NULL(((IsoDir*)node1)->children);
+    CU_ASSERT_EQUAL(((IsoDir*)node1)->nchildren, 0);
+    
+    result = iso_tree_add_node(image, root, "/dir/a child node", &node2);
+    CU_ASSERT_EQUAL(result, 2);
+    CU_ASSERT_EQUAL(root->nchildren, 2);
+    CU_ASSERT_PTR_EQUAL(root->children, node2);
+    CU_ASSERT_PTR_EQUAL(node2->next, node1);
+    CU_ASSERT_PTR_NULL(node1->next);
+    CU_ASSERT_PTR_EQUAL(node1->parent, root);
+    CU_ASSERT_PTR_EQUAL(node2->parent, root);
+    CU_ASSERT_EQUAL(node2->type, LIBISO_DIR);
+    CU_ASSERT_STRING_EQUAL(node2->name, "a child node");
+    CU_ASSERT_EQUAL(node2->mode, S_IFDIR | 0555);
+    CU_ASSERT_EQUAL(node2->uid, 30);
+    CU_ASSERT_EQUAL(node2->gid, 31);
+    CU_ASSERT_EQUAL(node2->atime, 3234523);
+    CU_ASSERT_EQUAL(node2->ctime, 3234432);
+    CU_ASSERT_EQUAL(node2->mtime, 3111123);
+    CU_ASSERT_PTR_NULL(((IsoDir*)node2)->children);
+    CU_ASSERT_EQUAL(((IsoDir*)node2)->nchildren, 0);
+    
+    iso_image_unref(image);
+}
+
 void add_tree_suite()
 {
 	CU_pSuite pSuite = CU_add_suite("Iso Tree Suite", NULL, NULL);
@@ -253,4 +336,6 @@ void add_tree_suite()
     CU_add_test(pSuite, "iso_tree_add_new_dir()", test_iso_tree_add_new_dir);
     CU_add_test(pSuite, "iso_tree_add_new_symlink()", test_iso_tree_add_new_symlink);
     CU_add_test(pSuite, "iso_tree_add_new_special()", test_iso_tree_add_new_special);
+    CU_add_test(pSuite, "iso_tree_add_node() [1. dir]", test_iso_tree_add_node_dir);
+
 }
