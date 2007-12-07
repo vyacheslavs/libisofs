@@ -87,7 +87,7 @@ struct Iso_File
 
 	/** 
 	 * It sorts the order in which the file data is written to the CD image.
-	 * Higher weighting filesare written at the beginning of image 
+	 * Higher weighting files are written at the beginning of image 
 	 */
     int sort_weight;
     IsoStream *stream;

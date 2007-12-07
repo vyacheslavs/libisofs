@@ -532,6 +532,39 @@ void iso_symlink_set_dest(IsoSymlink *link, const char *dest)
     link->dest = strdup(dest);
 }
 
+/**
+ * Sets the order in which a node will be written on image. High weihted files
+ * will be written first, so in a disc them will be written near the center.
+ * 
+ * @param node 
+ *      The node which weight will be changed. If it's a dir, this function 
+ *      will change the weight of all its children. For nodes other that dirs 
+ *      or regular files, this function has no effect.
+ * @param w 
+ *      The weight as a integer number, the greater this value is, the 
+ *      closer from the begining of image the file will be written.
+ */
+void iso_node_set_sort_weight(IsoNode *node, int w)
+{
+    if (node->type == LIBISO_DIR) {
+        IsoNode *child = ((IsoDir*)node)->children;
+        while (child) {
+            iso_node_set_sort_weight(child, w);
+            child = child->next;
+        }
+    } else if (node->type == LIBISO_FILE) {
+        ((IsoFile*)node)->sort_weight = w;
+    }   
+}
+
+/**
+ * Get the sort weight of a file.
+ */
+int iso_file_get_sort_weight(IsoFile *file)
+{
+    return file->sort_weight;
+}
+
 int iso_node_new_root(IsoDir **root)
 {
     IsoDir *dir;
