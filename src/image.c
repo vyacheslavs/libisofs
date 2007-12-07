@@ -41,9 +41,26 @@ int iso_image_new(const char *name, IsoImage **image)
         return ISO_MEM_ERROR;
     }
     
+    /* local filesystem will be used by default */
+    res = iso_local_filesystem_new(&(img->fs));
+    if (res < 0) {
+        free(img);
+        return ISO_MEM_ERROR;
+    }
+    
+    /* use basic builder as default */
+    res = iso_node_basic_builder_new(&(img->builder));
+    if (res < 0) {
+        iso_filesystem_unref(img->fs);
+        free(img);
+        return ISO_MEM_ERROR;
+    }
+    
     /* create message messenger */
     res = libiso_msgs_new(&img->messenger, 0);
     if (res <= 0) {
+        iso_node_builder_unref(img->builder);
+        iso_filesystem_unref(img->fs);
         free(img);
         return ISO_MEM_ERROR;
     }
@@ -54,6 +71,8 @@ int iso_image_new(const char *name, IsoImage **image)
     res = iso_node_new_root(&img->root);
     if (res < 0) {
         libiso_msgs_destroy(&img->messenger, 0);
+        iso_node_builder_unref(img->builder);
+        iso_filesystem_unref(img->fs);
         free(img);
         return res;
     }
@@ -85,6 +104,8 @@ void iso_image_unref(IsoImage *image)
         /* we need to free the image */
         iso_node_unref((IsoNode*)image->root);
         libiso_msgs_destroy(&image->messenger, 0);
+        iso_node_builder_unref(image->builder);
+        iso_filesystem_unref(image->fs);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);

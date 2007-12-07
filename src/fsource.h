@@ -33,10 +33,11 @@ struct Iso_Filesystem
      */
     int (*get_root)(IsoFilesystem *fs, IsoFileSource **root);
 
-	/**
-	 * 
-	 * 
-	 */
+    /**
+     * 
+     * @return
+     *     1 success, < 0 error
+     */
     int (*get_by_path)(IsoFilesystem *fs, const char *path, 
                        IsoFileSource **file);
 
@@ -208,8 +209,7 @@ struct Iso_File_Source
      * TODO #00004 Add a get_mime_type() function.
      * This can be useful for GUI apps, to choose the icon of the file
      */
-
-    //TODO define the refcount behavior for FileSources.
+     
     int refcount;
     void *data;
 };

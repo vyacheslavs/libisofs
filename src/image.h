@@ -10,7 +10,9 @@
 
 #include "libisofs.h"
 #include "node.h"
-    
+#include "fsource.h"
+#include "builder.h"
+
 /*
  * Image is a context for image manipulation.
  * Global objects such as the message_queues must belogn to that
@@ -39,6 +41,16 @@ struct Iso_Image {
     
     /* message messenger for the image */
     struct libiso_msgs *messenger;
+    
+    /**
+     * Default filesystem to use when adding files to the image tree.
+     */
+    IsoFilesystem *fs;
+    
+    /*
+     * Default builder to use when adding files to the image tree.
+     */
+    IsoNodeBuilder *builder;
 };
 
 #endif /*LIBISO_IMAGE_H_*/
