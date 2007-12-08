@@ -468,8 +468,7 @@ int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 static
 void lfs_fs_free(IsoFilesystem *fs)
 {
-	/* nothing to do */
-	return;
+	lfs = NULL;
 }
     
 int iso_local_filesystem_new(IsoFilesystem **fs)
