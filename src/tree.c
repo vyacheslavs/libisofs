@@ -441,3 +441,52 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
     result = iso_tree_add_node_builder(parent, file, image->builder, node);
     return result;
 }
+
+int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
+{
+    int result;
+    IsoNode *n;
+    IsoDir *dir;
+    char *ptr, *brk_info, *component;
+
+    if (image == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    /* get the first child at the root of the image that is "/" */
+    dir = image->root;
+    n = (IsoNode *)dir;
+    if (!strcmp(path, "/")) {
+        if (node) {
+            *node = n;
+        }
+        return ISO_SUCCESS;
+    }
+
+    ptr = strdup(path);
+    result = 0;
+    
+    /* get the first component of the path */
+    component = strtok_r(ptr, "/", &brk_info);
+    while (component) {
+        if (n->type != LIBISO_DIR) {
+            n = NULL;
+            break;
+        }
+        dir = (IsoDir *)n;
+
+        result = iso_dir_get_node(dir, component, &n);
+        if (result != 1) {
+            n = NULL;
+            break;
+        }
+
+        component = strtok_r(NULL, "/", &brk_info);
+    }
+
+    free(ptr);
+    if (node) {
+        *node = n;
+    }
+    return result;
+}

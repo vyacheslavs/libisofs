@@ -554,7 +554,7 @@ void iso_node_set_sort_weight(IsoNode *node, int w)
         }
     } else if (node->type == LIBISO_FILE) {
         ((IsoFile*)node)->sort_weight = w;
-    }   
+    }
 }
 
 /**

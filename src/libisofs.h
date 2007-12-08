@@ -638,6 +638,21 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
 int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path, 
                       IsoNode **node);
 
+/**
+ * Locate a node by its path on image.
+ * 
+ * @param node
+ *     Location for a pointer to the node, it will filled with NULL if the 
+ *     given path does not exists on image.
+ *     The node will be owned by the image and shouldn't be unref(). Just call
+ *     iso_node_ref() to get your own reference to the node.
+ *     Note that you can pass NULL is the only thing you want to do is check
+ *     if a node with such path really exists.
+ * @return
+ *      1 found, 0 not found, < 0 error
+ */
+int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
+
 #define ISO_MSGS_MESSAGE_LEN 4096
 
 /** 

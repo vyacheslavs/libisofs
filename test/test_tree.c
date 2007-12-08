@@ -396,7 +396,7 @@ void test_iso_tree_add_node_link()
 {
     int result;
     IsoDir *root;
-    IsoNode *node1, *node2, *node3, *node4;
+    IsoNode *node1, *node2, *node3;
     IsoImage *image;
     IsoFilesystem *fs;
     struct stat info;
@@ -498,6 +498,57 @@ void test_iso_tree_add_node_link()
     iso_image_unref(image);
 }
 
+static
+void test_iso_tree_path_to_node()
+{
+    int result;
+    IsoDir *root;
+    IsoDir *node1, *node2, *node11;
+    IsoNode *node;
+    IsoImage *image;
+    IsoFilesystem *fs;
+    struct stat info;
+    
+    result = iso_image_new("volume_id", &image);
+    CU_ASSERT_EQUAL(result, 1);
+    root = iso_image_get_root(image);
+    CU_ASSERT_PTR_NOT_NULL(root);
+    
+    /* replace image filesystem with out mockep one */
+    iso_filesystem_unref(image->fs);
+    result = test_mocked_filesystem_new(&fs);
+    CU_ASSERT_EQUAL(result, 1);
+    image->fs = fs;
+    
+    /* add some files */
+    result = iso_tree_add_new_dir(root, "Dir1", &node1);
+    CU_ASSERT_EQUAL(result, 1);
+    result = iso_tree_add_new_dir(root, "Dir2", (IsoDir**)&node2);
+    CU_ASSERT_EQUAL(result, 2);
+    result = iso_tree_add_new_dir((IsoDir*)node1, "Dir11", (IsoDir**)&node11);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* retrive some items */
+    result = iso_tree_path_to_node(image, "/", &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, root);
+    result = iso_tree_path_to_node(image, "/Dir1", &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node1);
+    result = iso_tree_path_to_node(image, "/Dir2", &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node2);
+    result = iso_tree_path_to_node(image, "/Dir1/Dir11", &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node11);
+    
+    /* some failtures */
+    result = iso_tree_path_to_node(image, "/Dir2/Dir11", &node);
+    CU_ASSERT_EQUAL(result, 0);
+    CU_ASSERT_PTR_NULL(node);
+    
+    iso_image_unref(image);
+}
 
 void add_tree_suite()
 {
@@ -508,5 +559,6 @@ void add_tree_suite()
     CU_add_test(pSuite, "iso_tree_add_new_special()", test_iso_tree_add_new_special);
     CU_add_test(pSuite, "iso_tree_add_node() [1. dir]", test_iso_tree_add_node_dir);
     CU_add_test(pSuite, "iso_tree_add_node() [2. symlink]", test_iso_tree_add_node_link);
-
+    CU_add_test(pSuite, "iso_tree_path_to_node()", test_iso_tree_path_to_node);
+    
 }
