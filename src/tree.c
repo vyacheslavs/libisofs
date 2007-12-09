@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <limits.h>
 
 /**
  * Add a new directory to the iso tree.
@@ -295,11 +294,11 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
 }
 
 static 
-int iso_tree_add_node_builder(IsoDir *parent, IsoFileSource *src,
-                              IsoNodeBuilder *builder, IsoNode **node)
+int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent, 
+                              IsoFileSource *src, IsoNodeBuilder *builder, 
+                              IsoNode **node)
 {
     int result;
-    struct stat info;
     IsoNode *new;
     IsoNode **pos;
     char *name;
@@ -323,93 +322,10 @@ int iso_tree_add_node_builder(IsoDir *parent, IsoFileSource *src,
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
     
-    /* get info about source */
-    result = src->lstat(src, &info);
+    result = builder->create_node(builder, image, src, &new);
     if (result < 0) {
         return result;
     }
-    
-    new = NULL;
-    switch (info.st_mode & S_IFMT) {
-    case S_IFREG:
-        {
-            /* source is a regular file */
-            IsoStream *stream;
-            IsoFile *file;
-            result = iso_file_source_stream_new(src, &stream);
-            if (result < 0) {
-                return result;
-            }
-            file = malloc(sizeof(IsoFile));
-            if (file == NULL) {
-                iso_stream_unref(stream);
-                return ISO_MEM_ERROR;
-            }
-            file->msblock = 0;
-            file->sort_weight = 0;
-            file->stream = stream;
-            file->node.type = LIBISO_FILE;
-            new = (IsoNode*) file;
-        }
-        break;
-    case S_IFDIR:
-        {
-            /* source is a directory */
-            new = calloc(1, sizeof(IsoDir));
-            if (new == NULL) {
-                return ISO_MEM_ERROR;
-            }
-            new->type = LIBISO_DIR;
-        }
-        break;
-    case S_IFLNK:
-        {
-            /* source is a symbolic link */
-            char dest[PATH_MAX];
-            IsoSymlink *link;
-            
-            result = src->readlink(src, dest, PATH_MAX);
-            if (result < 0) {
-                return result;
-            }
-            link = malloc(sizeof(IsoSymlink));
-            if (link == NULL) {
-                return ISO_MEM_ERROR;
-            }
-            link->dest = strdup(dest);
-            link->node.type = LIBISO_SYMLINK;
-            new = (IsoNode*) link;
-        }
-        break;
-    case S_IFSOCK:
-    case S_IFBLK:
-    case S_IFCHR:
-    case S_IFIFO:
-        {
-            /* source is an special file */
-            IsoSpecial *special;
-            special = malloc(sizeof(IsoSpecial));
-            if (special == NULL) {
-                return ISO_MEM_ERROR;
-            }
-            special->dev = info.st_rdev;
-            special->node.type = LIBISO_SPECIAL;
-            new = (IsoNode*) special;
-        }
-        break;
-    }
-    
-    /* fill fields */
-    new->refcount = 1;
-    new->name = strdup(name);
-    new->mode = info.st_mode;
-    new->uid = info.st_uid;
-    new->gid = info.st_gid;
-    new->atime = info.st_atime;
-    new->mtime = info.st_mtime;
-    new->ctime = info.st_ctime;
-    
-    new->hidden = 0;
     
     /* finally, add node to parent */
     new->parent = parent;
@@ -438,7 +354,8 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
     if (result < 0) {
         return result;
     }
-    result = iso_tree_add_node_builder(parent, file, image->builder, node);
+    result = iso_tree_add_node_builder(image, parent, file, image->builder, 
+                                       node);
     return result;
 }
 
