@@ -48,8 +48,7 @@ struct Iso_Node_Builder
      * created is determined from the type of the file source. Name,
      * permissions and other attributes are taken from source file.
      * 
-     * On sucess, the ref. to src will be owned by node, so you musn't
-     * unref it.
+     * Note that the src is never unref, so you need to free it.
      * 
      * @return
      *    1 on success, < 0 on error

@@ -639,6 +639,22 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
                       IsoNode **node);
 
 /**
+ * Add the contents of a dir to a given directory of the iso tree.
+ * 
+ * TODO comment Builder and Filesystem related issues when exposing both
+ * 
+ * @param image
+ *      TODO expose dir rec options and explain that here
+ * @param parent
+ *      Directory on the image tree where to add the contents of the dir
+ * @param dir
+ *      Path to a dir in the filesystem
+ * @return 
+ *     number of nodes in parent if success, < 0 otherwise
+ */
+int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
+
+/**
  * Locate a node by its path on image.
  * 
  * @param node

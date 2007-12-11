@@ -35,7 +35,8 @@ libinclude_HEADERS = \
 ## Build demo applications
 noinst_PROGRAMS = \
 	demo/lsl \
-	demo/cat 
+	demo/cat \
+	demo/tree 
 
 demo_lsl_CPPFLAGS = -Isrc
 demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
@@ -44,6 +45,10 @@ demo_lsl_SOURCES = demo/lsl.c
 demo_cat_CPPFLAGS = -Isrc
 demo_cat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_cat_SOURCES = demo/cat.c
+
+demo_tree_CPPFLAGS = -Isrc
+demo_tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_tree_SOURCES = demo/tree.c
 
 
 ## Build unit test

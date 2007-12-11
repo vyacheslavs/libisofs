@@ -10,6 +10,7 @@
 #include "error.h"
 #include "node.h"
 #include "fsource.h"
+#include "image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -98,7 +99,11 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     name = src->get_name(src);
     
     /* get info about source */
-    result = src->lstat(src, &info);
+    if (image->recOpts->follow_symlinks) {
+        result = src->stat(src, &info);
+    } else {
+        result = src->lstat(src, &info);
+    }
     if (result < 0) {
         return result;
     }
@@ -114,6 +119,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             if (result < 0) {
                 return result;
             }
+            /* take a ref to the src, as stream has taken our ref */
+            iso_file_source_ref(src);
             file = calloc(1, sizeof(IsoFile));
             if (file == NULL) {
                 iso_stream_unref(stream);
@@ -134,7 +141,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 return ISO_MEM_ERROR;
             }
             new->type = LIBISO_DIR;
-            iso_file_source_unref(src);
         }
         break;
     case S_IFLNK:
@@ -154,7 +160,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             link->dest = strdup(dest);
             link->node.type = LIBISO_SYMLINK;
             new = (IsoNode*) link;
-            iso_file_source_unref(src);
         }
         break;
     case S_IFSOCK:
@@ -171,7 +176,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
             new = (IsoNode*) special;
-            iso_file_source_unref(src);
         }
         break;
     }
