@@ -281,12 +281,18 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
             size_t a, b;
             int ret;
 
-            entry = readdir(data->info.dir);
-            if (entry == NULL) {
-                if (errno == EBADF)
-                    return ISO_FILE_ERROR;
-                else
-                    return 0; /* EOF */
+            /* while to skip "." and ".." dirs */
+            while (1) {
+                entry = readdir(data->info.dir);
+                if (entry == NULL) {
+                    if (errno == EBADF)
+                        return ISO_FILE_ERROR;
+                    else
+                        return 0; /* EOF */
+                }
+                if (strcmp(entry->d_name,".") && strcmp(entry->d_name,"..")) {
+                    break;
+                }
             }
 
             /* constructs the new path */

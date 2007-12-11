@@ -153,6 +153,8 @@ struct Iso_File_Source
      * The dir must be open() before calling this, and close() when no more
      * needed. Only valid for dirs. 
      * 
+     * Note that "." and ".." children MUST NOT BE returned.
+     * 
      * @param child
      *     pointer to be filled with the given child. Undefined on error or OEF
      * @return 
