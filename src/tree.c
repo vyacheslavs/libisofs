@@ -360,7 +360,7 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
     result = iso_tree_add_node_builder(image, parent, file, image->builder, 
                                        node);
     /* free the file */
-    iso_file_source_unref(file);                
+    iso_file_source_unref(file);       
     return result;
 }
 

@@ -44,6 +44,16 @@ enum IsoNodeType {
 };
 
 /**
+ * Flag used to hide a file in the RR/ISO or Joliet tree.
+ * 
+ * \see iso_node_set_hidden
+ */
+enum IsoHideNodeFlag {
+    LIBISO_HIDE_ON_RR = 1 << 0,
+    LIBISO_HIDE_ON_JOLIET = 1 << 1
+};
+
+/**
  * Create a new image, empty.
  * 
  * The image will be owned by you and should be unref() when no more needed.
@@ -299,6 +309,25 @@ void iso_node_set_ctime(IsoNode *node, time_t time);
  * Get the time of last status change of the file 
  */
 time_t iso_node_get_ctime(const IsoNode *node);
+
+/**
+ * Set if the node will be hidden in RR/ISO tree, Joliet tree or both.
+ * 
+ * If the file is setted as hidden in one tree, it won't be included there, so
+ * it won't be visible in a OS accessing CD using that tree. For example,
+ * GNU/Linux systems access to Rock Ridge / ISO9960 tree in order to see
+ * what is recorded on CD, while MS Windows make use of the Joliet tree. If a
+ * file is hidden only in Joliet, it won't be visible in Windows systems,
+ * while still visible in Linux.
+ * 
+ * If a file is hidden in both trees, it won't be written to image.
+ * 
+ * @param node 
+ *      The node that is to be hidden.
+ * @param hide_attrs 
+ *      IsoHideNodeFlag's to set the trees in which file will be hidden.
+ */
+void iso_node_set_hidden(IsoNode *node, int hide_attrs);
 
 /**
  * Add a new node to a dir. Note that this function don't add a new ref to

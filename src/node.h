@@ -21,16 +21,6 @@
 #include <stdint.h>
 
 /**
- * Flag used to hide a file in the RR/ISO or Joliet tree.
- * 
- * \see iso_tree_node_set_hidden
- */
-enum IsoHideNodeFlag {
-    LIBISO_HIDE_ON_RR = 1 << 0,
-    LIBISO_HIDE_ON_JOLIET = 1 << 1
-};
-
-/**
  * 
  */
 struct Iso_Node
