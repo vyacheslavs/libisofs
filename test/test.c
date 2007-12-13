@@ -5,6 +5,7 @@ static void create_test_suite()
 	add_node_suite();
     add_image_suite();
     add_tree_suite();
+    add_util_suite();
 } 
 
 int main(int argc, char **argv)

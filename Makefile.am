@@ -25,8 +25,10 @@ src_libisofs_la_SOURCES = \
 	src/messages.c \
 	src/libiso_msgs.h \
 	src/libiso_msgs.c \
-	src/stream.h  \
-	src/stream.c 
+	src/stream.h \
+	src/stream.c \
+	src/util.h \
+	src/util.c
 libinclude_HEADERS = \
 	src/libisofs.h
 
@@ -65,7 +67,8 @@ test_test_SOURCES = \
 	test/test.c \
 	test/test_node.c \
 	test/test_image.c \
-	test/test_tree.c  \
+	test/test_tree.c \
+	test/test_util.c \
 	test/mocked_fsrc.h \
 	test/mocked_fsrc.c
 
