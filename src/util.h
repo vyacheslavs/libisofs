@@ -13,5 +13,6 @@ extern inline int div_up(int n, int div);
 
 extern inline int round_up(int n, int mul);
 
+int str2ascii(const char *icharset, const char *input, char **output);
 
 #endif /*LIBISO_UTIL_H_*/
