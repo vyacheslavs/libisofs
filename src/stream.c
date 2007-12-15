@@ -91,6 +91,33 @@ int fsrc_is_repeatable(IsoStream *stream)
 }
 
 static
+int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id, 
+                ino_t *ino_id)
+{
+    int result;
+    struct stat info;
+    IsoFileSource *src;
+    IsoFilesystem *fs;
+    
+    if (stream == NULL || fs_id == NULL || dev_id == NULL || ino_id == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    src = (IsoFileSource*)stream->data;
+    
+    result = src->stat(src, &info);
+    if (result < 0) {
+        return result;
+    }
+    
+    fs = src->get_filesystem(src);
+    
+    *fs_id = fs->get_id(fs);
+    *dev_id = info.st_dev;
+    *ino_id = info.st_ino;
+    return ISO_SUCCESS;
+}
+
+static
 void fsrc_free(IsoStream *stream)
 {
     IsoFileSource *src;
@@ -127,6 +154,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     str->get_size = fsrc_get_size;
     str->read = fsrc_read;
     str->is_repeatable = fsrc_is_repeatable;
+    str->get_id = fsrc_get_id;
     str->free = fsrc_free;
     
     *stream = str;

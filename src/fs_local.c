@@ -24,6 +24,8 @@
 #include <libgen.h>
 #include <string.h>
 
+#define ISO_LOCAL_FS_ID     1
+
 /*
  * We can share a local filesystem object, as it has no private atts.
  */
@@ -472,6 +474,12 @@ int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 }
 
 static
+unsigned int lfs_get_id(IsoFilesystem *fs)
+{
+    return ISO_LOCAL_FS_ID;
+}
+
+static
 void lfs_fs_free(IsoFilesystem *fs)
 {
 	lfs = NULL;
@@ -498,6 +506,7 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
         lfs->data = NULL; /* we don't need private data */
         lfs->get_root = lfs_get_root;
         lfs->get_by_path = lfs_get_by_path;
+        lfs->get_id = lfs_get_id;
         lfs->free = lfs_fs_free;
     }
 	*fs = lfs;

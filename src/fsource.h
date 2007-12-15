@@ -23,6 +23,11 @@
 typedef struct Iso_File_Source IsoFileSource;
 typedef struct Iso_Filesystem IsoFilesystem;
 
+/**
+ * See IsoFilesystem->get_id() for info about this.
+ */
+extern unsigned int iso_fs_global_id;
+
 struct Iso_Filesystem
 {
 
@@ -40,6 +45,21 @@ struct Iso_Filesystem
      */
     int (*get_by_path)(IsoFilesystem *fs, const char *path, 
                        IsoFileSource **file);
+    
+    /**
+     * Get filesystem identifier. 
+     * 
+     * If the filesystem is able to generate correct values of the st_dev
+     * and st_ino fields for the struct stat of each file, this should
+     * return an unique number, greater than 0. 
+     * 
+     * To get a identifier for your filesystem implementation you should 
+     * use iso_fs_global_id, incrementing it by one each time.
+     * 
+     * Otherwise, if you can't ensure values in the struct stat are valid,
+     * this should return 0.
+     */
+    unsigned int (*get_id)(IsoFilesystem *fs);
 
     void (*free)(IsoFilesystem *fs);
 

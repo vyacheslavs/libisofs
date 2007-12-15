@@ -67,6 +67,17 @@ struct Iso_Stream
      *     1 if stream is repeatable, 0 if not, < 0 on error
      */
     int (*is_repeatable)(IsoStream *stream);
+    
+    /**
+     * Get an unique identifier for the IsoStream. If your implementation
+     * is unable to return a valid identifier, this function should return
+     * 0.
+     * 
+     * @return
+     *      1 on success, 0 if idenfier is not valid, < 0 error 
+     */
+    int (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id, 
+                  ino_t *ino_id);
 
     /**
      * Free implementation specific data. Should never be called by user.

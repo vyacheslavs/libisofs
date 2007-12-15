@@ -9,6 +9,11 @@
 #include "fsource.h"
 #include <stdlib.h>
 
+/**
+ * Values belong 100 are reserved for out own usage
+ */
+unsigned int iso_fs_global_id = 100;
+
 void iso_file_source_ref(IsoFileSource *src)
 {
 	++src->refcount;
