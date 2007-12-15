@@ -28,7 +28,10 @@ src_libisofs_la_SOURCES = \
 	src/stream.h \
 	src/stream.c \
 	src/util.h \
-	src/util.c
+	src/util.c \
+	src/filesrc.h \
+	src/filesrc.c \
+	src/ecma119.h
 libinclude_HEADERS = \
 	src/libisofs.h
 

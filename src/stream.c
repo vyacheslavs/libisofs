@@ -104,14 +104,17 @@ int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
     }
     src = (IsoFileSource*)stream->data;
     
+    fs = src->get_filesystem(src);
+    
+    *fs_id = fs->get_id(fs);
+    if (fs_id == 0) {
+        return 0;
+    }
+    
     result = src->stat(src, &info);
     if (result < 0) {
         return result;
     }
-    
-    fs = src->get_filesystem(src);
-    
-    *fs_id = fs->get_id(fs);
     *dev_id = info.st_dev;
     *ino_id = info.st_ino;
     return ISO_SUCCESS;
