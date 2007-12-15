@@ -402,6 +402,9 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
     
     result = dir->open(dir);
     if (result < 0) {
+        char msg[PATH_MAX];
+        sprintf(msg, "Can't open dir %s (%d)\n", dir->get_path(dir), result);
+        iso_msg_debug(image, msg);
         return result;
     }
     

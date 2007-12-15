@@ -158,7 +158,7 @@ int lfs_open(IsoFileSource *src)
     }
 
     /* is a file or a dir ? */
-    err = lfs_lstat(src, &info);
+    err = lfs_stat(src, &info);
     if (err < 0) {
         return err;
     }
