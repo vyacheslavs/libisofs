@@ -12,12 +12,13 @@
 #include "node.h"
 #include "util.h"
 #include "filesrc.h"
+#include "messages.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 static
-int set_iso_name(Ecma119Image *img, IsoNode *iso, Ecma119Node *node)
+int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
     int ret;
     char *ascii_name;
@@ -47,25 +48,18 @@ int set_iso_name(Ecma119Image *img, IsoNode *iso, Ecma119Node *node)
             iso_2_fileid(ascii_name);
         }
     }
-    node->iso_name = ascii_name;
+    *name = ascii_name;
     return ISO_SUCCESS;
 }
 
 static
 int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 {
-    int ret;
     Ecma119Node *ecma;
 
     ecma = calloc(1, sizeof(Ecma119Node));
     if (ecma == NULL) {
         return ISO_MEM_ERROR;
-    }
-
-    ret = set_iso_name(img, iso, ecma);
-    if (ret < 0) {
-        free(ecma);
-        return ret;
     }
 
     /* take a ref to the IsoNode */
@@ -157,10 +151,13 @@ void ecma119_node_free(Ecma119Node *node)
  * 
  */
 static
-int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree)
+int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree, 
+                int depth, int pathlen)
 {
     int ret;
     Ecma119Node *node;
+    int max_path;
+    char *iso_name = NULL;
 
     if (image == NULL || iso == NULL || tree == NULL) {
         return ISO_NULL_POINTER;
@@ -169,6 +166,21 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree)
     if (iso->hidden & LIBISO_HIDE_ON_RR) {
         /* file will be ignored */
         return 0;
+    }
+    ret = get_iso_name(image, iso, &iso_name);
+    if (ret < 0) {
+        return ret;
+    }
+    max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
+    if (1) { //TODO !rockridge && !relaxed_paths
+        if (depth > 8 || max_path > 255) {
+//            char msg[512];
+//            sprintf(msg, "File %s can't be added, because depth > 8 "
+//                         "or path length over 255\n", iso_name);
+//            iso_msg_note(image, LIBISO_FILE_IGNORED, msg);
+            free(iso_name);
+            return 0;
+        }
     }
 
     switch(iso->type) {
@@ -198,11 +210,11 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree)
             pos = dir->children;
             while (pos) {
                 Ecma119Node *child;
-                ret = create_tree(image, pos, &child);
+                ret = create_tree(image, pos, &child, depth + 1, max_path);
                 if (ret < 0) {
                     /* error */
                     ecma119_node_free(node);
-                    return ret;
+                    break;
                 } else if (ret == ISO_SUCCESS) {
                     /* add child to this node */
                     int nchildren = node->info.dir.nchildren++;
@@ -218,8 +230,10 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree)
         return ISO_ERROR;
     }
     if (ret < 0) {
+        free(iso_name);
         return ret;
     }
+    node->iso_name = iso_name;
     *tree = node;
     return ISO_SUCCESS;
 }
@@ -227,14 +241,14 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree)
 int ecma119_tree_create(Ecma119Image *img, IsoNode *iso, Ecma119Node **tree)
 {
     int ret;
-    ret = create_tree(img, iso, tree);
+    ret = create_tree(img, iso, tree, 1, 0);
     if (ret < 0) {
         return ret;
     }
     
     /*
      * TODO
-     * - take care about dirs whose level is over 8
+     * - reparent if RR
      * - sort files in dir
      * - mangle names
      */

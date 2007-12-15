@@ -382,6 +382,9 @@ Range "scdbackup"          :  0x00020000 to 0x0002ffff
 ------------------------------------------------------------------------------
 Range "vreixo"              :  0x00030000 to 0x0003ffff
 
+ Image creation:
+ 0x00030100 (NOTE,MEDIUM)   = File cannot be added to image (ignored) 
+
  General:
  0x00031001 (SORRY,HIGH)    = Cannot read file (ignored)
  0x00031002 (FATAL,HIGH)    = Cannot read file (operation canceled)
