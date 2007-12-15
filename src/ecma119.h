@@ -10,6 +10,7 @@
 #define LIBISO_ECMA119_H_
 
 typedef struct ecma119_image Ecma119Image;
+typedef struct Iso_File_Src IsoFileSrc;
 
 struct ecma119_image {
     

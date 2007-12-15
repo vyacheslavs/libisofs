@@ -32,7 +32,8 @@ int comp_iso_file_src(const void *n1, const void *n2)
             return 1;
         } else {
             /* files belong to same device in same fs */
-            return f1->ino_id - f2->ino_id;
+            return (f1->ino_id < f2->ino_id) ? -1 :
+                    (f1->ino_id > f2->ino_id) ? 1 : 0;
         }
     }
 }
@@ -60,7 +61,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         // Not implemented for now
         return ISO_ERROR;
     } else {
-        IsoFileSrc *inserted;
+        IsoFileSrc **inserted;
         
         size = stream->get_size(stream);
         if (size == (off_t)-1) {
@@ -83,18 +84,18 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         fsrc->stream = file->stream;
         
         /* insert the filesrc in the tree */
-        inserted = tsearch(fsrc, img->file_srcs, comp_iso_file_src);
+        inserted = tsearch(fsrc, &(img->file_srcs), comp_iso_file_src);
         if (inserted == NULL) {
             free(fsrc);
             return ISO_MEM_ERROR;
-        } else if (inserted == fsrc) {
+        } else if (*inserted == fsrc) {
             /* the file was inserted */
             img->file_count++;
         } else {
             /* the file was already on the tree */
             free(fsrc);
         }
-        *src = inserted;
+        *src = *inserted;
     }
     return ISO_SUCCESS;
 }

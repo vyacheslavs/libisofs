@@ -14,8 +14,6 @@
 
 #include <stdint.h>
 
-typedef struct Iso_File_Src IsoFileSrc;
-
 struct Iso_File_Src {
     
     /* key */
