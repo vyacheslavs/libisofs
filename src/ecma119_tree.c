@@ -238,18 +238,49 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     return ISO_SUCCESS;
 }
 
-int ecma119_tree_create(Ecma119Image *img, IsoNode *iso, Ecma119Node **tree)
+/**
+ * Compare the iso name of two ECMA-119 nodes
+ */
+static 
+int cmp_node_name(const void *f1, const void *f2)
+{
+    Ecma119Node *f = *((Ecma119Node**)f1);
+    Ecma119Node *g = *((Ecma119Node**)f2);
+    return strcmp(f->iso_name, g->iso_name);
+}
+
+/**
+ * Sorts a the children of each directory in the ECMA-119 tree represented
+ * by \p root, acording to the order specified in ECMA-119, section 9.3.
+ */
+static 
+void sort_tree(Ecma119Node *root)
+{
+    size_t i;
+
+    qsort(root->info.dir.children, root->info.dir.nchildren, 
+          sizeof(void*), cmp_node_name);
+    for (i = 0; i < root->info.dir.nchildren; i++) {
+        if (root->info.dir.children[i]->type == ECMA119_DIR)
+            sort_tree(root->info.dir.children[i]);
+    }
+}
+
+int ecma119_tree_create(Ecma119Image *img, IsoNode *iso)
 {
     int ret;
-    ret = create_tree(img, iso, tree, 1, 0);
+    Ecma119Node *root;
+    
+    ret = create_tree(img, iso, &root, 1, 0);
     if (ret < 0) {
         return ret;
     }
+    img->root = root;
+    sort_tree(root);
     
     /*
      * TODO
      * - reparent if RR
-     * - sort files in dir
      * - mangle names
      */
     

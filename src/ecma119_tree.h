@@ -58,7 +58,7 @@ struct ecma119_node
 /**
  * 
  */
-int ecma119_tree_create(Ecma119Image *img, IsoNode *iso, Ecma119Node **tree);
+int ecma119_tree_create(Ecma119Image *img, IsoNode *iso);
 
 /**
  * Free an Ecma119Node, and its children if node is a dir

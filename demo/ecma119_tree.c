@@ -95,17 +95,17 @@ int main(int argc, char **argv)
     ecma119->iso_level = 1;
 	
     /* create low level tree */
-    result = ecma119_tree_create(ecma119, (IsoNode*)iso_image_get_root(image), &tree);
+    result = ecma119_tree_create(ecma119, (IsoNode*)iso_image_get_root(image));
     if (result < 0) {
         printf ("Error creating ecma-119 tree: %d\n", result);
         return 1;
     }
     
     printf("================= ECMA-119 TREE =================\n");
-	print_dir(tree, 0);
+	print_dir(ecma119->root, 0);
 	printf("\n\n");
 	
-    ecma119_node_free(tree);
+    ecma119_node_free(ecma119->root);
     iso_image_unref(image);
 	return 0;
 }
