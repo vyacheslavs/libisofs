@@ -59,6 +59,7 @@ print_file_src(IsoFileSource *file)
     file->lstat(file, &info);
     print_type(info.st_mode);
     print_permissions(info.st_mode);
+    printf(" {%ld,%ld} ", (long)info.st_dev, (long)info.st_ino);
     name = file->get_name(file);
     printf(" %s", name);
     free(name);

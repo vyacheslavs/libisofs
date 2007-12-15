@@ -1,8 +1,13 @@
 /*
- * Little program that import a directory and prints the resulting iso tree.
+ * Little program that imports a directory to iso image, generates the
+ * ecma119 low level tree and prints it.
+ * Note that this is not an API example, but a little program for test
+ * purposes.
  */
 
 #include "libisofs.h"
+#include "ecma119.h"
+#include "ecma119_tree.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -30,11 +35,9 @@ print_permissions(mode_t mode)
 }
 
 static void 
-print_dir(IsoDir *dir, int level) 
+print_dir(Ecma119Node *dir, int level) 
 {
 	int i;
-	IsoDirIter *iter;
-	IsoNode *node;
 	char sp[level * 2 + 1];
 	
 	for (i = 0; i < level * 2; i += 2) {
@@ -45,43 +48,36 @@ print_dir(IsoDir *dir, int level)
 	sp[level * 2-1] = '-';
 	sp[level * 2] = '\0';
 	
-	iso_dir_get_children(dir, &iter);
-	while (iso_dir_iter_next(iter, &node) == 1) {
-		
-		if (iso_node_get_type(node) == LIBISO_DIR) {
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+		Ecma119Node *child = dir->info.dir.children[i];
+        
+		if (child->type == ECMA119_DIR) {
 			printf("%s+[D] ", sp);
-			print_permissions(iso_node_get_permissions(node));
-			printf(" %s\n", iso_node_get_name(node));
-			print_dir((IsoDir*)node, level+1);
-		} else if (iso_node_get_type(node) == LIBISO_FILE) {
+			print_permissions(iso_node_get_permissions(child->node));
+			printf(" %s\n", child->iso_name);
+			print_dir(child, level+1);
+		} else if (child->type == ECMA119_FILE) {
 			printf("%s-[F] ", sp);
-			print_permissions(iso_node_get_permissions(node));
-			printf(" %s\n", iso_node_get_name(node) );
-		} else if (iso_node_get_type(node) == LIBISO_SYMLINK) {
-			printf("%s-[L] ", sp);
-			print_permissions(iso_node_get_permissions(node));
-			printf(" %s -> %s \n", iso_node_get_name(node),
-			       iso_symlink_get_dest((IsoSymlink*)node) );
+            print_permissions(iso_node_get_permissions(child->node));
+            printf(" %s {%p}\n", child->iso_name, (void*)child->info.file);
 		} else {
-			printf("%s-[C] ", sp);
-			print_permissions(iso_node_get_permissions(node));
-			printf(" %s\n", iso_node_get_name(node) );
+			printf("%s-[????] ", sp);
 		} 
 	}
-	iso_dir_iter_free(iter);
 }
 
 int main(int argc, char **argv)
 {
 	int result;
     IsoImage *image;
+    Ecma119Image *ecma119;
+    Ecma119Node *tree;
 	
 	if (argc != 2) {
 		printf ("You need to specify a valid path\n");
 		return 1;
 	}
 	
-    
     result = iso_image_new("volume_id", &image);
     if (result < 0) {
         printf ("Error creating image\n");
@@ -94,11 +90,22 @@ int main(int argc, char **argv)
         printf ("Error adding directory %d\n", result);
         return 1;
     }
+    
+    ecma119 = calloc(1, sizeof(Ecma119Image));
+    ecma119->iso_level = 1;
 	
-    printf("================= IMAGE =================\n");
-	print_dir(iso_image_get_root(image), 0);
+    /* create low level tree */
+    result = ecma119_tree_create(ecma119, (IsoNode*)iso_image_get_root(image), &tree);
+    if (result < 0) {
+        printf ("Error creating ecma-119 tree: %d\n", result);
+        return 1;
+    }
+    
+    printf("================= ECMA-119 TREE =================\n");
+	print_dir(tree, 0);
 	printf("\n\n");
 	
+    ecma119_node_free(tree);
     iso_image_unref(image);
 	return 0;
 }

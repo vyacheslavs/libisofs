@@ -31,7 +31,10 @@ src_libisofs_la_SOURCES = \
 	src/util.c \
 	src/filesrc.h \
 	src/filesrc.c \
-	src/ecma119.h
+	src/ecma119.h \
+	src/ecma119.c \
+	src/ecma119_tree.h \
+	src/ecma119_tree.c
 libinclude_HEADERS = \
 	src/libisofs.h
 
@@ -41,7 +44,8 @@ libinclude_HEADERS = \
 noinst_PROGRAMS = \
 	demo/lsl \
 	demo/cat \
-	demo/tree 
+	demo/tree \
+	demo/ecma119tree 
 
 demo_lsl_CPPFLAGS = -Isrc
 demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
@@ -54,6 +58,10 @@ demo_cat_SOURCES = demo/cat.c
 demo_tree_CPPFLAGS = -Isrc
 demo_tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_tree_SOURCES = demo/tree.c
+
+demo_ecma119tree_CPPFLAGS = -Isrc
+demo_ecma119tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_ecma119tree_SOURCES = demo/ecma119_tree.c
 
 
 ## Build unit test
