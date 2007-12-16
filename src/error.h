@@ -36,6 +36,8 @@
 #define ISO_FILE_IS_NOT_DIR				-108
 #define ISO_FILE_IS_NOT_SYMLINK			-109
 
-#define ISO_CHARSET_CONV_ERROR           -150
+#define ISO_CHARSET_CONV_ERROR          -150
+
+#define ISO_MANGLE_TOO_MUCH_FILES       -200
 
 #endif /*LIBISO_ERROR_H_*/

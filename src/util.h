@@ -13,6 +13,8 @@ extern inline int div_up(int n, int div);
 
 extern inline int round_up(int n, int mul);
 
+int int_pow(int base, int power);
+
 /**
  * Convert a given string from any input charset to ASCII
  * 

@@ -27,6 +27,15 @@ int round_up(int n, int mul)
     return div_up(n, mul) * mul;
 }
 
+int int_pow(int base, int power)
+{
+    int result = 1;
+    while (--power >= 0) {
+        result *= base;
+    }
+    return result;
+}
+
 /**
  * Convert a str in a specified codeset to WCHAR_T. 
  * The result must be free() when no more needed

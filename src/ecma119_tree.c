@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static
 int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
@@ -266,6 +267,218 @@ void sort_tree(Ecma119Node *root)
     }
 }
 
+static
+int contains_name(Ecma119Node *dir, const char *name)
+{
+    int i;
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        Ecma119Node *child = dir->info.dir.children[i];
+        if (!strcmp(child->iso_name, name)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Ensures that the ISO name of each children of the given dir is unique,
+ * changing some of them if needed.
+ * It also ensures that resulting filename is always <= than given
+ * max_name_len, including extension. If needed, the extension will be reduced,
+ * but never under 3 characters.
+ */
+static
+int mangle_dir(Ecma119Node *dir, int max_file_len, int max_dir_len)
+{
+    int i, nchildren;
+    Ecma119Node **children;
+    int need_sort = 0;
+    
+    nchildren = dir->info.dir.nchildren;
+    children = dir->info.dir.children;
+    
+    for (i = 0; i < nchildren; ++i) {
+        char *name, *ext;
+        char full_name[40];
+        int max; /* computed max len for name, without extension */
+        int j = i; 
+        int digits = 1; /* characters to change per name */
+            
+        /* first, find all child with same name */
+        while (j + 1 < nchildren && 
+               !cmp_node_name(children + i, children + j + 1)) {
+            ++j;
+        }
+        if (j == i) {
+            /* name is unique */
+            continue;
+        }
+        
+        /*
+         * A max of 7 characters is good enought, it allows handling up to 
+         * 9,999,999 files with same name. We can increment this to
+         * max_name_len, but the int_pow() function must then be modified
+         * to return a bigger integer.
+         */
+        while (digits < 8) {
+            int ok, k;
+            char *dot;
+            int change = 0; /* number to be written */
+            
+            /* copy name to buffer */
+            strcpy(full_name, children[i]->iso_name);
+            
+            /* compute name and extension */
+            dot = strrchr(full_name, '.');
+            if (dot != NULL && children[i]->type != ECMA119_DIR) {
+                
+                /* 
+                 * File (not dir) with extension 
+                 * Note that we don't need to check for placeholders, as
+                 * tree reparent happens later, so no placeholders can be
+                 * here at this time.
+                 * 
+                 * TODO !!! Well, we will need a way to mangle root names
+                 * if we do reparent!
+                 */
+                int extlen;
+                full_name[dot - full_name] = '\0';
+                name = full_name;
+                ext = dot + 1;
+                
+                /* 
+                 * For iso level 1 we force ext len to be 3, as name
+                 * can't grow on the extension space 
+                 */
+                extlen = (max_file_len == 12) ? 3 : strlen(ext);
+                max = max_file_len - extlen - 1 - digits;
+                if (max <= 0) {
+                    /* this can happen if extension is too long */
+                    if (extlen + max > 3) {
+                        /* 
+                         * reduce extension len, to give name an extra char
+                         * note that max is negative or 0 
+                         */
+                        extlen = extlen + max - 1;
+                        ext[extlen] = '\0';
+                        max = max_file_len - extlen - 1 - digits;
+                    } else {
+                        /* 
+                         * error, we don't support extensions < 3
+                         * This can't happen with current limit of digits. 
+                         */
+                        return ISO_ERROR;
+                    }
+                }
+                /* ok, reduce name by digits */
+                if (name + max < dot) {
+                    name[max] = '\0';
+                }
+            } else {
+                /* Directory, or file without extension */
+                if (children[i]->type == ECMA119_DIR) {
+                    max = max_dir_len - digits;
+                    dot = NULL; /* dots have no meaning in dirs */
+                } else {
+                    max = max_file_len - digits;
+                }
+                name = full_name;
+                if (max < strlen(name)) {
+                    name[max] = '\0';
+                }
+                /* let ext be an empty string */
+                ext = name + strlen(name);
+            }
+            
+            ok = 1;
+            /* change name of each file */
+            for (k = i; k <= j; ++k) {
+                char tmp[40];
+                char fmt[16];
+                if (dot != NULL) {
+                    sprintf(fmt, "%%s%%0%dd.%%s", digits);
+                } else {
+                    sprintf(fmt, "%%s%%0%dd%%s", digits);
+                }
+                while (1) {
+                    sprintf(tmp, fmt, name, change, ext);
+                    ++change;
+                    if (change > int_pow(10, digits)) {
+                        ok = 0;
+                        break;
+                    }
+                    if (!contains_name(dir, tmp)) {
+                        /* the name is unique, so it can be used */
+                        break;
+                    }
+                }
+                if (ok) {
+                    char *new = strdup(tmp);
+                    if (new == NULL) {
+                        return ISO_MEM_ERROR;
+                    }
+                    free(children[k]->iso_name);
+                    children[k]->iso_name = new;
+                    /* 
+                     * if we change a name we need to sort again children
+                     * at the end
+                     */
+                    need_sort = 1;
+                } else {
+                    /* we need to increment digits */
+                    break;
+                }
+            }
+            if (ok) {
+                break;
+            } else {
+                ++digits;
+            }
+        }
+        if (digits == 8) {
+            return ISO_MANGLE_TOO_MUCH_FILES;
+        }
+        i = j;
+    }
+
+    /*
+     * If needed, sort again the files inside dir
+     */
+    if (need_sort) { 
+        qsort(children, nchildren, sizeof(void*), cmp_node_name);
+    }
+    
+    /* recurse */
+    for (i = 0; i < nchildren; ++i) {
+        int ret;
+        if (children[i]->type == ECMA119_DIR) {
+            ret = mangle_dir(children[i], max_file_len, max_dir_len);
+            if (ret < 0) {
+                /* error */
+                return ret;
+            }
+        }
+    }
+    
+    return ISO_SUCCESS;
+}
+
+static
+int mangle_tree(Ecma119Image *img)
+{
+    int max_file, max_dir;
+    
+    // TODO take care about relaxed constraints
+    if (img->iso_level == 1) {
+        max_file = 12; /* 8 + 3 + 1 */
+        max_dir = 8;
+    } else {
+        max_file = max_dir = 31;
+    }
+    return mangle_dir(img->root, max_file, max_dir);
+}
+
+
 int ecma119_tree_create(Ecma119Image *img, IsoNode *iso)
 {
     int ret;
@@ -278,10 +491,16 @@ int ecma119_tree_create(Ecma119Image *img, IsoNode *iso)
     img->root = root;
     sort_tree(root);
     
+    ret = mangle_tree(img);
+    if (ret < 0) {
+        return ret;
+    }
+    
     /*
      * TODO
      * - reparent if RR
-     * - mangle names
+     * This must be done after mangle_tree, as name mangling may increment
+     * file name length. After reparent, the root dir must be mangled again
      */
     
     return ISO_SUCCESS;
