@@ -479,12 +479,12 @@ int mangle_tree(Ecma119Image *img)
 }
 
 
-int ecma119_tree_create(Ecma119Image *img, IsoNode *iso)
+int ecma119_tree_create(Ecma119Image *img, IsoDir *iso)
 {
     int ret;
     Ecma119Node *root;
     
-    ret = create_tree(img, iso, &root, 1, 0);
+    ret = create_tree(img, (IsoNode*)iso, &root, 1, 0);
     if (ret < 0) {
         return ret;
     }

@@ -11,6 +11,9 @@
 #include "node.h"
 
 #include <stdlib.h>
+
+/* tdestroy is a GNU specific function */
+#define __USE_GNU
 #include <search.h>
 
 static
@@ -100,3 +103,12 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     return ISO_SUCCESS;
 }
 
+void free_node(void *nodep)
+{
+    /* nothing to do */
+}
+
+void iso_file_src_free(Ecma119Image *img)
+{
+    tdestroy(img->file_srcs, free_node);
+}

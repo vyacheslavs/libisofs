@@ -34,7 +34,8 @@ src_libisofs_la_SOURCES = \
 	src/ecma119.h \
 	src/ecma119.c \
 	src/ecma119_tree.h \
-	src/ecma119_tree.c
+	src/ecma119_tree.c \
+	src/writer.h
 libinclude_HEADERS = \
 	src/libisofs.h
 

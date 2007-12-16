@@ -47,6 +47,11 @@ struct Iso_File_Src {
  */
 int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src);
 
+/**
+ * Free the IsoFileSrc especific data
+ */
+void iso_file_src_free(Ecma119Image *img);
+
 // TODO not implemented
 int iso_file_src_open(IsoFileSrc *file);
 

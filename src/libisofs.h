@@ -54,6 +54,92 @@ enum IsoHideNodeFlag {
 };
 
 /**
+ * Holds the options for the image generation.
+ */
+typedef struct {
+    //int volnum; /**< The volume in the set which you want to write (usually 0) */
+    int level;  /**< ISO level to write at. */
+    int flags;  /**< Which extensions to support. */
+    //int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
+    
+    //unsigned int copy_eltorito:1;
+        /**<
+         * In multisession discs, select whether to copy el-torito catalog
+         * and boot image. Copy is needed for isolinux images, that need to
+         * be patched. However, it can lead to problems when the image is 
+         * not present in the iso filesystem, because we can't figure out
+         * its size. In those cases, we only copy 1 block of data.
+         */
+    
+    //unsigned int sort_files:1;
+                /**< If files should be sorted based on their weight. */
+//    unsigned int default_mode:1;
+//                /**<
+//                 * The default values for files and directory permissions,
+//                 * gid and uid. This option can be overwritten when set
+//                 * one of the following.
+//                 * 0 to use useful values, 1 to use node modes (this are
+//                 * the same as filesystem ones if not changed after added
+//                 * to tree). 
+//                 */
+//    unsigned int replace_dir_mode:1;
+//                /**<
+//                 * When 1, permissions for all dirs will be replaced by the
+//                 * specified in dir_mode field.
+//                 */
+//    unsigned int replace_file_mode:1;
+//                /**<
+//                 * When 1, permissions for all files will be replaced by the
+//                 * specified in file_mode field.
+//                 */
+//    unsigned int replace_uid:1;
+//                /**<
+//                 * When 1, uid of all nodes (both files and dirs) will be
+//                 * replaced by the specified in uid field.
+//                 */
+//    unsigned int replace_gid:1;
+//                /**<
+//                 * When 1, gid of all nodes (both files and dirs) will be
+//                 * replaced by the specified in gid field.
+//                 */
+//    mode_t dir_mode; /**< Mode to use on dirs when replace_dir_mode is set. */
+//    mode_t file_mode; /**< Mode to use on files when replace_file_mode is set. */
+//    gid_t gid; /**< gid to use when replace_gid is set. */
+//    uid_t uid; /**< uid to use when replace_uid is set. */
+//    char *input_charset; /**< NULL to use default charset */
+//    char *ouput_charset; /**< NULL to use default charset */
+//    uint32_t ms_block;
+                /**< 
+                 * Start block for multisession. When this is greater than 0, 
+                 * it's suppossed to be the lba of the next writable address 
+                 * on disc; all block lba on image will take this into account,
+                 * and files from a previous session will not be written on 
+                 * image. This behavior is only suitable for images to be
+                 * appended to a multisession disc.
+                 * When this is 0, no multisession image will be created. If 
+                 * some files are taken from a previous image, its contents
+                 * will be written again to the new image. Use this with new
+                 * images or if you plan to modify an existin image. 
+                 */
+//    struct data_source* src;
+//                /**<
+//                 * When modifying a image, this is the source of the original
+//                 * image, used to read file contents.
+//                 * Otherwise it can be NULL.
+//                 */
+//    uint8_t *overwrite;
+//                /**<
+//                 * When not NULL, it should point to a buffer of at least 
+//                 * 64KiB, where libisofs will write the contents that should 
+//                 * be written at the beginning of a overwriteable media, to
+//                 * grow the image.
+//                 * You shoudl initialize the buffer either with 0s, or with
+//                 * the contents of the first blocks of the image you're
+//                 * growing. In most cases, 0 is good enought.
+//                 */
+} Ecma119WriteOpts;
+
+/**
  * Create a new image, empty.
  * 
  * The image will be owned by you and should be unref() when no more needed.

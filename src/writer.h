@@ -8,28 +8,24 @@
 #ifndef LIBISO_IMAGE_WRITER_H_
 #define LIBISO_IMAGE_WRITER_H_
 
-struct Iso_Writer_State
-{
-    
-};
+#include "ecma119.h"
 
 struct Iso_Image_Writer
 {
+    /**
+     * 
+     */
+    int (*compute_data_blocks)(IsoImageWriter *writer);
     
-    //init()
+    int (*write_vol_desc)(IsoImageWriter *writer, int fd);
     
-    //compute_dir_structure()
+    int (*write_data)(IsoImageWriter *writer, int fd);
     
-    //write_vol_desc
-    
-    //
-    
-  
-    //free
+    int (*free_data)(IsoImageWriter *writer);
     
     void *data;
     Ecma119Image *image;
-    
+    IsoImageWriter *next;
 };
 
 #endif /*LIBISO_IMAGE_WRITER_H_*/

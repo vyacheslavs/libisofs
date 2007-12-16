@@ -40,15 +40,12 @@ struct ecma119_node
      */
     char *iso_name;
     
-    // TODO mmm, is this needed? 
-    // or should we compute charset translation on-the-fly?
-    //char *name;      /**< full name, in output charset (UTF-8 for now) */
-    
     Ecma119Node *parent;
     
     IsoNode *node; /*< reference to the iso node */
 
-    enum ecma119_node_type type; /**< file, symlink, directory or placeholder */
+    /**< file, symlink, directory or placeholder */
+    enum ecma119_node_type type; 
     union {
         IsoFileSrc *file;
         struct ecma119_dir_info dir;
@@ -58,7 +55,7 @@ struct ecma119_node
 /**
  * 
  */
-int ecma119_tree_create(Ecma119Image *img, IsoNode *iso);
+int ecma119_tree_create(Ecma119Image *img, IsoDir *iso);
 
 /**
  * Free an Ecma119Node, and its children if node is a dir

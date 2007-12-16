@@ -9,14 +9,43 @@
 #ifndef LIBISO_ECMA119_H_
 #define LIBISO_ECMA119_H_
 
+#include "libisofs.h"
+
 typedef struct ecma119_image Ecma119Image;
 typedef struct ecma119_node Ecma119Node;
 typedef struct Iso_File_Src IsoFileSrc;
+typedef struct Iso_Image_Writer IsoImageWriter;
 
 struct ecma119_image {
+    IsoImage *image;
     Ecma119Node *root;
     
+    //int volnum;
+    
     unsigned int iso_level:2;
+    
+//    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
+//    
+//    int replace_mode; /**< Replace ownership and modes of files
+//                      * 
+//                      * 0. filesystem values
+//                      * 1. useful values
+//                      * bits 1-4 bitmask: 
+//                      *     2 - replace dir
+//                      *     3 - replace file 
+//                      *     4 - replace gid
+//                      *     5 - replace uid
+//                      */
+//    mode_t dir_mode;
+//    mode_t file_mode;
+//    gid_t gid;
+//    uid_t uid;
+    
+    
+    time_t now;     /**< Time at which writing began. */
+    off_t total_size; /**< Total size of the output. This only
+                        *  includes the current volume. */
+    //uint32_t vol_space_size;
 
     /* tree of files sources */
     void *file_srcs;
