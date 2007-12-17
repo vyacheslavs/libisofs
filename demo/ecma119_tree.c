@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     ecma119->image = image;
 	
     /* create low level tree */
-    result = ecma119_tree_create(ecma119, iso_image_get_root(image));
+    result = ecma119_tree_create(ecma119);
     if (result < 0) {
         printf ("Error creating ecma-119 tree: %d\n", result);
         return 1;

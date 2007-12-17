@@ -115,5 +115,7 @@ void free_node(void *nodep)
 
 void iso_file_src_free(Ecma119Image *img)
 {
-    tdestroy(img->file_srcs, free_node);
+    if (img->file_srcs != NULL) {
+        tdestroy(img->file_srcs, free_node);
+    }
 }

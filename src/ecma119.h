@@ -11,6 +11,8 @@
 
 #include "libisofs.h"
 
+#include <stdint.h>
+
 typedef struct ecma119_image Ecma119Image;
 typedef struct ecma119_node Ecma119Node;
 typedef struct Iso_File_Src IsoFileSrc;
@@ -19,8 +21,6 @@ typedef struct Iso_Image_Writer IsoImageWriter;
 struct ecma119_image {
     IsoImage *image;
     Ecma119Node *root;
-    
-    //int volnum;
     
     unsigned int iso_level:2;
     
@@ -46,6 +46,15 @@ struct ecma119_image {
     off_t total_size; /**< Total size of the output. This only
                         *  includes the current volume. */
     //uint32_t vol_space_size;
+
+    /*
+     * Block being processed, either during image writing or structure
+     * size calculation.
+     */
+    uint32_t curblock;
+    
+    size_t nwriters;
+    IsoImageWriter **writers;
 
     /* tree of files sources */
     void *file_srcs;

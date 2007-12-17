@@ -13,6 +13,7 @@
 #include "util.h"
 #include "filesrc.h"
 #include "messages.h"
+#include "image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -132,6 +133,9 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 
 void ecma119_node_free(Ecma119Node *node)
 {
+    if (node == NULL) {
+        return;
+    }
     if (node->type == ECMA119_DIR) {
         int i;
         for (i = 0; i < node->info.dir.nchildren; i++) {
@@ -492,12 +496,12 @@ int mangle_tree(Ecma119Image *img)
 }
 
 
-int ecma119_tree_create(Ecma119Image *img, IsoDir *iso)
+int ecma119_tree_create(Ecma119Image *img)
 {
     int ret;
     Ecma119Node *root;
     
-    ret = create_tree(img, (IsoNode*)iso, &root, 1, 0);
+    ret = create_tree(img, (IsoNode*)img->image->root, &root, 1, 0);
     if (ret < 0) {
         return ret;
     }

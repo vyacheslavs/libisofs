@@ -17,15 +17,16 @@ struct Iso_Image_Writer
      */
     int (*compute_data_blocks)(IsoImageWriter *writer);
     
-    int (*write_vol_desc)(IsoImageWriter *writer, int fd);
+    int (*write_vol_desc)(IsoImageWriter *writer);
     
-    int (*write_data)(IsoImageWriter *writer, int fd);
+    int (*write_data)(IsoImageWriter *writer);
     
     int (*free_data)(IsoImageWriter *writer);
     
     void *data;
-    Ecma119Image *image;
-    IsoImageWriter *next;
+    Ecma119Image *target;
 };
+
+int ecma119_writer_create(Ecma119Image *target);
 
 #endif /*LIBISO_IMAGE_WRITER_H_*/
