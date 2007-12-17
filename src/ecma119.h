@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 
+#define BLOCK_SIZE      2048
+
 typedef struct ecma119_image Ecma119Image;
 typedef struct ecma119_node Ecma119Node;
 typedef struct Iso_File_Src IsoFileSrc;
@@ -40,6 +42,8 @@ struct ecma119_image {
 //    mode_t file_mode;
 //    gid_t gid;
 //    uid_t uid;
+    int sort_files; /**< if sort files or not. Sorting is based of 
+                      *  the weight of each file */
     
     
     time_t now;     /**< Time at which writing began. */
@@ -52,6 +56,14 @@ struct ecma119_image {
      * size calculation.
      */
     uint32_t curblock;
+
+    /* 
+     * number of dirs in ECMA-119 tree, computed together with dir position,
+     * and needed for path table computation in a efficient way
+     */
+    size_t ndirs;
+    uint32_t l_path_table_pos;
+    uint32_t m_path_table_pos;
     
     size_t nwriters;
     IsoImageWriter **writers;

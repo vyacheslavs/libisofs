@@ -13,11 +13,13 @@
 #include "filesrc.h"
 #include "image.h"
 #include "writer.h"
+#include "util.h"
 
 #include "libburn/libburn.h"
 
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 static
 void ecma119_image_free(Ecma119Image *t)
@@ -37,11 +39,108 @@ void ecma119_image_free(Ecma119Image *t)
     free(t);
 }
 
+/**
+ * Compute the size of a directory entry for a single node
+ */
+static
+size_t calc_dirent_len(Ecma119Node *n)
+{
+    int ret = n->iso_name ? strlen(n->iso_name) + 33 : 34;
+    if (ret % 2) ret++;
+    return ret;
+}
+
+/**
+ * Computes the total size of all directory entries of a single dir,
+ * acording to ECMA-119 6.8.1.1
+ */
+static 
+size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir)
+{
+    size_t i, len;
+
+    t->ndirs++;
+    
+    /* size of "." and ".." entries */
+    len = 34 + 34;
+    for (i = 0; i < dir->info.dir.nchildren; ++i) {
+        Ecma119Node *child = dir->info.dir.children[i];
+        size_t dirent_len = calc_dirent_len(child);
+        size_t remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
+        if (dirent_len > remaining) {
+            /* child directory entry doesn't fit on block */
+            len += remaining + dirent_len;
+        } else {
+            len += dirent_len;
+        }
+    }
+    return len;
+}
+
+static 
+void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
+{
+    size_t i, len;
+
+    dir->info.dir.block = t->curblock;
+    len = calc_dir_size(t, dir);
+    t->curblock += div_up(len, BLOCK_SIZE);
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        Ecma119Node *child = dir->info.dir.children[i];
+        if (child->type == ECMA119_DIR) {
+            calc_dir_pos(t, child);
+        }
+    }
+}
+
 static
 int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
 {
-    //TODO to implement
-    return -1;
+    Ecma119Image *target;
+    Ecma119Node **pathlist;
+    uint32_t path_table_size;
+    size_t i, j, cur;
+    
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    target = writer->target;
+    
+    /* compute position of directories */
+    target->ndirs = 0;
+    calc_dir_pos(target, target->root);
+    
+    /* compute length of pathlist */
+    pathlist = calloc(1, sizeof(void*) * target->ndirs);
+    if (pathlist == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    pathlist[0] = target->root;
+    path_table_size = 10; /* root directory record */
+    cur = 1;
+    for (i = 0; i < target->ndirs; i++) {
+        Ecma119Node *dir = pathlist[i];
+        for (j = 0; j < dir->info.dir.nchildren; j++) {
+            Ecma119Node *child = dir->info.dir.children[j];
+            if (child->type == ECMA119_DIR) {
+                size_t len = 8 + strlen(child->iso_name);
+                pathlist[cur++] = child;
+                path_table_size += len + len % 2;
+            }
+        }
+    }
+    
+    /* compute location for path tables */
+    target->l_path_table_pos = target->curblock;
+    target->curblock += div_up(path_table_size, BLOCK_SIZE);
+    target->m_path_table_pos = target->curblock;
+    target->curblock += div_up(path_table_size, BLOCK_SIZE);
+    
+    /* ...and free path table cache, as we do not need it at all */
+    free(pathlist);
+    
+    return ISO_SUCCESS;
 }
 
 static
@@ -112,6 +211,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     iso_image_ref(src);
     
     target->iso_level = opts->level;
+    target->sort_files = opts->sort_files;
     
     target->now = time(NULL);
     

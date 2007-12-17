@@ -71,7 +71,7 @@ typedef struct {
          * its size. In those cases, we only copy 1 block of data.
          */
     
-    //unsigned int sort_files:1;
+    unsigned int sort_files:1;
                 /**< If files should be sorted based on their weight. */
 //    unsigned int default_mode:1;
 //                /**<
