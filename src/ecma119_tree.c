@@ -187,17 +187,25 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     switch(iso->type) {
     case LIBISO_FILE:
         ret = create_file(image, (IsoFile*)iso, &node);
+        if (ret == ISO_FILE_TOO_BIG) {
+            free(iso_name);
+            // TODO log
+            return 0;
+        }
         break;
     case LIBISO_SYMLINK:
         //TODO only supported with RR
+        free(iso_name);
         return 0;
         break;
     case LIBISO_SPECIAL:
         //TODO only supported with RR
+        free(iso_name);
         return 0;
         break;
     case LIBISO_BOOT:
         //TODO
+        free(iso_name);
         return 0;
         break;
     case LIBISO_DIR: 

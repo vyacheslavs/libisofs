@@ -35,6 +35,7 @@
 #define ISO_FILE_READ_ERROR				-107
 #define ISO_FILE_IS_NOT_DIR				-108
 #define ISO_FILE_IS_NOT_SYMLINK			-109
+#define ISO_FILE_TOO_BIG                -110
 
 #define ISO_CHARSET_CONV_ERROR          -150
 

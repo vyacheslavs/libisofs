@@ -71,6 +71,11 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
             return ISO_FILE_ERROR;
         }
         
+        /* Files > 4GB not supported yet, they need ISO level 3 */
+        if (size > (off_t)0xffffffff) {
+            return ISO_FILE_TOO_BIG;
+        }
+        
         fsrc = malloc(sizeof(IsoFileSrc));
         if (fsrc == NULL) {
             return ISO_MEM_ERROR;
