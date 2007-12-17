@@ -402,9 +402,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
     
     result = dir->open(dir);
     if (result < 0) {
-        char msg[PATH_MAX];
-        sprintf(msg, "Can't open dir %s (%d)\n", dir->get_path(dir), result);
-        iso_msg_debug(image, msg);
+        iso_msg_debug(image, "Can't open dir %s", dir->get_path(dir));
         return result;
     }
     
@@ -415,11 +413,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         char *name;
         IsoNode *new;
         
-        {
-            char msg[PATH_MAX];
-            sprintf(msg, "Adding file %s\n", file->get_path(file));
-            iso_msg_debug(image, msg);
-        }
+        iso_msg_debug(image, "Adding file %s", file->get_path(file));
         
         name = file->get_name(file);
         
@@ -463,12 +457,8 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         result = builder->create_node(builder, image, file, &new);
         if (result < 0) {
             
-            {
-                char msg[PATH_MAX];
-                sprintf(msg, "Error %d when adding file %s\n", result,
-                        file->get_path(file));
-                iso_msg_debug(image, msg);
-            }
+            iso_msg_debug(image, "Error %d when adding file %s", 
+                          result, file->get_path(file));
             
             if (image->recOpts->report) {
                 action = image->recOpts->report(file, result, flag);

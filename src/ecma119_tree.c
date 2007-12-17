@@ -175,10 +175,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
     if (1) { //TODO !rockridge && !relaxed_paths
         if (depth > 8 || max_path > 255) {
-//            char msg[512];
-//            sprintf(msg, "File %s can't be added, because depth > 8 "
-//                         "or path length over 255\n", iso_name);
-//            iso_msg_note(image, LIBISO_FILE_IGNORED, msg);
+            iso_msg_note(image->image, LIBISO_FILE_IGNORED, 
+                         "File \"%s\" can't be added, because depth > 8 "
+                         "or path length over 255", iso->name);
             free(iso_name);
             return 0;
         }
@@ -188,17 +187,23 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     case LIBISO_FILE:
         ret = create_file(image, (IsoFile*)iso, &node);
         if (ret == ISO_FILE_TOO_BIG) {
+            iso_msg_note(image->image, LIBISO_FILE_IGNORED, 
+                         "File \"%s\" can't be added to image because is "
+                         "greater than 4GB", iso->name);
             free(iso_name);
-            // TODO log
             return 0;
         }
         break;
     case LIBISO_SYMLINK:
         //TODO only supported with RR
+        iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" ignored. "
+                     "Symlinks need RockRidge extensions.", iso->name);
         free(iso_name);
         return 0;
         break;
     case LIBISO_SPECIAL:
+        iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" ignored. "
+                     "Special files need RockRidge extensions.", iso->name);
         //TODO only supported with RR
         free(iso_name);
         return 0;

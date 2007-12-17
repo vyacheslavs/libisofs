@@ -7,52 +7,94 @@
  */
 #include <stdlib.h> 
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "libisofs.h"
 #include "messages.h"
-
 #include "image.h"
 
-void iso_msg_debug(IsoImage *img, char *msg_text)
+#define MAX_MSG_LEN     4096
+
+void iso_msg_debug(IsoImage *img, const char *fmt, ...)
 {
-	libiso_msgs_submit(img->messenger, -1, 0x00000002,
-                       LIBISO_MSGS_SEV_DEBUG, LIBISO_MSGS_PRIO_ZERO, 
-                       msg_text, 0, 0);
+    char msg[MAX_MSG_LEN];
+    va_list ap;
+    
+    va_start(ap, fmt);
+    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+    va_end(ap);
+    
+	libiso_msgs_submit(img->messenger, -1, 0x00000002, LIBISO_MSGS_SEV_DEBUG, 
+                       LIBISO_MSGS_PRIO_ZERO, msg, 0, 0);
 }
 
-void iso_msg_note(IsoImage *img, int error_code, char *msg_text)
+void iso_msg_note(IsoImage *img, int error_code, const char *fmt, ...)
 {
-	libiso_msgs_submit(img->messenger, -1, error_code,
-                       LIBISO_MSGS_SEV_NOTE, LIBISO_MSGS_PRIO_MEDIUM, 
-                       msg_text, 0, 0);
+	char msg[MAX_MSG_LEN];
+    va_list ap;
+    
+    va_start(ap, fmt);
+    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+    va_end(ap);
+    
+    libiso_msgs_submit(img->messenger, -1, error_code, LIBISO_MSGS_SEV_NOTE, 
+                       LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
 }
 
-void iso_msg_hint(IsoImage *img, int error_code, char *msg_text)
+void iso_msg_hint(IsoImage *img, int error_code, const char *fmt, ...)
 {
-	libiso_msgs_submit(img->messenger, -1, error_code,
-                       LIBISO_MSGS_SEV_HINT, LIBISO_MSGS_PRIO_MEDIUM, 
-                       msg_text, 0, 0);
+	char msg[MAX_MSG_LEN];
+    va_list ap;
+    
+    va_start(ap, fmt);
+    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+    va_end(ap);
+    
+    libiso_msgs_submit(img->messenger, -1, error_code, LIBISO_MSGS_SEV_HINT, 
+                       LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
 }
 
-void iso_msg_warn(IsoImage *img, int error_code, char *msg_text)
+void iso_msg_warn(IsoImage *img, int error_code, const char *fmt, ...)
 {
-	libiso_msgs_submit(img->messenger, -1, error_code,
+	char msg[MAX_MSG_LEN];
+    va_list ap;
+    
+    va_start(ap, fmt);
+    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+    va_end(ap);
+    
+    libiso_msgs_submit(img->messenger, -1, error_code,
                        LIBISO_MSGS_SEV_WARNING, LIBISO_MSGS_PRIO_MEDIUM, 
-                       msg_text, 0, 0);
+                       msg, 0, 0);
 }
 
-void iso_msg_sorry(IsoImage *img, int error_code, char *msg_text)
+void iso_msg_sorry(IsoImage *img, int error_code, const char *fmt, ...)
 {
-	libiso_msgs_submit(img->messenger, -1, error_code,
+	char msg[MAX_MSG_LEN];
+    va_list ap;
+    
+    va_start(ap, fmt);
+    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+    va_end(ap);
+    
+    libiso_msgs_submit(img->messenger, -1, error_code,
                        LIBISO_MSGS_SEV_SORRY, LIBISO_MSGS_PRIO_HIGH, 
-                       msg_text, 0, 0);
+                       msg, 0, 0);
 }
 
-void iso_msg_fatal(IsoImage *img, int error_code, char *msg_text)
+void iso_msg_fatal(IsoImage *img, int error_code, const char *fmt, ...)
 {
-	libiso_msgs_submit(img->messenger, -1, error_code,
+	char msg[MAX_MSG_LEN];
+    va_list ap;
+    
+    va_start(ap, fmt);
+    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+    va_end(ap);
+    
+    libiso_msgs_submit(img->messenger, -1, error_code,
                        LIBISO_MSGS_SEV_FATAL, LIBISO_MSGS_PRIO_HIGH, 
-                       msg_text, 0, 0);
+                       msg, 0, 0);
 }
 
 /** 

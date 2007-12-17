@@ -71,7 +71,6 @@ int main(int argc, char **argv)
 	int result;
     IsoImage *image;
     Ecma119Image *ecma119;
-    Ecma119Node *tree;
 	
 	if (argc != 2) {
 		printf ("You need to specify a valid path\n");
@@ -93,9 +92,10 @@ int main(int argc, char **argv)
     
     ecma119 = calloc(1, sizeof(Ecma119Image));
     ecma119->iso_level = 1;
+    ecma119->image = image;
 	
     /* create low level tree */
-    result = ecma119_tree_create(ecma119, (IsoNode*)iso_image_get_root(image));
+    result = ecma119_tree_create(ecma119, iso_image_get_root(image));
     if (result < 0) {
         printf ("Error creating ecma-119 tree: %d\n", result);
         return 1;

@@ -17,6 +17,7 @@
 #include "libburn/libburn.h"
 
 #include <stdlib.h>
+#include <time.h>
 
 static 
 int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, 
@@ -30,6 +31,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     if (target == NULL) {
         return ISO_MEM_ERROR;
     }
+    
+    target->image = src;
+    target->iso_level = opts->level;
+    
+    target->now = time(NULL);
     
     ret = ecma119_tree_create(target, src->root);
     if (ret < 0) {
