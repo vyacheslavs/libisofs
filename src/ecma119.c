@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 
 static
 void ecma119_image_free(Ecma119Image *t)
@@ -329,4 +330,15 @@ int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
     return ISO_SUCCESS;
 }
 
-
+int iso_write(Ecma119Image *target, void *buf, size_t count)
+{
+    ssize_t result;
+    
+    result = write(target->wrfd, buf, count);
+    if (result != count) {
+        /* treat this as an error? */
+        return ISO_WRITE_ERROR;
+    } else {
+        return ISO_SUCCESS;
+    }
+}

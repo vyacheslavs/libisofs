@@ -27,6 +27,18 @@ struct Iso_Image_Writer
     Ecma119Image *target;
 };
 
+/**
+ * This is the function all Writers shoudl call to write data to
+ * image.
+ * Currently, it is just a wrapper for write(2) Unix system call. 
+ * 
+ * It is implemented in ecma119.c
+ * 
+ * @return
+ *      1 on sucess, < 0 error
+ */
+int iso_write(Ecma119Image *target, void *buf, size_t count);
+
 int ecma119_writer_create(Ecma119Image *target);
 
 #endif /*LIBISO_IMAGE_WRITER_H_*/

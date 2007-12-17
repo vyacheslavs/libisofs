@@ -71,6 +71,10 @@ struct ecma119_image {
     /* tree of files sources */
     void *file_srcs;
     int file_count;
+    
+    /* file descriptors for read and writing image */
+    int wrfd; /* write to here */
+    int rdfd; /* read from here */
 };
 
 #endif /*LIBISO_ECMA119_H_*/
