@@ -578,6 +578,7 @@ int iso_node_new_root(IsoDir **root)
     if (dir == NULL) {
         return ISO_MEM_ERROR;
     }
+    dir->node.refcount = 1;
     dir->node.type = LIBISO_DIR;
     dir->node.atime = dir->node.ctime = dir->node.mtime = time(NULL);
     dir->node.mode = S_IFDIR | 0555;
