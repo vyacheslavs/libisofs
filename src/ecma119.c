@@ -36,6 +36,7 @@ void ecma119_image_free(Ecma119Image *t)
         writer->free_data(writer);
         free(writer);
     }
+    free(t->input_charset);
     free(t->writers);
     free(t);
 }
@@ -137,6 +138,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target->curblock += div_up(path_table_size, BLOCK_SIZE);
     target->m_path_table_pos = target->curblock;
     target->curblock += div_up(path_table_size, BLOCK_SIZE);
+    target->path_table_size = path_table_size;
     
     /* ...and free path table cache, as we do not need it at all */
     free(pathlist);
@@ -144,11 +146,94 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     return ISO_SUCCESS;
 }
 
+/**
+ * Write the Primary Volume Descriptor
+ */
 static
 int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
 {
-    //TODO to implement
-    return -1;
+    IsoImage *image;
+    Ecma119Image *t;
+    struct ecma119_pri_vol_desc vol;
+    
+    char *vol_id, *pub_id, *data_id, *volset_id;
+    char *system_id, *application_id, *copyright_file_id;
+    char *abstract_file_id, *biblio_file_id;
+    
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    t = writer->target;
+    image = t->image;
+    
+    memset(&vol, 0, sizeof(struct ecma119_pri_vol_desc));
+    
+    str2d_char(image->volume_id, t->input_charset, &vol_id);
+    str2a_char(image->publisher_id, t->input_charset, &pub_id);
+    str2a_char(image->data_preparer_id, t->input_charset, &data_id);
+    str2d_char(image->volset_id, t->input_charset, &volset_id);
+    
+    str2a_char(image->system_id, t->input_charset, &system_id);
+    str2a_char(image->application_id, t->input_charset, &application_id);
+    str2d_char(image->copyright_file_id, t->input_charset, &copyright_file_id);
+    str2d_char(image->abstract_file_id, t->input_charset, &abstract_file_id);
+    str2d_char(image->biblio_file_id, t->input_charset, &biblio_file_id);
+    
+    vol.vol_desc_type[0] = 1;
+    memcpy(vol.std_identifier, "CD001", 5);
+    vol.vol_desc_version[0] = 1;
+    if (system_id)
+        strncpy((char*)vol.system_id, system_id, 32);
+    else
+        /* put linux by default? */
+        memcpy(vol.system_id, "LINUX", 5); 
+    if (vol_id)
+        strncpy((char*)vol.volume_id, vol_id, 32);
+    iso_bb(vol.vol_space_size, t->vol_space_size, 4);
+    iso_bb(vol.vol_set_size, 1, 2);
+    iso_bb(vol.vol_seq_number, 1, 2);
+    iso_bb(vol.block_size, BLOCK_SIZE, 2);
+    iso_bb(vol.path_table_size, t->path_table_size, 4);
+    iso_lsb(vol.l_path_table_pos, t->l_path_table_pos, 4);
+    iso_msb(vol.m_path_table_pos, t->m_path_table_pos, 4);
+
+    //TODO
+    //write_one_dir_record(t, t->root, 3, vol->root_dir_record);
+
+    if (volset_id)
+        strncpy((char*)vol.vol_set_id, volset_id, 128);
+    if (pub_id)
+        strncpy((char*)vol.publisher_id, pub_id, 128);
+    if (data_id)
+        strncpy((char*)vol.data_prep_id, data_id, 128);
+    
+    if (application_id)
+        strncpy((char*)vol.application_id, application_id, 128);
+    if (copyright_file_id)
+        strncpy((char*)vol.copyright_file_id, copyright_file_id, 37);
+    if (abstract_file_id)
+        strncpy((char*)vol.abstract_file_id, abstract_file_id, 37);
+    if (biblio_file_id)
+        strncpy((char*)vol.bibliographic_file_id, biblio_file_id, 37);
+
+    iso_datetime_17(vol.vol_creation_time, t->now);
+    iso_datetime_17(vol.vol_modification_time, t->now);
+    iso_datetime_17(vol.vol_effective_time, t->now);
+    vol.file_structure_version[0] = 1;
+
+    free(vol_id);
+    free(volset_id);
+    free(pub_id);
+    free(data_id);
+    free(system_id);
+    free(application_id);
+    free(copyright_file_id);
+    free(abstract_file_id);
+    free(biblio_file_id);
+    
+    /* Finally write the Volume Descriptor */
+    return iso_write(t, &vol, sizeof(struct ecma119_pri_vol_desc));
 }
 
 static
@@ -215,6 +300,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->sort_files = opts->sort_files;
     
     target->now = time(NULL);
+    target->ms_block = 0;
+    target->input_charset = strdup("UTF-8"); //TODO
     
     /* 
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -224,7 +311,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
      * current block.
      * Finally, create Writer for files.
      */
-    target->curblock = 16; 
+    target->curblock = target->ms_block + 16; 
     
     /* the number of writers is dependent of the extensions */
     target->writers = malloc(2 * sizeof(void*));
@@ -257,6 +344,14 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
             goto target_cleanup;
         }
     }
+    
+    /*
+     * The volume space size is just the size of the last session, in
+     * case of ms images.
+     */
+    target->total_size = (target->curblock - target->ms_block) * BLOCK_SIZE;
+    target->vol_space_size = target->curblock - target->ms_block;
+    
     
     /* 4. Start writting thread */ 
     
