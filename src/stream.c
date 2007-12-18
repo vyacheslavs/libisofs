@@ -16,7 +16,12 @@
 typedef struct
 {
     IsoFileSource *src;
-} _FSrcStream;
+
+    /* key for file identification inside filesystem */
+    dev_t dev_id;
+    ino_t ino_id;
+    off_t size; /**< size of this file */
+} FSrcStreamData;
 
 static
 int fsrc_open(IsoStream *stream)
@@ -25,7 +30,7 @@ int fsrc_open(IsoStream *stream)
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    src = (IsoFileSource*)stream->data;
+    src = ((FSrcStreamData*)stream->data)->src;
     return src->open(src);
 }
 
@@ -36,25 +41,17 @@ int fsrc_close(IsoStream *stream)
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    src = (IsoFileSource*)stream->data;
+    src = ((FSrcStreamData*)stream->data)->src;
     return src->close(src);
 }
 
 static
 off_t fsrc_get_size(IsoStream *stream)
 {
-    struct stat info;
-    IsoFileSource *src;
-    if (stream == NULL) {
-        return ISO_NULL_POINTER;
-    }
-    src = (IsoFileSource*)stream->data;
+    FSrcStreamData *data;
+    data = (FSrcStreamData*)stream->data;
     
-    if (src->lstat(src, &info) < 0) {
-        return (off_t) -1;
-    }
-    
-    return info.st_size;
+    return data->size;
 }
 
 static 
@@ -64,7 +61,7 @@ int fsrc_read(IsoStream *stream, void *buf, size_t count)
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    src = (IsoFileSource*)stream->data;
+    src = ((FSrcStreamData*)stream->data)->src;
     return src->read(src, buf, count);
 }
 
@@ -73,17 +70,18 @@ int fsrc_is_repeatable(IsoStream *stream)
 {
     int ret;
     struct stat info;
-    IsoFileSource *src;
+    FSrcStreamData *data;
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    src = (IsoFileSource*)stream->data;
+    data = (FSrcStreamData*)stream->data;
     
-    ret = src->stat(src, &info);
+    /* mode is not cached, this function is only useful for filters */
+    ret = data->src->stat(data->src, &info);
     if (ret < 0) {
         return ret; 
     }
-    if (info.st_mode & (S_IFREG | S_IFBLK)) {
+    if (S_ISREG(info.st_mode) || S_ISBLK(info.st_mode)) {
         return 1;
     } else {
         return 0;
@@ -94,38 +92,33 @@ static
 int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id, 
                 ino_t *ino_id)
 {
-    int result;
-    struct stat info;
-    IsoFileSource *src;
+    FSrcStreamData *data;
     IsoFilesystem *fs;
     
     if (stream == NULL || fs_id == NULL || dev_id == NULL || ino_id == NULL) {
         return ISO_NULL_POINTER;
     }
-    src = (IsoFileSource*)stream->data;
+    data = (FSrcStreamData*)stream->data;
     
-    fs = src->get_filesystem(src);
+    fs = data->src->get_filesystem(data->src);
     
     *fs_id = fs->get_id(fs);
     if (fs_id == 0) {
         return 0;
     }
     
-    result = src->stat(src, &info);
-    if (result < 0) {
-        return result;
-    }
-    *dev_id = info.st_dev;
-    *ino_id = info.st_ino;
+    *dev_id = data->dev_id;
+    *ino_id = data->ino_id;
     return ISO_SUCCESS;
 }
 
 static
 void fsrc_free(IsoStream *stream)
 {
-    IsoFileSource *src;
-    src = (IsoFileSource*)stream->data;
-    iso_file_source_unref(src);
+    FSrcStreamData *data;
+    data = (FSrcStreamData*)stream->data;
+    iso_file_source_unref(data->src);
+    free(data);
 }
 
 int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
@@ -133,6 +126,8 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     int r;
     struct stat info;
     IsoStream *str;
+    FSrcStreamData *data;
+
     if (src == NULL || stream == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -149,9 +144,20 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     if (str == NULL) {
         return ISO_MEM_ERROR;
     }
+    data = malloc(sizeof(FSrcStreamData));
+    if (str == NULL) {
+        free(str);
+        return ISO_MEM_ERROR;
+    }
+
+    /* take the ref to IsoFileSource */
+    data->src = src;
+    data->dev_id = info.st_dev;
+    data->ino_id = info.st_ino;
+    data->size = info.st_size;
     
     str->refcount = 1;
-    str->data = src;
+    str->data = data;
     str->open = fsrc_open;
     str->close = fsrc_close;
     str->get_size = fsrc_get_size;

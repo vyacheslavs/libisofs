@@ -14,6 +14,7 @@
 #include "filesrc.h"
 #include "messages.h"
 #include "image.h"
+#include "stream.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -111,6 +112,15 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 {
     int ret;
     IsoFileSrc *src;
+    off_t size;
+
+    size = iso->stream->get_size(iso->stream);
+    if (size > (off_t)0xffffffff) {
+        iso_msg_note(img->image, LIBISO_FILE_IGNORED, 
+                     "File \"%s\" can't be added to image because is "
+                     "greater than 4GB", iso->node.name);
+        return 0;
+    }
 
     ret = iso_file_src_create(img, iso, &src);
     if (ret < 0) {
@@ -190,13 +200,6 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     switch(iso->type) {
     case LIBISO_FILE:
         ret = create_file(image, (IsoFile*)iso, &node);
-        if (ret == ISO_FILE_TOO_BIG) {
-            iso_msg_note(image->image, LIBISO_FILE_IGNORED, 
-                         "File \"%s\" can't be added to image because is "
-                         "greater than 4GB", iso->name);
-            free(iso_name);
-            return 0;
-        }
         break;
     case LIBISO_SYMLINK:
         //TODO only supported with RR
@@ -247,7 +250,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         /* should never happen */
         return ISO_ERROR;
     }
-    if (ret < 0) {
+    if (ret <= 0) {
         free(iso_name);
         return ret;
     }

@@ -25,6 +25,8 @@ struct Iso_Stream
     /**
      * Opens the stream.
      * 
+     * TODO it would be great to return a different success code if the
+     * underlying source size has changed.
      * @return 
      *     1 on success, < 0 on error
      */
@@ -37,9 +39,8 @@ struct Iso_Stream
     int (*close)(IsoStream *stream);
 
     /**
-     * Get the size (in bytes) of the stream.
-     * @return
-     *      The size, or -1 on error
+     * Get the size (in bytes) of the stream. This function should always 
+     * return the same size, even if the underlying source size changes.
      */
     off_t (*get_size)(IsoStream *stream);
 

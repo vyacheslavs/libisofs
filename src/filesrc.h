@@ -15,14 +15,7 @@
 #include <stdint.h>
 
 struct Iso_File_Src {
-    
-    /* key */
-    unsigned int fs_id;
-    dev_t dev_id;
-    ino_t ino_id;
-    
     unsigned int prev_img:1; /**< if the file comes from a previous image */
-    off_t size; /**< size of this file */
     uint32_t block; /**< Block where this file will be written on image */
     int sort_weight;
     IsoStream *stream;
@@ -51,6 +44,11 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src);
  * Free the IsoFileSrc especific data
  */
 void iso_file_src_free(Ecma119Image *img);
+
+/**
+ * Get the size of the file this IsoFileSrc represents
+ */
+off_t iso_file_src_get_size(IsoFileSrc *file);
 
 // TODO not implemented
 int iso_file_src_open(IsoFileSrc *file);

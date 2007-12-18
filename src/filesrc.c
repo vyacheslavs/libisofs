@@ -20,23 +20,34 @@ static
 int comp_iso_file_src(const void *n1, const void *n2)
 {
     const IsoFileSrc *f1, *f2;
+    int res;
+    unsigned int fs_id1, fs_id2;
+    dev_t dev_id1, dev_id2;
+    ino_t ino_id1, ino_id2;
+    
+    
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
     
-    if (f1->fs_id < f2->fs_id) {
+    res = f1->stream->get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
+    res = f2->stream->get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
+    
+    //TODO take care about res <= 0
+    
+    if (fs_id1 < fs_id2) {
         return -1;
-    } else if (f1->fs_id > f2->fs_id) {
+    } else if (fs_id1 > fs_id2) {
         return 1;
     } else {
         /* files belong to the same fs */
-        if (f1->dev_id > f2->dev_id) {
+        if (dev_id1 > dev_id2) {
             return -1;
-        } else if (f1->dev_id < f2->dev_id) {
+        } else if (dev_id1 < dev_id2) {
             return 1;
         } else {
             /* files belong to same device in same fs */
-            return (f1->ino_id < f2->ino_id) ? -1 :
-                    (f1->ino_id > f2->ino_id) ? 1 : 0;
+            return (ino_id1 < ino_id2) ? -1 :
+                    (ino_id1 > ino_id2) ? 1 : 0;
         }
     }
 }
@@ -49,7 +60,6 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     unsigned int fs_id;
     dev_t dev_id;
     ino_t ino_id;
-    off_t size;
     
     if (img == NULL || file == NULL || src == NULL) {
         return ISO_NULL_POINTER;
@@ -61,20 +71,12 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         return res;
     } else if (res == 0) {
         // TODO this corresponds to Stream that cannot provide a valid id
-        // Not implemented for now
+        // Not implemented for now, but that shouldn't be here, the get_id
+        // above is not needed at all, the comparison function should take
+        // care of it
         return ISO_ERROR;
     } else {
         IsoFileSrc **inserted;
-        
-        size = stream->get_size(stream);
-        if (size == (off_t)-1) {
-            return ISO_FILE_ERROR;
-        }
-        
-        /* Files > 4GB not supported yet, they need ISO level 3 */
-        if (size > (off_t)0xffffffff) {
-            return ISO_FILE_TOO_BIG;
-        }
         
         fsrc = malloc(sizeof(IsoFileSrc));
         if (fsrc == NULL) {
@@ -82,12 +84,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         }
         
         /* fill key and other atts */
-        fsrc->fs_id = fs_id;
-        fsrc->dev_id = dev_id;
-        fsrc->ino_id = ino_id;
         fsrc->prev_img = file->msblock ? 1 : 0;
         fsrc->block = file->msblock;
-        fsrc->size = size;
         fsrc->sort_weight = file->sort_weight;
         fsrc->stream = file->stream;
         
@@ -118,4 +116,9 @@ void iso_file_src_free(Ecma119Image *img)
     if (img->file_srcs != NULL) {
         tdestroy(img->file_srcs, free_node);
     }
+}
+
+off_t iso_file_src_get_size(IsoFileSrc *file)
+{
+    return file->stream->get_size(file->stream);
 }
