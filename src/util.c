@@ -16,6 +16,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <stdio.h>
 
 int div_up(int n, int div)
 {
@@ -191,6 +192,12 @@ static int valid_d_char(char c)
     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c == '_');
 }
 
+static int valid_a_char(char c)
+{
+    return (c >= ' ' && c <= '"') || (c >= '%' && c <= '?')
+           || (c >= 'A' && c <= 'Z') || (c == '_');
+}
+
 void iso_dirid(char *src, int maxlen)
 {
     size_t len, i;
@@ -285,4 +292,159 @@ void iso_2_fileid(char *src)
         src[pos++] = valid_d_char(c) ? c : '_';
     }
     src[pos] = '\0';
+}
+    
+int str2d_char(const char *icharset, const char *input, char **output)
+{
+    int ret;
+    char *ascii;
+    size_t len, i;
+    
+    if (output == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    /** allow NULL input */
+    if (input == NULL) {
+        *output = NULL;
+        return 0;
+    }
+    
+    /* this checks for NULL parameters */
+    ret = str2ascii(icharset, input, &ascii);
+    if (ret < 0) {
+        *output = NULL;
+        return ret;
+    }
+    
+    len = strlen(ascii);
+    
+    for (i = 0; i < len; ++i) {
+        char c = toupper(ascii[i]);
+        ascii[i] = valid_d_char(c) ? c : '_';
+    }
+    
+    *output = ascii;
+    return ISO_SUCCESS;
+}
+    
+int str2a_char(const char *icharset, const char *input, char **output)
+{
+    int ret;
+    char *ascii;
+    size_t len, i;
+    
+    if (output == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    /** allow NULL input */
+    if (input == NULL) {
+        *output = NULL;
+        return 0;
+    }
+    
+    /* this checks for NULL parameters */
+    ret = str2ascii(icharset, input, &ascii);
+    if (ret < 0) {
+        *output = NULL;
+        return ret;
+    }
+    
+    len = strlen(ascii);
+    
+    for (i = 0; i < len; ++i) {
+        char c = toupper(ascii[i]);
+        ascii[i] = valid_a_char(c) ? c : '_';
+    }
+    
+    *output = ascii;
+    return ISO_SUCCESS;
+}
+
+void iso_lsb(uint8_t *buf, uint32_t num, int bytes)
+{
+    int i;
+
+    for (i = 0; i < bytes; ++i)
+        buf[i] = (num >> (8 * i)) & 0xff;
+}
+
+void iso_msb(uint8_t *buf, uint32_t num, int bytes)
+{
+    int i;
+
+    for (i = 0; i < bytes; ++i)
+        buf[bytes - 1 - i] = (num >> (8 * i)) & 0xff;
+}
+
+void iso_bb(uint8_t *buf, uint32_t num, int bytes)
+{
+    iso_lsb(buf, num, bytes);
+    iso_msb(buf+bytes, num, bytes);
+}
+
+void iso_datetime_7(unsigned char *buf, time_t t)
+{
+    static int tzsetup = 0;
+    int tzoffset;
+    struct tm tm;
+
+    if (!tzsetup) {
+        tzset();
+        tzsetup = 1;
+    }
+
+    localtime_r(&t, &tm);
+
+    buf[0] = tm.tm_year;
+    buf[1] = tm.tm_mon + 1;
+    buf[2] = tm.tm_mday;
+    buf[3] = tm.tm_hour;
+    buf[4] = tm.tm_min;
+    buf[5] = tm.tm_sec;
+#ifdef HAVE_TM_GMTOFF
+    tzoffset = tm.tm_gmtoff / 60 / 15;
+#else
+    tzoffset = timezone / 60 / 15;
+#endif
+    if (tzoffset > 52)
+        tzoffset -= 101;
+    buf[6] = tzoffset;
+}
+
+void iso_datetime_17(unsigned char *buf, time_t t)
+{
+    static int tzsetup = 0;
+    static int tzoffset;
+    struct tm tm;
+
+    if (t == (time_t) - 1) {
+        /* unspecified time */
+        memset(buf, '0', 16);
+        buf[16] = 0;
+    } else {
+        if (!tzsetup) {
+            tzset();
+            tzsetup = 1;
+        }
+
+        localtime_r(&t, &tm);
+
+        sprintf((char*)&buf[0], "%04d", tm.tm_year + 1900);
+        sprintf((char*)&buf[4], "%02d", tm.tm_mon + 1);
+        sprintf((char*)&buf[6], "%02d", tm.tm_mday);
+        sprintf((char*)&buf[8], "%02d", tm.tm_hour);
+        sprintf((char*)&buf[10], "%02d", tm.tm_min);
+        sprintf((char*)&buf[12], "%02d", MIN(59, tm.tm_sec));
+        memcpy(&buf[14], "00", 2);
+#ifdef HAVE_TM_GMTOFF
+        tzoffset = tm.tm_gmtoff / 60 / 15;
+#else
+        tzoffset = timezone / 60 / 15;
+#endif
+        if (tzoffset > 52)
+            tzoffset -= 101;
+        buf[16] = tzoffset;
+    }
 }

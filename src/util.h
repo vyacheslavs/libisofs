@@ -9,6 +9,17 @@
 #ifndef LIBISO_UTIL_H_
 #define LIBISO_UTIL_H_
 
+#include <stdint.h>
+#include <time.h>
+
+#ifndef MAX
+#   define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef MIN
+#   define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
 extern inline int div_up(int n, int div);
 
 extern inline int round_up(int n, int mul);
@@ -59,5 +70,23 @@ void iso_1_fileid(char *src);
  *      The identifier, in ASCII encoding. It may be modified by the function.
  */
 void iso_2_fileid(char *src);
+
+/**
+ * Convert a given input string to d-chars.
+ * @return
+ *      1 on succes, < 0 error, 0 if input was null (output is set to null)
+ */
+int str2d_char(const char *icharset, const char *input, char **output);
+int str2a_char(const char *icharset, const char *input, char **output);
+
+void iso_lsb(uint8_t *buf, uint32_t num, int bytes);
+void iso_msb(uint8_t *buf, uint32_t num, int bytes);
+void iso_bb(uint8_t *buf, uint32_t num, int bytes);
+
+/** Records the date/time into a 7 byte buffer (ECMA-119, 9.1.5) */
+void iso_datetime_7(uint8_t *buf, time_t t);
+
+/** Records the date/time into a 17 byte buffer (ECMA-119, 8.4.26.1) */
+void iso_datetime_17(uint8_t *buf, time_t t);
 
 #endif /*LIBISO_UTIL_H_*/
