@@ -89,4 +89,62 @@ void iso_datetime_7(uint8_t *buf, time_t t);
 /** Records the date/time into a 17 byte buffer (ECMA-119, 8.4.26.1) */
 void iso_datetime_17(uint8_t *buf, time_t t);
 
+typedef struct iso_rbtree IsoRBTree;
+
+/**
+ * Create a new binary tree. libisofs binary trees allow you to add any data
+ * passing it as a pointer. You must provide a function suitable for compare
+ * two elements.
+ *
+ * @param compare
+ *     A function to compare two elements. It takes a pointer to both elements
+ *     and return 0, -1 or 1 if the first element is equal, less or greater 
+ *     than the second one.
+ * @param tree
+ *     Location where the tree structure will be stored.
+ */
+int iso_rbtree_new(int (*compare)(const void*, const void*), IsoRBTree **tree);
+
+/**
+ * Destroy a given tree.
+ * 
+ * Note that only the structure itself is deleted. To delete the elements, you
+ * should provide a valid free_data function. It will be called for each 
+ * element of the tree, so you can use it to free any related data.
+ */
+void iso_rbtree_destroy(IsoRBTree *tree, void (*free_data)(void *));
+
+/**
+ * Inserts a given element in a Red-Black tree.
+ *
+ * @param tree
+ *     the tree where to insert
+ * @param data
+ *     element to be inserted on the tree. It can't be NULL
+ * @param item
+ *     if not NULL, it will point to a location where the tree element ptr 
+ *     will be stored. If data was inserted, *item == data. If data was
+ *     already on the tree, *item points to the previously inserted object
+ *     that is equal to data.
+ * @return
+ *     1 success, 0 element already inserted, < 0 error
+ */
+int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item);
+
+/**
+ * Get the number of elements in a given tree.
+ */
+size_t iso_rbtree_get_size(IsoRBTree *tree);
+
+/**
+ * Get an array view of the elements of the tree.
+ * 
+ * @return
+ *    A sorted array with the contents of the tree, or NULL if there is not
+ *    enought memory to allocate the array. You should free(3) the array when
+ *    no more needed. Note that the array is NULL-terminated, and thus it
+ *    has size + 1 length.
+ */
+void **iso_rbtree_to_array(IsoRBTree *tree);
+
 #endif /*LIBISO_UTIL_H_*/

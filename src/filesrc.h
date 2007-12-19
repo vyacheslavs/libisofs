@@ -21,6 +21,8 @@ struct Iso_File_Src {
     IsoStream *stream;
 };
 
+int iso_file_src_cmp(const void *n1, const void *n2);
+
 /**
  * Create a new IsoFileSrc to get data from a specific IsoFile.
  * 
@@ -43,7 +45,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src);
 /**
  * Free the IsoFileSrc especific data
  */
-void iso_file_src_free(Ecma119Image *img);
+void iso_file_src_free(void *node);
 
 /**
  * Get the size of the file this IsoFileSrc represents

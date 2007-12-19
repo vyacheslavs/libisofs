@@ -9,22 +9,17 @@
 #include "filesrc.h"
 #include "error.h"
 #include "node.h"
+#include "util.h"
 
 #include <stdlib.h>
 
-/* tdestroy is a GNU specific function */
-#define __USE_GNU
-#include <search.h>
-
-static
-int comp_iso_file_src(const void *n1, const void *n2)
+int iso_file_src_cmp(const void *n1, const void *n2)
 {
     const IsoFileSrc *f1, *f2;
     int res;
     unsigned int fs_id1, fs_id2;
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
-    
     
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
@@ -76,7 +71,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         // care of it
         return ISO_ERROR;
     } else {
-        IsoFileSrc **inserted;
+        int ret;
         
         fsrc = malloc(sizeof(IsoFileSrc));
         if (fsrc == NULL) {
@@ -90,32 +85,18 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         fsrc->stream = file->stream;
         
         /* insert the filesrc in the tree */
-        inserted = tsearch(fsrc, &(img->file_srcs), comp_iso_file_src);
-        if (inserted == NULL) {
+        ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
+        if (ret <= 0) {
             free(fsrc);
-            return ISO_MEM_ERROR;
-        } else if (*inserted == fsrc) {
-            /* the file was inserted */
-            img->file_count++;
-        } else {
-            /* the file was already on the tree */
-            free(fsrc);
+            return ret;
         }
-        *src = *inserted;
     }
     return ISO_SUCCESS;
 }
 
-void free_node(void *nodep)
+void iso_file_src_free(void *node)
 {
-    /* nothing to do */
-}
-
-void iso_file_src_free(Ecma119Image *img)
-{
-    if (img->file_srcs != NULL) {
-        tdestroy(img->file_srcs, free_node);
-    }
+    free(node);
 }
 
 off_t iso_file_src_get_size(IsoFileSrc *file)

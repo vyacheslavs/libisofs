@@ -29,7 +29,7 @@ void ecma119_image_free(Ecma119Image *t)
     
     ecma119_node_free(t->root);
     iso_image_unref(t->image);
-    iso_file_src_free(t);
+    iso_rbtree_destroy(t->files, iso_file_src_free);
     
     for (i = 0; i < t->nwriters; ++i) {
         IsoImageWriter *writer = t->writers[i];
@@ -293,6 +293,13 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
         return ISO_MEM_ERROR;
     }
     
+    /* create the tree for file caching */
+    ret = iso_rbtree_new(iso_file_src_cmp, &(target->files));
+    if (ret < 0) {
+        free(target);
+        return ret;
+    }
+    
     target->image = src;
     iso_image_ref(src);
     
@@ -302,6 +309,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->now = time(NULL);
     target->ms_block = 0;
     target->input_charset = strdup("UTF-8"); //TODO
+    
     
     /* 
      * 2. Based on those options, create needed writers: iso, joliet...

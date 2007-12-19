@@ -10,6 +10,7 @@
 #define LIBISO_ECMA119_H_
 
 #include "libisofs.h"
+#include "util.h"
 
 #include <stdint.h>
 
@@ -72,8 +73,7 @@ struct ecma119_image {
     IsoImageWriter **writers;
 
     /* tree of files sources */
-    void *file_srcs;
-    int file_count;
+    IsoRBTree *files;
     
     /* file descriptors for read and writing image */
     int wrfd; /* write to here */

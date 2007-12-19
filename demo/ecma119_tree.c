@@ -8,6 +8,8 @@
 #include "libisofs.h"
 #include "ecma119.h"
 #include "ecma119_tree.h"
+#include "util.h"
+#include "filesrc.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -91,6 +93,7 @@ int main(int argc, char **argv)
     }
     
     ecma119 = calloc(1, sizeof(Ecma119Image));
+    iso_rbtree_new(iso_file_src_cmp, &(ecma119->files));
     ecma119->iso_level = 1;
     ecma119->image = image;
 	
