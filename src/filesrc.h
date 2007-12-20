@@ -52,46 +52,11 @@ void iso_file_src_free(void *node);
  */
 off_t iso_file_src_get_size(IsoFileSrc *file);
 
-// TODO not implemented
-int iso_file_src_open(IsoFileSrc *file);
-
-// TODO not implemented
-int iso_file_src_close(IsoFileSrc *file);
-
 /**
- * TODO define propertly this comment
- * TODO not implemented
+ * Create a Writer for file contents.
  * 
- * Read a block (2048 bytes) from the IsoFileSrc.
- * 
- * This function should always read the full 2048 bytes, blocking if
- * needed. When it reaches EOF, the buf is filled with 0's, if needed. 
- * Note that the EOF is not reported in that call, but in the next call.
- * I.e., when the EOF is reported you can be sure that the function
- * has not written anything to the buffer. If the file size is a multiple
- * of block size, i.e N*2048, the read_block reports the EOF just when 
- * reading the N+1 block.  
- * 
- * Note that EOF refers to the original size as reported by get_size.
- * If the underlying source size has changed, this function should take 
- * care of this, truncating the file, or filling the buffer with 0s. I.e.
- * this function return 0 (EOF) only when get_size() bytes have been 
- * readed.
- * 
- * On an I/O error, or a file smaller than the expected size, this
- * function returns a [specific error code], and the buffer is filled
- * with 0s. Subsequent calls will still return an error code and fill
- * buffer with 0's, until EOF (as defined above) is reached, and then 
- * the function will return 0. 
- * 
- * Note that if the current size is larger than expected, you don't get 
- * any error on reading.
- * 
- * @param buf 
- *     Buffer where data fill be copied, with at least 2048 bytes.
- * @return
- *     1 sucess, 0 EOF, < 0 error (buf is filled with 0's)
+ * It takes care of written the files in the correct order.
  */
-int iso_file_src_read_block(IsoFileSrc *file, void *buf);
+int iso_file_src_writer_create(Ecma119Image *target);
 
 #endif /*LIBISO_FILESRC_H_*/

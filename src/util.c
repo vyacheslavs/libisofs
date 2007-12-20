@@ -18,16 +18,6 @@
 #include <ctype.h>
 #include <stdio.h>
 
-int div_up(int n, int div)
-{
-    return (n + div - 1) / div;
-}
-
-int round_up(int n, int mul)
-{
-    return div_up(n, mul) * mul;
-}
-
 int int_pow(int base, int power)
 {
     int result = 1;

@@ -310,7 +310,6 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->ms_block = 0;
     target->input_charset = strdup("UTF-8"); //TODO
     
-    
     /* 
      * 2. Based on those options, create needed writers: iso, joliet...
      * Each writer inits its structures and stores needed info into
@@ -338,6 +337,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     /* Volume Descriptor Set Terminator */
     target->curblock++;
     
+    /* create writer for file contents */
+    ret = iso_file_src_writer_create(target);
+    if (ret < 0) {
+        goto target_cleanup;
+    }
     
     /*
      * 3. 

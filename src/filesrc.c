@@ -10,8 +10,11 @@
 #include "error.h"
 #include "node.h"
 #include "util.h"
+#include "writer.h"
+#include "messages.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 int iso_file_src_cmp(const void *n1, const void *n2)
 {
@@ -100,4 +103,220 @@ void iso_file_src_free(void *node)
 off_t iso_file_src_get_size(IsoFileSrc *file)
 {
     return iso_stream_get_size(file->stream);
+}
+
+static int
+cmp_by_weight(const void *f1, const void *f2)
+{
+    IsoFileSrc *f = *((IsoFileSrc**)f1);
+    IsoFileSrc *g = *((IsoFileSrc**)f2);
+    /* higher weighted first */
+    return g->sort_weight - f->sort_weight;
+}
+
+static
+int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    size_t i, size;
+    Ecma119Image *t;
+    IsoFileSrc **filelist;
+    
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    t = writer->target;
+    
+    /* store the filesrcs in a array */
+    filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files);
+    if (filelist == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    size = iso_rbtree_get_size(t->files);
+    
+    /* sort files by weight, if needed */ 
+    if (t->sort_files) {
+        qsort(t->files, size,  sizeof(void*), cmp_by_weight); 
+    }
+    
+    /* fill block value */
+    for (i = 0; i < size; ++i) {
+        IsoFileSrc *file = filelist[i];
+        file->block = t->curblock;
+        t->curblock += div_up(iso_file_src_get_size(file), BLOCK_SIZE);
+    }
+    
+    /* the list is only needed by this writer, store locally */
+    writer->data = filelist;
+    return ISO_SUCCESS;
+}
+
+static
+int filesrc_writer_write_vol_desc(IsoImageWriter *writer)
+{
+    /* nothing needed */
+    return ISO_SUCCESS;
+}
+
+/* open a file, i.e., its Stream */
+static inline
+int filesrc_open(IsoFileSrc *file)
+{
+    return iso_stream_open(file->stream);
+}
+
+static inline
+int filesrc_close(IsoFileSrc *file)
+{
+    return iso_stream_close(file->stream);
+}
+
+/**
+ * @return
+ *     1 ok, 0 EOF, < 0 error
+ */
+static 
+int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
+{
+    size_t bytes = 0;
+    
+    /* loop to ensure the full buffer is filled */
+    do {
+        ssize_t result;
+        result = iso_stream_read(file->stream, buf + bytes, count - bytes);
+        if (result < 0) {            
+            /* fill buffer with 0s and return */ 
+            memset(buf + bytes, 0, count - bytes);
+            return result;
+        }
+        if (result == 0)
+            break;
+        bytes += result;    
+    } while (bytes < count);
+    
+    if (bytes < count) {
+        /* eof */
+        memset(buf + bytes, 0, count - bytes);
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+static
+int filesrc_writer_write_data(IsoImageWriter *writer)
+{
+    int res;
+    size_t i, b, nfiles;
+    Ecma119Image *t;
+    IsoFileSrc **filelist;
+    char buffer[BLOCK_SIZE];
+    
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    t = writer->target;
+    filelist = writer->data;
+    
+    nfiles = iso_rbtree_get_size(t->files);
+    for (i = 0; i < nfiles; ++i) {
+        IsoFileSrc *file = filelist[i];
+
+        /*
+         * TODO WARNING
+         * when we allow files greater than 4GB, current div_up implementation
+         * can overflow!!
+         */
+        uint32_t nblocks = div_up(iso_file_src_get_size(file), BLOCK_SIZE);
+
+        res = filesrc_open(file);
+        if (res < 0) {
+            /* 
+             * UPS, very ugly error, the best we can do is just to write
+             * 0's to image
+             */
+             // TODO Stream needs a get_path function
+             iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, 
+                           "File XXX can't be openned. Filling with 0s.");
+             memset(buffer, 0, BLOCK_SIZE);
+             for (b = 0; b < nblocks; ++b) {
+                res = iso_write(t, buffer, BLOCK_SIZE);
+                if (res < 0) {
+                    /* ko, writer error, we need to go out! */
+                    return res;
+                }
+             }
+             continue;
+        }
+        
+        /* write file contents to image */
+        for (b = 0; b < nblocks; ++b) {
+            int wres;
+            res = filesrc_read(file, buffer, BLOCK_SIZE);
+            wres = iso_write(t, buffer, BLOCK_SIZE);
+            if (wres < 0) {
+                /* ko, writer error, we need to go out! */
+                return wres;
+            }
+        }
+        
+        if (b < nblocks) {
+            /* premature end of file, due to error or eof */
+            if (res < 0) {
+                /* error */
+                iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, 
+                              "Read error in file XXXXX.");
+            } else {
+                /* eof */
+                iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, 
+                              "Premature end of file XXXXX.");
+            }
+            /* fill with 0s */
+            iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, "Filling with 0");
+            memset(buffer, 0, BLOCK_SIZE);
+            while (b++ < nblocks) {
+                res = iso_write(t, buffer, BLOCK_SIZE);
+                if (res < 0) {
+                    /* ko, writer error, we need to go out! */
+                    return res;
+                }
+            }
+        }
+        
+        filesrc_close(file);
+    }
+    
+    return ISO_SUCCESS;
+}
+
+static
+int filesrc_writer_free_data(IsoImageWriter *writer)
+{
+    /* free the list of files (contents are free together with the tree) */
+    free(writer->data);
+    return ISO_SUCCESS;
+}
+
+int iso_file_src_writer_create(Ecma119Image *target)
+{
+    IsoImageWriter *writer;
+    
+    writer = malloc(sizeof(IsoImageWriter));
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    writer->compute_data_blocks = filesrc_writer_compute_data_blocks;
+    writer->write_vol_desc = filesrc_writer_write_vol_desc;
+    writer->write_data = filesrc_writer_write_data;
+    writer->free_data = filesrc_writer_free_data;
+    writer->data = NULL;
+    writer->target = target;
+    
+    /* add this writer to image */
+    target->writers[target->nwriters++] = writer;
+
+    return ISO_SUCCESS;
 }

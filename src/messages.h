@@ -17,6 +17,8 @@
 
 /** File cannot be added to image (ignored) */
 #define LIBISO_FILE_IGNORED         0x00030100
+/** File cannot be writing to image (ignored) */
+#define LIBISO_FILE_CANT_WRITE      0x00030101
 
 /** Can't read file (ignored) */
 #define LIBISO_CANT_READ_FILE		0x00031001
