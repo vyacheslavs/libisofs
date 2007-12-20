@@ -14,6 +14,7 @@
 #include "filesrc.h"
 #include "image.h"
 #include "writer.h"
+#include "messages.h"
 #include "util.h"
 
 #include "libburn/libburn.h"
@@ -293,10 +294,97 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     return iso_write(t, &vol, sizeof(struct ecma119_pri_vol_desc));
 }
 
+static 
+int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
+{
+    int ret;
+    uint8_t buffer[BLOCK_SIZE];
+    size_t i;
+    size_t fi_len, len;
+    
+    /* buf will point to current write position on buffer */
+    uint8_t *buf = buffer;
+    
+    /* initialize buffer with 0s */
+    memset(buffer, 0, BLOCK_SIZE);
+
+    /* write the "." and ".." entries first */
+    write_one_dir_record(t, dir, 0, buf, 1);
+    buf += 34;
+
+    write_one_dir_record(t, dir, 1, buf, 1);
+    buf += 34;
+
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        Ecma119Node *child = dir->info.dir.children[i];
+        
+        /* compute len of directory entry */
+        fi_len = strlen(child->iso_name);
+        len = fi_len + 33 + (fi_len % 2);
+        if ( (buf + len - buffer) > BLOCK_SIZE ) {
+            /* dir doesn't fit in current block */
+            ret = iso_write(t, buffer, BLOCK_SIZE);
+            if (ret < 0) {
+                return ret;
+            }
+            memset(buffer, 0, BLOCK_SIZE);
+            buf = buffer;
+        }
+        /* write the directory entry in any case */
+        write_one_dir_record(t, child, -1, buf, fi_len);
+        buf += len;
+    }
+    
+    /* write the last block */
+    ret = iso_write(t, buffer, BLOCK_SIZE);
+    return ret;
+}
+
+static 
+int write_dirs(Ecma119Image *t, Ecma119Node *root)
+{
+    int ret;
+    size_t i;
+    
+    /* write all directory entries for this dir */
+    ret = write_one_dir(t, root);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* recurse */
+    for (i = 0; i < root->info.dir.nchildren; i++) {
+        Ecma119Node *child = root->info.dir.children[i];
+        if (child->type == ECMA119_DIR) {
+            ret = write_dirs(t, child);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+    return ISO_SUCCESS;
+}
+
+/**
+ * Write both the directory structure (ECMA-119, 6.8) and the L and M
+ * Path Tables (ECMA-119, 6.9).
+ */
 static
 int ecma119_writer_write_data(IsoImageWriter *writer)
 {
+    int ret;
+    Ecma119Image *t;
     
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    t = writer->target;
+ 
+    /* first of all, we write the directory structure */
+    ret = write_dirs(t, t->root);
+    if (ret < 0) {
+        return ret;
+    }
     
     //TODO to implement
     return -1;
