@@ -85,6 +85,10 @@ int iso_node_set_name(IsoNode *node, const char *name)
             return ISO_NODE_NAME_NOT_UNIQUE;
         }
     }
+    /* guard against the empty string */
+    if (name[0] == '\0') {
+        return ISO_WRONG_ARG_VALUE;
+    }
     new = strdup(name);
     if (new == NULL) {
         return ISO_MEM_ERROR;
