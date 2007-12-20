@@ -24,8 +24,8 @@ int iso_file_src_cmp(const void *n1, const void *n2)
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
     
-    res = f1->stream->get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
-    res = f2->stream->get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
+    res = iso_stream_get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
+    res = iso_stream_get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
     
     //TODO take care about res <= 0
     
@@ -50,7 +50,6 @@ int iso_file_src_cmp(const void *n1, const void *n2)
 int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 {
     int res;
-    IsoStream *stream;
     IsoFileSrc *fsrc;
     unsigned int fs_id;
     dev_t dev_id;
@@ -60,8 +59,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         return ISO_NULL_POINTER;
     }
     
-    stream = file->stream;
-    res = stream->get_id(stream, &fs_id, &dev_id, &ino_id);
+    res = iso_stream_get_id(file->stream, &fs_id, &dev_id, &ino_id);
     if (res < 0) {
         return res;
     } else if (res == 0) {
@@ -101,5 +99,5 @@ void iso_file_src_free(void *node)
 
 off_t iso_file_src_get_size(IsoFileSrc *file)
 {
-    return file->stream->get_size(file->stream);
+    return iso_stream_get_size(file->stream);
 }

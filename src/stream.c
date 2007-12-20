@@ -121,6 +121,16 @@ void fsrc_free(IsoStream *stream)
     free(data);
 }
 
+IsoStreamIface fsrc_stream_class = {
+    fsrc_open,
+    fsrc_close,
+    fsrc_get_size,
+    fsrc_read,
+    fsrc_is_repeatable,
+    fsrc_get_id,
+    fsrc_free
+};
+
 int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
 {
     int r;
@@ -158,13 +168,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     
     str->refcount = 1;
     str->data = data;
-    str->open = fsrc_open;
-    str->close = fsrc_close;
-    str->get_size = fsrc_get_size;
-    str->read = fsrc_read;
-    str->is_repeatable = fsrc_is_repeatable;
-    str->get_id = fsrc_get_id;
-    str->free = fsrc_free;
+    str->class = &fsrc_stream_class;
     
     *stream = str;
     return ISO_SUCCESS;
@@ -178,7 +182,7 @@ void iso_stream_ref(IsoStream *stream)
 void iso_stream_unref(IsoStream *stream)
 {
     if (--stream->refcount == 0) {
-        stream->free(stream);
+        stream->class->free(stream);
         free(stream);
     }
 }

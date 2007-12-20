@@ -20,7 +20,7 @@
 
 typedef struct Iso_Stream IsoStream;
 
-struct Iso_Stream
+typedef struct IsoStream_Iface
 {
     /**
      * Opens the stream.
@@ -85,14 +85,49 @@ struct Iso_Stream
      * Use iso_stream_unref() instead.
      */
     void (*free)(IsoStream *stream);
+} IsoStreamIface;
 
+struct Iso_Stream
+{
+    IsoStreamIface *class;
     int refcount;
-    void *data;
+    void *data; 
 };
 
 void iso_stream_ref(IsoStream *stream);
 void iso_stream_unref(IsoStream *stream);
 
+extern inline
+int iso_stream_open(IsoStream *stream) {
+    return stream->class->open(stream);
+}
+
+extern inline
+int iso_stream_close(IsoStream *stream) {
+    return stream->class->close(stream);
+}
+
+extern inline
+off_t iso_stream_get_size(IsoStream *stream) {
+    return stream->class->get_size(stream);
+}
+
+extern inline
+int iso_stream_read(IsoStream *stream, void *buf, size_t count) {
+    return stream->class->read(stream, buf, count);
+}
+
+extern inline
+int iso_stream_is_repeatable(IsoStream *stream) {
+    return stream->class->is_repeatable(stream);
+}
+
+extern inline
+int iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, 
+                      dev_t *dev_id, ino_t *ino_id) {
+    return stream->class->get_id(stream, fs_id, dev_id, ino_id);
+}
+    
 /**
  * Create a stream to read from a IsoFileSource.
  * The stream will take the ref. to the IsoFileSource, so after a successfully

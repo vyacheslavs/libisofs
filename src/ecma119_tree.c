@@ -114,7 +114,7 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
     IsoFileSrc *src;
     off_t size;
 
-    size = iso->stream->get_size(iso->stream);
+    size = iso_stream_get_size(iso->stream);
     if (size > (off_t)0xffffffff) {
         iso_msg_note(img->image, LIBISO_FILE_IGNORED, 
                      "File \"%s\" can't be added to image because is "
