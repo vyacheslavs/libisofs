@@ -171,6 +171,20 @@ void mfs_free(IsoFileSource *src)
     free(data);
 }
 
+IsoFileSourceIface mfs_class = {
+    mfs_get_path,
+    mfs_get_name,
+    mfs_lstat,
+    mfs_stat,
+    mfs_open,
+    mfs_close,
+    mfs_read,
+    mfs_readdir,
+    mfs_readlink,
+    mfs_get_filesystem,
+    mfs_free
+};
+
 /**
  * 
  * @return
@@ -214,17 +228,7 @@ int mocked_file_source_new(IsoFilesystem *fs, const char *path,
 
     mocked_src->refcount = 1;
     mocked_src->data = data;
-    mocked_src->get_path = mfs_get_path;
-    mocked_src->get_name = mfs_get_name;
-    mocked_src->lstat = mfs_lstat;
-    mocked_src->stat = mfs_stat;
-    mocked_src->open = mfs_open;
-    mocked_src->close = mfs_close;
-    mocked_src->read = mfs_read;
-    mocked_src->readdir = mfs_readdir;
-    mocked_src->readlink = mfs_readlink;
-    mocked_src->get_filesystem = mfs_get_filesystem;
-    mocked_src->free = mfs_free;
+    mocked_src->class = &mfs_class;
     
     /* take a ref to filesystem */
     iso_filesystem_ref(fs);

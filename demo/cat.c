@@ -42,7 +42,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    res = file->lstat(file, &info);
+    res = iso_file_source_lstat(file, &info);
     if (res < 0) {
         fprintf(stderr, "Can't stat file, err = %d\n", res);
         return 1;
@@ -53,19 +53,19 @@ int main(int argc, char **argv)
         return 1;
     } else {
         char buf[1024];
-        res = file->open(file);
+        res = iso_file_source_open(file);
         if (res < 0) {
             fprintf(stderr, "Can't open file, err = %d\n", res);
             return 1;
         }
-        while ((res = file->read(file, buf, 1024)) > 0) {
+        while ((res = iso_file_source_read(file, buf, 1024)) > 0) {
             fwrite(buf, 1, res, stdout);
         }
         if (res < 0) {
             fprintf(stderr, "Error reading, err = %d\n", res);
             return 1;
         }
-        file->close(file);
+        iso_file_source_close(file);
     }
     
     iso_file_source_unref(file);

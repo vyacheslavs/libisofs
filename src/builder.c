@@ -43,7 +43,7 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
         return ISO_NULL_POINTER;
     }
     
-    res = src->stat(src, &info);
+    res = iso_file_source_stat(src, &info);
     if (res < 0) {
         return res;
     }
@@ -65,7 +65,7 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     /* fill node fields */
     node->node.refcount = 1;
     node->node.type = LIBISO_FILE;
-    node->node.name = strdup(src->get_name(src));
+    node->node.name = strdup(iso_file_source_get_name(src));
     node->node.mode = S_IFREG | (info.st_mode & ~S_IFMT);
     node->node.uid = info.st_uid;
     node->node.gid = info.st_gid;
@@ -96,13 +96,13 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         return ISO_NULL_POINTER;
     }
     
-    name = src->get_name(src);
+    name = iso_file_source_get_name(src);
     
     /* get info about source */
     if (image->recOpts->follow_symlinks) {
-        result = src->stat(src, &info);
+        result = iso_file_source_stat(src, &info);
     } else {
-        result = src->lstat(src, &info);
+        result = iso_file_source_lstat(src, &info);
     }
     if (result < 0) {
         return result;
@@ -149,7 +149,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             char dest[PATH_MAX];
             IsoSymlink *link;
             
-            result = src->readlink(src, dest, PATH_MAX);
+            result = iso_file_source_readlink(src, dest, PATH_MAX);
             if (result < 0) {
                 return result;
             }

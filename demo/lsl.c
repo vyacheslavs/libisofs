@@ -56,16 +56,16 @@ print_file_src(IsoFileSource *file)
 {
     struct stat info;
     char *name;
-    file->lstat(file, &info);
+    iso_file_source_lstat(file, &info);
     print_type(info.st_mode);
     print_permissions(info.st_mode);
     printf(" {%ld,%ld} ", (long)info.st_dev, (long)info.st_ino);
-    name = file->get_name(file);
+    name = iso_file_source_get_name(file);
     printf(" %s", name);
     free(name);
     if (S_ISLNK(info.st_mode)) {
         char buf[PATH_MAX];
-        file->readlink(file, buf, PATH_MAX);
+        iso_file_source_readlink(file, buf, PATH_MAX);
         printf(" -> %s\n", buf);
     }
     printf("\n");
@@ -97,25 +97,25 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    res = dir->lstat(dir, &info);
+    res = iso_file_source_lstat(dir, &info);
     if (res < 0) {
         fprintf(stderr, "Can't stat file, err = %d\n", res);
         return 1;
     }
 
     if (S_ISDIR(info.st_mode)) {
-        res = dir->open(dir);
+        res = iso_file_source_open(dir);
         if (res < 0) {
             fprintf(stderr, "Can't open file, err = %d\n", res);
             return 1;
         }
 
-        while (dir->readdir(dir, &file) == 1) {
+        while (iso_file_source_readdir(dir, &file) == 1) {
             print_file_src(file);
             iso_file_source_unref(file);
         }
 
-        res = dir->close(dir);
+        res = iso_file_source_close(dir);
         if (res < 0) {
             fprintf(stderr, "Can't close file, err = %d\n", res);
             return 1;

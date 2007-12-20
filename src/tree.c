@@ -313,7 +313,7 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
         *node = NULL;
     }
     
-    name = src->get_name(src);
+    name = iso_file_source_get_name(src);
     
     /* find place where to insert */
     pos = &(parent->children);
@@ -400,24 +400,25 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
     IsoFileSource *file;
     IsoNode **pos;
     
-    result = dir->open(dir);
+    result = iso_file_source_open(dir);
     if (result < 0) {
-        iso_msg_debug(image, "Can't open dir %s", dir->get_path(dir));
+        iso_msg_debug(image, "Can't open dir %s", 
+                      iso_file_source_get_path(dir));
         return result;
     }
     
     builder = image->builder;
     action = 1;
-    while ( (result = dir->readdir(dir, &file)) == 1) {
+    while ( (result = iso_file_source_readdir(dir, &file)) == 1) {
         int flag;
         char *name;
         IsoNode *new;
         
-        iso_msg_debug(image, "Adding file %s", file->get_path(file));
+        iso_msg_debug(image, "Adding file %s", iso_file_source_get_path(file));
         
-        name = file->get_name(file);
+        name = iso_file_source_get_name(file);
         
-        if (check_excludes(image, file->get_path(file))) {
+        if (check_excludes(image, iso_file_source_get_path(file))) {
             action = 2;
         } else if (check_hidden(image, name)) {
             action = 2;
@@ -458,7 +459,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         if (result < 0) {
             
             iso_msg_debug(image, "Error %d when adding file %s", 
-                          result, file->get_path(file));
+                          result, iso_file_source_get_path(file));
             
             if (image->recOpts->report) {
                 action = image->recOpts->report(file, result, flag);
@@ -521,7 +522,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         action = result;
     }
     
-    result = dir->close(dir);
+    result = iso_file_source_close(dir);
     if (result < 0) {
         return result;
     }
@@ -552,7 +553,7 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir)
     }
     
     /* we also allow dir path to be a symlink to a dir */
-    result = file->stat(file, &info);
+    result = iso_file_source_stat(file, &info);
     if (result < 0) {
         iso_file_source_unref(file);
         return result;

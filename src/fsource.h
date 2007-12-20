@@ -69,7 +69,7 @@ struct Iso_Filesystem
     void *data;
 };
 
-struct Iso_File_Source
+typedef struct IsoFileSource_Iface
 {
 
     /**
@@ -231,13 +231,70 @@ struct Iso_File_Source
      * TODO #00004 Add a get_mime_type() function.
      * This can be useful for GUI apps, to choose the icon of the file
      */
-     
+} IsoFileSourceIface;
+
+struct Iso_File_Source {
+    const IsoFileSourceIface *class;
     int refcount;
     void *data;
 };
 
 void iso_file_source_ref(IsoFileSource *src);
 void iso_file_source_unref(IsoFileSource *src);
+
+/* 
+ * this are just helpers to invoque methods in class
+ */
+extern inline 
+const char* iso_file_source_get_path(IsoFileSource *src) {
+    return src->class->get_path(src);
+}
+
+extern inline 
+char* iso_file_source_get_name(IsoFileSource *src) {
+    return src->class->get_name(src);
+}
+
+extern inline 
+int iso_file_source_lstat(IsoFileSource *src, struct stat *info) {
+    return src->class->lstat(src, info);
+}
+
+extern inline 
+int iso_file_source_stat(IsoFileSource *src, struct stat *info) {
+    return src->class->stat(src, info);
+}
+
+extern inline 
+int iso_file_source_open(IsoFileSource *src) {
+    return src->class->open(src);
+}
+
+extern inline 
+int iso_file_source_close(IsoFileSource *src) {
+    return src->class->close(src);
+}
+
+extern inline 
+int iso_file_source_read(IsoFileSource *src, void *buf, size_t count) {
+    return src->class->read(src, buf, count);
+}
+
+extern inline 
+int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child)
+{
+    return src->class->readdir(src, child);
+}
+
+extern inline 
+int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz) {
+    return src->class->readlink(src, buf, bufsiz);
+}
+
+extern inline 
+IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src) {
+    return src->class->get_filesystem(src);
+}
 
 /**
  * Create a new IsoFileSource from a local filesystem path.

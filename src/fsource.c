@@ -22,7 +22,7 @@ void iso_file_source_ref(IsoFileSource *src)
 void iso_file_source_unref(IsoFileSource *src)
 {
 	if (--src->refcount == 0) {
-		src->free(src);
+		src->class->free(src);
 		free(src);
 	}
 }

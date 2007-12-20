@@ -31,7 +31,7 @@ int fsrc_open(IsoStream *stream)
         return ISO_NULL_POINTER;
     }
     src = ((FSrcStreamData*)stream->data)->src;
-    return src->open(src);
+    return iso_file_source_open(src);
 }
 
 static
@@ -42,7 +42,7 @@ int fsrc_close(IsoStream *stream)
         return ISO_NULL_POINTER;
     }
     src = ((FSrcStreamData*)stream->data)->src;
-    return src->close(src);
+    return iso_file_source_close(src);
 }
 
 static
@@ -62,7 +62,7 @@ int fsrc_read(IsoStream *stream, void *buf, size_t count)
         return ISO_NULL_POINTER;
     }
     src = ((FSrcStreamData*)stream->data)->src;
-    return src->read(src, buf, count);
+    return iso_file_source_read(src, buf, count);
 }
 
 static 
@@ -77,7 +77,7 @@ int fsrc_is_repeatable(IsoStream *stream)
     data = (FSrcStreamData*)stream->data;
     
     /* mode is not cached, this function is only useful for filters */
-    ret = data->src->stat(data->src, &info);
+    ret = iso_file_source_stat(data->src, &info);
     if (ret < 0) {
         return ret; 
     }
@@ -100,7 +100,7 @@ int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
     }
     data = (FSrcStreamData*)stream->data;
     
-    fs = data->src->get_filesystem(data->src);
+    fs = iso_file_source_get_filesystem(data->src);
     
     *fs_id = fs->get_id(fs);
     if (fs_id == 0) {
@@ -132,7 +132,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
         return ISO_NULL_POINTER;
     }
     
-    r = src->stat(src, &info);
+    r = iso_file_source_stat(src, &info);
     if (r < 0) {
         return r;
     }

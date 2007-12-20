@@ -381,13 +381,27 @@ void lfs_free(IsoFileSource *src)
 
     /* close the file if it is already openned */
     if (data->openned) {
-        src->close(src);
+        src->class->close(src);
     }
 
     free(data->path);
     free(data);
     iso_filesystem_unref(lfs);
 }
+
+IsoFileSourceIface lfs_class = {
+    lfs_get_path,
+    lfs_get_name,
+    lfs_lstat,
+    lfs_stat,
+    lfs_open,
+    lfs_close,
+    lfs_read,
+    lfs_readdir,
+    lfs_readlink,
+    lfs_get_filesystem,
+    lfs_free
+};
 
 /**
  * 
@@ -435,17 +449,7 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
 
     lfs_src->refcount = 1;
     lfs_src->data = data;
-    lfs_src->get_path = lfs_get_path;
-    lfs_src->get_name = lfs_get_name;
-    lfs_src->lstat = lfs_lstat;
-    lfs_src->stat = lfs_stat;
-    lfs_src->open = lfs_open;
-    lfs_src->close = lfs_close;
-    lfs_src->read = lfs_read;
-    lfs_src->readdir = lfs_readdir;
-    lfs_src->readlink = lfs_readlink;
-    lfs_src->get_filesystem = lfs_get_filesystem;
-    lfs_src->free = lfs_free;
+    lfs_src->class = &lfs_class;
     
     /* take a ref to local filesystem */
     iso_filesystem_ref(lfs);
