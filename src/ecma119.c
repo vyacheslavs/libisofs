@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2007 Mario Danic
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -147,7 +148,64 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
 }
 
 /**
- * Write the Primary Volume Descriptor
+ * Write a single directory record (ECMA-119, 9.1)
+ * 
+ * @param file_id
+ *     if >= 0, we use it instead of the filename (for "." and ".." entries). 
+ *     As a magic number, file_id == 3 means that we are writing the root 
+ *     directory record in the PVD (ECMA-119, 8.4.18) (in order to distinguish 
+ *     it from the "." entry in the root directory)
+ * @param len_fi
+ *     Computed length of the file identifier. Total size of the directory
+ *     entry will be len + 33 + padding if needed (ECMA-119, 9.1.12) 
+ */
+static 
+void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
+                         uint8_t *buf, size_t len_fi)
+{
+    uint32_t len;
+    uint32_t block;
+    uint8_t len_dr;
+    uint8_t f_id = (uint8_t) ((file_id == 3) ? 0 : file_id);
+    uint8_t *name = (file_id >= 0) ? &f_id : (uint8_t*)node->iso_name;
+    
+    struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
+    
+    len_dr = 33 + len_fi + (len_fi % 2);
+    
+    if (node->type == ECMA119_DIR) {
+        len = calc_dir_size(t, node);
+        block = node->info.dir.block;
+    } else if (node->type == ECMA119_FILE) {
+        len = iso_file_src_get_size(node->info.file);
+        block = node->info.file->block;
+    } else {
+        /* 
+         * for nodes other than files and dirs, we set both 
+         * len and block to 0 
+         */
+        len = 0;
+        block = 0;
+    }
+    
+    /*
+     * For ".." entry we need to write the parent info!
+     */
+    if (file_id == 1 && node->parent)
+        node = node->parent;
+
+    rec->len_dr[0] = len_dr;
+    iso_bb(rec->block, block, 4);
+    iso_bb(rec->length, len, 4);
+    iso_datetime_7(rec->recording_time, t->now);
+    rec->flags[0] = (node->type == ECMA119_DIR) ? 2 : 0;
+    iso_bb(rec->vol_seq_number, 1, 2);
+    rec->len_fi[0] = len_fi;
+    memcpy(rec->file_id, name, len_fi);
+}
+
+/**
+ * Write the Primary Volume Descriptor (ECMA-119, 8.4)
  */
 static
 int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
@@ -198,8 +256,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     iso_lsb(vol.l_path_table_pos, t->l_path_table_pos, 4);
     iso_msb(vol.m_path_table_pos, t->m_path_table_pos, 4);
 
-    //TODO
-    //write_one_dir_record(t, t->root, 3, vol->root_dir_record);
+    write_one_dir_record(t, t->root, 3, vol.root_dir_record, 1);
 
     if (volset_id)
         strncpy((char*)vol.vol_set_id, volset_id, 128);
@@ -239,6 +296,8 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
 static
 int ecma119_writer_write_data(IsoImageWriter *writer)
 {
+    
+    
     //TODO to implement
     return -1;
 }
