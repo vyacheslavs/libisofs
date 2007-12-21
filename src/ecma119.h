@@ -27,6 +27,9 @@ struct ecma119_image {
     
     unsigned int iso_level:2;
     
+    /* relaxed constraints */
+    unsigned int omit_version_numbers:1;
+    
 //    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
 //    
 //    int replace_mode; /**< Replace ownership and modes of files

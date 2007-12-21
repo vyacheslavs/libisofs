@@ -47,9 +47,12 @@ void ecma119_image_free(Ecma119Image *t)
  * Compute the size of a directory entry for a single node
  */
 static
-size_t calc_dirent_len(Ecma119Node *n)
+size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
 {
     int ret = n->iso_name ? strlen(n->iso_name) + 33 : 34;
+    if (n->type == ECMA119_FILE && !t->omit_version_numbers) {
+        ret += 2; /* take into account version numbers */
+    }
     if (ret % 2) ret++;
     return ret;
 }
@@ -69,7 +72,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir)
     len = 34 + 34;
     for (i = 0; i < dir->info.dir.nchildren; ++i) {
         Ecma119Node *child = dir->info.dir.children[i];
-        size_t dirent_len = calc_dirent_len(child);
+        size_t dirent_len = calc_dirent_len(t, child);
         size_t remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
         if (dirent_len > remaining) {
             /* child directory entry doesn't fit on block */
@@ -174,6 +177,14 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     
     len_dr = 33 + len_fi + (len_fi % 2);
     
+    memcpy(rec->file_id, name, len_fi);
+    
+    if (node->type == ECMA119_FILE && !t->omit_version_numbers) {
+        len_dr += 2;
+        rec->file_id[len_fi++] = ';';
+        rec->file_id[len_fi++] = '1';
+    }
+      
     if (node->type == ECMA119_DIR) {
         len = calc_dir_size(t, node);
         block = node->info.dir.block;
@@ -202,7 +213,6 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->flags[0] = (node->type == ECMA119_DIR) ? 2 : 0;
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
-    memcpy(rec->file_id, name, len_fi);
 }
 
 /**
@@ -321,6 +331,9 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         /* compute len of directory entry */
         fi_len = strlen(child->iso_name);
         len = fi_len + 33 + (fi_len % 2);
+        if (child->type == ECMA119_FILE && !t->omit_version_numbers) {
+            len += 2;
+        }
         if ( (buf + len - buffer) > BLOCK_SIZE ) {
             /* dir doesn't fit in current block */
             ret = iso_write(t, buffer, BLOCK_SIZE);
@@ -547,6 +560,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     iso_image_ref(src);
     
     target->iso_level = opts->level;
+    target->omit_version_numbers = 0; //TODO
     target->sort_files = opts->sort_files;
     
     target->now = time(NULL);
