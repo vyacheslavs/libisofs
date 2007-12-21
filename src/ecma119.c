@@ -365,6 +365,100 @@ int write_dirs(Ecma119Image *t, Ecma119Node *root)
     return ISO_SUCCESS;
 }
 
+static 
+int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
+{
+    size_t i, len;
+    uint8_t buf[64]; /* 64 is just a convenient size larger enought */
+    struct ecma119_path_table_record *rec;
+    void (*write_int)(uint8_t*, uint32_t, int);
+    Ecma119Node *dir;
+    uint32_t path_table_size;
+    int parent = 0;
+    int ret = ISO_SUCCESS;
+    
+    path_table_size = 0;
+    write_int = l_type ? iso_lsb : iso_msb;
+
+    for (i = 0; i < t->ndirs; i++) {
+        dir = pathlist[i];
+
+        /* find the index of the parent in the table */
+        while ((i) && pathlist[parent] != dir->parent) {
+            parent++;
+        }
+
+        /* write the Path Table Record (ECMA-119, 9.4) */
+        memset(buf, 0, 64);
+        rec = (struct ecma119_path_table_record*) buf;
+        rec->len_di[0] = dir->parent ? (uint8_t) strlen(dir->iso_name) : 1;
+        rec->len_xa[0] = 0;
+        write_int(rec->block, dir->info.dir.block, 4);
+        write_int(rec->parent, parent + 1, 2);
+        if (dir->parent) {
+            memcpy(rec->dir_id, dir->iso_name, rec->len_di[0]);
+        }
+        len = 8 + rec->len_di[0] + (rec->len_di[0] % 2);
+        ret = iso_write(t, buf, len);
+        if (ret < 0) {
+            /* error */
+            return ret;
+        }
+        path_table_size += len;
+    }
+    
+    /* we need to fill the last block with zeros */
+    path_table_size %= BLOCK_SIZE;
+    if (path_table_size) {
+        uint8_t zeros[BLOCK_SIZE];
+        len = BLOCK_SIZE - path_table_size;
+        memset(zeros, 0, len);
+        ret = iso_write(t, zeros, len);
+    }
+    return ret;
+}
+
+static 
+int write_path_tables(Ecma119Image *t)
+{
+    int ret;
+    size_t i, j, cur;
+    Ecma119Node **pathlist;
+    
+    iso_msg_debug(t->image, "Writing ISO Path tables");
+    
+    /* allocate temporal pathlist */
+    pathlist = malloc(sizeof(void*) * t->ndirs);
+    if (pathlist == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    pathlist[0] = t->root;
+    cur = 1;
+
+    for (i = 0; i < t->ndirs; i++) {
+        Ecma119Node *dir = pathlist[i];
+        for (j = 0; j < dir->info.dir.nchildren; j++) {
+            Ecma119Node *child = dir->info.dir.children[j];
+            if (child->type == ECMA119_DIR) {
+                pathlist[cur++] = child;
+            }
+        }
+    }
+    
+    /* Write L Path Table */
+    ret = write_path_table(t, pathlist, 1);
+    if (ret < 0) {
+        goto write_path_tables_exit;
+    }
+    
+    /* Write L Path Table */
+    ret = write_path_table(t, pathlist, 0);
+    
+write_path_tables_exit:;    
+    free(pathlist);
+    return ret;
+}
+
 /**
  * Write both the directory structure (ECMA-119, 6.8) and the L and M
  * Path Tables (ECMA-119, 6.9).
@@ -386,15 +480,17 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
         return ret;
     }
     
-    //TODO to implement
-    return -1;
+    /* and write the path tables */
+    ret = write_path_tables(t);
+    
+    return ret;
 }
 
 static
 int ecma119_writer_free_data(IsoImageWriter *writer)
 {
-    //TODO to implement
-    return -1;
+    /* nothing to do */
+    return ISO_SUCCESS;
 }
 
 int ecma119_writer_create(Ecma119Image *target)

@@ -138,4 +138,15 @@ struct ecma119_dir_record
     /* system use (len_dr - len_su + 1 to len_dr) */
 };
 
+/* ECMA-119, 9.4 */
+struct ecma119_path_table_record
+{
+    uint8_t len_di          BP(1, 1);
+    uint8_t len_xa          BP(2, 2);
+    uint8_t block           BP(3, 6);
+    uint8_t parent          BP(7, 8);
+    uint8_t dir_id          BP(9, 9); /* 9 to 8+len_di */
+    /* padding field (if len_di is odd) */
+};
+
 #endif /*LIBISO_ECMA119_H_*/
