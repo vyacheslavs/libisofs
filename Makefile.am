@@ -47,7 +47,8 @@ noinst_PROGRAMS = \
 	demo/lsl \
 	demo/cat \
 	demo/tree \
-	demo/ecma119tree 
+	demo/ecma119tree \
+	demo/iso 
 
 demo_lsl_CPPFLAGS = -Isrc
 demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
@@ -64,6 +65,10 @@ demo_tree_SOURCES = demo/tree.c
 demo_ecma119tree_CPPFLAGS = -Isrc
 demo_ecma119tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_ecma119tree_SOURCES = demo/ecma119_tree.c
+
+demo_iso_CPPFLAGS = -Isrc
+demo_iso_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_iso_SOURCES = demo/iso.c
 
 
 ## Build unit test
