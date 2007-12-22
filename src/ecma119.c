@@ -99,13 +99,35 @@ void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
     }
 }
 
+/**
+ * Compute the length of the path table, in bytes.
+ */
+static
+uint32_t calc_path_table_size(Ecma119Node *dir)
+{
+    uint32_t size;
+    size_t i;
+    
+    /* size of path table for this entry */
+    size = 8;
+    size += dir->iso_name ? strlen(dir->iso_name) : 1;
+    size += size + (size % 2);
+    
+    /* and recurse */
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        Ecma119Node *child = dir->info.dir.children[i];
+        if (child->type == ECMA119_DIR) {
+            size += calc_path_table_size(child);
+        }
+    }
+    return size;
+}
+
 static
 int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *target;
-    Ecma119Node **pathlist;
     uint32_t path_table_size;
-    size_t i, j, cur;
     
     if (writer == NULL) {
         return ISO_MEM_ERROR;
@@ -118,26 +140,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     calc_dir_pos(target, target->root);
     
     /* compute length of pathlist */
-    // TODO we don't need to allocate here the pathlist, since for
-    // len computation a simple recursion is good enought
-    pathlist = calloc(1, sizeof(void*) * target->ndirs);
-    if (pathlist == NULL) {
-        return ISO_MEM_ERROR;
-    }
-    pathlist[0] = target->root;
-    path_table_size = 10; /* root directory record */
-    cur = 1;
-    for (i = 0; i < target->ndirs; i++) {
-        Ecma119Node *dir = pathlist[i];
-        for (j = 0; j < dir->info.dir.nchildren; j++) {
-            Ecma119Node *child = dir->info.dir.children[j];
-            if (child->type == ECMA119_DIR) {
-                size_t len = 8 + strlen(child->iso_name);
-                pathlist[cur++] = child;
-                path_table_size += len + len % 2;
-            }
-        }
-    }
+    path_table_size = calc_path_table_size(target->root);
     
     /* compute location for path tables */
     target->l_path_table_pos = target->curblock;
@@ -145,9 +148,6 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target->m_path_table_pos = target->curblock;
     target->curblock += div_up(path_table_size, BLOCK_SIZE);
     target->path_table_size = path_table_size;
-    
-    /* ...and free path table cache, as we do not need it at all */
-    free(pathlist);
     
     return ISO_SUCCESS;
 }
