@@ -230,13 +230,15 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             }
             pos = dir->children;
             while (pos) {
+                int cret;
                 Ecma119Node *child;
-                ret = create_tree(image, pos, &child, depth + 1, max_path);
-                if (ret < 0) {
+                cret = create_tree(image, pos, &child, depth + 1, max_path);
+                if (cret < 0) {
                     /* error */
                     ecma119_node_free(node);
+                    ret = cret;
                     break;
-                } else if (ret == ISO_SUCCESS) {
+                } else if (cret == ISO_SUCCESS) {
                     /* add child to this node */
                     int nchildren = node->info.dir.nchildren++;
                     node->info.dir.children[nchildren] = child;
@@ -505,7 +507,11 @@ int ecma119_tree_create(Ecma119Image *img)
     Ecma119Node *root;
     
     ret = create_tree(img, (IsoNode*)img->image->root, &root, 1, 0);
-    if (ret < 0) {
+    if (ret <= 0) {
+        if (ret == 0) {
+            /* unexpected error, root ignored!! This can't happen */
+            ret = ISO_ERROR;
+        }
         return ret;
     }
     img->root = root;
