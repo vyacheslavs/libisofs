@@ -202,62 +202,87 @@ static int valid_a_char(char c)
            || (c >= 'A' && c <= 'Z') || (c == '_');
 }
 
-void iso_dirid(char *src, int maxlen)
+static 
+char *iso_dirid(const char *src, int size)
 {
     size_t len, i;
-
+    char name[32];
+    
     len = strlen(src);
-    if (len > maxlen) {
-        src[maxlen] = '\0';
-        len = maxlen;
+    if (len > size) {
+        len = size;
     }
     for (i = 0; i < len; i++) {
         char c = toupper(src[i]);
-        src[i] = valid_d_char(c) ? c : '_';
+        name[i] = valid_d_char(c) ? c : '_';
     }
+    
+    name[len] = '\0';
+    return strdup(name);
 }
 
-void iso_1_fileid(char *src)
+char *iso_1_dirid(const char *src)
 {
-    char *dot; /* Position of the last dot in the filename, will be used to 
-                  calculate lname and lext. */
-    int lname, lext, pos, i;
+    return iso_dirid(src, 8);
+}
 
+char *iso_2_dirid(const char *src)
+{
+    return iso_dirid(src, 31);
+}
+
+char *iso_1_fileid(const char *src)
+{
+    char *dot; /* Position of the last dot in the filename, will be used 
+                  to calculate lname and lext. */
+    int lname, lext, pos, i;
+    char dest[13]; /*  13 = 8 (name) + 1 (.) + 3 (ext) + 1 (\0) */
+
+    if (src == NULL) {
+        return NULL;
+    }
     dot = strrchr(src, '.');
 
     lext = dot ? strlen(dot + 1) : 0;
     lname = strlen(src) - lext - (dot ? 1 : 0);
 
-    /* If we can't build a filename, return. */
+    /* If we can't build a filename, return NULL. */
     if (lname == 0 && lext == 0) {
-        return;
+        return NULL;
     }
 
     pos = 0;
+    
     /* Convert up to 8 characters of the filename. */
     for (i = 0; i < lname && i < 8; i++) {
         char c = toupper(src[i]);
-        src[pos++] = valid_d_char(c) ? c : '_';
+
+        dest[pos++] = valid_d_char(c) ? c : '_';
     }
     
     /* This dot is mandatory, even if there is no extension. */
-    src[pos++] = '.';
+    dest[pos++] = '.';
     
     /* Convert up to 3 characters of the extension, if any. */
     for (i = 0; i < lext && i < 3; i++) {
         char c = toupper(src[lname + 1 + i]);
-        src[pos++] = valid_d_char(c) ? c : '_';
+
+        dest[pos++] = valid_d_char(c) ? c : '_';
     }
-    src[pos] = '\0';
+    
+    dest[pos] = '\0';
+    return strdup(dest);
 }
 
-void iso_2_fileid(char *src)
+char *iso_2_fileid(const char *src)
 {
     char *dot;
     int lname, lext, lnname, lnext, pos, i;
+    char dest[32]; /* 32 = 30 (name + ext) + 1 (.) + 1 (\0) */
 
-    if (!src)
-        return;
+    if (src == NULL) {
+        return NULL;
+    }
 
     dot = strrchr(src, '.');
 
@@ -280,23 +305,124 @@ void iso_2_fileid(char *src)
     }
 
     if (lnname == 0 && lnext == 0) {
-        return;
+        return NULL;
     }
 
     pos = 0;
+    
     /* Convert up to lnname characters of the filename. */
     for (i = 0; i < lnname; i++) {
         char c = toupper(src[i]);
-        src[pos++] = valid_d_char(c) ? c : '_';
+
+        dest[pos++] = valid_d_char(c) ? c : '_';
     }
-    src[pos++] = '.';
+    dest[pos++] = '.';
+    
     /* Convert up to lnext characters of the extension, if any. */
     for (i = 0; i < lnext; i++) {
         char c = toupper(src[lname + 1 + i]);
-        src[pos++] = valid_d_char(c) ? c : '_';
+
+        dest[pos++] = valid_d_char(c) ? c : '_';
     }
-    src[pos] = '\0';
+    dest[pos] = '\0';
+    return strdup(dest);
 }
+
+//void iso_dirid(char *src, int maxlen)
+//{
+//    size_t len, i;
+//
+//    len = strlen(src);
+//    if (len > maxlen) {
+//        src[maxlen] = '\0';
+//        len = maxlen;
+//    }
+//    for (i = 0; i < len; i++) {
+//        char c = toupper(src[i]);
+//        src[i] = valid_d_char(c) ? c : '_';
+//    }
+//}
+
+//void iso_1_fileid(char *src)
+//{
+//    char *dot; /* Position of the last dot in the filename, will be used to 
+//                  calculate lname and lext. */
+//    int lname, lext, pos, i;
+//
+//    dot = strrchr(src, '.');
+//
+//    lext = dot ? strlen(dot + 1) : 0;
+//    lname = strlen(src) - lext - (dot ? 1 : 0);
+//
+//    /* If we can't build a filename, return. */
+//    if (lname == 0 && lext == 0) {
+//        return;
+//    }
+//
+//    pos = 0;
+//    /* Convert up to 8 characters of the filename. */
+//    for (i = 0; i < lname && i < 8; i++) {
+//        char c = toupper(src[i]);
+//        src[pos++] = valid_d_char(c) ? c : '_';
+//    }
+//    
+//    /* This dot is mandatory, even if there is no extension. */
+//    src[pos++] = '.';
+//    
+//    /* Convert up to 3 characters of the extension, if any. */
+//    for (i = 0; i < lext && i < 3; i++) {
+//        char c = toupper(src[lname + 1 + i]);
+//        src[pos++] = valid_d_char(c) ? c : '_';
+//    }
+//    src[pos] = '\0';
+//}
+//
+//void iso_2_fileid(char *src)
+//{
+//    char *dot;
+//    int lname, lext, lnname, lnext, pos, i;
+//
+//    if (!src)
+//        return;
+//
+//    dot = strrchr(src, '.');
+//
+//    /* 
+//     * Since the maximum length can be divided freely over the name and
+//     * extension, we need to calculate their new lengths (lnname and
+//     * lnext). If the original filename is too long, we start by trimming
+//     * the extension, but keep a minimum extension length of 3. 
+//     */
+//    if (dot == NULL || *(dot + 1) == '\0') {
+//        lname = strlen(src);
+//        lnname = (lname > 30) ? 30 : lname;
+//        lext = lnext = 0;
+//    } else {
+//        lext = strlen(dot + 1);
+//        lname = strlen(src) - lext - 1;
+//        lnext = (strlen(src) > 31 && lext > 3)
+//            ? (lname < 27 ? 30 - lname : 3) : lext;
+//        lnname = (strlen(src) > 31) ? 30 - lnext : lname;
+//    }
+//
+//    if (lnname == 0 && lnext == 0) {
+//        return;
+//    }
+//
+//    pos = 0;
+//    /* Convert up to lnname characters of the filename. */
+//    for (i = 0; i < lnname; i++) {
+//        char c = toupper(src[i]);
+//        src[pos++] = valid_d_char(c) ? c : '_';
+//    }
+//    src[pos++] = '.';
+//    /* Convert up to lnext characters of the extension, if any. */
+//    for (i = 0; i < lnext; i++) {
+//        char c = toupper(src[lname + 1 + i]);
+//        src[pos++] = valid_d_char(c) ? c : '_';
+//    }
+//    src[pos] = '\0';
+//}
     
 int str2d_char(const char *icharset, const char *input, char **output)
 {

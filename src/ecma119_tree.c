@@ -25,6 +25,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
     int ret;
     char *ascii_name;
+    char *isoname = NULL;
 
     if (iso->name == NULL) {
         /* it is not necessarily an error, it can be the root */
@@ -41,19 +42,28 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
     // TODO add support for relaxed constraints
     if (iso->type == LIBISO_DIR) {
         if (img->iso_level == 1) {
-            iso_dirid(ascii_name, 8);
+            isoname = iso_1_dirid(ascii_name);
         } else {
-            iso_dirid(ascii_name, 31);
+            isoname = iso_2_dirid(ascii_name);
         }
     } else {
         if (img->iso_level == 1) {
-            iso_1_fileid(ascii_name);
+            isoname = iso_1_fileid(ascii_name);
         } else {
-            iso_2_fileid(ascii_name);
+            isoname = iso_2_fileid(ascii_name);
         }
     }
-    *name = ascii_name;
-    return ISO_SUCCESS;
+    free(ascii_name);
+    if (isoname != NULL) {
+        *name = isoname;
+        return ISO_SUCCESS;
+    } else {
+        /* 
+         * only possible if mem error, as check for empty names is done
+         * in public tree
+         */
+        return ISO_MEM_ERROR;   
+    }
 }
 
 static

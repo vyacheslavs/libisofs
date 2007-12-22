@@ -29,6 +29,105 @@ static void test_round_up()
 	CU_ASSERT_EQUAL( round_up(14, 7), 14 );
 }
 
+static void test_iso_bb()
+{
+    uint8_t buf[8];
+    uint32_t num;
+    
+    num = 0x01020304;
+    iso_bb(buf, num, 4);
+    CU_ASSERT_EQUAL( buf[0], 0x04 );
+    CU_ASSERT_EQUAL( buf[1], 0x03 );
+    CU_ASSERT_EQUAL( buf[2], 0x02 );
+    CU_ASSERT_EQUAL( buf[3], 0x01 );
+    CU_ASSERT_EQUAL( buf[4], 0x01 );
+    CU_ASSERT_EQUAL( buf[5], 0x02 );
+    CU_ASSERT_EQUAL( buf[6], 0x03 );
+    CU_ASSERT_EQUAL( buf[7], 0x04 );
+            
+    iso_bb(buf, num, 2);
+    CU_ASSERT_EQUAL( buf[0], 0x04 );
+    CU_ASSERT_EQUAL( buf[1], 0x03 );
+    CU_ASSERT_EQUAL( buf[2], 0x03 );
+    CU_ASSERT_EQUAL( buf[3], 0x04 );
+}
+
+static void test_iso_1_dirid()
+{
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dir1"), "DIR1" );
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dIR1"), "DIR1" );
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("DIR1"), "DIR1" );
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dirwithbigname"), "DIRWITHB");
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dirwith8"), "DIRWITH8");
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dir.1"), "DIR_1");
+    CU_ASSERT_STRING_EQUAL( iso_1_dirid("4f<0KmM::xcvf"), "4F_0KMM_");
+}
+
+static void test_iso_2_dirid()
+{
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dir1"), "DIR1" );
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dIR1"), "DIR1" );
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("DIR1"), "DIR1" );
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dirwithbigname"), "DIRWITHBIGNAME");
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dirwith8"), "DIRWITH8");
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dir.1"), "DIR_1");
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("4f<0KmM::xcvf"), "4F_0KMM__XCVF");
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("directory with 31 characters ok"), "DIRECTORY_WITH_31_CHARACTERS_OK");
+    CU_ASSERT_STRING_EQUAL( iso_2_dirid("directory with more than 31 characters"), "DIRECTORY_WITH_MORE_THAN_31_CHA");
+}
+
+static void test_iso_1_fileid()
+{
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file1"), "FILE1.");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("fILe1"), "FILE1.");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("FILE1"), "FILE1.");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid(".EXT"), ".EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.ext"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("fiLE.ext"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.EXt"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("FILE.EXT"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename"), "BIGFILEN.");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename.ext"), "BIGFILEN.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename.e"), "BIGFILEN.E");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.bigext"), "FILE.BIG");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid(".bigext"), ".BIG");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename.bigext"), "BIGFILEN.BIG");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file<:a.ext"), "FILE__A.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.<:a"), "FILE.__A");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file<:a.--a"), "FILE__A.__A");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.ex1.ex2"), "FILE_EX1.EX2");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.ex1.ex2.ex3"), "FILE_EX1.EX3");
+    CU_ASSERT_STRING_EQUAL( iso_1_fileid("fil.ex1.ex2.ex3"), "FIL_EX1_.EX3");
+}
+
+static void test_iso_2_fileid()
+{
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file1"), "FILE1.");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("fILe1"), "FILE1.");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("FILE1"), "FILE1.");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid(".EXT"), ".EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.ext"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("fiLE.ext"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.EXt"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("FILE.EXT"), "FILE.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename"), "BIGFILENAME.");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename.ext"), "BIGFILENAME.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename.e"), "BIGFILENAME.E");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("31 characters filename.extensio"), "31_CHARACTERS_FILENAME.EXTENSIO");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("32 characters filename.extension"), "32_CHARACTERS_FILENAME.EXTENSIO");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("more than 30 characters filename.extension"), "MORE_THAN_30_CHARACTERS_FIL.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.bigext"), "FILE.BIGEXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid(".bigext"), ".BIGEXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename.bigext"), "BIGFILENAME.BIGEXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file<:a.ext"), "FILE__A.EXT");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.<:a"), "FILE.__A");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file<:a.--a"), "FILE__A.__A");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.ex1.ex2"), "FILE_EX1.EX2");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.ex1.ex2.ex3"), "FILE_EX1_EX2.EX3");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid("fil.ex1.ex2.ex3"), "FIL_EX1_EX2.EX3");
+    CU_ASSERT_STRING_EQUAL( iso_2_fileid(".file.bigext"), "_FILE.BIGEXT");
+}
+
 static void test_iso_rbtree_insert()
 {
     int res;
@@ -86,5 +185,10 @@ void add_util_suite()
 	
 	CU_add_test(pSuite, "div_up()", test_div_up);
 	CU_add_test(pSuite, "round_up()", test_round_up);
+    CU_add_test(pSuite, "iso_bb()", test_iso_bb);
+    CU_add_test(pSuite, "iso_1_dirid()", test_iso_1_dirid);
+    CU_add_test(pSuite, "iso_2_dirid()", test_iso_2_dirid);
+    CU_add_test(pSuite, "iso_1_fileid()", test_iso_1_fileid);
+    CU_add_test(pSuite, "iso_2_fileid()", test_iso_2_fileid);
     CU_add_test(pSuite, "iso_rbtree_insert()", test_iso_rbtree_insert);
 }

@@ -47,35 +47,39 @@ int int_pow(int base, int power);
 int str2ascii(const char *icharset, const char *input, char **output);
 
 /**
- * Ensure a given string is a valid ISO directory identifier, modifying
- * it if needed.
+ * Create a level 1 directory identifier.
  * 
  * @param src
- *      The identifier, in ASCII encoding. It may be modified by the function.
- * @param maxlen
- *      Maximum length supported by current iso level.
+ *      The identifier, in ASCII encoding.
  */
-void iso_dirid(char *src, int maxlen);
+char *iso_1_dirid(const char *src);
 
 /**
- * Ensure a given string is a valid ISO level 1 file identifier, in 8.3 
- * format, modifying it if needed.
+ * Create a level 2 directory identifier.
+ * 
+ * @param src
+ *      The identifier, in ASCII encoding.
+ */
+char *iso_2_dirid(const char *src);
+
+/**
+ * Create a level 1 file identifier that consists of a name, in 8.3 
+ * format.
  * Note that version number is not added to the file name
  * 
  * @param src
- *      The identifier, in ASCII encoding. It may be modified by the function.
+ *      The identifier, in ASCII encoding.
  */
-void iso_1_fileid(char *src);
+char *iso_1_fileid(const char *src);
 
 /**
- * Ensure a given string is a valid ISO level 2 file identifier, modifying it
- * if needed.
+ * Create a level 2 file identifier.
  * Note that version number is not added to the file name
  * 
  * @param src
- *      The identifier, in ASCII encoding. It may be modified by the function.
+ *      The identifier, in ASCII encoding.
  */
-void iso_2_fileid(char *src);
+char *iso_2_fileid(const char *src);
 
 /**
  * Convert a given input string to d-chars.

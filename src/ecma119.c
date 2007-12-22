@@ -136,10 +136,12 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target = writer->target;
     
     /* compute position of directories */
+    iso_msg_debug(target->image, "Computing position of dir structure");
     target->ndirs = 0;
     calc_dir_pos(target, target->root);
     
     /* compute length of pathlist */
+    iso_msg_debug(target->image, "Computing length of pathlist");
     path_table_size = calc_path_table_size(target->root);
     
     /* compute location for path tables */
@@ -529,6 +531,7 @@ int ecma119_writer_create(Ecma119Image *target)
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
     
+    iso_msg_debug(target->image, "Creating low level ECMA-119 tree...");
     ret = ecma119_tree_create(target);
     if (ret < 0) {
         return ret;
