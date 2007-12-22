@@ -13,6 +13,7 @@
 #include "util.h"
 
 #include <stdint.h>
+#include <pthread.h>
 
 #define BLOCK_SIZE      2048
 
@@ -79,8 +80,12 @@ struct ecma119_image {
     IsoRBTree *files;
     
     /* file descriptors for read and writing image */
-    int wrfd; /* write to here */
     int rdfd; /* read from here */
+    int wrfd; /* write to here */
+    
+    /* writer thread descriptor */
+    pthread_t wthread;
+    pthread_attr_t th_attr;
 };
 
 #define BP(a,b) [(b) - (a) + 1]

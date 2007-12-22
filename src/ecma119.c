@@ -455,7 +455,6 @@ int write_path_tables(Ecma119Image *t)
         Ecma119Node *dir = pathlist[i];
         for (j = 0; j < dir->info.dir.nchildren; j++) {
             Ecma119Node *child = dir->info.dir.children[j];
-            //iso_msg_debug(t->image, "   bbbbbbbbbb %d %s", j, dir->node->name);
             if (child->type == ECMA119_DIR) {
                 pathlist[cur++] = child;
             }
@@ -541,13 +540,14 @@ int ecma119_writer_create(Ecma119Image *target)
 }
 
 static
-void write_function(Ecma119Image *target)
+void *write_function(void *arg)
 {
     int res;
     size_t i;
     uint8_t buf[BLOCK_SIZE];
     IsoImageWriter *writer;
     
+    Ecma119Image *target = (Ecma119Image*)arg;
     iso_msg_debug(target->image, "Starting image writing...");
     
     /* Write System Area, 16 blocks of zeros (ECMA-119, 6.2.1) */
@@ -593,12 +593,14 @@ void write_function(Ecma119Image *target)
         }
     }
     
-    return;
+    close(target->wrfd);
+    pthread_exit(NULL);
     
 write_error:;    
     iso_msg_fatal(target->image, LIBISO_WRITE_ERROR, 
                   "Image write error, code %d", res);
-    return;
+    close(target->wrfd);
+    pthread_exit(NULL);
 }
 
 static 
@@ -686,8 +688,35 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->total_size = (target->curblock - target->ms_block) * BLOCK_SIZE;
     target->vol_space_size = target->curblock - target->ms_block;
     
-    /* 4. Start writting thread */ 
-    //write_function(target);
+    /* 4. Create and start writting thread */
+    
+    /* TODO for now, a pipe to comunicate both threads
+     * TODO replace it with a ring buffer */
+    ret = pipe(&(target->rdfd));
+    if (ret < 0) {
+        ret = ISO_ERROR;
+        goto target_cleanup;
+    }
+    
+    /* ensure the thread is created joinable */
+    pthread_attr_init(&(target->th_attr));
+    pthread_attr_setdetachstate(&(target->th_attr), PTHREAD_CREATE_JOINABLE);
+
+    ret = pthread_create(&(target->wthread), NULL, write_function, 
+                         (void *) target);
+    if (ret != 0) {
+        iso_msg_fatal(target->image, LIBISO_THREAD_ERROR,
+                      "Cannot create writer thread");
+        ret = ISO_THREAD_ERROR;
+        goto target_cleanup;
+    }
+    
+    /*
+     * Notice that once we reach this point, target belongs to the writer
+     * thread and should not be modified until the writer thread finished.
+     * There're however, specific fields in target that can be accessed, or
+     * even modified by the read thread (look inside bs_* functions)
+     */
     
     *img = target;
     return ISO_SUCCESS;
@@ -700,29 +729,62 @@ target_cleanup:;
 static int
 bs_read(struct burn_source *bs, unsigned char *buf, int size)
 {
-    // TODO to implement
-    return 0;
+    ssize_t ret;
+    int bytes_read = 0;
+    Ecma119Image *t = (Ecma119Image*)bs->data;
+
+    /* make safe against partial buffer returns */
+    while (bytes_read < size) {
+        ret = read(t->rdfd, buf + bytes_read, size - bytes_read);
+        if (ret == 0) {
+            /* EOF */
+            return 0;
+        } else if (ret < 0) {
+            /* error */
+            iso_msg_fatal(t->image, LIBISO_READ_ERROR, "Error reading pipe");
+            return -1;
+        }
+        bytes_read += ret;
+    }
+    return bytes_read;
 }
 
 static off_t
 bs_get_size(struct burn_source *bs)
 {
-    Ecma119Image *image = (Ecma119Image*)bs->data;
-    return image->total_size;
+    Ecma119Image *target = (Ecma119Image*)bs->data;
+    return target->total_size;
 }
 
 static void
 bs_free_data(struct burn_source *bs)
 {
-    ecma119_image_free((Ecma119Image*)bs->data);
+    Ecma119Image *target = (Ecma119Image*)bs->data;
+    
+    /* TODO ugly, forces a SIG_PIPE if writing not finished,
+     * but I will replace the pipe anyway, so... */
+    close(target->rdfd);
+    
+    /* wait until writer thread finishes */
+    pthread_join(target->wthread, NULL);
+    
+    iso_msg_debug(target->image, "Writer thread joined");
+    
+    /* now we can safety free target */
+    ecma119_image_free(target);
 }
 
 static
 int bs_set_size(struct burn_source *bs, off_t size)
 {
-    //TODO to implement!!
-//    struct ecma119_write_target *t = (struct ecma119_write_target*)bs->data;
-//    t->total_size = size;
+    Ecma119Image *target = (Ecma119Image*)bs->data;
+    
+    /* 
+     * just set the value to be returned by get_size. This is not used at
+     * all by libisofs, it is here just for helping libburn to correctly pad
+     * the image if needed.
+     */
+    target->total_size = size;
     return 1;
 }
 
@@ -754,6 +816,8 @@ int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
     source->set_size = bs_set_size;
     source->free_data = bs_free_data;
     source->data = target;
+    
+    *burn_src = source;
     return ISO_SUCCESS;
 }
 

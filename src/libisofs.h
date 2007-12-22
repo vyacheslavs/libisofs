@@ -10,6 +10,8 @@
 
 #include <sys/stat.h>
 
+struct burn_source;
+
 typedef struct Iso_Image IsoImage;
 
 typedef struct Iso_Node IsoNode;
@@ -152,6 +154,9 @@ typedef struct {
  *     1 sucess, < 0 error
  */
 int iso_image_new(const char *name, IsoImage **image);
+
+int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
+                     struct burn_source **burn_src);
 
 /**
  * Increments the reference counting of the given image.

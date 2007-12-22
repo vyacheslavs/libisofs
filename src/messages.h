@@ -19,8 +19,12 @@
 #define LIBISO_FILE_IGNORED         0x00030100
 /** File cannot be writing to image (ignored) */
 #define LIBISO_FILE_CANT_WRITE      0x00030101
+/** Read error */
+#define LIBISO_READ_ERROR           0x00030102
 /** Write error */
-#define LIBISO_WRITE_ERROR          0x00030102
+#define LIBISO_WRITE_ERROR          0x00030103
+/** Cannot create writer thread */
+#define LIBISO_THREAD_ERROR         0x00030110
 
 
 /** Can't read file (ignored) */
