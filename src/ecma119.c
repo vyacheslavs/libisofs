@@ -65,8 +65,6 @@ static
 size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir)
 {
     size_t i, len;
-
-    t->ndirs++;
     
     /* size of "." and ".." entries */
     len = 34 + 34;
@@ -89,6 +87,7 @@ void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
 {
     size_t i, len;
 
+    t->ndirs++;
     dir->info.dir.block = t->curblock;
     len = calc_dir_size(t, dir);
     t->curblock += div_up(len, BLOCK_SIZE);
@@ -119,6 +118,8 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     calc_dir_pos(target, target->root);
     
     /* compute length of pathlist */
+    // TODO we don't need to allocate here the pathlist, since for
+    // len computation a simple recursion is good enought
     pathlist = calloc(1, sizeof(void*) * target->ndirs);
     if (pathlist == NULL) {
         return ISO_MEM_ERROR;
@@ -175,7 +176,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
     
-    len_dr = 33 + len_fi + (len_fi % 2);
+    len_dr = 33 + len_fi + (len_fi % 2 ? 0 : 1);
     
     memcpy(rec->file_id, name, len_fi);
     
@@ -236,18 +237,20 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     t = writer->target;
     image = t->image;
     
+    iso_msg_debug(image, "Write Primary Volume Descriptor");
+    
     memset(&vol, 0, sizeof(struct ecma119_pri_vol_desc));
+
+    str2d_char(t->input_charset, image->volume_id, &vol_id);
+    str2a_char(t->input_charset, image->publisher_id, &pub_id);
+    str2a_char(t->input_charset, image->data_preparer_id, &data_id);
+    str2d_char(t->input_charset, image->volset_id, &volset_id);
     
-    str2d_char(image->volume_id, t->input_charset, &vol_id);
-    str2a_char(image->publisher_id, t->input_charset, &pub_id);
-    str2a_char(image->data_preparer_id, t->input_charset, &data_id);
-    str2d_char(image->volset_id, t->input_charset, &volset_id);
-    
-    str2a_char(image->system_id, t->input_charset, &system_id);
-    str2a_char(image->application_id, t->input_charset, &application_id);
-    str2d_char(image->copyright_file_id, t->input_charset, &copyright_file_id);
-    str2d_char(image->abstract_file_id, t->input_charset, &abstract_file_id);
-    str2d_char(image->biblio_file_id, t->input_charset, &biblio_file_id);
+    str2a_char(t->input_charset, image->system_id, &system_id);
+    str2a_char(t->input_charset, image->application_id, &application_id);
+    str2d_char(t->input_charset, image->copyright_file_id, &copyright_file_id);
+    str2d_char(t->input_charset, image->abstract_file_id, &abstract_file_id);
+    str2d_char(t->input_charset, image->biblio_file_id, &biblio_file_id);
     
     vol.vol_desc_type[0] = 1;
     memcpy(vol.std_identifier, "CD001", 5);
@@ -330,7 +333,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         
         /* compute len of directory entry */
         fi_len = strlen(child->iso_name);
-        len = fi_len + 33 + (fi_len % 2);
+        len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
         if (child->type == ECMA119_FILE && !t->omit_version_numbers) {
             len += 2;
         }
@@ -452,6 +455,7 @@ int write_path_tables(Ecma119Image *t)
         Ecma119Node *dir = pathlist[i];
         for (j = 0; j < dir->info.dir.nchildren; j++) {
             Ecma119Node *child = dir->info.dir.children[j];
+            //iso_msg_debug(t->image, "   bbbbbbbbbb %d %s", j, dir->node->name);
             if (child->type == ECMA119_DIR) {
                 pathlist[cur++] = child;
             }
@@ -534,6 +538,67 @@ int ecma119_writer_create(Ecma119Image *target)
     /* we need the volume descriptor */
     target->curblock++;
     return ISO_SUCCESS;
+}
+
+static
+void write_function(Ecma119Image *target)
+{
+    int res;
+    size_t i;
+    uint8_t buf[BLOCK_SIZE];
+    IsoImageWriter *writer;
+    
+    iso_msg_debug(target->image, "Starting image writing...");
+    
+    /* Write System Area, 16 blocks of zeros (ECMA-119, 6.2.1) */
+    memset(buf, 0, BLOCK_SIZE);
+    for (i = 0; i < 16; ++i) {
+        res = iso_write(target, buf, BLOCK_SIZE);
+        if (res < 0) {
+            goto write_error;
+        }
+    }
+    
+    /* write volume descriptors, one per writer */
+    iso_msg_debug(target->image, "Write volume descriptors");
+    for (i = 0; i < target->nwriters; ++i) {
+        writer = target->writers[i];
+        res = writer->write_vol_desc(writer);
+        if (res < 0) {
+            goto write_error;
+        }
+    }
+    
+    /* write Volume Descriptor Set Terminator (ECMA-119, 8.3) */
+    {
+        struct ecma119_vol_desc_terminator *vol;
+        vol = (struct ecma119_vol_desc_terminator *) buf;
+        
+        vol->vol_desc_type[0] = 255;
+        memcpy(vol->std_identifier, "CD001", 5);
+        vol->vol_desc_version[0] = 1;
+        
+        res = iso_write(target, buf, BLOCK_SIZE);
+        if (res < 0) {
+            goto write_error;
+        }
+    }
+    
+    /* write data for each writer */
+    for (i = 0; i < target->nwriters; ++i) {
+        writer = target->writers[i];
+        res = writer->write_data(writer);
+        if (res < 0) {
+            goto write_error;
+        }
+    }
+    
+    return;
+    
+write_error:;    
+    iso_msg_fatal(target->image, LIBISO_WRITE_ERROR, 
+                  "Image write error, code %d", res);
+    return;
 }
 
 static 
@@ -621,10 +686,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->total_size = (target->curblock - target->ms_block) * BLOCK_SIZE;
     target->vol_space_size = target->curblock - target->ms_block;
     
-    
     /* 4. Start writting thread */ 
-    
-    
+    //write_function(target);
     
     *img = target;
     return ISO_SUCCESS;

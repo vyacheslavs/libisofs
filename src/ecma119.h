@@ -144,12 +144,21 @@ struct ecma119_dir_record
 /* ECMA-119, 9.4 */
 struct ecma119_path_table_record
 {
-    uint8_t len_di          BP(1, 1);
-    uint8_t len_xa          BP(2, 2);
-    uint8_t block           BP(3, 6);
-    uint8_t parent          BP(7, 8);
-    uint8_t dir_id          BP(9, 9); /* 9 to 8+len_di */
+    uint8_t len_di                   BP(1, 1);
+    uint8_t len_xa                   BP(2, 2);
+    uint8_t block                    BP(3, 6);
+    uint8_t parent                   BP(7, 8);
+    uint8_t dir_id                   BP(9, 9); /* 9 to 8+len_di */
     /* padding field (if len_di is odd) */
+};
+
+/* ECMA-119, 8.3 */
+struct ecma119_vol_desc_terminator
+{
+    uint8_t vol_desc_type            BP(1, 1);
+    uint8_t std_identifier           BP(2, 6);
+    uint8_t vol_desc_version         BP(7, 7);
+    uint8_t reserved                 BP(8, 2048);
 };
 
 #endif /*LIBISO_ECMA119_H_*/

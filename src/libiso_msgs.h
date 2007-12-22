@@ -385,6 +385,7 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  Image creation:
  0x00030100 (NOTE,MEDIUM)   = File cannot be added to image (ignored) 
  0x00030101 (NOTE,MEDIUM)   = File cannot be writing to image (ignored) 
+ 0x00030102 (FATAL,HIGH)    = Write error
 
  General:
  0x00031001 (SORRY,HIGH)    = Cannot read file (ignored)

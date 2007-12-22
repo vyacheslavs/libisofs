@@ -220,6 +220,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     t = writer->target;
     filelist = writer->data;
     
+    iso_msg_debug(t->image, "Writing Files...");
+    
     nfiles = iso_rbtree_get_size(t->files);
     for (i = 0; i < nfiles; ++i) {
         IsoFileSrc *file = filelist[i];
