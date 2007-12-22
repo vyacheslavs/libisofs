@@ -34,6 +34,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
     // TODO add support for other input charset
     ret = str2ascii("UTF-8", iso->name, &ascii_name);
     if (ret < 0) {
+        iso_msg_debug(img->image, "Can't convert %s", iso->name);
         return ret;
     }
 

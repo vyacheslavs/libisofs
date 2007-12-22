@@ -68,20 +68,34 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
     n = iconv(conv, &src, &inbytes, &ret, &outbytes);
     while (n == -1) {
         
-        if( errno != EINVAL ) {
+        if (errno == E2BIG) {
             /* error, should never occur */
             iconv_close(conv);
             free(wstr);
             return ISO_CHARSET_CONV_ERROR;
-        }
+        } else {
+            wchar_t *wret;
             
-        /* invalid input string charset, just ignore */
-        /* printf("String %s is not encoded in %s\n", str, codeset); */
-        inbytes--;
+            /* 
+             * Invalid input string charset.
+             * This can happen if input is in fact encoded in a charset 
+             * different than icharset.
+             * We can't do anything better than replace by "_" and continue.
+             */
+            /* TODO we need a way to report this */
+            /* printf("String %s is not encoded in %s\n", str, codeset); */
+            inbytes--;
+            src++;
+            
+            wret = (wchar_t*) ret;
+            *wret++ = (wchar_t) '_';
+            ret = (char *) wret;
+            outbytes -= sizeof(wchar_t);
 
-        if (!inbytes)
-            break;
-        n = iconv(conv, &src, &inbytes, &ret, &outbytes);
+            if (!inbytes)
+                break;
+            n = iconv(conv, &src, &inbytes, &ret, &outbytes);
+        }
     }
     iconv_close(conv);
     
