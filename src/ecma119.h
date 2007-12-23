@@ -29,6 +29,9 @@ struct ecma119_image {
     
     unsigned int iso_level:2;
     
+    /* extensions */
+    unsigned int rockridge:1;
+    
     /* relaxed constraints */
     unsigned int omit_version_numbers:1;
     

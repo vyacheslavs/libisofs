@@ -630,6 +630,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     iso_image_ref(src);
     
     target->iso_level = opts->level;
+    target->rockridge = 1; //TODO
     target->omit_version_numbers = opts->omit_version_numbers;
     target->sort_files = opts->sort_files;
     

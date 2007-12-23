@@ -14,7 +14,10 @@
 
 enum ecma119_node_type {
     ECMA119_FILE,
-    ECMA119_DIR
+    ECMA119_DIR,
+    ECMA119_SYMLINK,
+    ECMA119_SPECIAL,
+    ECMA119_PLACEHOLDER
 };
 
 /**

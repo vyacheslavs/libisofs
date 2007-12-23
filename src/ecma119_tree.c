@@ -151,6 +151,39 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
     return ret;
 }
 
+/**
+ * Create a new ECMA-119 node representing a symbolic link from a iso symlink
+ * node.
+ */
+static
+int create_symlink(Ecma119Image *img, IsoSymlink *iso, Ecma119Node **node)
+{
+    int ret;
+
+    ret = create_ecma119_node(img, (IsoNode*)iso, node);
+    if (ret < 0) {
+        return ret;
+    }
+    (*node)->type = ECMA119_SYMLINK;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Create a new ECMA-119 node representing a special file.
+ */
+static
+int create_special(Ecma119Image *img, IsoSpecial *iso, Ecma119Node **node)
+{
+    int ret;
+
+    ret = create_ecma119_node(img, (IsoNode*)iso, node);
+    if (ret < 0) {
+        return ret;
+    }
+    (*node)->type = ECMA119_SPECIAL;
+    return ISO_SUCCESS;
+}
+
 void ecma119_node_free(Ecma119Node *node)
 {
     if (node == NULL) {
@@ -165,7 +198,6 @@ void ecma119_node_free(Ecma119Node *node)
     }
     free(node->iso_name);
     iso_node_unref(node->node);
-    //TODO? free(node->name);
     free(node);
 }
 
@@ -197,7 +229,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         return ret;
     }
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
-    if (1) { //TODO !rockridge && !relaxed_paths
+    if (!image->rockridge) { //TODO !rockridge && !relaxed_paths
         if (depth > 8 || max_path > 255) {
             iso_msg_note(image->image, LIBISO_FILE_IGNORED, 
                          "File \"%s\" can't be added, because depth > 8 "
@@ -212,18 +244,26 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         ret = create_file(image, (IsoFile*)iso, &node);
         break;
     case LIBISO_SYMLINK:
-        //TODO only supported with RR
-        iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" ignored. "
-                     "Symlinks need RockRidge extensions.", iso->name);
-        free(iso_name);
-        return 0;
+        if (image->rockridge) {
+            ret = create_symlink(image, (IsoSymlink*)iso, &node);
+        } else {
+            /* symlinks are only supported when RR is enabled */
+            iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" "
+                         "ignored. Symlinks need RockRidge extensions.", 
+                         iso->name);
+            ret = 0;
+        }
         break;
     case LIBISO_SPECIAL:
-        iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" ignored. "
-                     "Special files need RockRidge extensions.", iso->name);
-        //TODO only supported with RR
-        free(iso_name);
-        return 0;
+        if (image->rockridge) {
+            ret = create_special(image, (IsoSpecial*)iso, &node);
+        } else {
+            /* symlinks are only supported when RR is enabled */
+            iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" "
+                         "ignored. Special files need RockRidge extensions.", 
+                         iso->name);
+            ret = 0;
+        }
         break;
     case LIBISO_BOOT:
         //TODO
