@@ -62,6 +62,9 @@ typedef struct {
     //int volnum; /**< The volume in the set which you want to write (usually 0) */
     int level;  /**< ISO level to write at. */
     int flags;  /**< Which extensions to support. */
+    
+    /* relaxed constraints */
+    unsigned int omit_version_numbers:1;
     //int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
     
     //unsigned int copy_eltorito:1;
