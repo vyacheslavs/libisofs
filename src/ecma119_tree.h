@@ -29,6 +29,11 @@ struct ecma119_dir_info {
 
     size_t nchildren;
     Ecma119Node **children;
+    
+    /** 
+     * Real parent if the dir has been reallocated. NULL otherwise.
+     */
+    Ecma119Node *real_parent;
 };
 
 /**
@@ -51,6 +56,8 @@ struct ecma119_node
     enum ecma119_node_type type; 
     union {
         IsoFileSrc *file;
+        // TODO this wastes too much memory, as dirs have much more
+        // atts than other kind of files. Replace with a pointer.
         struct ecma119_dir_info dir;
         /** this field points to the relocated directory. */
         Ecma119Node *real_me; 

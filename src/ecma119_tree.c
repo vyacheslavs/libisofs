@@ -651,6 +651,9 @@ int reparent(Ecma119Node *child, Ecma119Node *parent)
         return ISO_ERROR;
     }
 
+    /* keep track of the real parent */
+    child->info.dir.real_parent = child->parent;
+    
     /* add the child to its new parent */
     child->parent = parent;
     parent->info.dir.nchildren++;
