@@ -11,6 +11,7 @@
 
 #include "libisofs.h"
 #include "util.h"
+#include "buffer.h"
 
 #include <stdint.h>
 #include <pthread.h>
@@ -79,9 +80,8 @@ struct ecma119_image {
     /* tree of files sources */
     IsoRBTree *files;
     
-    /* file descriptors for read and writing image */
-    int rdfd; /* read from here */
-    int wrfd; /* write to here */
+    /* Buffer for communication between burn_source and writer thread */
+    IsoRingBuffer *buffer;
     
     /* writer thread descriptor */
     pthread_t wthread;

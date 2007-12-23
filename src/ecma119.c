@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <unistd.h>
 
 static
 void ecma119_image_free(Ecma119Image *t)
@@ -40,6 +39,7 @@ void ecma119_image_free(Ecma119Image *t)
     }
     free(t->input_charset);
     free(t->writers);
+    free(t->buffer);
     free(t);
 }
 
@@ -596,13 +596,13 @@ void *write_function(void *arg)
         }
     }
     
-    close(target->wrfd);
+    iso_ring_buffer_writer_close(target->buffer);
     pthread_exit(NULL);
     
 write_error:;    
     iso_msg_fatal(target->image, LIBISO_WRITE_ERROR, 
                   "Image write error, code %d", res);
-    close(target->wrfd);
+    iso_ring_buffer_writer_close(target->buffer);
     pthread_exit(NULL);
 }
 
@@ -693,11 +693,9 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     
     /* 4. Create and start writting thread */
     
-    /* TODO for now, a pipe to comunicate both threads
-     * TODO replace it with a ring buffer */
-    ret = pipe(&(target->rdfd));
+    /* create the ring buffer */
+    ret = iso_ring_buffer_new(&target->buffer);
     if (ret < 0) {
-        ret = ISO_ERROR;
         goto target_cleanup;
     }
     
@@ -732,24 +730,20 @@ target_cleanup:;
 static int
 bs_read(struct burn_source *bs, unsigned char *buf, int size)
 {
-    ssize_t ret;
-    int bytes_read = 0;
+    int ret;
     Ecma119Image *t = (Ecma119Image*)bs->data;
 
-    /* make safe against partial buffer returns */
-    while (bytes_read < size) {
-        ret = read(t->rdfd, buf + bytes_read, size - bytes_read);
-        if (ret == 0) {
-            /* EOF */
-            return 0;
-        } else if (ret < 0) {
-            /* error */
-            iso_msg_fatal(t->image, LIBISO_READ_ERROR, "Error reading pipe");
-            return -1;
-        }
-        bytes_read += ret;
+    ret = iso_ring_buffer_read(t->buffer, buf, size);
+    if (ret == ISO_SUCCESS) {
+        return size;
+    } else if (ret < 0) {
+        /* error */
+        iso_msg_fatal(t->image, LIBISO_READ_ERROR, "Error reading pipe");
+        return -1;
+    } else {
+        /* EOF */
+        return 0;
     }
-    return bytes_read;
 }
 
 static off_t
@@ -764,14 +758,16 @@ bs_free_data(struct burn_source *bs)
 {
     Ecma119Image *target = (Ecma119Image*)bs->data;
     
-    /* TODO ugly, forces a SIG_PIPE if writing not finished,
-     * but I will replace the pipe anyway, so... */
-    close(target->rdfd);
+    /* forces writer to stop if it is still running */
+    iso_ring_buffer_reader_close(target->buffer);
     
     /* wait until writer thread finishes */
     pthread_join(target->wthread, NULL);
     
     iso_msg_debug(target->image, "Writer thread joined");
+    iso_msg_debug(target->image, "Ring buffer was %d times full and %d times "
+                  "empty", iso_ring_buffer_get_times_full(target->buffer),
+                  iso_ring_buffer_get_times_empty(target->buffer));
     
     /* now we can safety free target */
     ecma119_image_free(target);
@@ -826,13 +822,12 @@ int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
 
 int iso_write(Ecma119Image *target, void *buf, size_t count)
 {
-    ssize_t result;
+    int ret;
     
-    result = write(target->wrfd, buf, count);
-    if (result != count) {
-        /* treat this as an error? */
+    ret = iso_ring_buffer_write(target->buffer, buf, count);
+    if (ret == 0) {
+        /* reader cancelled */
         return ISO_WRITE_ERROR;
-    } else {
-        return ISO_SUCCESS;
     }
+    return ret;
 }
