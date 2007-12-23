@@ -36,7 +36,8 @@ src_libisofs_la_SOURCES = \
 	src/ecma119.c \
 	src/ecma119_tree.h \
 	src/ecma119_tree.c \
-	src/writer.h
+	src/writer.h \
+	src/buffer.c
 libinclude_HEADERS = \
 	src/libisofs.h
 
@@ -46,6 +47,7 @@ libinclude_HEADERS = \
 noinst_PROGRAMS = \
 	demo/lsl \
 	demo/cat \
+	demo/catbuffer \
 	demo/tree \
 	demo/ecma119tree \
 	demo/iso 
@@ -57,6 +59,10 @@ demo_lsl_SOURCES = demo/lsl.c
 demo_cat_CPPFLAGS = -Isrc
 demo_cat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_cat_SOURCES = demo/cat.c
+
+demo_catbuffer_CPPFLAGS = -Isrc
+demo_catbuffer_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_catbuffer_SOURCES = demo/cat_buffer.c
 
 demo_tree_CPPFLAGS = -Isrc
 demo_tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)

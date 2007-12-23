@@ -705,8 +705,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     pthread_attr_init(&(target->th_attr));
     pthread_attr_setdetachstate(&(target->th_attr), PTHREAD_CREATE_JOINABLE);
 
-    ret = pthread_create(&(target->wthread), NULL, write_function, 
-                         (void *) target);
+    ret = pthread_create(&(target->wthread), &(target->th_attr), 
+                         write_function, (void *) target);
     if (ret != 0) {
         iso_msg_fatal(target->image, LIBISO_THREAD_ERROR,
                       "Cannot create writer thread");
