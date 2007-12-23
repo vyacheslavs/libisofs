@@ -632,6 +632,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->iso_level = opts->level;
     target->rockridge = 1; //TODO
     target->omit_version_numbers = opts->omit_version_numbers;
+    target->allow_deep_paths = 0; //TODO
     target->sort_files = opts->sort_files;
     
     target->now = time(NULL);

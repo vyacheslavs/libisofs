@@ -229,8 +229,8 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         return ret;
     }
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
-    if (!image->rockridge) { //TODO !rockridge && !relaxed_paths
-        if (depth > 8 || max_path > 255) {
+    if (!image->rockridge && !image->allow_deep_paths) {
+        if ((iso->type == LIBISO_DIR && depth > 8) || max_path > 255) {
             iso_msg_note(image->image, LIBISO_FILE_IGNORED, 
                          "File \"%s\" can't be added, because depth > 8 "
                          "or path length over 255", iso->name);
@@ -553,6 +553,144 @@ int mangle_tree(Ecma119Image *img)
     return mangle_dir(img, img->root, max_file, max_dir);
 }
 
+/**
+ * Create a new ECMA-119 node representing a placeholder for a relocated
+ * dir.
+ * 
+ * See IEEE P1282, section 4.1.5 for details
+ */
+static 
+int create_placeholder(Ecma119Node *parent, 
+                       Ecma119Node *real,  Ecma119Node **node)
+{
+    Ecma119Node *ret;
+
+    ret = calloc(1, sizeof(Ecma119Node));
+    if (ret == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    /* 
+     * TODO
+     * If real is a dir, while placeholder is a file, ISO name restricctions 
+     * are different, what to do? 
+     */
+    ret->iso_name = strdup(real->iso_name);
+    if (ret->iso_name == NULL) {
+        free(ret);
+        return ISO_MEM_ERROR;
+    }
+    
+    /* take a ref to the IsoNode */
+    ret->node = real->node;
+    iso_node_ref(real->node);
+    ret->parent = parent;
+    ret->type = ECMA119_PLACEHOLDER;
+    ret->info.real_me = real;
+    
+    *node = ret;
+    return ISO_SUCCESS;
+}
+
+static 
+size_t max_child_name_len(Ecma119Node *dir)
+{
+    size_t ret = 0, i;
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        size_t len = strlen(dir->info.dir.children[i]->iso_name);
+        ret = MAX(ret, len);
+    }
+    return ret;
+}
+
+/**
+ * Relocates a directory, as specified in Rock Ridge Specification 
+ * (see IEEE P1282, section 4.1.5). This is needed when the number of levels
+ * on a directory hierarchy exceeds 8, or the length of a path is higher
+ * than 255 characters, as specified in ECMA-119, section 6.8.2.1 
+ */
+static 
+int reparent(Ecma119Node *child, Ecma119Node *parent)
+{
+    int ret;
+    size_t i;
+    Ecma119Node *placeholder;
+
+    /* replace the child in the original parent with a placeholder */
+    for ( i = 0; i < child->parent->info.dir.nchildren; i++) {
+        if (child->parent->info.dir.children[i] == child) {
+            ret = create_placeholder(child->parent, child, &placeholder);
+            if (ret < 0) {
+                return ret;
+            }
+            child->parent->info.dir.children[i] = placeholder;
+            break;
+        }
+    }
+    
+    /* just for debug, this should never happen... */
+    if (i == child->parent->info.dir.nchildren) {
+        return ISO_ERROR;
+    }
+
+    /* add the child to its new parent */
+    child->parent = parent;
+    parent->info.dir.nchildren++;
+    parent->info.dir.children = realloc( parent->info.dir.children,
+                sizeof(void*) * parent->info.dir.nchildren );
+    parent->info.dir.children[parent->info.dir.nchildren - 1] = child;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Reorder the tree, if necessary, to ensure that
+ *  - the depth is at most 8
+ *  - each path length is at most 255 characters
+ * This restriction is imposed by ECMA-119 specification (ECMA-119, 6.8.2.1).
+ * 
+ * @param dir
+ *      Dir we are currently processing
+ * @param level
+ *      Level of the directory in the hierarchy
+ * @param pathlen
+ *      Length of the path until dir, including it
+ * @return
+ *      1 success, < 0 error
+ */
+static 
+int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
+{
+    int ret;
+    size_t max_path;
+
+    max_path = pathlen + 1 + max_child_name_len(dir);
+
+    if (level > 8 || max_path > 255) {
+        ret = reparent(dir, img->root);
+        if (ret < 0) {
+            return ret;
+        }
+        
+        /* 
+         * we are appended to the root's children now, so there is no
+         * need to recurse (the root will hit us again) 
+         */
+    } else {
+        size_t i;
+
+        for (i = 0; i < dir->info.dir.nchildren; i++) {
+            Ecma119Node *child = dir->info.dir.children[i];
+            if (child->type == ECMA119_DIR) {
+                int newpathlen = pathlen + 1 + strlen(child->iso_name);
+                ret = reorder_tree(img, child, level + 1, newpathlen);
+                if (ret < 0) {
+                    return ret;
+                }
+            }
+        }
+    }
+    return ISO_SUCCESS;
+}
 
 int ecma119_tree_create(Ecma119Image *img)
 {
@@ -576,6 +714,11 @@ int ecma119_tree_create(Ecma119Image *img)
     ret = mangle_tree(img);
     if (ret < 0) {
         return ret;
+    }
+    
+    if (img->rockridge && !img->allow_deep_paths) {
+        /* reorder the tree, acording to RRIP, 4.1.5 */
+        reorder_tree(img, img->root, 1, 0);
     }
     
     /*

@@ -47,11 +47,13 @@ struct ecma119_node
     
     IsoNode *node; /*< reference to the iso node */
 
-    /**< file, symlink, directory or placeholder */
+    /**< file, symlink, special, directory or placeholder */
     enum ecma119_node_type type; 
     union {
         IsoFileSrc *file;
         struct ecma119_dir_info dir;
+        /** this field points to the relocated directory. */
+        Ecma119Node *real_me; 
     } info;
 };
 

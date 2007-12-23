@@ -72,6 +72,10 @@ print_dir(Ecma119Node *dir, int level)
             printf("%s-[S] ", sp);
             print_permissions(iso_node_get_permissions(child->node));
             printf(" %s\n", child->iso_name);
+        } else if (child->type == ECMA119_PLACEHOLDER) {
+            printf("%s-[RD] ", sp);
+            print_permissions(iso_node_get_permissions(child->node));
+            printf(" %s\n", child->iso_name);
         } else {
             printf("%s-[????] ", sp);
         }
