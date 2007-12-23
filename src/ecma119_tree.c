@@ -360,7 +360,7 @@ int contains_name(Ecma119Node *dir, const char *name)
  * but never under 3 characters.
  */
 static
-int mangle_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len, 
+int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len, 
                int max_dir_len)
 {
     int i, nchildren;
@@ -523,23 +523,37 @@ int mangle_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
         qsort(children, nchildren, sizeof(void*), cmp_node_name);
     }
     
+    return ISO_SUCCESS;
+}
+
+static
+int mangle_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len, 
+               int max_dir_len)
+{
+    int ret;
+    size_t i;
+    
+    ret = mangle_single_dir(img, dir, max_file_len, max_dir_len);
+    if (ret < 0) {
+        return ret;
+    }
+    
     /* recurse */
-    for (i = 0; i < nchildren; ++i) {
-        int ret;
-        if (children[i]->type == ECMA119_DIR) {
-            ret = mangle_dir(img, children[i], max_file_len, max_dir_len);
+    for (i = 0; i < dir->info.dir.nchildren; ++i) {
+        if (dir->info.dir.children[i]->type == ECMA119_DIR) {
+            ret = mangle_dir(img, dir->info.dir.children[i], 
+                             max_file_len, max_dir_len);
             if (ret < 0) {
                 /* error */
                 return ret;
             }
         }
     }
-    
     return ISO_SUCCESS;
 }
 
 static
-int mangle_tree(Ecma119Image *img)
+int mangle_tree(Ecma119Image *img, int recurse)
 {
     int max_file, max_dir;
     
@@ -550,7 +564,11 @@ int mangle_tree(Ecma119Image *img)
     } else {
         max_file = max_dir = 31;
     }
-    return mangle_dir(img, img->root, max_file, max_dir);
+    if (recurse) {
+        return mangle_dir(img, img->root, max_file, max_dir);
+    } else {
+        return mangle_single_dir(img, img->root, max_file, max_dir);
+    }
 }
 
 /**
@@ -711,22 +729,29 @@ int ecma119_tree_create(Ecma119Image *img)
     sort_tree(root);
     
     iso_msg_debug(img->image, "Mangling names...");
-    ret = mangle_tree(img);
+    ret = mangle_tree(img, 1);
     if (ret < 0) {
         return ret;
     }
     
     if (img->rockridge && !img->allow_deep_paths) {
+        
         /* reorder the tree, acording to RRIP, 4.1.5 */
-        reorder_tree(img, img->root, 1, 0);
+        ret = reorder_tree(img, img->root, 1, 0);
+        if (ret < 0) {
+            return ret;
+        }
+        
+        /* 
+         * and we need to remangle the root directory, as the function
+         * above could insert new directories into the root.
+         * Note that recurse = 0, as we don't need to recurse.
+         */
+        ret = mangle_tree(img, 0);
+        if (ret < 0) {
+            return ret;
+        }
     }
-    
-    /*
-     * TODO
-     * - reparent if RR
-     * This must be done after mangle_tree, as name mangling may increment
-     * file name length. After reparent, the root dir must be mangled again
-     */
     
     return ISO_SUCCESS;
 }
