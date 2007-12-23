@@ -21,12 +21,17 @@ typedef struct iso_ring_buffer IsoRingBuffer;
 /**
  * Create a new buffer.
  * 
- * The created buffer can be freed with free(3)
+ * The created buffer can be freed with iso_ring_buffer_free(3)
  * 
  * @return
  *     1 success, < 0 error
  */
 int iso_ring_buffer_new(IsoRingBuffer **rbuf);
+
+/**
+ * Free a given buffer
+ */
+void iso_ring_buffer_free(IsoRingBuffer *buf);
 
 /**
  * Write count bytes into buffer. It blocks until all bytes where written or

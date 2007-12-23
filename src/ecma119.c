@@ -31,6 +31,7 @@ void ecma119_image_free(Ecma119Image *t)
     ecma119_node_free(t->root);
     iso_image_unref(t->image);
     iso_rbtree_destroy(t->files, iso_file_src_free);
+    iso_ring_buffer_free(t->buffer);
     
     for (i = 0; i < t->nwriters; ++i) {
         IsoImageWriter *writer = t->writers[i];
@@ -39,7 +40,6 @@ void ecma119_image_free(Ecma119Image *t)
     }
     free(t->input_charset);
     free(t->writers);
-    free(t->buffer);
     free(t);
 }
 

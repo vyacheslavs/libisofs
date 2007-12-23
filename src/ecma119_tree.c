@@ -320,7 +320,8 @@ int contains_name(Ecma119Node *dir, const char *name)
  * but never under 3 characters.
  */
 static
-int mangle_dir(Ecma119Node *dir, int max_file_len, int max_dir_len)
+int mangle_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len, 
+               int max_dir_len)
 {
     int i, nchildren;
     Ecma119Node **children;
@@ -449,6 +450,8 @@ int mangle_dir(Ecma119Node *dir, int max_file_len, int max_dir_len)
                     if (new == NULL) {
                         return ISO_MEM_ERROR;
                     }
+                    iso_msg_debug(img->image, "\"%s\" renamed to \"%s\"", 
+                                  children[k]->iso_name, new);
                     free(children[k]->iso_name);
                     children[k]->iso_name = new;
                     /* 
@@ -484,7 +487,7 @@ int mangle_dir(Ecma119Node *dir, int max_file_len, int max_dir_len)
     for (i = 0; i < nchildren; ++i) {
         int ret;
         if (children[i]->type == ECMA119_DIR) {
-            ret = mangle_dir(children[i], max_file_len, max_dir_len);
+            ret = mangle_dir(img, children[i], max_file_len, max_dir_len);
             if (ret < 0) {
                 /* error */
                 return ret;
@@ -507,7 +510,7 @@ int mangle_tree(Ecma119Image *img)
     } else {
         max_file = max_dir = 31;
     }
-    return mangle_dir(img->root, max_file, max_dir);
+    return mangle_dir(img, img->root, max_file, max_dir);
 }
 
 
@@ -525,8 +528,11 @@ int ecma119_tree_create(Ecma119Image *img)
         return ret;
     }
     img->root = root;
+    
+    iso_msg_debug(img->image, "Sorting the low level tree...");
     sort_tree(root);
     
+    iso_msg_debug(img->image, "Mangling names...");
     ret = mangle_tree(img);
     if (ret < 0) {
         return ret;

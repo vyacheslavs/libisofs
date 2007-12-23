@@ -92,6 +92,14 @@ int iso_ring_buffer_new(IsoRingBuffer **rbuf)
     return ISO_SUCCESS;
 }
 
+void iso_ring_buffer_free(IsoRingBuffer *buf)
+{
+    pthread_mutex_destroy(&buf->mutex);
+    pthread_cond_destroy(&buf->empty);
+    pthread_cond_destroy(&buf->full);
+    free(buf);
+}
+
 /**
  * Write count bytes into buffer. It blocks until all bytes where written or
  * reader close the buffer.
