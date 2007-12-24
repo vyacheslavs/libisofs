@@ -199,6 +199,22 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
     return su_size;
 }
 
+int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type, 
+                         size_t space, struct susp_info *info)
+{
+    //TODO to implement
+    return -1;
+}
 
+void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info, 
+                            void *buf)
+{
+    //TODO to implement
+}
 
+int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
+{
+    //TODO to implement
+    return -1;
+}
 

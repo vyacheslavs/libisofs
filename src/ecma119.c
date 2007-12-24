@@ -78,7 +78,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
     size_t ce_len = 0;
     
     /* size of "." and ".." entries */
-    len += 34 + 34;
+    len = 34 + 34;
     if (t->rockridge) {
         len += rrip_calc_len(t, dir, 1, 255 - 34, &ce_len);
         *ce += ce_len;
@@ -188,23 +188,24 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
  * Write a single directory record (ECMA-119, 9.1)
  * 
  * @param file_id
- *     if >= 0, we use it instead of the filename (for "." and ".." entries). 
- *     As a magic number, file_id == 3 means that we are writing the root 
- *     directory record in the PVD (ECMA-119, 8.4.18) (in order to distinguish 
- *     it from the "." entry in the root directory)
+ *     if >= 0, we use it instead of the filename (for "." and ".." entries).
  * @param len_fi
  *     Computed length of the file identifier. Total size of the directory
- *     entry will be len + 33 + padding if needed (ECMA-119, 9.1.12) 
+ *     entry will be len + 33 + padding if needed (ECMA-119, 9.1.12)
+ * @param info
+ *     SUSP entries for the given directory record. It will be NULL for the 
+ *     root directory record in the PVD (ECMA-119, 8.4.18) (in order to 
+ *     distinguish it from the "." entry in the root directory)
  */
 static 
 void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
-                         uint8_t *buf, size_t len_fi)
+                         uint8_t *buf, size_t len_fi, struct susp_info *info)
 {
     uint32_t len;
     uint32_t block;
-    uint8_t len_dr;
-    uint8_t f_id = (uint8_t) ((file_id == 3) ? 0 : file_id);
-    uint8_t *name = (file_id >= 0) ? &f_id : (uint8_t*)node->iso_name;
+    uint8_t len_dr; /*< size of dir entry without SUSP fields */
+    uint8_t *name = (file_id >= 0) ? (uint8_t*)&file_id : 
+                    (uint8_t*)node->iso_name;
     
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
     
@@ -240,13 +241,18 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     if (file_id == 1 && node->parent)
         node = node->parent;
 
-    rec->len_dr[0] = len_dr;
+    rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
     iso_datetime_7(rec->recording_time, t->now);
     rec->flags[0] = (node->type == ECMA119_DIR) ? 2 : 0;
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
+    
+    /* and finally write the SUSP fields */
+    if (info != NULL) {
+        rrip_write_susp_fields(t, info, buf + len_dr);
+    }
 }
 
 /**
@@ -303,7 +309,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     iso_lsb(vol.l_path_table_pos, t->l_path_table_pos, 4);
     iso_msb(vol.m_path_table_pos, t->m_path_table_pos, 4);
 
-    write_one_dir_record(t, t->root, 3, vol.root_dir_record, 1);
+    write_one_dir_record(t, t->root, 0, vol.root_dir_record, 1, NULL);
 
     if (volset_id)
         strncpy((char*)vol.vol_set_id, volset_id, 128);
@@ -347,19 +353,43 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     uint8_t buffer[BLOCK_SIZE];
     size_t i;
     size_t fi_len, len;
+    struct susp_info info;
     
     /* buf will point to current write position on buffer */
     uint8_t *buf = buffer;
     
     /* initialize buffer with 0s */
     memset(buffer, 0, BLOCK_SIZE);
+    
+    /* 
+     * set susp_info to 0's, this way code for both plain ECMA-119 and
+     * RR is very similar
+     */
+    memset(&info, 0, sizeof(struct susp_info));
+    if (t->rockridge) {
+        /* initialize the ce_block, it might be needed */
+        info.ce_block = div_up(dir->info.dir.block + dir->info.dir.len, 
+                               BLOCK_SIZE);
+    }
 
     /* write the "." and ".." entries first */
-    write_one_dir_record(t, dir, 0, buf, 1);
-    buf += 34;
+    if (t->rockridge) {
+        ret = rrip_get_susp_fields(t, dir, 1, 255 - 32, &info);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    write_one_dir_record(t, dir, 0, buf, 1, &info);
+    buf += 34 + info.suf_len;
 
-    write_one_dir_record(t, dir, 1, buf, 1);
-    buf += 34;
+    if (t->rockridge) {
+        ret = rrip_get_susp_fields(t, dir, 2, 255 - 32, &info);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    write_one_dir_record(t, dir, 1, buf, 1, &info);
+    buf += 34 + info.suf_len;
 
     for (i = 0; i < dir->info.dir.nchildren; i++) {
         Ecma119Node *child = dir->info.dir.children[i];
@@ -370,6 +400,16 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         if (child->type == ECMA119_FILE && !t->omit_version_numbers) {
             len += 2;
         }
+        
+        /* get the SUSP fields if rockridge is enabled */
+        if (t->rockridge) {
+            ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
+            if (ret < 0) {
+                return ret;
+            }
+            len += info.suf_len;
+        }
+        
         if ( (buf + len - buffer) > BLOCK_SIZE ) {
             /* dir doesn't fit in current block */
             ret = iso_write(t, buffer, BLOCK_SIZE);
@@ -380,12 +420,21 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
             buf = buffer;
         }
         /* write the directory entry in any case */
-        write_one_dir_record(t, child, -1, buf, fi_len);
+        write_one_dir_record(t, child, -1, buf, fi_len, &info);
         buf += len;
     }
     
     /* write the last block */
     ret = iso_write(t, buffer, BLOCK_SIZE);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* write the Continuation Area if needed */
+    if (info.ce_len > 0) {
+        ret = rrip_write_ce_fields(t, &info);
+    }
+    
     return ret;
 }
 
