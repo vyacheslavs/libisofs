@@ -37,7 +37,9 @@ src_libisofs_la_SOURCES = \
 	src/ecma119_tree.h \
 	src/ecma119_tree.c \
 	src/writer.h \
-	src/buffer.c
+	src/buffer.c \
+	src/rockridge.h \
+	src/rockridge.c
 libinclude_HEADERS = \
 	src/libisofs.h
 
