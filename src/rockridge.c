@@ -191,6 +191,11 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
         }
     }
     
+    /*
+     * The System Use field inside the directory record must be padded if
+     * it is an odd number (ECMA-119, 9.1.13)
+     */
+    su_size += (su_size % 2);
     return su_size;
 }
 
