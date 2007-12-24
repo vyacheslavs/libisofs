@@ -79,19 +79,26 @@ enum IsoNodeType iso_node_get_type(IsoNode *node)
 int iso_node_set_name(IsoNode *node, const char *name)
 {
     char *new;
-    if (node->parent != NULL) {
-        /* check if parent already has a node with same name */
-        if (iso_dir_get_node(node->parent, name, NULL) == 1) {
-            return ISO_NODE_NAME_NOT_UNIQUE;
-        }
-    }
+    
     /* guard against the empty string */
-    if (name[0] == '\0') {
+    if (name[0] == '\0' || strlen(name) > 255) {
         return ISO_WRONG_ARG_VALUE;
     }
+    if ((IsoNode*)node->parent == node) {
+        /* you can't change name of the root node */
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
     new = strdup(name);
     if (new == NULL) {
         return ISO_MEM_ERROR;
+    }
+    if (node->parent != NULL) {
+        /* check if parent already has a node with same name */
+        if (iso_dir_get_node(node->parent, name, NULL) == 1) {
+            free(new);
+            return ISO_NODE_NAME_NOT_UNIQUE;
+        }
     }
     free(node->name);
     node->name = new;
@@ -537,6 +544,10 @@ const char *iso_symlink_get_dest(const IsoSymlink *link)
  */
 void iso_symlink_set_dest(IsoSymlink *link, const char *dest)
 {
+    if (dest == NULL || dest[0] == '\0') {
+        /* guard against null or empty dest */
+        return;
+    }
     free(link->dest);
     link->dest = strdup(dest);
 }

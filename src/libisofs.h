@@ -316,8 +316,13 @@ enum IsoNodeType iso_node_get_type(IsoNode *node);
  * Set the name of a node. Note that if the node is already added to a dir
  * this can fail if dir already contains a node with the new name.
  * 
+ * @param node
+ *      The node whose name you want to change. Note that you can't change
+ *      the name of the root.
  * @param name 
- *      The name in UTF-8 encoding
+ *      The name in UTF-8 encoding. If you supply an empty string or a 
+ *      name greater than 255 characters this returns with failure, and
+ *      node name is not modified.
  * @return 
  *      1 on success, < 0 on error
  */
@@ -614,6 +619,10 @@ const char *iso_symlink_get_dest(const IsoSymlink *link);
 
 /**
  * Set the destination of a link.
+ * 
+ * @param dest
+ *     New destination for the link. It must be a non-empty string, otherwise
+ *     this function doesn't modify previous destination.
  */
 void iso_symlink_set_dest(IsoSymlink *link, const char *dest);
 
