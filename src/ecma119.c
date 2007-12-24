@@ -15,6 +15,7 @@
 #include "image.h"
 #include "writer.h"
 #include "messages.h"
+#include "rockridge.h"
 #include "util.h"
 
 #include "libburn/libburn.h"
@@ -60,18 +61,41 @@ size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
 /**
  * Computes the total size of all directory entries of a single dir,
  * acording to ECMA-119 6.8.1.1
+ * 
+ * This also take into account the size needed for RR entries and
+ * SUSP continuation areas (SUSP, 5.1).
+ * 
+ * @param ce
+ *      Will be filled with the size needed for Continuation Areas
+ * @return
+ *      The size needed for all dir entries of the given dir, without
+ *      taking into account the continuation areas.
  */
 static 
-size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir)
+size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
 {
     size_t i, len;
+    size_t ce_len = 0;
     
     /* size of "." and ".." entries */
-    len = 34 + 34;
+    len += 34 + 34;
+    if (t->rockridge) {
+        len += rrip_calc_len(t, dir, 1, 255 - 34, &ce_len);
+        *ce += ce_len;
+        len += rrip_calc_len(t, dir, 2, 255 - 34, &ce_len);
+        *ce += ce_len;
+    }
+    
     for (i = 0; i < dir->info.dir.nchildren; ++i) {
+        size_t remaining;
         Ecma119Node *child = dir->info.dir.children[i];
         size_t dirent_len = calc_dirent_len(t, child);
-        size_t remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
+        if (t->rockridge) {
+            dirent_len += rrip_calc_len(t, child, 0, 255 - dirent_len, 
+                                        &ce_len);
+            *ce += ce_len;
+        }
+        remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
         if (dirent_len > remaining) {
             /* child directory entry doesn't fit on block */
             len += remaining + dirent_len;
@@ -79,6 +103,8 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir)
             len += dirent_len;
         }
     }
+    /* cache the len */
+    dir->info.dir.len = len;
     return len;
 }
 
@@ -86,11 +112,15 @@ static
 void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
 {
     size_t i, len;
+    size_t ce_len = 0;
 
     t->ndirs++;
     dir->info.dir.block = t->curblock;
-    len = calc_dir_size(t, dir);
+    len = calc_dir_size(t, dir, &ce_len);
     t->curblock += div_up(len, BLOCK_SIZE);
+    if (t->rockridge) {
+        t->curblock += div_up(ce_len, BLOCK_SIZE);
+    }
     for (i = 0; i < dir->info.dir.nchildren; i++) {
         Ecma119Node *child = dir->info.dir.children[i];
         if (child->type == ECMA119_DIR) {
@@ -189,7 +219,8 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     }
       
     if (node->type == ECMA119_DIR) {
-        len = calc_dir_size(t, node);
+        /* use the cached length */
+        len = node->info.dir.len;
         block = node->info.dir.block;
     } else if (node->type == ECMA119_FILE) {
         len = iso_file_src_get_size(node->info.file);

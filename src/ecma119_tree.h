@@ -30,6 +30,15 @@ struct ecma119_dir_info {
     size_t nchildren;
     Ecma119Node **children;
     
+    /* 
+     * Size of the dir, i.e., sum of the lengths of all directory records.
+     * It is computed by calc_dir_size() [ecma119.c].
+     * Note that this don't include the length of any SUSP Continuation
+     * Area needed by the dir, but it includes the size of the SUSP entries
+     * than fit in the directory records System Use Field.
+     */ 
+    size_t len;
+    
     /** 
      * Real parent if the dir has been reallocated. NULL otherwise.
      */
