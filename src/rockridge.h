@@ -83,6 +83,8 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
  *      If some entries need to go to a Continuation Area, they will be added
  *      to the existing ce_susp_fields, and ce_len will be incremented
  *      propertly. Please ensure ce_block is initialized propertly.
+ * @return
+ *      1 success, < 0 error
  */
 int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type, 
                          size_t space, struct susp_info *info);
