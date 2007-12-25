@@ -157,7 +157,7 @@ uint32_t calc_path_table_size(Ecma119Node *dir)
     /* size of path table for this entry */
     size = 8;
     size += dir->iso_name ? strlen(dir->iso_name) : 1;
-    size += size + (size % 2);
+    size += (size % 2);
     
     /* and recurse */
     for (i = 0; i < dir->info.dir.nchildren; i++) {
