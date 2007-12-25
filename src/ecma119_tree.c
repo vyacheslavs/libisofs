@@ -79,10 +79,10 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
     ecma->node = iso;
     iso_node_ref(iso);
 
-    // TODO what to do with full name? For now, not a problem, as we
-    // haven't support for charset conversion. However, one we had it,
-    // we need to choose whether to do it here (consumes more memory)
-    // or on writting
+    // TODO better handling of this, add support for harlinks
+    ecma->nlink = 1;
+    ecma->ino = ++img->ino;
+    
     *node = ecma;
     return ISO_SUCCESS;
 }
@@ -605,6 +605,8 @@ int create_placeholder(Ecma119Node *parent,
     ret->parent = parent;
     ret->type = ECMA119_PLACEHOLDER;
     ret->info.real_me = real;
+    ret->ino = real->ino;
+    ret->nlink = real->nlink;
     
     *node = ret;
     return ISO_SUCCESS;

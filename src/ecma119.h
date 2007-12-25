@@ -54,6 +54,12 @@ struct ecma119_image {
 //    uid_t uid;
     int sort_files; /**< if sort files or not. Sorting is based of 
                       *  the weight of each file */
+
+    /**
+     * In the CD, each file must have an unique inode number. So each
+     * time we add a new file, this is incremented.
+     */
+    ino_t ino;
     
     char *input_charset;
     

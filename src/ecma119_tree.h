@@ -60,7 +60,11 @@ struct ecma119_node
     Ecma119Node *parent;
     
     IsoNode *node; /*< reference to the iso node */
-
+    
+    // TODO add true support for this
+    ino_t ino;
+    nlink_t nlink;
+    
     /**< file, symlink, special, directory or placeholder */
     enum ecma119_node_type type; 
     union {

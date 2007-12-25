@@ -62,13 +62,10 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PX[2] = 44;
     PX[3] = 1;
     iso_bb(&PX[4], n->node->mode, 4);
-    // TODO support nlink and ino
-    // TODO n->node->nlink
-    iso_bb(&PX[12], 1, 4);
+    iso_bb(&PX[12], n->nlink, 4);
     iso_bb(&PX[20], n->node->uid, 4);
     iso_bb(&PX[28], n->node->gid, 4);
-    // TODO n->node->ino
-    iso_bb(&PX[36], (int)n->node, 4);
+    iso_bb(&PX[36], n->ino, 4);
     
     return susp_append(t, susp, PX);
 }
@@ -720,6 +717,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     
     /* 
      * SP must be the first entry for the "." record of the root directory
+     * (SUSP, 5.3)
      */
     if (type == 1 && n->parent == NULL) {
         ret = susp_add_SP(t, info);
@@ -785,7 +783,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         uint8_t **comps = NULL; /* components of the SL field */
         size_t n_comp = 0; /* number of components */
         
-        // TODO handle output stream
+        // TODO handle output charset
         name = n->node->name;
         namelen = strlen(name);
         
@@ -847,13 +845,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                          */
                         if (28 <= sua_free) {
                             /* the CE entry fills without reducing NM */
-                            sua_free -= 28; //TODO needed?
+                            sua_free -= 28;
                             cew = 1;
                         } else {
                             /* we need to reduce NM */
                             nm_type = 1;
                             ce_len = (28 - sua_free) + 5;
-                            sua_free = 0;//su_size = space;
+                            sua_free = 0;
                             cew = 1;
                         }
                     } else {
