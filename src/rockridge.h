@@ -97,7 +97,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
  * updated propertly.
  */
 void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info, 
-                            void *buf);
+                            uint8_t *buf);
 
 /**
  * Write the Continuation Area entries for the given struct susp_info, using

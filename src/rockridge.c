@@ -11,6 +11,7 @@
 #include "node.h"
 #include "ecma119_tree.h"
 #include "error.h"
+#include "writer.h"
 
 #include <string.h>
 
@@ -717,6 +718,16 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
      */
     space--;
     
+    /* 
+     * SP must be the first entry for the "." record of the root directory
+     */
+    if (type == 1 && n->parent == NULL) {
+        ret = susp_add_SP(t, info);
+        if (ret < 0) {
+            goto add_susp_cleanup;
+        }
+    }
+    
     /* PX and TF, we are sure they always fit in SUA */
     ret = rrip_add_PX(t, node, info);
     if (ret < 0) {
@@ -1009,12 +1020,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             /* 
              * "." for root directory 
              * we need to write SP and ER entries. The first fits in SUA,
-             * ER needs a Continuation Area, thus we also need a CE entry
+             * ER needs a Continuation Area, thus we also need a CE entry.
+             * Note that SP entry was already added above
              */
-            ret = susp_add_SP(t, info);
-            if (ret < 0) {
-                goto add_susp_cleanup;
-            }
             ret = susp_add_CE(t, 182, info); /* 182 is ER length */
             if (ret < 0) {
                 goto add_susp_cleanup;
@@ -1026,6 +1034,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
     }
     
+    /*
+     * The System Use field inside the directory record must be padded if
+     * it is an odd number (ECMA-119, 9.1.13)
+     */
+    info->suf_len += (info->suf_len % 2);
+    
     return ISO_SUCCESS;
     
 add_susp_cleanup:;
@@ -1033,15 +1047,73 @@ add_susp_cleanup:;
     return ret;
 }
 
+/**
+ * Write the given SUSP fields into buf. Note that Continuation Area
+ * fields are not written.
+ * If info does not contain any SUSP entry this function just return. 
+ * After written, the info susp_fields array will be freed, and the counters
+ * updated propertly.
+ */
 void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info, 
-                            void *buf)
+                            uint8_t *buf)
 {
-    //TODO to implement
+    size_t i;
+    size_t pos = 0;
+
+    for (i = 0; i < info->n_susp_fields; i++) {
+        memcpy(buf + pos, info->susp_fields[i], info->susp_fields[i][2]);
+        pos += info->susp_fields[i][2];
+    }
+    
+    /* free susp_fields */
+    for (i = 0; i < info->n_susp_fields; ++i) {
+        free(info->susp_fields[i]);
+    }
+    free(info->susp_fields);
+    info->susp_fields = NULL;
+    info->n_susp_fields = 0;
+    info->suf_len = 0;
 }
 
+/**
+ * Write the Continuation Area entries for the given struct susp_info, using
+ * the iso_write() function.
+ * After written, the ce_susp_fields array will be freed.
+ */
 int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
 {
-    //TODO to implement
-    return -1;
+    size_t i;
+    uint8_t padding[BLOCK_SIZE];
+    int ret = ISO_SUCCESS;
+    
+    if (info->n_ce_susp_fields == 0) {
+        return ret;
+    }
+
+    for (i = 0; i < info->n_ce_susp_fields; i++) {
+        ret = iso_write(t, info->ce_susp_fields[i], 
+                        info->ce_susp_fields[i][2]);
+        if (ret < 0) {
+            goto write_ce_field_cleanup;
+        }
+    }
+    
+    /* pad continuation area until block size */
+    i = BLOCK_SIZE - (info->ce_len % BLOCK_SIZE);
+    if (i > 0 && i < BLOCK_SIZE) {
+        memset(padding, 0, i);
+        ret = iso_write(t, padding, i);
+    }
+    
+write_ce_field_cleanup:;    
+    /* free ce_susp_fields */
+    for (i = 0; i < info->n_ce_susp_fields; ++i) {
+        free(info->ce_susp_fields[i]);
+    }
+    free(info->ce_susp_fields);
+    info->ce_susp_fields = NULL;
+    info->n_ce_susp_fields = 0;
+    info->ce_len = 0;
+    return ret;
 }
 

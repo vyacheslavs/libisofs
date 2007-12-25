@@ -368,8 +368,8 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     memset(&info, 0, sizeof(struct susp_info));
     if (t->rockridge) {
         /* initialize the ce_block, it might be needed */
-        info.ce_block = div_up(dir->info.dir.block + dir->info.dir.len, 
-                               BLOCK_SIZE);
+        info.ce_block = dir->info.dir.block + div_up(dir->info.dir.len, 
+                                                     BLOCK_SIZE);
     }
 
     /* write the "." and ".." entries first */
@@ -379,8 +379,9 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
             return ret;
         }
     }
+    len = 34 + info.suf_len;
     write_one_dir_record(t, dir, 0, buf, 1, &info);
-    buf += 34 + info.suf_len;
+    buf += len;
 
     if (t->rockridge) {
         ret = rrip_get_susp_fields(t, dir, 2, 255 - 32, &info);
@@ -388,8 +389,9 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
             return ret;
         }
     }
+    len = 34 + info.suf_len;
     write_one_dir_record(t, dir, 1, buf, 1, &info);
-    buf += 34 + info.suf_len;
+    buf += len;
 
     for (i = 0; i < dir->info.dir.nchildren; i++) {
         Ecma119Node *child = dir->info.dir.children[i];
