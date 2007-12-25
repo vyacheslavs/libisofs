@@ -410,9 +410,6 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                  * Note that we don't need to check for placeholders, as
                  * tree reparent happens later, so no placeholders can be
                  * here at this time.
-                 * 
-                 * TODO !!! Well, we will need a way to mangle root names
-                 * if we do reparent!
                  */
                 int extlen;
                 full_name[dot - full_name] = '\0';

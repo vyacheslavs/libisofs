@@ -45,13 +45,29 @@ void ecma119_image_free(Ecma119Image *t)
 }
 
 /**
+ * Check if we should add version number ";" to the given node name.
+ */
+static
+int need_version_number(Ecma119Image *t, Ecma119Node *n)
+{
+    if (t->omit_version_numbers) {
+        return 0;
+    }
+    if (n->type == ECMA119_DIR || n->type == ECMA119_PLACEHOLDER) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+/**
  * Compute the size of a directory entry for a single node
  */
 static
 size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
 {
     int ret = n->iso_name ? strlen(n->iso_name) + 33 : 34;
-    if (n->type == ECMA119_FILE && !t->omit_version_numbers) {
+    if (need_version_number(t, n)) {
         ret += 2; /* take into account version numbers */
     }
     if (ret % 2) ret++;
@@ -213,7 +229,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     
     memcpy(rec->file_id, name, len_fi);
     
-    if (node->type == ECMA119_FILE && !t->omit_version_numbers) {
+    if (need_version_number(t, node)) {
         len_dr += 2;
         rec->file_id[len_fi++] = ';';
         rec->file_id[len_fi++] = '1';
@@ -294,13 +310,15 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_type[0] = 1;
     memcpy(vol.std_identifier, "CD001", 5);
     vol.vol_desc_version[0] = 1;
-    if (system_id)
+    if (system_id) {
         strncpy((char*)vol.system_id, system_id, 32);
-    else
+    } else {
         /* put linux by default? */
-        memcpy(vol.system_id, "LINUX", 5); 
-    if (vol_id)
+        memcpy(vol.system_id, "LINUX", 5);
+    } 
+    if (vol_id) {
         strncpy((char*)vol.volume_id, vol_id, 32);
+    }
     iso_bb(vol.vol_space_size, t->vol_space_size, 4);
     iso_bb(vol.vol_set_size, 1, 2);
     iso_bb(vol.vol_seq_number, 1, 2);
