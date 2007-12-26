@@ -15,7 +15,6 @@
 
 #include <string.h>
 
-
 static
 int susp_append(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 {
@@ -347,7 +346,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
             if (ret < 0) {
                 return ret;
             }
-            written = i - 1;
+            written = i;
             total_comp_len = comp[i][1] + 2;
         }
     }
@@ -599,7 +598,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
                                  * anything in this SL
                                  */
                                 *ce += sl_len + 255;
-                                sl_len = 5 + (clen - 250);
+                                sl_len = 5 + (clen - 250) + 2;
                             }
                         } else {
                             /* case 2, create a new SL entry */
@@ -884,7 +883,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                                  * and another SL entry
                                  */
                                 ret = rrip_SL_append_comp(&n_comp, &comps, 
-                                                          prev, fit, cflag);
+                                                          prev, fit, 0x01);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
                                 }
@@ -895,7 +894,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                                 ret = rrip_SL_append_comp(&n_comp, &comps, 
                                                           prev + fit, 
                                                           clen - fit - 2, 
-                                                          cflag);
+                                                          0);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
                                 }
@@ -908,13 +907,19 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                                  * anything in this SL
                                  */
                                 ret = rrip_SL_append_comp(&n_comp, &comps, 
-                                                          prev, 250 - 2, 
-                                                          cflag);
+                                                          prev, 248, 0x01);
+                                if (ret < 0) {
+                                    goto add_susp_cleanup;
+                                }
+                                ret = rrip_SL_append_comp(&n_comp, &comps, 
+                                                          prev + 248, 
+                                                          strlen(prev + 248),
+                                                          0x00);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
                                 }
                                 ce_len += sl_len + 255;
-                                sl_len = 5 + (clen - 250);
+                                sl_len = 5 + (clen - 250) + 2;
                             }
                         } else {
                             /* case 2, create a new SL entry */

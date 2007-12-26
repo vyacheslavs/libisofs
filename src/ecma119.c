@@ -417,7 +417,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         /* compute len of directory entry */
         fi_len = strlen(child->iso_name);
         len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
-        if (child->type == ECMA119_FILE && !t->omit_version_numbers) {
+        if (need_version_number(t, child)) {
             len += 2;
         }
         
