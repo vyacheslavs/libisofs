@@ -80,10 +80,21 @@ int iso_node_set_name(IsoNode *node, const char *name)
 {
     char *new;
     
-    /* guard against the empty string */
+    /* guard against the empty string or big names... */
     if (name[0] == '\0' || strlen(name) > 255) {
         return ISO_WRONG_ARG_VALUE;
     }
+    
+    /* ...against "." and ".." names... */
+    if (!strcmp(name, ".") || !strcmp(name, "..")) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    /* ...and against names with '/' */
+    if (strchr(name, '/') != NULL) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
     if ((IsoNode*)node->parent == node) {
         /* you can't change name of the root node */
         return ISO_WRONG_ARG_VALUE;
