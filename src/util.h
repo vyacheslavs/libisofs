@@ -102,6 +102,9 @@ void iso_datetime_7(uint8_t *buf, time_t t);
 /** Records the date/time into a 17 byte buffer (ECMA-119, 8.4.26.1) */
 void iso_datetime_17(uint8_t *buf, time_t t);
 
+time_t iso_datetime_read_7(const uint8_t *buf);
+time_t iso_datetime_read_17(const uint8_t *buf);
+
 typedef struct iso_rbtree IsoRBTree;
 
 /**

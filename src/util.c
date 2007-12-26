@@ -600,3 +600,32 @@ void iso_datetime_17(unsigned char *buf, time_t t)
         buf[16] = tzoffset;
     }
 }
+
+time_t iso_datetime_read_7(const uint8_t *buf)
+{
+    struct tm tm;
+
+    tm.tm_year = buf[0];
+    tm.tm_mon = buf[1] - 1;
+    tm.tm_mday = buf[2];
+    tm.tm_hour = buf[3];
+    tm.tm_min = buf[4];
+    tm.tm_sec = buf[5];
+    return timegm(&tm) - buf[6] * 60 * 15;
+}
+
+time_t iso_datetime_read_17(const uint8_t *buf)
+{
+    struct tm tm;
+
+    sscanf((char*)&buf[0], "%4d", &tm.tm_year);
+    sscanf((char*)&buf[4], "%2d", &tm.tm_mon);
+    sscanf((char*)&buf[6], "%2d", &tm.tm_mday);
+    sscanf((char*)&buf[8], "%2d", &tm.tm_hour);
+    sscanf((char*)&buf[10], "%2d", &tm.tm_min);
+    sscanf((char*)&buf[12], "%2d", &tm.tm_sec);
+    tm.tm_year -= 1900;
+    tm.tm_mon -= 1;
+
+    return timegm(&tm) - buf[16] * 60 * 15;
+}

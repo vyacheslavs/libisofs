@@ -102,6 +102,33 @@ static void test_iso_bb()
     CU_ASSERT_EQUAL( buf[3], 0x04 );
 }
 
+static void test_iso_datetime_7()
+{
+    uint8_t buf[7];
+    time_t t, t2;
+    struct tm tp;
+    
+    strptime("01-03-1976 13:27:45", "%d-%m-%Y %T", &tp);
+    t = mktime(&tp);
+    
+    iso_datetime_7(buf, t);
+    CU_ASSERT_EQUAL( buf[0], 76 ); /* year since 1900 */
+    CU_ASSERT_EQUAL( buf[1], 3 ); /* month */
+    CU_ASSERT_EQUAL( buf[2], 1 ); /* day */
+    CU_ASSERT_EQUAL( buf[3], 13 ); /* hour */
+    CU_ASSERT_EQUAL( buf[4], 27 ); /* minute */
+    CU_ASSERT_EQUAL( buf[5], 45 ); /* second */
+    /* the offset depends on current timezone and it's not easy to test */
+    //CU_ASSERT_EQUAL( buf[6], 4 ); /* 15 min offset */
+    
+    /* check that reading returns the same time */
+    t2 = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(t2, t);
+    
+    //TODO check with differnt timezones for reading and writting
+    
+}
+
 static void test_iso_1_dirid()
 {
     CU_ASSERT_STRING_EQUAL( iso_1_dirid("dir1"), "DIR1" );
@@ -238,6 +265,7 @@ void add_util_suite()
     CU_add_test(pSuite, "iso_bb()", test_iso_bb);
     CU_add_test(pSuite, "iso_lsb/msb()", test_iso_lsb_msb);
     CU_add_test(pSuite, "iso_read_lsb/msb()", test_iso_read_lsb_msb);
+    CU_add_test(pSuite, "iso_datetime_7()", test_iso_datetime_7);
     CU_add_test(pSuite, "iso_1_dirid()", test_iso_1_dirid);
     CU_add_test(pSuite, "iso_2_dirid()", test_iso_2_dirid);
     CU_add_test(pSuite, "iso_1_fileid()", test_iso_1_fileid);
