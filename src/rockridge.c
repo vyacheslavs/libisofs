@@ -560,13 +560,12 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
                         if (su_size + 28 <= space) {
                             /* the CE entry fills without reducing NM */
                             su_size += 28;
-                            cew = 1;
                         } else {
                             /* we need to reduce NM */
                             *ce = (28 - (space - su_size)) + 5;
                             su_size = space;
-                            cew = 1;
                         }
+                        cew = 1;
                     } else {
                         sl_len += clen;
                     }
@@ -1069,6 +1068,10 @@ void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
 {
     size_t i;
     size_t pos = 0;
+    
+    if (info->n_susp_fields == 0) {
+        return;
+    }
 
     for (i = 0; i < info->n_susp_fields; i++) {
         memcpy(buf + pos, info->susp_fields[i], info->susp_fields[i][2]);
