@@ -332,8 +332,8 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
             SL[4] = 1;  /* CONTINUE */
             pos = 5;
             for (j = written; j < i; j++) {
-                memcpy(&SL[pos], comp[j], comp[j][2]);
-                pos += comp[j][2];
+                memcpy(&SL[pos], comp[j], comp[j][1] + 2);
+                pos += comp[j][1] + 2;
             }
             
             /*
@@ -348,7 +348,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
                 return ret;
             }
             written = i - 1;
-            total_comp_len = comp[i][1];
+            total_comp_len = comp[i][1] + 2;
         }
     }
     
@@ -796,10 +796,10 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             nm_type = 0;
         } else {
             /* the NM will be divided in a CE */
-            sua_free = 0;
             nm_type = 1;
             namelen = namelen - (sua_free - 5 - 28);
             ce_len = 5 + namelen;
+            sua_free = 0;
         }
         if (n->type == ECMA119_SYMLINK) {
             /* 
@@ -964,21 +964,16 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 goto add_susp_cleanup;
             }
         } else {
-            /* Write the NM part that fits in SUA... */
-            size_t len = info->suf_len - 28 - 5;
+            /* 
+             * Write the NM part that fits in SUA...  Note that CE
+             * entry and NM in the continuation area is added below 
+             */
+            size_t len = space - info->suf_len - 28 - 5;
             ret = rrip_add_NM(t, info, name, len, 1, 0);
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
-            /* 
-             * ..and the part that goes to continuation area. Note that CE
-             * entry in SUA in added below 
-             */
             name += len;
-            ret = rrip_add_NM(t, info, name, strlen(name), 0, 0);
-            if (ret < 0) {
-                goto add_susp_cleanup;
-            }
         }
         
         if (ce_len > 0) {
@@ -988,6 +983,17 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 goto add_susp_cleanup;
             }
         }
+
+        if (nm_type == 1) {
+            /* 
+             * ..and the part that goes to continuation area.
+             */
+            ret = rrip_add_NM(t, info, name, strlen(name), 0, 1);
+            if (ret < 0) {
+                goto add_susp_cleanup;
+            }
+        }
+
         if (n->type == ECMA119_SYMLINK) {
             
             /* add the SL entry (or entries) */
