@@ -514,6 +514,28 @@ void iso_bb(uint8_t *buf, uint32_t num, int bytes)
     iso_msb(buf+bytes, num, bytes);
 }
 
+uint32_t iso_read_lsb(const uint8_t *buf, int bytes)
+{
+    int i;
+    uint32_t ret = 0;
+
+    for (i=0; i<bytes; i++) {
+        ret += ((uint32_t) buf[i]) << (i*8);
+    }
+    return ret;
+}
+
+uint32_t iso_read_msb(const uint8_t *buf, int bytes)
+{
+    int i;
+    uint32_t ret = 0;
+
+    for (i=0; i<bytes; i++) {
+        ret += ((uint32_t) buf[bytes-i-1]) << (i*8);
+    }
+    return ret;
+}
+
 void iso_datetime_7(unsigned char *buf, time_t t)
 {
     static int tzsetup = 0;

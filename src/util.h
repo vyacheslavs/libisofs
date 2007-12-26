@@ -93,6 +93,9 @@ void iso_lsb(uint8_t *buf, uint32_t num, int bytes);
 void iso_msb(uint8_t *buf, uint32_t num, int bytes);
 void iso_bb(uint8_t *buf, uint32_t num, int bytes);
 
+uint32_t iso_read_lsb(const uint8_t *buf, int bytes);
+uint32_t iso_read_msb(const uint8_t *buf, int bytes);
+
 /** Records the date/time into a 7 byte buffer (ECMA-119, 9.1.5) */
 void iso_datetime_7(uint8_t *buf, time_t t);
 
