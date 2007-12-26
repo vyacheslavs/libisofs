@@ -482,6 +482,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
      * (ECMA-119, 9.1.13). Thus, in fact the real space is always space - 1
      */
     space--;
+    *ce = 0;
     
     /* PX and TF, we are sure they always fit in SUA */
     su_size = 44 + 26;
