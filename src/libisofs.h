@@ -59,7 +59,6 @@ enum IsoHideNodeFlag {
  * Holds the options for the image generation.
  */
 typedef struct {
-    //int volnum; /**< The volume in the set which you want to write (usually 0) */
     int level;  /**< ISO level to write at. */
 
     /** Which extensions to support. */
@@ -100,11 +99,10 @@ typedef struct {
 
     mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
     mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
-    gid_t gid; /** gid to use when replace_gid == 2. */
     uid_t uid; /** uid to use when replace_uid == 2. */
+    gid_t gid; /** gid to use when replace_gid == 2. */
 
-//    char *input_charset; /**< NULL to use default charset */
-//    char *ouput_charset; /**< NULL to use default charset */
+    char *output_charset; /**< NULL to use default charset */
 //    uint32_t ms_block;
                 /**< 
                  * Start block for multisession. When this is greater than 0, 
@@ -312,7 +310,7 @@ enum IsoNodeType iso_node_get_type(IsoNode *node);
  *      The node whose name you want to change. Note that you can't change
  *      the name of the root.
  * @param name 
- *      The name in UTF-8 encoding. If you supply an empty string or a 
+ *      The name for the node. If you supply an empty string or a 
  *      name greater than 255 characters this returns with failure, and
  *      node name is not modified.
  * @return 
@@ -321,7 +319,7 @@ enum IsoNodeType iso_node_get_type(IsoNode *node);
 int iso_node_set_name(IsoNode *node, const char *name);
 
 /**
- * Get the name of a node (in UTF-8).
+ * Get the name of a node.
  * The returned string belongs to the node and should not be modified nor
  * freed. Use strdup if you really need your own copy.
  */
@@ -603,7 +601,7 @@ int iso_dir_iter_take(IsoDirIter *iter);
 int iso_dir_iter_remove(IsoDirIter *iter);
 
 /**
- * Get the destination of a node (in UTF-8).
+ * Get the destination of a node.
  * The returned string belongs to the node and should not be modified nor
  * freed. Use strdup if you really need your own copy.
  */

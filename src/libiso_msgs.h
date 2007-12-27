@@ -389,6 +389,8 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  0x00030103 (FATAL,HIGH)    = Read error
  0x00030110 (FATAL,HIGH)    = Cannot create writer thread
 
+ 0x00030500 (SORRY,HIGH)    = Charset conversion error
+ 
  General:
  0x00031001 (SORRY,HIGH)    = Cannot read file (ignored)
  0x00031002 (FATAL,HIGH)    = Cannot read file (operation canceled)

@@ -39,7 +39,8 @@ int main(int argc, char **argv)
         0, /* dir_mode */
         0, /* file_mode */
         0, /* uid */
-        0  /* gid */
+        0, /* gid */
+        NULL /* output charset */
     };
 	
     if (argc < 2) {

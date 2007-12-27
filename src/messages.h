@@ -26,6 +26,8 @@
 /** Cannot create writer thread */
 #define LIBISO_THREAD_ERROR         0x00030110
 
+/** Charset conversion error */
+#define LIBISO_CHARSET_ERROR        0x00030500
 
 /** Can't read file (ignored) */
 #define LIBISO_CANT_READ_FILE		0x00031001

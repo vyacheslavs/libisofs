@@ -14,7 +14,12 @@ static void test_rrip_calc_len_file()
 {
     IsoFile *file;
     Ecma119Node *node;
+    Ecma119Image t;
     size_t sua_len = 0, ce_len = 0;
+    
+    memset(&t, 0, sizeof(Ecma119Image));
+    t.input_charset = "UTF-8";
+    t.output_charset = "UTF-8";
     
     file = malloc(sizeof(IsoFile));
     CU_ASSERT_PTR_NOT_NULL_FATAL(file);
@@ -34,7 +39,7 @@ static void test_rrip_calc_len_file()
     file->node.name = "a small name.txt";
     node->iso_name = "A_SMALL_.TXT";
     
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 0);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 16) + (5 + 3*7) + 1);
     
@@ -44,7 +49,7 @@ static void test_rrip_calc_len_file()
                       "PADPADPADADPADPADPADPAD.txt";
     node->iso_name = "A_BIG_NA.TXT";
     
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 0);
     /* note that 254 is the max length of a directory record, as it needs to
      * be an even number */
@@ -56,7 +61,7 @@ static void test_rrip_calc_len_file()
                       "PADPADPADADPADPADPADPAD1.txt";
     node->iso_name = "A_BIG_NA.TXT";
     
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     /* 28 (the chars moved to include the CE entry) + 5 (header of NM in CE) +
      * 1 (the char that originally didn't fit) */
     CU_ASSERT_EQUAL(ce_len, 28 + 5 + 1);
@@ -72,7 +77,12 @@ static void test_rrip_calc_len_symlink()
 {
     IsoSymlink *link;
     Ecma119Node *node;
+    Ecma119Image t;
     size_t sua_len = 0, ce_len = 0;
+    
+    memset(&t, 0, sizeof(Ecma119Image));
+    t.input_charset = "UTF-8";
+    t.output_charset = "UTF-8";
     
     link = malloc(sizeof(IsoSymlink));
     CU_ASSERT_PTR_NOT_NULL_FATAL(link);
@@ -89,7 +99,7 @@ static void test_rrip_calc_len_symlink()
     link->dest = "/three/components";
     node->iso_name = "A_SMALL_.TXT";
     
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 0);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 16) + (5 + 3*7) + 1 + 
                     (5 + 2 + (2+5) + (2+10)) );
@@ -99,7 +109,7 @@ static void test_rrip_calc_len_symlink()
                       "that fits in the SU.txt";
     link->dest = "./and/../a/./big/destination/with/10/components";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 0);
     CU_ASSERT_EQUAL(sua_len, 254 - 46);
 
@@ -109,7 +119,7 @@ static void test_rrip_calc_len_symlink()
                       "that fits in the SU.txt";
     link->dest = "./and/../a/./big/destination/with/10/componentsk";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 60);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 74) + (5 + 3*7) + 1 + 28);
     
@@ -118,7 +128,7 @@ static void test_rrip_calc_len_symlink()
                       "that fits in the SUx.txt";
     link->dest = "./and/../a/./big/destination/with/10/components";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 59);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 75) + (5 + 3*7) + 28);
     
@@ -129,7 +139,7 @@ static void test_rrip_calc_len_symlink()
                       "max that fits in the SU once we add the CE entry.txt";
     link->dest = "./and/../a/./big/destination/with/10/components";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 59);
     CU_ASSERT_EQUAL(sua_len, 254 - 46);
     
@@ -138,7 +148,7 @@ static void test_rrip_calc_len_symlink()
                       "max that fits in the SU once we add the CE entry.txt";
     link->dest = "./and/../a/./big/destination/with/10/components/";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 59);
     CU_ASSERT_EQUAL(sua_len, 254 - 46);
     
@@ -147,7 +157,7 @@ static void test_rrip_calc_len_symlink()
                       "max that fits in the SU once we add the CE entryc.txt";
     link->dest = "./and/../a/./big/destination/with/10/components";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 59 + 6);
     CU_ASSERT_EQUAL(sua_len, 254 - 46);
     
@@ -159,7 +169,7 @@ static void test_rrip_calc_len_symlink()
                  "just/two/hundred/and/fifty/bytes/bytes/bytes/bytes/bytes"
                  "/bytes/bytes/bytes/bytes/bytes/bytes/../bytes";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 255);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 74) + (5 + 3*7) + 1 + 28);
     
@@ -171,7 +181,7 @@ static void test_rrip_calc_len_symlink()
                  "just/two/hundred/and/fifty/bytes/bytes/bytes/bytes/bytes"
                  "/bytes/bytes/bytes/bytes/bytes/bytes/../bytess";
     node->iso_name = "THIS_NAM.TXT";
-    sua_len = rrip_calc_len(NULL, node, 0, 255 - 46, &ce_len);
+    sua_len = rrip_calc_len(&t, node, 0, 255 - 46, &ce_len);
     CU_ASSERT_EQUAL(ce_len, 261);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 74) + (5 + 3*7) + 1 + 28);
     
@@ -205,6 +215,8 @@ void test_rrip_get_susp_fields_file()
     uint8_t *entry;
     
     memset(&t, 0, sizeof(Ecma119Image));
+    t.input_charset = "UTF-8";
+    t.output_charset = "UTF-8";
     
     file = malloc(sizeof(IsoFile));
     CU_ASSERT_PTR_NOT_NULL_FATAL(file);

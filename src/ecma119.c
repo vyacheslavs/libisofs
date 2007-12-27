@@ -755,7 +755,22 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     /* default to locale charset */
     setlocale(LC_CTYPE, "");
     target->input_charset = strdup(nl_langinfo(CODESET));
-    target->output_charset = strdup(target->input_charset); //TODO
+    if (target->input_charset == NULL) {
+        iso_image_unref(src);
+        free(target);
+        return ISO_MEM_ERROR;
+    }
+    
+    if (opts->output_charset != NULL) {
+        target->output_charset = strdup(opts->output_charset);
+    } else {
+        target->output_charset = strdup(target->input_charset);
+    }
+    if (target->output_charset == NULL) {
+        iso_image_unref(src);
+        free(target);
+        return ISO_MEM_ERROR;
+    }
     
     /* 
      * 2. Based on those options, create needed writers: iso, joliet...

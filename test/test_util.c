@@ -41,6 +41,12 @@ static void test_strconv()
     CU_ASSERT_STRING_EQUAL(out, (char*)out1);
     free(out);
     
+    /* UTF-8 to ISO-8859-15 */
+    ret = strconv((char*)out1, "UTF-8", "ISO-8859-15", &out);
+    CU_ASSERT_EQUAL(ret, 1);
+    CU_ASSERT_STRING_EQUAL(out, (char*)in1);
+    free(out);
+    
     /* try with an incorrect input */
     ret = strconv((char*)in2, "UTF-8", "ISO-8859-15", &out);
     CU_ASSERT_EQUAL(ret, ISO_CHARSET_CONV_ERROR);

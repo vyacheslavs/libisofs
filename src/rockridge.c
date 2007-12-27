@@ -12,6 +12,7 @@
 #include "ecma119_tree.h"
 #include "error.h"
 #include "writer.h"
+#include "messages.h"
 
 #include <string.h>
 
@@ -244,6 +245,30 @@ int rrip_add_CL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     CL[3] = 1;
     iso_bb(&CL[4], n->info.real_me->info.dir.block, 4);
     return susp_append(t, susp, CL);
+}
+
+static
+char *get_rr_name(Ecma119Image *t, Ecma119Node *n)
+{
+    int ret;
+    char *name;
+    
+    if (!strcmp(t->input_charset, t->output_charset)) {
+        /* no conversion needed */
+        return strdup(n->node->name);
+    }
+    
+    ret = strconv(n->node->name, t->input_charset, t->output_charset, &name);
+    if (ret < 0) {
+        iso_msg_sorry(t->image, LIBISO_CHARSET_ERROR,
+            "Charset conversion error. Can't convert %s from %s to %s", 
+            n->node->name, t->input_charset, t->output_charset);
+        
+        /* use the original name, it's the best we can do */
+        name = strdup(n->node->name);
+    }
+    
+    return name;
 }
 
 /**
@@ -544,7 +569,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
     }
     
     if (type == 0) {
-        size_t namelen = strlen(n->node->name);
+        char *name = get_rr_name(t, n);
+        size_t namelen = strlen(name);
+        free(name);
         
         /* NM entry */
         if (su_size + 5 + namelen <= space) {
@@ -727,6 +754,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     int ret;
     size_t i;
     Ecma119Node *node;
+    char *name = NULL;
     
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
@@ -807,7 +835,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     }
     
     if (type == 0) {
-        char *name;
         size_t sua_free; /* free space in the SUA */
         int nm_type = 0; /* 0 whole entry in SUA, 1 part in CE */
         size_t ce_len = 0; /* len of the CE */
@@ -817,8 +844,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         uint8_t **comps = NULL; /* components of the SL field */
         size_t n_comp = 0; /* number of components */
         
-        // TODO handle output charset
-        name = n->node->name;
+        name = get_rr_name(t, n);
         namelen = strlen(name);
         
         sua_free = space - info->suf_len;
@@ -1008,12 +1034,11 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * Write the NM part that fits in SUA...  Note that CE
              * entry and NM in the continuation area is added below 
              */
-            size_t len = space - info->suf_len - 28 - 5;
-            ret = rrip_add_NM(t, info, name, len, 1, 0);
+            namelen = space - info->suf_len - 28 - 5;
+            ret = rrip_add_NM(t, info, name, namelen, 1, 0);
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
-            name += len;
         }
         
         if (ce_len > 0) {
@@ -1028,7 +1053,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             /* 
              * ..and the part that goes to continuation area.
              */
-            ret = rrip_add_NM(t, info, name, strlen(name), 0, 1);
+            ret = rrip_add_NM(t, info, name + namelen, strlen(name + namelen),
+                              0, 1);
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
@@ -1084,9 +1110,11 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
      */
     info->suf_len += (info->suf_len % 2);
     
+    free(name);
     return ISO_SUCCESS;
     
 add_susp_cleanup:;
+    free(name);
     susp_info_free(info);
     return ret;
 }

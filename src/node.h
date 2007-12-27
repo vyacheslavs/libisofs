@@ -37,7 +37,7 @@ struct Iso_Node
     /**< Type of the IsoNode, do not confuse with mode */
     enum IsoNodeType type;
 
-    char *name; /**< Real name, supossed to be in UTF-8 */
+    char *name; /**< Real name, in default charset */
 
     mode_t mode; /**< protection */
     uid_t uid;   /**< user ID of owner */
