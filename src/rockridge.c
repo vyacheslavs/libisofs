@@ -43,6 +43,41 @@ int susp_append_ce(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
     return ISO_SUCCESS;
 }
 
+static
+uid_t px_get_uid(Ecma119Image *t, Ecma119Node *n)
+{
+    if (t->replace_uid) {
+        return t->uid;
+    } else {
+        return n->node->uid;
+    }
+}
+
+static
+uid_t px_get_gid(Ecma119Image *t, Ecma119Node *n)
+{
+    if (t->replace_gid) {
+        return t->gid;
+    } else {
+        return n->node->gid;
+    }
+}
+
+static
+mode_t px_get_mode(Ecma119Image *t, Ecma119Node *n)
+{
+    if ((n->type == ECMA119_DIR || n->type == ECMA119_PLACEHOLDER)) {
+        if (t->replace_dir_mode) {
+            return (n->node->mode & S_IFMT) | t->dir_mode;
+        }
+    } else {
+        if (t->replace_file_mode) {
+            return (n->node->mode & S_IFMT) | t->file_mode;
+        }
+    }
+    return n->node->mode;
+}
+
 /**
  * Add a PX System Use Entry. The PX System Use Entry is used to add POSIX 
  * file attributes, such as access permissions or user and group id, to a 
@@ -60,10 +95,10 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PX[1] = 'X';
     PX[2] = 44;
     PX[3] = 1;
-    iso_bb(&PX[4], n->node->mode, 4);
+    iso_bb(&PX[4], px_get_mode(t, n), 4);
     iso_bb(&PX[12], n->nlink, 4);
-    iso_bb(&PX[20], n->node->uid, 4);
-    iso_bb(&PX[28], n->node->gid, 4);
+    iso_bb(&PX[20], px_get_uid(t, n), 4);
+    iso_bb(&PX[28], px_get_gid(t, n), 4);
     iso_bb(&PX[36], n->ino, 4);
     
     return susp_append(t, susp, PX);

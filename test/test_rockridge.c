@@ -204,6 +204,8 @@ void test_rrip_get_susp_fields_file()
     Ecma119Image t;
     uint8_t *entry;
     
+    memset(&t, 0, sizeof(Ecma119Image));
+    
     file = malloc(sizeof(IsoFile));
     CU_ASSERT_PTR_NOT_NULL_FATAL(file);
     file->msblock = 0;

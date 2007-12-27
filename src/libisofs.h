@@ -79,41 +79,30 @@ typedef struct {
          * its size. In those cases, we only copy 1 block of data.
          */
     
+    /**< If files should be sorted based on their weight. */
     unsigned int sort_files:1;
-                /**< If files should be sorted based on their weight. */
-//    unsigned int default_mode:1;
-//                /**<
-//                 * The default values for files and directory permissions,
-//                 * gid and uid. This option can be overwritten when set
-//                 * one of the following.
-//                 * 0 to use useful values, 1 to use node modes (this are
-//                 * the same as filesystem ones if not changed after added
-//                 * to tree). 
-//                 */
-//    unsigned int replace_dir_mode:1;
-//                /**<
-//                 * When 1, permissions for all dirs will be replaced by the
-//                 * specified in dir_mode field.
-//                 */
-//    unsigned int replace_file_mode:1;
-//                /**<
-//                 * When 1, permissions for all files will be replaced by the
-//                 * specified in file_mode field.
-//                 */
-//    unsigned int replace_uid:1;
-//                /**<
-//                 * When 1, uid of all nodes (both files and dirs) will be
-//                 * replaced by the specified in uid field.
-//                 */
-//    unsigned int replace_gid:1;
-//                /**<
-//                 * When 1, gid of all nodes (both files and dirs) will be
-//                 * replaced by the specified in gid field.
-//                 */
-//    mode_t dir_mode; /**< Mode to use on dirs when replace_dir_mode is set. */
-//    mode_t file_mode; /**< Mode to use on files when replace_file_mode is set. */
-//    gid_t gid; /**< gid to use when replace_gid is set. */
-//    uid_t uid; /**< uid to use when replace_uid is set. */
+
+    /**
+     * The following options set the default values for files and directory
+     * permissions, gid and uid. All these take one of three values: 0, 1 or 2.
+     * If 0, the corresponding attribute will be kept as setted in the IsoNode.
+     * Unless you have changed it, it corresponds to the value on disc, so it
+     * is suitable for backup purposes. If set to 1, the corresponding attrib.
+     * will be changed by a default suitable value. Finally, if you set it to 
+     * 2, the attrib. will be changed with the value specified in the options
+     * below. Note that for mode attributes, only the permissions are set, the
+     * file type remains unchanged.
+     */
+    unsigned int replace_dir_mode:2;
+    unsigned int replace_file_mode:2;
+    unsigned int replace_uid:2;
+    unsigned int replace_gid:2;
+
+    mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
+    mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
+    gid_t gid; /** gid to use when replace_gid == 2. */
+    uid_t uid; /** uid to use when replace_uid == 2. */
+
 //    char *input_charset; /**< NULL to use default charset */
 //    char *ouput_charset; /**< NULL to use default charset */
 //    uint32_t ms_block;

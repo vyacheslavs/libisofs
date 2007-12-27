@@ -735,6 +735,16 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     target->omit_version_numbers = opts->omit_version_numbers;
     target->allow_deep_paths = opts->allow_deep_paths;
     target->sort_files = opts->sort_files;
+
+    target->replace_uid = opts->replace_uid ? 1 : 0;
+    target->replace_gid = opts->replace_gid ? 1 : 0;
+    target->replace_dir_mode = opts->replace_dir_mode ? 1 : 0;
+    target->replace_file_mode = opts->replace_file_mode ? 1 : 0;
+
+    target->uid = opts->replace_uid == 2 ? opts->uid : 0;
+    target->gid = opts->replace_gid == 2 ? opts->gid : 0;
+    target->dir_mode = opts->replace_dir_mode == 2 ? opts->dir_mode : 0555;
+    target->file_mode = opts->replace_file_mode == 2 ? opts->file_mode : 0444;
     
     target->now = time(NULL);
     target->ms_block = 0;

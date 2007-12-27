@@ -35,23 +35,22 @@ struct ecma119_image {
     /* relaxed constraints */
     unsigned int omit_version_numbers:1;
     unsigned int allow_deep_paths:1;
-    
 //    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
-//    
-//    int replace_mode; /**< Replace ownership and modes of files
-//                      * 
-//                      * 0. filesystem values
-//                      * 1. useful values
-//                      * bits 1-4 bitmask: 
-//                      *     2 - replace dir
-//                      *     3 - replace file 
-//                      *     4 - replace gid
-//                      *     5 - replace uid
-//                      */
-//    mode_t dir_mode;
-//    mode_t file_mode;
-//    gid_t gid;
-//    uid_t uid;
+    
+    /* 
+     * Mode replace. If one of these flags is set, the correspodent values are
+     * replaced with values below.
+     */
+    unsigned int replace_uid:1;
+    unsigned int replace_gid:1;
+    unsigned int replace_file_mode:1;
+    unsigned int replace_dir_mode:1;
+    
+    uid_t uid;
+    gid_t gid;
+    mode_t file_mode;
+    mode_t dir_mode;
+
     int sort_files; /**< if sort files or not. Sorting is based of 
                       *  the weight of each file */
 
