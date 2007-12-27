@@ -61,10 +61,13 @@ enum IsoHideNodeFlag {
 typedef struct {
     //int volnum; /**< The volume in the set which you want to write (usually 0) */
     int level;  /**< ISO level to write at. */
-    int flags;  /**< Which extensions to support. */
+
+    /** Which extensions to support. */
+    unsigned int rockridge:1;
     
     /* relaxed constraints */
     unsigned int omit_version_numbers:1;
+    unsigned int allow_deep_paths:1;
     //int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
     
     //unsigned int copy_eltorito:1;

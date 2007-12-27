@@ -21,18 +21,20 @@ void usage(char **argv)
 
 int main(int argc, char **argv)
 {
-	int result;
+    int result;
     IsoImage *image;
     struct burn_source *burn_src;
     unsigned char buf[2048];
     FILE *fd;
     Ecma119WriteOpts opts = {
         1, /* level */ 
-        0, /* flags */
+        1, /* rockridge */
+        0, /* omit_version_numbers */
+        0, /* allow_deep_paths */
         0 /* sort files */
     };
 	
-	if (argc < 2) {
+    if (argc < 2) {
         printf ("Please pass directory from which to build ISO\n");
         usage(argv);
         return 1;
@@ -53,7 +55,7 @@ int main(int argc, char **argv)
         printf ("Error creating image\n");
         return 1;
     }
-	iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
+    iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
 	
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[1]);
     if (result < 0) {
