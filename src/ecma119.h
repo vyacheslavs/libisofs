@@ -61,6 +61,7 @@ struct ecma119_image {
     ino_t ino;
     
     char *input_charset;
+    char *output_charset;
     
     uint32_t ms_block; /**< start block for a ms image */
     time_t now;     /**< Time at which writing began. */

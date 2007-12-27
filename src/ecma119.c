@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <locale.h>
+#include <langinfo.h>
 
 static
 void ecma119_image_free(Ecma119Image *t)
@@ -40,6 +42,7 @@ void ecma119_image_free(Ecma119Image *t)
         free(writer);
     }
     free(t->input_charset);
+    free(t->output_charset);
     free(t->writers);
     free(t);
 }
@@ -748,7 +751,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts,
     
     target->now = time(NULL);
     target->ms_block = 0;
-    target->input_charset = strdup("UTF-8"); //TODO
+
+    /* default to locale charset */
+    setlocale(LC_CTYPE, "");
+    target->input_charset = strdup(nl_langinfo(CODESET));
+    target->output_charset = strdup(target->input_charset); //TODO
     
     /* 
      * 2. Based on those options, create needed writers: iso, joliet...
