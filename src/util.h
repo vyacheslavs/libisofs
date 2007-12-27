@@ -33,13 +33,30 @@ extern inline int round_up(unsigned int n, unsigned int mul)
 int int_pow(int base, int power);
 
 /**
+ * Convert the charset encoding of a given string.
+ * 
+ * @param input
+ *      Input string
+ * @param icharset
+ *      Input charset. Must be supported by iconv
+ * @param ocharset
+ *      Output charset. Must be supported by iconv
+ * @param output
+ *      Location where the pointer to the ouput string will be stored
+ * @return
+ *      1 on success, < 0 on error
+ */
+int strconv(const char *input, const char *icharset, const char *ocharset,
+            char **output);
+
+/**
  * Convert a given string from any input charset to ASCII
  * 
  * @param icharset
  *      Input charset. Must be supported by iconv
  * @param input
  *      Input string
- * @param ouput
+ * @param output
  *      Location where the pointer to the ouput string will be stored
  * @return
  *      1 on success, < 0 on error

@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <limits.h>
 
 int int_pow(int base, int power)
 {
@@ -25,6 +26,45 @@ int int_pow(int base, int power)
         result *= base;
     }
     return result;
+}
+
+
+int strconv(const char *str, const char *icharset, const char *ocharset,
+            char **output)
+{
+    size_t inbytes;
+    size_t outbytes;
+    size_t n;
+    iconv_t conv;
+    char *out;
+    char *src;
+    char *ret;
+
+    inbytes = strlen(str);
+    outbytes = (inbytes + 1) * MB_LEN_MAX;
+    out = malloc(outbytes);
+    if (out == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    conv = iconv_open(ocharset, icharset);
+    if (conv == (iconv_t)(-1)) {
+        return ISO_CHARSET_CONV_ERROR;
+    }
+    src = (char *)str;
+    ret = (char *)out;
+
+    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
+    if (n == -1) {
+        /* error */
+        iconv_close(conv);
+        return ISO_CHARSET_CONV_ERROR;
+    }
+    iconv_close(conv);
+    *ret = '\0';
+
+    *output = realloc(out, ret - out);
+    return ISO_SUCCESS;
 }
 
 /**
