@@ -60,10 +60,10 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
         iconv_close(conv);
         return ISO_CHARSET_CONV_ERROR;
     }
-    iconv_close(conv);
     *ret = '\0';
+    iconv_close(conv);
 
-    *output = realloc(out, ret - out);
+    *output = realloc(out, ret - out + 1);
     return ISO_SUCCESS;
 }
 
