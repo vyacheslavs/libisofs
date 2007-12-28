@@ -14,7 +14,7 @@
  *    there's enought space/data at the beginning
  *  - pre-buffer for writes < BLOCK_SIZE
  * 
- */ 
+ */
 
 #include "buffer.h"
 #include "error.h"
@@ -28,26 +28,27 @@
 #   define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-struct iso_ring_buffer {
+struct iso_ring_buffer
+{
     uint8_t buf[BLOCK_SIZE * BUFFER_SIZE];
-    
+
     /* 
      * Number of bytes available.
      */
     size_t size;
-    
+
     /* position for reading and writing, offset from buf */
     size_t rpos;
     size_t wpos;
-    
+
     /* flags to report if read or writer threads ends execution */
-    unsigned int rend:1;
-    unsigned int wend:1;
-    
+    unsigned int rend :1;
+    unsigned int wend :1;
+
     /* just for statistical purposes */
     unsigned int times_full;
     unsigned int times_empty;
-    
+
     pthread_mutex_t mutex;
     pthread_cond_t empty;
     pthread_cond_t full;
@@ -64,30 +65,30 @@ struct iso_ring_buffer {
 int iso_ring_buffer_new(IsoRingBuffer **rbuf)
 {
     IsoRingBuffer *buffer;
-    
+
     if (rbuf == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     buffer = malloc(sizeof(IsoRingBuffer));
     if (buffer == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     buffer->size = 0;
     buffer->wpos = 0;
     buffer->rpos = 0;
-    
+
     buffer->times_full = 0;
     buffer->times_empty = 0;
-    
+
     buffer->rend = buffer->wend = 0;
-    
+
     /* init mutex and waiting queues */
     pthread_mutex_init(&buffer->mutex, NULL);
     pthread_cond_init(&buffer->empty, NULL);
     pthread_cond_init(&buffer->full, NULL);
-    
+
     *rbuf = buffer;
     return ISO_SUCCESS;
 }
@@ -118,15 +119,15 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
 {
     size_t len;
     int bytes_write = 0;
-    
+
     if (buf == NULL || data == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     while (bytes_write < count) {
-        
+
         pthread_mutex_lock(&buf->mutex);
-            
+
         while (buf->size == BUFFER_CAPACITY) {
 
             /*
@@ -134,7 +135,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
              * Thus, the while(buf->size == BUFFER_CAPACITY) is used here
              * only to propertly detect the reader has been cancelled
              */
-            
+
             if (buf->rend) {
                 /* the read procces has been finished */
                 pthread_mutex_unlock(&buf->mutex);
@@ -144,7 +145,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
             /* wait until space available */
             pthread_cond_wait(&buf->full, &buf->mutex);
         }
-        
+
         len = MIN(count - bytes_write, BUFFER_CAPACITY - buf->size);
         if (buf->wpos + len > BUFFER_CAPACITY) {
             len = BUFFER_CAPACITY - buf->wpos;
@@ -153,7 +154,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
         buf->wpos = (buf->wpos + len) % (BUFFER_CAPACITY);
         bytes_write += len;
         buf->size += len;
-    
+
         /* wake up reader */
         pthread_cond_signal(&buf->empty);
         pthread_mutex_unlock(&buf->mutex);
@@ -174,14 +175,14 @@ int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count)
 {
     size_t len;
     int bytes_read = 0;
-    
+
     if (buf == NULL || dest == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     while (bytes_read < count) {
         pthread_mutex_lock(&buf->mutex);
-            
+
         while (buf->size == 0) {
             /*
              * Note. There's only a reader, so we have no race conditions.
@@ -189,7 +190,7 @@ int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count)
              * a reader detects the EOF propertly if the writer has been
              * canceled while the reader was waiting
              */
-            
+
             if (buf->wend) {
                 /* the writer procces has been finished */
                 pthread_mutex_unlock(&buf->mutex);
@@ -199,7 +200,7 @@ int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count)
             /* wait until data available */
             pthread_cond_wait(&buf->empty, &buf->mutex);
         }
-        
+
         len = MIN(count - bytes_read, buf->size);
         if (buf->rpos + len > BUFFER_CAPACITY) {
             len = BUFFER_CAPACITY - buf->rpos;
@@ -208,7 +209,7 @@ int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count)
         buf->rpos = (buf->rpos + len) % (BUFFER_CAPACITY);
         bytes_read += len;
         buf->size -= len;
-        
+
         /* wake up the writer */
         pthread_cond_signal(&buf->full);
         pthread_mutex_unlock(&buf->mutex);
@@ -220,7 +221,7 @@ void iso_ring_buffer_writer_close(IsoRingBuffer *buf)
 {
     pthread_mutex_lock(&buf->mutex);
     buf->wend = 1;
-    
+
     /* ensure no reader is waiting */
     pthread_cond_signal(&buf->empty);
     pthread_mutex_unlock(&buf->mutex);
@@ -230,7 +231,7 @@ void iso_ring_buffer_reader_close(IsoRingBuffer *buf)
 {
     pthread_mutex_lock(&buf->mutex);
     buf->rend = 1;
-    
+
     /* ensure no writer is waiting */
     pthread_cond_signal(&buf->full);
     pthread_mutex_unlock(&buf->mutex);

@@ -16,20 +16,19 @@ struct Iso_Image_Writer
      * 
      */
     int (*compute_data_blocks)(IsoImageWriter *writer);
-    
+
     int (*write_vol_desc)(IsoImageWriter *writer);
-    
+
     int (*write_data)(IsoImageWriter *writer);
-    
+
     int (*free_data)(IsoImageWriter *writer);
-    
+
     void *data;
     Ecma119Image *target;
 };
 
 /**
- * This is the function all Writers shoudl call to write data to
- * image.
+ * This is the function all Writers shoudl call to write data to image.
  * Currently, it is just a wrapper for write(2) Unix system call. 
  * 
  * It is implemented in ecma119.c

@@ -20,8 +20,8 @@ static
 int susp_append(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 {
     susp->n_susp_fields++;
-    susp->susp_fields = realloc(susp->susp_fields,
-                    sizeof(void*) * susp->n_susp_fields);
+    susp->susp_fields = realloc(susp->susp_fields, sizeof(void*)
+                                * susp->n_susp_fields);
     if (susp->susp_fields == NULL) {
         return ISO_MEM_ERROR;
     }
@@ -34,8 +34,8 @@ static
 int susp_append_ce(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 {
     susp->n_ce_susp_fields++;
-    susp->ce_susp_fields = realloc(susp->ce_susp_fields,
-                    sizeof(void*) * susp->n_ce_susp_fields);
+    susp->ce_susp_fields = realloc(susp->ce_susp_fields, sizeof(void*)
+                                   * susp->n_ce_susp_fields);
     if (susp->ce_susp_fields == NULL) {
         return ISO_MEM_ERROR;
     }
@@ -101,7 +101,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     iso_bb(&PX[20], px_get_uid(t, n), 4);
     iso_bb(&PX[28], px_get_gid(t, n), 4);
     iso_bb(&PX[36], n->ino, 4);
-    
+
     return susp_append(t, susp, PX);
 }
 
@@ -142,12 +142,12 @@ static
 int rrip_add_PL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     uint8_t *PL;
-    
+
     if (n->type != ECMA119_DIR || n->info.dir.real_parent == NULL) {
         /* should never occur */
         return ISO_ERROR;
     }
-    
+
     PL = malloc(12);
     if (PL == NULL) {
         return ISO_MEM_ERROR;
@@ -157,7 +157,7 @@ int rrip_add_PL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PL[1] = 'L';
     PL[2] = 12;
     PL[3] = 1;
-    
+
     /* write the location of the real parent, already computed */
     iso_bb(&PL[4], n->info.dir.real_parent->info.dir.block, 4);
     return susp_append(t, susp, PL);
@@ -199,13 +199,13 @@ int rrip_add_PN(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     IsoSpecial *node;
     uint8_t *PN;
-    
+
     node = (IsoSpecial*)n->node;
     if (node->node.type != LIBISO_SPECIAL) {
         /* should never occur */
         return ISO_ERROR;
     }
-    
+
     PN = malloc(20);
     if (PN == NULL) {
         return ISO_MEM_ERROR;
@@ -252,22 +252,22 @@ char *get_rr_name(Ecma119Image *t, Ecma119Node *n)
 {
     int ret;
     char *name;
-    
+
     if (!strcmp(t->input_charset, t->output_charset)) {
         /* no conversion needed */
         return strdup(n->node->name);
     }
-    
+
     ret = strconv(n->node->name, t->input_charset, t->output_charset, &name);
     if (ret < 0) {
-        iso_msg_sorry(t->image, LIBISO_CHARSET_ERROR,
-            "Charset conversion error. Can't convert %s from %s to %s", 
-            n->node->name, t->input_charset, t->output_charset);
-        
+        iso_msg_sorry(t->image, LIBISO_CHARSET_ERROR, 
+                  "Charset conversion error. Can't convert %s from %s to %s",
+                  n->node->name, t->input_charset, t->output_charset);
+
         /* use the original name, it's the best we can do */
         name = strdup(n->node->name);
     }
-    
+
     return name;
 }
 
@@ -285,8 +285,8 @@ char *get_rr_name(Ecma119Image *t, Ecma119Node *n)
  *     Whether to add or not to CE
  */
 static
-int rrip_add_NM(Ecma119Image *t, struct susp_info *susp,
-                char *name, int size, int flags, int ce)
+int rrip_add_NM(Ecma119Image *t, struct susp_info *susp, char *name, int size,
+                int flags, int ce)
 {
     uint8_t *NM = malloc(size + 5);
     if (NM == NULL) {
@@ -324,9 +324,8 @@ int rrip_add_NM(Ecma119Image *t, struct susp_info *susp,
  * @return
  *     1 on success, < 0 on error
  */
-static 
-int rrip_SL_append_comp(size_t *n, uint8_t ***comps,
-                         char *s, int size, char fl)
+static
+int rrip_SL_append_comp(size_t *n, uint8_t ***comps, char *s, int size, char fl)
 {
     uint8_t *comp = malloc(size + 2);
     if (comp == NULL) {
@@ -363,8 +362,8 @@ int rrip_SL_append_comp(size_t *n, uint8_t ***comps,
  *     Whether to add to a continuation area or system use field.
  */
 static
-int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
-                uint8_t **comp, size_t n, int ce)
+int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
+                size_t n, int ce)
 {
     int ret, i, j;
 
@@ -374,7 +373,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
     uint8_t *SL;
 
     for (i = 0; i < n; i++) {
-        
+
         total_comp_len += comp[i][1] + 2;
         if (total_comp_len > 250) {
             /* we need a new SL entry */
@@ -383,18 +382,18 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
             if (SL == NULL) {
                 return ISO_MEM_ERROR;
             }
-            
+
             SL[0] = 'S';
             SL[1] = 'L';
             SL[2] = total_comp_len + 5;
             SL[3] = 1;
-            SL[4] = 1;  /* CONTINUE */
+            SL[4] = 1; /* CONTINUE */
             pos = 5;
             for (j = written; j < i; j++) {
                 memcpy(&SL[pos], comp[j], comp[j][1] + 2);
                 pos += comp[j][1] + 2;
             }
-            
+
             /*
              * In this case we are sure we're writting to CE. Check for
              * debug purposes
@@ -410,12 +409,12 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp,
             total_comp_len = comp[i][1] + 2;
         }
     }
-    
+
     SL = malloc(total_comp_len + 5);
     if (SL == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     SL[0] = 'S';
     SL[1] = 'L';
     SL[2] = total_comp_len + 5;
@@ -462,10 +461,10 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
     ER[7] = 1;
     memcpy(&ER[8], "IEEE_1282", 9);
     memcpy(&ER[17], "THE IEEE 1282 PROTOCOL PROVIDES SUPPORT FOR POSIX "
-           "FILE SYSTEM SEMANTICS.", 72);
+        "FILE SYSTEM SEMANTICS.", 72);
     memcpy(&ER[89], "PLEASE CONTACT THE IEEE STANDARDS DEPARTMENT, "
-           "PISCATAWAY, NJ, USA FOR THE 1282 SPECIFICATION.", 93);
-           
+        "PISCATAWAY, NJ, USA FOR THE 1282 SPECIFICATION.", 93);
+
     /** This always goes to continuation area */
     return susp_append_ce(t, susp, ER);
 }
@@ -490,7 +489,7 @@ int susp_add_CE(Ecma119Image *t, size_t ce_len, struct susp_info *susp)
     iso_bb(&CE[4], susp->ce_block, 4);
     iso_bb(&CE[12], susp->ce_len, 4);
     iso_bb(&CE[20], ce_len, 4);
-    
+
     return susp_append(t, susp, CE);
 }
 
@@ -531,11 +530,11 @@ int susp_add_SP(Ecma119Image *t, struct susp_info *susp)
  * @return
  *      The size needed for the RR entries in the System Use Area
  */
-size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
-                     size_t space, size_t *ce)
+size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
+                     size_t *ce)
 {
     size_t su_size;
-    
+
     /* space min is 255 - 33 - 37 = 185
      * At the same time, it is always an odd number, but we need to pad it
      * propertly to ensure the length of a directory record is a even number
@@ -543,10 +542,10 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
      */
     space--;
     *ce = 0;
-    
+
     /* PX and TF, we are sure they always fit in SUA */
     su_size = 44 + 26;
-    
+
     if (n->type == ECMA119_DIR) {
         if (n->info.dir.real_parent != NULL) {
             /* it is a reallocated entry */
@@ -562,17 +561,17 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
         if (S_ISBLK(n->node->mode) || S_ISCHR(n->node->mode)) {
             /* block or char device, we need a PN entry */
             su_size += 20;
-        } 
+        }
     } else if (n->type == ECMA119_PLACEHOLDER) {
         /* we need the CL entry */
         su_size += 12;
     }
-    
+
     if (type == 0) {
         char *name = get_rr_name(t, n);
         size_t namelen = strlen(name);
         free(name);
-        
+
         /* NM entry */
         if (su_size + 5 + namelen <= space) {
             /* ok, it fits in System Use Area */
@@ -590,7 +589,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
             char *cur, *prev;
             size_t sl_len = 5;
             int cew = (*ce != 0); /* are we writing to CE? */
-            
+
             prev = ((IsoSymlink*)n->node)->dest;
             cur = strchr(prev, '/');
             while (1) {
@@ -601,16 +600,16 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
                     /* last component */
                     clen = strlen(prev);
                 }
-                
+
                 if (clen == 1 && prev[0] == '.') {
                     clen = 0;
                 } else if (clen == 2 && prev[0] == '.' && prev[1] == '.') {
                     clen = 0;
                 }
-                
+
                 /* flags and len for each component record (RRIP, 4.1.3.1) */
                 clen += 2;
-                
+
                 if (!cew) {
                     /* we are still writing to the SUA */
                     if (su_size + sl_len + clen > space) {
@@ -631,7 +630,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
                     } else {
                         sl_len += clen;
                     }
-                } 
+                }
                 if (cew) {
                     if (sl_len + clen > 255) {
                         /* we need an additional SL entry */
@@ -671,7 +670,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
                         sl_len += clen;
                     }
                 }
-                
+
                 if (!cur || cur[1] == '\0') {
                     /* cur[1] can be \0 if dest ends with '/' */
                     break;
@@ -679,7 +678,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
                 prev = cur + 1;
                 cur = strchr(prev, '/');
             }
-            
+
             /* and finally write the pending SL field */
             if (!cew) {
                 /* the whole SL fits into the SUA */
@@ -687,10 +686,10 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
             } else {
                 *ce += sl_len;
             }
-            
+
         }
     } else {
-        
+
         /* "." or ".." entry */
         su_size += 5; /* NM field */
         if (type == 1 && n->parent == NULL) {
@@ -703,7 +702,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
             *ce = 182; /* ER */
         }
     }
-    
+
     /*
      * The System Use field inside the directory record must be padded if
      * it is an odd number (ECMA-119, 9.1.13)
@@ -719,12 +718,12 @@ static
 void susp_info_free(struct susp_info* susp)
 {
     size_t i;
-    
+
     for (i = 0; i < susp->n_susp_fields; ++i) {
         free(susp->susp_fields[i]);
     }
     free(susp->susp_fields);
-    
+
     for (i = 0; i < susp->n_ce_susp_fields; ++i) {
         free(susp->ce_susp_fields[i]);
     }
@@ -748,14 +747,14 @@ void susp_info_free(struct susp_info* susp)
  * @return
  *      1 success, < 0 error
  */
-int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type, 
+int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                          size_t space, struct susp_info *info)
 {
     int ret;
     size_t i;
     Ecma119Node *node;
-    char *name = NULL;
-    
+    char *name= NULL;
+
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -763,20 +762,20 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         /* space min is 255 - 33 - 37 = 185 */
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     if (type == 2 && n->parent != NULL) {
         node = n->parent;
     } else {
         node = n;
     }
-    
+
     /* space min is 255 - 33 - 37 = 185
      * At the same time, it is always an odd number, but we need to pad it
      * propertly to ensure the length of a directory record is a even number
      * (ECMA-119, 9.1.13). Thus, in fact the real space is always space - 1
      */
     space--;
-    
+
     /* 
      * SP must be the first entry for the "." record of the root directory
      * (SUSP, 5.3)
@@ -787,7 +786,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             goto add_susp_cleanup;
         }
     }
-    
+
     /* PX and TF, we are sure they always fit in SUA */
     ret = rrip_add_PX(t, node, info);
     if (ret < 0) {
@@ -797,7 +796,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     if (ret < 0) {
         goto add_susp_cleanup;
     }
-    
+
     if (n->type == ECMA119_DIR) {
         if (n->info.dir.real_parent != NULL) {
             /* it is a reallocated entry */
@@ -825,7 +824,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
-        } 
+        }
     } else if (n->type == ECMA119_PLACEHOLDER) {
         /* we need the CL entry */
         ret = rrip_add_CL(t, node, info);
@@ -833,22 +832,22 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             goto add_susp_cleanup;
         }
     }
-    
+
     if (type == 0) {
         size_t sua_free; /* free space in the SUA */
         int nm_type = 0; /* 0 whole entry in SUA, 1 part in CE */
         size_t ce_len = 0; /* len of the CE */
         size_t namelen;
-        
+
         /* this two are only defined for symlinks */
-        uint8_t **comps = NULL; /* components of the SL field */
+        uint8_t **comps= NULL; /* components of the SL field */
         size_t n_comp = 0; /* number of components */
-        
+
         name = get_rr_name(t, n);
         namelen = strlen(name);
-        
+
         sua_free = space - info->suf_len;
-        
+
         /* NM entry */
         if (5 + namelen <= sua_free) {
             /* ok, it fits in System Use Area */
@@ -868,7 +867,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             char *cur, *prev;
             size_t sl_len = 5;
             int cew = (nm_type == 1); /* are we writing to CE? */
-            
+
             prev = ((IsoSymlink*)n->node)->dest;
             cur = strchr(prev, '/');
             while (1) {
@@ -880,21 +879,22 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                     /* last component */
                     clen = strlen(prev);
                 }
-                
+
                 if (clen == 0) {
                     /* this refers to the roor directory, '/' */
                     cflag = 1 << 3;
-                } if (clen == 1 && prev[0] == '.') {
+                }
+                if (clen == 1 && prev[0] == '.') {
                     clen = 0;
                     cflag = 1 << 1;
                 } else if (clen == 2 && prev[0] == '.' && prev[1] == '.') {
                     clen = 0;
                     cflag = 1 << 2;
                 }
-                
+
                 /* flags and len for each component record (RRIP, 4.1.3.1) */
                 clen += 2;
-                
+
                 if (!cew) {
                     /* we are still writing to the SUA */
                     if (sl_len + clen > sua_free) {
@@ -923,7 +923,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                         }
                         sl_len += clen;
                     }
-                } 
+                }
                 if (cew) {
                     if (sl_len + clen > 255) {
                         /* we need an addition SL entry */
@@ -943,7 +943,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                                  * the component can be divided between this
                                  * and another SL entry
                                  */
-                                ret = rrip_SL_append_comp(&n_comp, &comps, 
+                                ret = rrip_SL_append_comp(&n_comp, &comps,
                                                           prev, fit, 0x01);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
@@ -952,10 +952,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                                  * and another component, that will go in 
                                  * other SL entry
                                  */
-                                ret = rrip_SL_append_comp(&n_comp, &comps, 
-                                                          prev + fit, 
-                                                          clen - fit - 2, 
-                                                          0);
+                                ret = rrip_SL_append_comp(&n_comp, &comps, prev
+                                        + fit, clen - fit - 2, 0);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
                                 }
@@ -967,15 +965,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                                  * any case, so we prefer to don't write 
                                  * anything in this SL
                                  */
-                                ret = rrip_SL_append_comp(&n_comp, &comps, 
+                                ret = rrip_SL_append_comp(&n_comp, &comps,
                                                           prev, 248, 0x01);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
                                 }
-                                ret = rrip_SL_append_comp(&n_comp, &comps, 
-                                                          prev + 248, 
-                                                          strlen(prev + 248),
-                                                          0x00);
+                                ret = rrip_SL_append_comp(&n_comp, &comps, prev
+                                        + 248, strlen(prev + 248), 0x00);
                                 if (ret < 0) {
                                     goto add_susp_cleanup;
                                 }
@@ -984,7 +980,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                             }
                         } else {
                             /* case 2, create a new SL entry */
-                            ret = rrip_SL_append_comp(&n_comp, &comps, prev, 
+                            ret = rrip_SL_append_comp(&n_comp, &comps, prev,
                                                       clen - 2, cflag);
                             if (ret < 0) {
                                 goto add_susp_cleanup;
@@ -1002,7 +998,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                         sl_len += clen;
                     }
                 }
-                
+
                 if (!cur || cur[1] == '\0') {
                     /* cur[1] can be \0 if dest ends with '/' */
                     break;
@@ -1010,19 +1006,19 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 prev = cur + 1;
                 cur = strchr(prev, '/');
             }
-            
+
             if (cew) {
                 ce_len += sl_len;
             }
         }
-            
+
         /*
          * We we reach here:
          * - We know if NM fill in the SUA (nm_type == 0)
          * - If SL needs an to be written in CE (ce_len > 0)
          * - The components for SL entry (or entries)
          */
-        
+
         if (nm_type == 0) {
             /* the full NM fills in SUA */
             ret = rrip_add_NM(t, info, name, strlen(name), 0, 0);
@@ -1040,7 +1036,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 goto add_susp_cleanup;
             }
         }
-        
+
         if (ce_len > 0) {
             /* Add the CE entry */
             ret = susp_add_CE(t, ce_len, info);
@@ -1061,26 +1057,25 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
 
         if (n->type == ECMA119_SYMLINK) {
-            
+
             /* add the SL entry (or entries) */
             ret = rrip_add_SL(t, info, comps, n_comp, (ce_len > 0));
-        
+
             /* free the components */
             for (i = 0; i < n_comp; i++) {
                 free(comps[i]);
             }
             free(comps);
-            
+
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
         }
-        
-        
+
     } else {
-        
+
         /* "." or ".." entry */
-        
+
         /* write the NM entry */
         ret = rrip_add_NM(t, info, NULL, 0, 1 << type, 0);
         if (ret < 0) {
@@ -1103,17 +1098,17 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
     }
-    
+
     /*
      * The System Use field inside the directory record must be padded if
      * it is an odd number (ECMA-119, 9.1.13)
      */
     info->suf_len += (info->suf_len % 2);
-    
+
     free(name);
     return ISO_SUCCESS;
-    
-add_susp_cleanup:;
+
+    add_susp_cleanup: ;
     free(name);
     susp_info_free(info);
     return ret;
@@ -1126,12 +1121,12 @@ add_susp_cleanup:;
  * After written, the info susp_fields array will be freed, and the counters
  * updated propertly.
  */
-void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info, 
+void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
                             uint8_t *buf)
 {
     size_t i;
     size_t pos = 0;
-    
+
     if (info->n_susp_fields == 0) {
         return;
     }
@@ -1140,7 +1135,7 @@ void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
         memcpy(buf + pos, info->susp_fields[i], info->susp_fields[i][2]);
         pos += info->susp_fields[i][2];
     }
-    
+
     /* free susp_fields */
     for (i = 0; i < info->n_susp_fields; ++i) {
         free(info->susp_fields[i]);
@@ -1160,8 +1155,8 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
 {
     size_t i;
     uint8_t padding[BLOCK_SIZE];
-    int ret = ISO_SUCCESS;
-    
+    int ret= ISO_SUCCESS;
+
     if (info->n_ce_susp_fields == 0) {
         return ret;
     }
@@ -1173,15 +1168,15 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
             goto write_ce_field_cleanup;
         }
     }
-    
+
     /* pad continuation area until block size */
     i = BLOCK_SIZE - (info->ce_len % BLOCK_SIZE);
     if (i > 0 && i < BLOCK_SIZE) {
         memset(padding, 0, i);
         ret = iso_write(t, padding, i);
     }
-    
-write_ce_field_cleanup:;    
+
+    write_ce_field_cleanup: ;
     /* free ce_susp_fields */
     for (i = 0; i < info->n_ce_susp_fields; ++i) {
         free(info->ce_susp_fields[i]);

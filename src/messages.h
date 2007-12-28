@@ -47,11 +47,11 @@
 /** Can't read previous image file */
 #define LIBISO_CANT_READ_IMG		0x00031003
 
-/* Unsupported SUSP entry */ 
+/* Unsupported SUSP entry */
 #define LIBISO_SUSP_UNHANLED		0x00030101
 /* Wrong SUSP entry, that cause RR to be ignored */
 #define LIBISO_SUSP_WRONG			0x00030102
-/* Unsupported multiple SUSP ER entries where found */ 
+/* Unsupported multiple SUSP ER entries where found */
 #define LIBISO_SUSP_MULTIPLE_ER		0x00030103
 /** Unsupported RR feature. */
 #define LIBISO_RR_UNSUPPORTED		0x00030111

@@ -50,11 +50,11 @@ off_t fsrc_get_size(IsoStream *stream)
 {
     FSrcStreamData *data;
     data = (FSrcStreamData*)stream->data;
-    
+
     return data->size;
 }
 
-static 
+static
 int fsrc_read(IsoStream *stream, void *buf, size_t count)
 {
     IsoFileSource *src;
@@ -65,7 +65,7 @@ int fsrc_read(IsoStream *stream, void *buf, size_t count)
     return iso_file_source_read(src, buf, count);
 }
 
-static 
+static
 int fsrc_is_repeatable(IsoStream *stream)
 {
     int ret;
@@ -75,11 +75,11 @@ int fsrc_is_repeatable(IsoStream *stream)
         return ISO_NULL_POINTER;
     }
     data = (FSrcStreamData*)stream->data;
-    
+
     /* mode is not cached, this function is only useful for filters */
     ret = iso_file_source_stat(data->src, &info);
     if (ret < 0) {
-        return ret; 
+        return ret;
     }
     if (S_ISREG(info.st_mode) || S_ISBLK(info.st_mode)) {
         return 1;
@@ -89,24 +89,24 @@ int fsrc_is_repeatable(IsoStream *stream)
 }
 
 static
-int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id, 
+int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                 ino_t *ino_id)
 {
     FSrcStreamData *data;
     IsoFilesystem *fs;
-    
+
     if (stream == NULL || fs_id == NULL || dev_id == NULL || ino_id == NULL) {
         return ISO_NULL_POINTER;
     }
     data = (FSrcStreamData*)stream->data;
-    
+
     fs = iso_file_source_get_filesystem(data->src);
-    
+
     *fs_id = fs->get_id(fs);
     if (fs_id == 0) {
         return 0;
     }
-    
+
     *dev_id = data->dev_id;
     *ino_id = data->ino_id;
     return ISO_SUCCESS;
@@ -141,7 +141,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     if (src == NULL || stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     r = iso_file_source_stat(src, &info);
     if (r < 0) {
         return r;
@@ -149,7 +149,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     if (S_ISDIR(info.st_mode)) {
         return ISO_FILE_IS_DIR;
     }
-    
+
     str = malloc(sizeof(IsoStream));
     if (str == NULL) {
         return ISO_MEM_ERROR;
@@ -165,11 +165,11 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     data->dev_id = info.st_dev;
     data->ino_id = info.st_ino;
     data->size = info.st_size;
-    
+
     str->refcount = 1;
     str->data = data;
     str->class = &fsrc_stream_class;
-    
+
     *stream = str;
     return ISO_SUCCESS;
 }

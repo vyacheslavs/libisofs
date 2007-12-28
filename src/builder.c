@@ -31,29 +31,29 @@ void iso_node_builder_unref(IsoNodeBuilder *builder)
 }
 
 static
-int default_create_file(IsoNodeBuilder *builder, IsoImage *image, 
+int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
                         IsoFileSource *src, IsoFile **file)
 {
     int res;
     struct stat info;
     IsoStream *stream;
     IsoFile *node;
-    
+
     if (builder == NULL || src == NULL || file == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     res = iso_file_source_stat(src, &info);
     if (res < 0) {
         return res;
     }
-    
+
     /* this will fail if src is a dir, is not accessible... */
     res = iso_file_source_stream_new(src, &stream);
     if (res < 0) {
         return res;
     }
-    
+
     node = malloc(sizeof(IsoFile));
     if (node == NULL) {
         /* the stream has taken our ref to src, so we need to add one */
@@ -61,7 +61,7 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
         iso_stream_unref(stream);
         return ISO_MEM_ERROR;
     }
-    
+
     /* fill node fields */
     node->node.refcount = 1;
     node->node.type = LIBISO_FILE;
@@ -78,26 +78,26 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     node->sort_weight = 0;
     node->stream = stream;
     node->msblock = 0;
-    
+
     *file = node;
     return ISO_SUCCESS;
 }
 
 static
-int default_create_node(IsoNodeBuilder *builder, IsoImage *image, 
+int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
                         IsoFileSource *src, IsoNode **node)
 {
     int result;
     struct stat info;
     IsoNode *new;
     char *name;
-    
+
     if (builder == NULL || src == NULL || node == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     name = iso_file_source_get_name(src);
-    
+
     /* get info about source */
     if (image->recOpts->follow_symlinks) {
         result = iso_file_source_stat(src, &info);
@@ -107,7 +107,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     if (result < 0) {
         return result;
     }
-    
+
     new = NULL;
     switch (info.st_mode & S_IFMT) {
     case S_IFREG:
@@ -148,7 +148,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             /* source is a symbolic link */
             char dest[PATH_MAX];
             IsoSymlink *link;
-            
+
             result = iso_file_source_readlink(src, dest, PATH_MAX);
             if (result < 0) {
                 return result;
@@ -179,7 +179,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         }
         break;
     }
-    
+
     /* fill fields */
     new->refcount = 1;
     new->name = strdup(name);
@@ -189,12 +189,12 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     new->atime = info.st_atime;
     new->mtime = info.st_mtime;
     new->ctime = info.st_ctime;
-    
+
     new->hidden = 0;
-    
+
     new->parent = NULL;
     new->next = NULL;
-    
+
     *node = new;
     return ISO_SUCCESS;
 }
@@ -208,23 +208,23 @@ void default_free(IsoNodeBuilder *builder)
 int iso_node_basic_builder_new(IsoNodeBuilder **builder)
 {
     IsoNodeBuilder *b;
-    
+
     if (builder == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     b = malloc(sizeof(IsoNodeBuilder));
     if (b == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     b->refcount = 1;
     b->create_file_data = NULL;
     b->create_node_data = NULL;
     b->create_file = default_create_file;
     b->create_node = default_create_node;
     b->free = default_free;
-    
+
     *builder = b;
     return ISO_SUCCESS;
 }

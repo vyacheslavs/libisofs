@@ -23,15 +23,15 @@ int iso_file_src_cmp(const void *n1, const void *n2)
     unsigned int fs_id1, fs_id2;
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
-    
+
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
-    
+
     res = iso_stream_get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
     res = iso_stream_get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
-    
+
     //TODO take care about res <= 0
-    
+
     if (fs_id1 < fs_id2) {
         return -1;
     } else if (fs_id1 > fs_id2) {
@@ -44,8 +44,7 @@ int iso_file_src_cmp(const void *n1, const void *n2)
             return 1;
         } else {
             /* files belong to same device in same fs */
-            return (ino_id1 < ino_id2) ? -1 :
-                    (ino_id1 > ino_id2) ? 1 : 0;
+            return (ino_id1 < ino_id2) ? -1 : (ino_id1 > ino_id2) ? 1 : 0;
         }
     }
 }
@@ -57,11 +56,11 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     unsigned int fs_id;
     dev_t dev_id;
     ino_t ino_id;
-    
+
     if (img == NULL || file == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     res = iso_stream_get_id(file->stream, &fs_id, &dev_id, &ino_id);
     if (res < 0) {
         return res;
@@ -73,18 +72,18 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         return ISO_ERROR;
     } else {
         int ret;
-        
+
         fsrc = malloc(sizeof(IsoFileSrc));
         if (fsrc == NULL) {
             return ISO_MEM_ERROR;
         }
-        
+
         /* fill key and other atts */
         fsrc->prev_img = file->msblock ? 1 : 0;
         fsrc->block = file->msblock;
         fsrc->sort_weight = file->sort_weight;
         fsrc->stream = file->stream;
-        
+
         /* insert the filesrc in the tree */
         ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
         if (ret <= 0) {
@@ -105,8 +104,7 @@ off_t iso_file_src_get_size(IsoFileSrc *file)
     return iso_stream_get_size(file->stream);
 }
 
-static int
-cmp_by_weight(const void *f1, const void *f2)
+static int cmp_by_weight(const void *f1, const void *f2)
 {
     IsoFileSrc *f = *((IsoFileSrc**)f1);
     IsoFileSrc *g = *((IsoFileSrc**)f2);
@@ -120,33 +118,33 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     size_t i, size;
     Ecma119Image *t;
     IsoFileSrc **filelist;
-    
+
     if (writer == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     t = writer->target;
-    
+
     /* store the filesrcs in a array */
     filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files);
     if (filelist == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     size = iso_rbtree_get_size(t->files);
-    
-    /* sort files by weight, if needed */ 
+
+    /* sort files by weight, if needed */
     if (t->sort_files) {
-        qsort(t->files, size,  sizeof(void*), cmp_by_weight); 
+        qsort(t->files, size, sizeof(void*), cmp_by_weight);
     }
-    
+
     /* fill block value */
     for (i = 0; i < size; ++i) {
         IsoFileSrc *file = filelist[i];
         file->block = t->curblock;
         t->curblock += div_up(iso_file_src_get_size(file), BLOCK_SIZE);
     }
-    
+
     /* the list is only needed by this writer, store locally */
     writer->data = filelist;
     return ISO_SUCCESS;
@@ -176,25 +174,25 @@ int filesrc_close(IsoFileSrc *file)
  * @return
  *     1 ok, 0 EOF, < 0 error
  */
-static 
+static
 int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
 {
     size_t bytes = 0;
-    
+
     /* loop to ensure the full buffer is filled */
     do {
         ssize_t result;
         result = iso_stream_read(file->stream, buf + bytes, count - bytes);
-        if (result < 0) {            
-            /* fill buffer with 0s and return */ 
+        if (result < 0) {
+            /* fill buffer with 0s and return */
             memset(buf + bytes, 0, count - bytes);
             return result;
         }
         if (result == 0)
             break;
-        bytes += result;    
+        bytes += result;
     } while (bytes < count);
-    
+
     if (bytes < count) {
         /* eof */
         memset(buf + bytes, 0, count - bytes);
@@ -212,16 +210,16 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     Ecma119Image *t;
     IsoFileSrc **filelist;
     char buffer[BLOCK_SIZE];
-    
+
     if (writer == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     t = writer->target;
     filelist = writer->data;
-    
+
     iso_msg_debug(t->image, "Writing Files...");
-    
+
     nfiles = iso_rbtree_get_size(t->files);
     for (i = 0; i < nfiles; ++i) {
         IsoFileSrc *file = filelist[i];
@@ -239,20 +237,20 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * UPS, very ugly error, the best we can do is just to write
              * 0's to image
              */
-             // TODO Stream needs a get_path function
-             iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, 
-                           "File XXX can't be openned. Filling with 0s.");
-             memset(buffer, 0, BLOCK_SIZE);
-             for (b = 0; b < nblocks; ++b) {
+            // TODO Stream needs a get_path function
+            iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE,
+                          "File XXX can't be openned. Filling with 0s.");
+            memset(buffer, 0, BLOCK_SIZE);
+            for (b = 0; b < nblocks; ++b) {
                 res = iso_write(t, buffer, BLOCK_SIZE);
                 if (res < 0) {
                     /* ko, writer error, we need to go out! */
                     return res;
                 }
-             }
-             continue;
+            }
+            continue;
         }
-        
+
         /* write file contents to image */
         for (b = 0; b < nblocks; ++b) {
             int wres;
@@ -263,16 +261,16 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 return wres;
             }
         }
-        
+
         if (b < nblocks) {
             /* premature end of file, due to error or eof */
             if (res < 0) {
                 /* error */
-                iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, 
+                iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE,
                               "Read error in file XXXXX.");
             } else {
                 /* eof */
-                iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, 
+                iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE,
                               "Premature end of file XXXXX.");
             }
             /* fill with 0s */
@@ -286,10 +284,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 }
             }
         }
-        
+
         filesrc_close(file);
     }
-    
+
     return ISO_SUCCESS;
 }
 
@@ -304,19 +302,19 @@ int filesrc_writer_free_data(IsoImageWriter *writer)
 int iso_file_src_writer_create(Ecma119Image *target)
 {
     IsoImageWriter *writer;
-    
+
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     writer->compute_data_blocks = filesrc_writer_compute_data_blocks;
     writer->write_vol_desc = filesrc_writer_write_vol_desc;
     writer->write_data = filesrc_writer_write_data;
     writer->free_data = filesrc_writer_free_data;
     writer->data = NULL;
     writer->target = target;
-    
+
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
 

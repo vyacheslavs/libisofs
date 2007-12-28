@@ -16,26 +16,26 @@ unsigned int iso_fs_global_id = 100;
 
 void iso_file_source_ref(IsoFileSource *src)
 {
-	++src->refcount;
+    ++src->refcount;
 }
 
 void iso_file_source_unref(IsoFileSource *src)
 {
-	if (--src->refcount == 0) {
-		src->class->free(src);
-		free(src);
-	}
+    if (--src->refcount == 0) {
+        src->class->free(src);
+        free(src);
+    }
 }
 
 void iso_filesystem_ref(IsoFilesystem *fs)
 {
-	++fs->refcount;
+    ++fs->refcount;
 }
 
 void iso_filesystem_unref(IsoFilesystem *fs)
 {
-	if (--fs->refcount == 0) {
-		fs->free(fs);
-		free(fs);
-	}
+    if (--fs->refcount == 0) {
+        fs->free(fs);
+        free(fs);
+    }
 }

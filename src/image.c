@@ -31,23 +31,23 @@ int iso_image_new(const char *name, IsoImage **image)
 {
     int res;
     IsoImage *img;
-    
+
     if (image == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     img = calloc(1, sizeof(IsoImage));
     if (img == NULL) {
         return ISO_MEM_ERROR;
     }
-    
+
     /* local filesystem will be used by default */
     res = iso_local_filesystem_new(&(img->fs));
     if (res < 0) {
         free(img);
         return ISO_MEM_ERROR;
     }
-    
+
     /* use basic builder as default */
     res = iso_node_basic_builder_new(&(img->builder));
     if (res < 0) {
@@ -55,7 +55,7 @@ int iso_image_new(const char *name, IsoImage **image)
         free(img);
         return ISO_MEM_ERROR;
     }
-    
+
     /* create message messenger */
     res = libiso_msgs_new(&img->messenger, 0);
     if (res <= 0) {
@@ -64,9 +64,9 @@ int iso_image_new(const char *name, IsoImage **image)
         free(img);
         return ISO_MEM_ERROR;
     }
-    libiso_msgs_set_severities(img->messenger, LIBISO_MSGS_SEV_NEVER,
+    libiso_msgs_set_severities(img->messenger, LIBISO_MSGS_SEV_NEVER, 
                                LIBISO_MSGS_SEV_FATAL, name, 0);
-    
+
     /* fill image fields */
     res = iso_node_new_root(&img->root);
     if (res < 0) {
@@ -77,7 +77,7 @@ int iso_image_new(const char *name, IsoImage **image)
         return res;
     }
     img->refcount = 1;
-    img->recOpts = calloc(1,sizeof(IsoImageRecOpts));
+    img->recOpts = calloc(1, sizeof(IsoImageRecOpts));
     if (img->recOpts == NULL) {
         libiso_msgs_destroy(&img->messenger, 0);
         iso_node_builder_unref(img->builder);
@@ -86,7 +86,7 @@ int iso_image_new(const char *name, IsoImage **image)
         free(img);
         return ISO_MEM_ERROR;
     }
-    
+
     if (name != NULL) {
         img->volset_id = strdup(name);
         img->volume_id = strdup(name);
@@ -167,7 +167,7 @@ const char *iso_image_get_publisher_id(const IsoImage *image)
 }
 
 void iso_image_set_data_preparer_id(IsoImage *image,
-                     const char *data_preparer_id)
+                                    const char *data_preparer_id)
 {
     free(image->data_preparer_id);
     image->data_preparer_id = strdup(data_preparer_id);
@@ -201,7 +201,7 @@ const char *iso_image_get_application_id(const IsoImage *image)
 }
 
 void iso_image_set_copyright_file_id(IsoImage *image,
-                     const char *copyright_file_id)
+                                     const char *copyright_file_id)
 {
     free(image->copyright_file_id);
     image->copyright_file_id = strdup(copyright_file_id);
@@ -213,7 +213,7 @@ const char *iso_image_get_copyright_file_id(const IsoImage *image)
 }
 
 void iso_image_set_abstract_file_id(IsoImage *image,
-                     const char *abstract_file_id)
+                                    const char *abstract_file_id)
 {
     free(image->abstract_file_id);
     image->abstract_file_id = strdup(abstract_file_id);
@@ -224,8 +224,7 @@ const char *iso_image_get_abstract_file_id(const IsoImage *image)
     return image->abstract_file_id;
 }
 
-void iso_image_set_biblio_file_id(IsoImage *image,
-                     const char *biblio_file_id)
+void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id)
 {
     free(image->biblio_file_id);
     image->biblio_file_id = strdup(biblio_file_id);

@@ -58,28 +58,29 @@ enum IsoHideNodeFlag {
 /**
  * Holds the options for the image generation.
  */
-typedef struct {
-    int level;  /**< ISO level to write at. */
+typedef struct
+{
+    int level; /**< ISO level to write at. */
 
     /** Which extensions to support. */
-    unsigned int rockridge:1;
-    
+    unsigned int rockridge :1;
+
     /* relaxed constraints */
-    unsigned int omit_version_numbers:1;
-    unsigned int allow_deep_paths:1;
+    unsigned int omit_version_numbers :1;
+    unsigned int allow_deep_paths :1;
     //int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
-    
+
     //unsigned int copy_eltorito:1;
-        /**<
-         * In multisession discs, select whether to copy el-torito catalog
-         * and boot image. Copy is needed for isolinux images, that need to
-         * be patched. However, it can lead to problems when the image is 
-         * not present in the iso filesystem, because we can't figure out
-         * its size. In those cases, we only copy 1 block of data.
-         */
-    
+    /**<
+     * In multisession discs, select whether to copy el-torito catalog
+     * and boot image. Copy is needed for isolinux images, that need to
+     * be patched. However, it can lead to problems when the image is 
+     * not present in the iso filesystem, because we can't figure out
+     * its size. In those cases, we only copy 1 block of data.
+     */
+
     /**< If files should be sorted based on their weight. */
-    unsigned int sort_files:1;
+    unsigned int sort_files :1;
 
     /**
      * The following options set the default values for files and directory
@@ -92,10 +93,10 @@ typedef struct {
      * below. Note that for mode attributes, only the permissions are set, the
      * file type remains unchanged.
      */
-    unsigned int replace_dir_mode:2;
-    unsigned int replace_file_mode:2;
-    unsigned int replace_uid:2;
-    unsigned int replace_gid:2;
+    unsigned int replace_dir_mode :2;
+    unsigned int replace_file_mode :2;
+    unsigned int replace_uid :2;
+    unsigned int replace_gid :2;
 
     mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
     mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
@@ -103,35 +104,35 @@ typedef struct {
     gid_t gid; /** gid to use when replace_gid == 2. */
 
     char *output_charset; /**< NULL to use default charset */
-//    uint32_t ms_block;
-                /**< 
-                 * Start block for multisession. When this is greater than 0, 
-                 * it's suppossed to be the lba of the next writable address 
-                 * on disc; all block lba on image will take this into account,
-                 * and files from a previous session will not be written on 
-                 * image. This behavior is only suitable for images to be
-                 * appended to a multisession disc.
-                 * When this is 0, no multisession image will be created. If 
-                 * some files are taken from a previous image, its contents
-                 * will be written again to the new image. Use this with new
-                 * images or if you plan to modify an existin image. 
-                 */
-//    struct data_source* src;
-//                /**<
-//                 * When modifying a image, this is the source of the original
-//                 * image, used to read file contents.
-//                 * Otherwise it can be NULL.
-//                 */
-//    uint8_t *overwrite;
-//                /**<
-//                 * When not NULL, it should point to a buffer of at least 
-//                 * 64KiB, where libisofs will write the contents that should 
-//                 * be written at the beginning of a overwriteable media, to
-//                 * grow the image.
-//                 * You shoudl initialize the buffer either with 0s, or with
-//                 * the contents of the first blocks of the image you're
-//                 * growing. In most cases, 0 is good enought.
-//                 */
+    //    uint32_t ms_block;
+    /**< 
+     * Start block for multisession. When this is greater than 0, 
+     * it's suppossed to be the lba of the next writable address 
+     * on disc; all block lba on image will take this into account,
+     * and files from a previous session will not be written on 
+     * image. This behavior is only suitable for images to be
+     * appended to a multisession disc.
+     * When this is 0, no multisession image will be created. If 
+     * some files are taken from a previous image, its contents
+     * will be written again to the new image. Use this with new
+     * images or if you plan to modify an existin image. 
+     */
+    //    struct data_source* src;
+    //                /**<
+    //                 * When modifying a image, this is the source of the original
+    //                 * image, used to read file contents.
+    //                 * Otherwise it can be NULL.
+    //                 */
+    //    uint8_t *overwrite;
+    //                /**<
+    //                 * When not NULL, it should point to a buffer of at least 
+    //                 * 64KiB, where libisofs will write the contents that should 
+    //                 * be written at the beginning of a overwriteable media, to
+    //                 * grow the image.
+    //                 * You shoudl initialize the buffer either with 0s, or with
+    //                 * the contents of the first blocks of the image you're
+    //                 * growing. In most cases, 0 is good enought.
+    //                 */
 } Ecma119WriteOpts;
 
 /**
@@ -210,7 +211,7 @@ const char *iso_image_get_publisher_id(const IsoImage *image);
  * Fill in the data preparer for a image.
  */
 void iso_image_set_data_preparer_id(IsoImage *image,
-                     const char *data_preparer_id);
+                                    const char *data_preparer_id);
 
 /** 
  * Get the data preparer of a image. 
@@ -248,7 +249,7 @@ const char *iso_image_get_application_id(const IsoImage *image);
  * to a file on disc. Up to 37 characters.
  */
 void iso_image_set_copyright_file_id(IsoImage *image,
-                     const char *copyright_file_id);
+                                     const char *copyright_file_id);
 
 /** 
  * Get the copyright information of a image. 
@@ -262,7 +263,7 @@ const char *iso_image_get_copyright_file_id(const IsoImage *image);
  * to a file on disc. Up to 37 characters.
  */
 void iso_image_set_abstract_file_id(IsoImage *image,
-                     const char *abstract_file_id);
+                                    const char *abstract_file_id);
 
 /** 
  * Get the abstract information of a image. 
@@ -275,8 +276,7 @@ const char *iso_image_get_abstract_file_id(const IsoImage *image);
  * Fill biblio information for the image. Usually this refers
  * to a file on disc. Up to 37 characters.
  */
-void iso_image_set_biblio_file_id(IsoImage *image,
-                     const char *biblio_file_id);
+void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
 
 /** 
  * Get the biblio information of a image. 
@@ -659,9 +659,9 @@ int iso_file_get_sort_weight(IsoFile *file);
 int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
 
 /*
-TODO #00007 expose Strem and thi function:
-int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
-*/
+ TODO #00007 expose Strem and thi function:
+ int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
+ */
 
 /**
  * Add a new symlink to the directory tree. Permissions are set to 0777, 
@@ -687,7 +687,7 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_MEM_ERROR
  */
-int iso_tree_add_new_symlink(IsoDir *parent, const char *name, 
+int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
                              const char *dest, IsoSymlink **link);
 
 /**
@@ -728,7 +728,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  *         ISO_WRONG_ARG_VALUE if you select a incorrect mode
  *         ISO_MEM_ERROR
  */
-int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode, 
+int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
                              dev_t dev, IsoSpecial **special);
 
 /**
@@ -757,7 +757,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_MEM_ERROR
  */
-int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path, 
+int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
                       IsoNode **node);
 
 /**
@@ -808,7 +808,7 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
  * @return               >0 for success, <=0 for error
  */
 int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
-                                 char *print_severity, char *print_id);
+                                  char *print_severity, char *print_id);
 /** 
  * Obtain the oldest pending message from a IsoImage message queue which has at
  * least the given minimum_severity. This message and any older message of

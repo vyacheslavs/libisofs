@@ -31,7 +31,7 @@ void iso_node_ref(IsoNode *node)
 void iso_node_unref(IsoNode *node)
 {
     if (--node->refcount == 0) {
-        switch(node->type) {
+        switch (node->type) {
         case LIBISO_DIR:
             {
                 IsoNode *child = ((IsoDir*)node)->children;
@@ -56,7 +56,7 @@ void iso_node_unref(IsoNode *node)
             }
         default:
             /* TODO #00002 handle deletion of each kind of node */
-            break;    
+            break;
         }
         free(node->name);
         free(node);
@@ -79,12 +79,12 @@ enum IsoNodeType iso_node_get_type(IsoNode *node)
 int iso_node_set_name(IsoNode *node, const char *name)
 {
     char *new;
-    
+
     /* guard against the empty string or big names... */
     if (name[0] == '\0' || strlen(name) > 255) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     /* ...against "." and ".." names... */
     if (!strcmp(name, ".") || !strcmp(name, "..")) {
         return ISO_WRONG_ARG_VALUE;
@@ -99,7 +99,7 @@ int iso_node_set_name(IsoNode *node, const char *name)
         /* you can't change name of the root node */
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     new = strdup(name);
     if (new == NULL) {
         return ISO_MEM_ERROR;
@@ -124,7 +124,7 @@ int iso_node_set_name(IsoNode *node, const char *name)
             return res;
         }
     }
-    return ISO_SUCCESS; 
+    return ISO_SUCCESS;
 }
 
 /**
@@ -167,7 +167,6 @@ mode_t iso_node_get_mode(const IsoNode *node)
 {
     return node->mode;
 }
-
 
 /**
  * Set the user id for the node. This attribute is only useful when 
@@ -275,14 +274,14 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs)
 int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
 {
     IsoNode **pos;
-    
+
     if (dir == NULL || child == NULL) {
         return ISO_NULL_POINTER;
     }
     if ((IsoNode*)dir == child) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     /* 
      * check if child is already added to another dir, or if child
      * is the root node, where parent == itself
@@ -290,7 +289,7 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
     if (child->parent != NULL || child->parent == (IsoDir*)child) {
         return ISO_NODE_ALREADY_ADDED;
     }
-    
+
     pos = &(dir->children);
     while (*pos != NULL && strcmp((*pos)->name, child->name) < 0) {
         pos = &((*pos)->next);
@@ -311,11 +310,11 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
             return ISO_WRONG_ARG_VALUE;
         }
     }
-    
+
     child->next = *pos;
     *pos = child;
     child->parent = dir;
-    
+
     return ++dir->nchildren;
 }
 
@@ -342,19 +341,19 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
     if (dir == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     pos = dir->children;
     while (pos != NULL && strcmp(pos->name, name) < 0) {
         pos = pos->next;
     }
-    
+
     if (pos == NULL || strcmp(pos->name, name)) {
         if (node) {
             *node = NULL;
         }
         return 0; /* node not found */
     }
-    
+
     if (node) {
         *node = pos;
     }
@@ -380,7 +379,7 @@ int iso_dir_get_nchildren(IsoDir *dir)
 int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
 {
     IsoDirIter *it;
-    
+
     if (dir == NULL || iter == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -388,10 +387,10 @@ int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
     if (it == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    
+
     it->dir = dir;
     it->pos = dir->children;
-    
+
     *iter = it;
     return ISO_SUCCESS;
 }
@@ -437,14 +436,13 @@ void iso_dir_iter_free(IsoDirIter *iter)
     free(iter);
 }
 
-static IsoNode**
-iso_dir_find_node(IsoDir *dir, IsoNode *node)
+static IsoNode** iso_dir_find_node(IsoDir *dir, IsoNode *node)
 {
     IsoNode **pos;
     pos = &(dir->children);
     while (*pos != NULL && *pos != node) {
         pos = &((*pos)->next);
-    } 
+    }
     return pos;
 }
 
@@ -461,7 +459,7 @@ int iso_node_take(IsoNode *node)
 {
     IsoNode **pos;
     IsoDir* dir;
-    
+
     if (node == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -507,7 +505,7 @@ int iso_dir_iter_take(IsoDirIter *iter)
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     pos = iter->dir->children;
     if (iter->pos == pos) {
         return ISO_ERROR;
@@ -599,7 +597,7 @@ int iso_file_get_sort_weight(IsoFile *file)
 int iso_node_new_root(IsoDir **root)
 {
     IsoDir *dir;
-    
+
     dir = calloc(1, sizeof(IsoDir));
     if (dir == NULL) {
         return ISO_MEM_ERROR;
@@ -608,7 +606,7 @@ int iso_node_new_root(IsoDir **root)
     dir->node.type = LIBISO_DIR;
     dir->node.atime = dir->node.ctime = dir->node.mtime = time(NULL);
     dir->node.mode = S_IFDIR | 0555;
-    
+
     /* set parent to itself, to prevent root to be added to another dir */
     dir->node.parent = dir;
     *root = dir;

@@ -14,8 +14,7 @@
  */
 
 /*
- * Some functions here will be moved to libisofs.h when we expose 
- * Sources.
+ * Some functions here will be moved to libisofs.h when we expose Sources.
  */
 
 #include <sys/stat.h>
@@ -43,9 +42,9 @@ struct Iso_Filesystem
      * @return
      *     1 success, < 0 error
      */
-    int (*get_by_path)(IsoFilesystem *fs, const char *path, 
+    int (*get_by_path)(IsoFilesystem *fs, const char *path,
                        IsoFileSource **file);
-    
+
     /**
      * Get filesystem identifier. 
      * 
@@ -81,7 +80,7 @@ typedef struct IsoFileSource_Iface
      *     freed by the user.
      */
     const char* (*get_path)(IsoFileSource *src);
-    
+
     /**
      * Get the name of the file, with the dir component of the path. 
      * 
@@ -103,7 +102,7 @@ typedef struct IsoFileSource_Iface
      *         ISO_NULL_POINTER
      */
     int (*lstat)(IsoFileSource *src, struct stat *info);
-    
+
     /**
      * Get information about the file. If the file is a symlink, the info
      * returned refers to the destination.
@@ -211,7 +210,7 @@ typedef struct IsoFileSource_Iface
      * 
      */
     int (*readlink)(IsoFileSource *src, char *buf, size_t bufsiz);
-    
+
     /**
      * Get the filesystem for this source. No extra ref is added, so you
      * musn't unref the IsoFilesystem.
@@ -233,7 +232,8 @@ typedef struct IsoFileSource_Iface
      */
 } IsoFileSourceIface;
 
-struct Iso_File_Source {
+struct Iso_File_Source
+{
     const IsoFileSourceIface *class;
     int refcount;
     void *data;
@@ -245,54 +245,63 @@ void iso_file_source_unref(IsoFileSource *src);
 /* 
  * this are just helpers to invoque methods in class
  */
-extern inline 
-const char* iso_file_source_get_path(IsoFileSource *src) {
+extern inline
+const char* iso_file_source_get_path(IsoFileSource *src)
+{
     return src->class->get_path(src);
 }
 
-extern inline 
-char* iso_file_source_get_name(IsoFileSource *src) {
+extern inline
+char* iso_file_source_get_name(IsoFileSource *src)
+{
     return src->class->get_name(src);
 }
 
-extern inline 
-int iso_file_source_lstat(IsoFileSource *src, struct stat *info) {
+extern inline
+int iso_file_source_lstat(IsoFileSource *src, struct stat *info)
+{
     return src->class->lstat(src, info);
 }
 
-extern inline 
-int iso_file_source_stat(IsoFileSource *src, struct stat *info) {
+extern inline
+int iso_file_source_stat(IsoFileSource *src, struct stat *info)
+{
     return src->class->stat(src, info);
 }
 
-extern inline 
-int iso_file_source_open(IsoFileSource *src) {
+extern inline
+int iso_file_source_open(IsoFileSource *src)
+{
     return src->class->open(src);
 }
 
-extern inline 
-int iso_file_source_close(IsoFileSource *src) {
+extern inline
+int iso_file_source_close(IsoFileSource *src)
+{
     return src->class->close(src);
 }
 
-extern inline 
-int iso_file_source_read(IsoFileSource *src, void *buf, size_t count) {
+extern inline
+int iso_file_source_read(IsoFileSource *src, void *buf, size_t count)
+{
     return src->class->read(src, buf, count);
 }
 
-extern inline 
+extern inline
 int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child)
 {
     return src->class->readdir(src, child);
 }
 
-extern inline 
-int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz) {
+extern inline
+int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
+{
     return src->class->readlink(src, buf, bufsiz);
 }
 
-extern inline 
-IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src) {
+extern inline
+IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src)
+{
     return src->class->get_filesystem(src);
 }
 

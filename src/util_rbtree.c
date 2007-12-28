@@ -16,13 +16,15 @@
  * implementation of Julienne Walker.
  */
 
-struct iso_rbnode {
+struct iso_rbnode
+{
     void *data;
     struct iso_rbnode *ch[2];
-    unsigned int red:1;
+    unsigned int red :1;
 };
 
-struct iso_rbtree {
+struct iso_rbtree
+{
     struct iso_rbnode *root;
     size_t size;
     int (*compare)(const void *a, const void *b);
@@ -40,8 +42,7 @@ struct iso_rbtree {
  * @param tree
  *     Location where the tree structure will be stored.
  */
-int
-iso_rbtree_new(int (*compare)(const void*, const void*), IsoRBTree **tree)
+int iso_rbtree_new(int (*compare)(const void*, const void*), IsoRBTree **tree)
 {
     if (compare == NULL || tree == NULL) {
         return ISO_NULL_POINTER;
@@ -75,8 +76,7 @@ void rbtree_destroy_aux(struct iso_rbnode *root, void (*free_data)(void *))
  * should provide a valid free_data function. It will be called for each 
  * element of the tree, so you can use it to free any related data.
  */
-void
-iso_rbtree_destroy(IsoRBTree *tree, void (*free_data)(void *))
+void iso_rbtree_destroy(IsoRBTree *tree, void (*free_data)(void *))
 {
     if (tree == NULL) {
         return;
@@ -115,14 +115,14 @@ static
 struct iso_rbnode *iso_rbnode_new(void *data)
 {
     struct iso_rbnode *rn = malloc(sizeof(struct iso_rbnode));
-  
-    if ( rn != NULL ) {
+
+    if (rn != NULL) {
         rn->data = data;
         rn->red = 1;
         rn->ch[0] = NULL;
         rn->ch[1] = NULL;
     }
- 
+
     return rn;
 }
 
@@ -154,23 +154,23 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
         /* Empty tree case */
         tree->root = iso_rbnode_new(data);
         if (tree->root == NULL) {
-           return ISO_MEM_ERROR;
+            return ISO_MEM_ERROR;
         }
         new = data;
         added = 1;
     } else {
-        struct iso_rbnode head = {0}; /* False tree root */
+        struct iso_rbnode head = { 0 }; /* False tree root */
 
-        struct iso_rbnode *g, *t;     /* Grandparent & parent */
-        struct iso_rbnode *p, *q;     /* Iterator & parent */
+        struct iso_rbnode *g, *t; /* Grandparent & parent */
+        struct iso_rbnode *p, *q; /* Iterator & parent */
         int dir = 0, last = 0;
         int comp;
- 
+
         /* Set up helpers */
         t = &head;
         g = p = NULL;
         q = t->ch[1] = tree->root;
-  
+
         /* Search down the tree */
         while (1) {
             if (q == NULL) {
@@ -186,7 +186,7 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
                 q->ch[0]->red = 0;
                 q->ch[1]->red = 0;
             }
-  
+
             /* Fix red violation */
             if (is_red(q) && is_red(p)) {
                 int dir2 = (t->ch[1] == g);
@@ -208,7 +208,7 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
 
             last = dir;
             dir = (comp < 0);
-  
+
             /* Update helpers */
             if (g != NULL)
                 t = g;
@@ -219,7 +219,7 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
         /* Update root */
         tree->root = head.ch[1];
     }
-  
+
     /* Make root black */
     tree->root->red = 0;
 
@@ -243,7 +243,6 @@ size_t iso_rbtree_get_size(IsoRBTree *tree)
     return tree->size;
 }
 
-
 static
 int rbtree_to_array_aux(struct iso_rbnode *root, void **array, size_t pos)
 {
@@ -265,8 +264,7 @@ int rbtree_to_array_aux(struct iso_rbnode *root, void **array, size_t pos)
  *    no more needed. Note that the array is NULL-terminated, and thus it
  *    has size + 1 length.
  */
-void **
-iso_rbtree_to_array(IsoRBTree *tree)
+void ** iso_rbtree_to_array(IsoRBTree *tree)
 {
     void **array;
 

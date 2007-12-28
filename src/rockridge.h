@@ -28,7 +28,6 @@
 
 #include "ecma119.h"
 
-
 /**
  * This contains the information about the System Use Fields (SUSP, 4.1), 
  * that will be written in the System Use Areas, both in the ISO directory
@@ -66,8 +65,8 @@ struct susp_info
  * @return
  *      The size needed for the RR entries in the System Use Area
  */
-size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
-                     size_t space, size_t *ce);
+size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
+                     size_t *ce);
 
 /**
  * Fill a struct susp_info with the RR/SUSP entries needed for a given
@@ -86,7 +85,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type,
  * @return
  *      1 success, < 0 error
  */
-int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type, 
+int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                          size_t space, struct susp_info *info);
 
 /**
@@ -96,7 +95,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
  * After written, the info susp_fields array will be freed, and the counters
  * updated propertly.
  */
-void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info, 
+void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
                             uint8_t *buf);
 
 /**

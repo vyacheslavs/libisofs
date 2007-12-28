@@ -23,50 +23,54 @@ typedef struct ecma119_node Ecma119Node;
 typedef struct Iso_File_Src IsoFileSrc;
 typedef struct Iso_Image_Writer IsoImageWriter;
 
-struct ecma119_image {
+struct ecma119_image
+{
     IsoImage *image;
     Ecma119Node *root;
-    
-    unsigned int iso_level:2;
-    
+
+    unsigned int iso_level :2;
+
     /* extensions */
-    unsigned int rockridge:1;
-    
+    unsigned int rockridge :1;
+
     /* relaxed constraints */
-    unsigned int omit_version_numbers:1;
-    unsigned int allow_deep_paths:1;
-//    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
-    
+    unsigned int omit_version_numbers :1;
+    unsigned int allow_deep_paths :1;
+    //    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
+
     /* 
      * Mode replace. If one of these flags is set, the correspodent values are
      * replaced with values below.
      */
-    unsigned int replace_uid:1;
-    unsigned int replace_gid:1;
-    unsigned int replace_file_mode:1;
-    unsigned int replace_dir_mode:1;
-    
+    unsigned int replace_uid :1;
+    unsigned int replace_gid :1;
+    unsigned int replace_file_mode :1;
+    unsigned int replace_dir_mode :1;
+
     uid_t uid;
     gid_t gid;
     mode_t file_mode;
     mode_t dir_mode;
 
-    int sort_files; /**< if sort files or not. Sorting is based of 
-                      *  the weight of each file */
+    /**
+     *  if sort files or not. Sorting is based of the weight of each file 
+     */
+    int sort_files;
 
     /**
      * In the CD, each file must have an unique inode number. So each
      * time we add a new file, this is incremented.
      */
     ino_t ino;
-    
+
     char *input_charset;
     char *output_charset;
-    
+
     uint32_t ms_block; /**< start block for a ms image */
-    time_t now;     /**< Time at which writing began. */
-    off_t total_size; /**< Total size of the output. This only
-                        *  includes the current volume. */
+    time_t now; /**< Time at which writing began. */
+
+    /** Total size of the output. This only includes the current volume. */
+    off_t total_size;
     uint32_t vol_space_size;
 
     /*
@@ -83,16 +87,16 @@ struct ecma119_image {
     uint32_t path_table_size;
     uint32_t l_path_table_pos;
     uint32_t m_path_table_pos;
-    
+
     size_t nwriters;
     IsoImageWriter **writers;
 
     /* tree of files sources */
     IsoRBTree *files;
-    
+
     /* Buffer for communication between burn_source and writer thread */
     IsoRingBuffer *buffer;
-    
+
     /* writer thread descriptor */
     pthread_t wthread;
     pthread_attr_t th_attr;

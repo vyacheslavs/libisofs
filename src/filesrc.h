@@ -14,8 +14,9 @@
 
 #include <stdint.h>
 
-struct Iso_File_Src {
-    unsigned int prev_img:1; /**< if the file comes from a previous image */
+struct Iso_File_Src
+{
+    unsigned int prev_img :1; /**< if the file comes from a previous image */
     uint32_t block; /**< Block where this file will be written on image */
     int sort_weight;
     IsoStream *stream;

@@ -40,9 +40,9 @@ struct Iso_Node_Builder
      * @return
      *    1 on success, < 0 on error
      */
-    int (*create_file)(IsoNodeBuilder *builder, IsoImage *image, 
+    int (*create_file)(IsoNodeBuilder *builder, IsoImage *image,
                        IsoFileSource *src, IsoFile **file);
-    
+
     /**
      * Create a new IsoNode from a IsoFileSource. The type of the node to be
      * created is determined from the type of the file source. Name,
@@ -53,15 +53,15 @@ struct Iso_Node_Builder
      * @return
      *    1 on success, < 0 on error
      */
-    int (*create_node)(IsoNodeBuilder *builder, IsoImage *image, 
+    int (*create_node)(IsoNodeBuilder *builder, IsoImage *image,
                        IsoFileSource *src, IsoNode **node);
-    
+
     /**
      * Free implementation specific data. Should never be called by user.
      * Use iso_node_builder_unref() instead.
      */
     void (*free)(IsoNodeBuilder *builder);
-    
+
     int refcount;
     void *create_file_data;
     void *create_node_data;

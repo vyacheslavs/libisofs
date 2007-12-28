@@ -23,22 +23,23 @@ enum ecma119_node_type {
 /**
  * Struct with info about a node representing a tree
  */
-struct ecma119_dir_info {
+struct ecma119_dir_info
+{
     /* Block where the directory entries will be written on image */
     size_t block;
 
     size_t nchildren;
     Ecma119Node **children;
-    
+
     /* 
      * Size of the dir, i.e., sum of the lengths of all directory records.
      * It is computed by calc_dir_size() [ecma119.c].
      * Note that this don't include the length of any SUSP Continuation
      * Area needed by the dir, but it includes the size of the SUSP entries
      * than fit in the directory records System Use Field.
-     */ 
+     */
     size_t len;
-    
+
     /** 
      * Real parent if the dir has been reallocated. NULL otherwise.
      */
@@ -56,24 +57,25 @@ struct ecma119_node
      * Version number is not include, it is added on the fly
      */
     char *iso_name;
-    
+
     Ecma119Node *parent;
-    
+
     IsoNode *node; /*< reference to the iso node */
-    
+
     // TODO add true support for this
     ino_t ino;
     nlink_t nlink;
-    
+
     /**< file, symlink, special, directory or placeholder */
-    enum ecma119_node_type type; 
-    union {
+    enum ecma119_node_type type;
+    union
+    {
         IsoFileSrc *file;
         // TODO this wastes too much memory, as dirs have much more
         // atts than other kind of files. Replace with a pointer.
         struct ecma119_dir_info dir;
         /** this field points to the relocated directory. */
-        Ecma119Node *real_me; 
+        Ecma119Node *real_me;
     } info;
 };
 

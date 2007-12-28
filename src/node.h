@@ -34,21 +34,21 @@ struct Iso_Node
      */
     int refcount;
 
-    /**< Type of the IsoNode, do not confuse with mode */
+    /** Type of the IsoNode, do not confuse with mode */
     enum IsoNodeType type;
 
     char *name; /**< Real name, in default charset */
 
     mode_t mode; /**< protection */
-    uid_t uid;   /**< user ID of owner */
-    gid_t gid;   /**< group ID of owner */
+    uid_t uid; /**< user ID of owner */
+    gid_t gid; /**< group ID of owner */
 
     /* TODO #00001 : consider adding new timestamps */
     time_t atime; /**< time of last access */
     time_t mtime; /**< time of last modification */
     time_t ctime; /**< time of last status change */
-    
-    int hidden; /**< whether the node will be hidden, see IsoHideNodeFlag */   
+
+    int hidden; /**< whether the node will be hidden, see IsoHideNodeFlag */
 
     IsoDir *parent; /**< parent node, NULL for root */
 
@@ -69,16 +69,16 @@ struct Iso_Dir
 struct Iso_File
 {
     IsoNode node;
-    
+
     /**
      * Location of a file extent in a ms disc, 0 for newly added file
      */
     uint32_t msblock;
 
-	/** 
-	 * It sorts the order in which the file data is written to the CD image.
-	 * Higher weighting files are written at the beginning of image 
-	 */
+    /** 
+     * It sorts the order in which the file data is written to the CD image.
+     * Higher weighting files are written at the beginning of image 
+     */
     int sort_weight;
     IsoStream *stream;
 };
@@ -86,7 +86,7 @@ struct Iso_File
 struct Iso_Symlink
 {
     IsoNode node;
-    
+
     char *dest;
 };
 

@@ -6,7 +6,6 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-
 /*
  * Filesystem/FileSource implementation to access the local filesystem.
  */
@@ -29,15 +28,16 @@
 /*
  * We can share a local filesystem object, as it has no private atts.
  */
-IsoFilesystem *lfs = NULL;
+IsoFilesystem *lfs= NULL;
 
 typedef struct
 {
     /* IsoFilesystem *fs; It seems not needed */
 
     char *path;
-    unsigned int openned:2; /* 0: not openned, 1: file, 2:dir */
-    union {
+    unsigned int openned :2; /* 0: not openned, 1: file, 2:dir */
+    union
+    {
         int fd;
         DIR *dir;
     } info;
@@ -59,10 +59,10 @@ char* lfs_get_name(IsoFileSource *src)
     data = src->data;
     p = strdup(data->path); /* because basename() might modify its arg */
     name = strdup(basename(p));
-    free(p);    
+    free(p);
     return name;
 }
-    
+
 static
 int lfs_lstat(IsoFileSource *src, struct stat *info)
 {
@@ -77,7 +77,7 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
         int err;
 
         /* error, choose an appropriate return code */
-        switch(errno) {
+        switch (errno) {
         case EACCES:
             err = ISO_FILE_ACCESS_DENIED;
             break;
@@ -101,7 +101,7 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
     }
     return ISO_SUCCESS;
 }
-    
+
 static
 int lfs_stat(IsoFileSource *src, struct stat *info)
 {
@@ -116,7 +116,7 @@ int lfs_stat(IsoFileSource *src, struct stat *info)
         int err;
 
         /* error, choose an appropriate return code */
-        switch(errno) {
+        switch (errno) {
         case EACCES:
             err = ISO_FILE_ACCESS_DENIED;
             break;
@@ -176,7 +176,7 @@ int lfs_open(IsoFileSource *src)
      * parsed in the lstat call above 
      */
     if (data->openned == 0) {
-        switch(errno) {
+        switch (errno) {
         case EACCES:
             err = ISO_FILE_ACCESS_DENIED;
             break;
@@ -205,7 +205,7 @@ int lfs_close(IsoFileSource *src)
     }
 
     data = src->data;
-    switch(data->openned) {
+    switch (data->openned) {
     case 1: /* not dir */
         ret = close(data->info.fd) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
         break;
@@ -232,14 +232,14 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
     }
 
     data = src->data;
-    switch(data->openned) {
+    switch (data->openned) {
     case 1: /* not dir */
         {
             int ret;
             ret = read(data->info.fd, buf, count);
             if (ret < 0) {
                 /* error on read */
-                switch(errno) {
+                switch (errno) {
                 case EINTR:
                     ret = ISO_INTERRUPTED;
                     break;
@@ -273,7 +273,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
     }
 
     data = src->data;
-    switch(data->openned) {
+    switch (data->openned) {
     case 1: /* not dir */
         return ISO_FILE_IS_NOT_DIR;
     case 2: /* directory */
@@ -292,7 +292,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
                     else
                         return 0; /* EOF */
                 }
-                if (strcmp(entry->d_name,".") && strcmp(entry->d_name,"..")) {
+                if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
                     break;
                 }
             }
@@ -342,7 +342,7 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
     size = readlink(data->path, buf, bufsiz - 1);
     if (size < 0) {
         /* error */
-        switch(errno) {
+        switch (errno) {
         case EACCES:
             return ISO_FILE_ACCESS_DENIED;
         case ENOTDIR:
@@ -389,7 +389,7 @@ void lfs_free(IsoFileSource *src)
     iso_filesystem_unref(lfs);
 }
 
-IsoFileSourceIface lfs_class = {
+IsoFileSourceIface lfs_class = { 
     lfs_get_path,
     lfs_get_name,
     lfs_lstat,
@@ -450,7 +450,7 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
     lfs_src->refcount = 1;
     lfs_src->data = data;
     lfs_src->class = &lfs_class;
-    
+
     /* take a ref to local filesystem */
     iso_filesystem_ref(lfs);
 
@@ -462,19 +462,19 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
 static
 int lfs_get_root(IsoFilesystem *fs, IsoFileSource **root)
 {
-	if (fs == NULL || root == NULL) {
+    if (fs == NULL || root == NULL) {
         return ISO_NULL_POINTER;
     }
-	return iso_file_source_new_lfs("/", root);
+    return iso_file_source_new_lfs("/", root);
 }
 
 static
 int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 {
-	if (fs == NULL || path == NULL || file == NULL) {
+    if (fs == NULL || path == NULL || file == NULL) {
         return ISO_NULL_POINTER;
     }
-	return iso_file_source_new_lfs(path, file);
+    return iso_file_source_new_lfs(path, file);
 }
 
 static
@@ -486,25 +486,25 @@ unsigned int lfs_get_id(IsoFilesystem *fs)
 static
 void lfs_fs_free(IsoFilesystem *fs)
 {
-	lfs = NULL;
+    lfs = NULL;
 }
-    
+
 int iso_local_filesystem_new(IsoFilesystem **fs)
 {
-	if (fs == NULL) {
+    if (fs == NULL) {
         return ISO_NULL_POINTER;
     }
-	
+
     if (lfs != NULL) {
         /* just take a new ref */
         iso_filesystem_ref(lfs);
     } else {
-        
-    	lfs = malloc(sizeof(IsoFilesystem));
+
+        lfs = malloc(sizeof(IsoFilesystem));
         if (lfs == NULL) {
             return ISO_OUT_OF_MEM;
         }
-        
+
         /* fill struct */
         lfs->refcount = 1;
         lfs->data = NULL; /* we don't need private data */
@@ -513,6 +513,6 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
         lfs->get_id = lfs_get_id;
         lfs->free = lfs_fs_free;
     }
-	*fs = lfs;
-	return ISO_SUCCESS;
+    *fs = lfs;
+    return ISO_SUCCESS;
 }

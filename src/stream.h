@@ -55,7 +55,7 @@ typedef struct IsoStream_Iface
      *     number of bytes read, 0 if EOF, < 0 on error
      */
     int (*read)(IsoStream *stream, void *buf, size_t count);
-    
+
     /**
      * Whether this Stram can be read several times, with the same results. 
      * For example, a regular file is repeatable, you can read it as many
@@ -68,7 +68,7 @@ typedef struct IsoStream_Iface
      *     1 if stream is repeatable, 0 if not, < 0 on error
      */
     int (*is_repeatable)(IsoStream *stream);
-    
+
     /**
      * Get an unique identifier for the IsoStream. If your implementation
      * is unable to return a valid identifier, this function should return
@@ -77,7 +77,7 @@ typedef struct IsoStream_Iface
      * @return
      *      1 on success, 0 if idenfier is not valid, < 0 error 
      */
-    int (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id, 
+    int (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                   ino_t *ino_id);
 
     /**
@@ -91,43 +91,49 @@ struct Iso_Stream
 {
     IsoStreamIface *class;
     int refcount;
-    void *data; 
+    void *data;
 };
 
 void iso_stream_ref(IsoStream *stream);
 void iso_stream_unref(IsoStream *stream);
 
 extern inline
-int iso_stream_open(IsoStream *stream) {
+int iso_stream_open(IsoStream *stream)
+{
     return stream->class->open(stream);
 }
 
 extern inline
-int iso_stream_close(IsoStream *stream) {
+int iso_stream_close(IsoStream *stream)
+{
     return stream->class->close(stream);
 }
 
 extern inline
-off_t iso_stream_get_size(IsoStream *stream) {
+off_t iso_stream_get_size(IsoStream *stream)
+{
     return stream->class->get_size(stream);
 }
 
 extern inline
-int iso_stream_read(IsoStream *stream, void *buf, size_t count) {
+int iso_stream_read(IsoStream *stream, void *buf, size_t count)
+{
     return stream->class->read(stream, buf, count);
 }
 
 extern inline
-int iso_stream_is_repeatable(IsoStream *stream) {
+int iso_stream_is_repeatable(IsoStream *stream)
+{
     return stream->class->is_repeatable(stream);
 }
 
 extern inline
-int iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, 
-                      dev_t *dev_id, ino_t *ino_id) {
+int iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+                      ino_t *ino_id)
+{
     return stream->class->get_id(stream, fs_id, dev_id, ino_id);
 }
-    
+
 /**
  * Create a stream to read from a IsoFileSource.
  * The stream will take the ref. to the IsoFileSource, so after a successfully
