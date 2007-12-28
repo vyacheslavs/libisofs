@@ -7,6 +7,7 @@
 #include "libburn/libburn.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -83,6 +84,7 @@ int main(int argc, char **argv)
     }
     fclose(fd);
     burn_src->free_data(burn_src);
+    free(burn_src);
     
     iso_image_unref(image);
 	return 0;

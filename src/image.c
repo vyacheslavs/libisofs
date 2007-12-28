@@ -116,6 +116,7 @@ void iso_image_unref(IsoImage *image)
         libiso_msgs_destroy(&image->messenger, 0);
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);
+        free(image->recOpts);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
@@ -125,6 +126,7 @@ void iso_image_unref(IsoImage *image)
         free(image->copyright_file_id);
         free(image->abstract_file_id);
         free(image->biblio_file_id);
+        free(image);
     }
 }
 

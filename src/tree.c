@@ -324,6 +324,7 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
+    free(name);
 
     result = builder->create_node(builder, image, src, &new);
     if (result < 0) {
@@ -438,6 +439,9 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
                 action = 2;
             }
         }
+
+        /* name no more needed */
+        free(name);
 
         /* ask user if callback has been set */
         if (image->recOpts->report) {

@@ -65,7 +65,7 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     /* fill node fields */
     node->node.refcount = 1;
     node->node.type = LIBISO_FILE;
-    node->node.name = strdup(iso_file_source_get_name(src));
+    node->node.name = iso_file_source_get_name(src);
     node->node.mode = S_IFREG | (info.st_mode & ~S_IFMT);
     node->node.uid = info.st_uid;
     node->node.gid = info.st_gid;
@@ -117,12 +117,14 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             IsoFile *file;
             result = iso_file_source_stream_new(src, &stream);
             if (result < 0) {
+                free(name);
                 return result;
             }
             /* take a ref to the src, as stream has taken our ref */
             iso_file_source_ref(src);
             file = calloc(1, sizeof(IsoFile));
             if (file == NULL) {
+                free(name);
                 iso_stream_unref(stream);
                 return ISO_MEM_ERROR;
             }
@@ -138,6 +140,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             /* source is a directory */
             new = calloc(1, sizeof(IsoDir));
             if (new == NULL) {
+                free(name);
                 return ISO_MEM_ERROR;
             }
             new->type = LIBISO_DIR;
@@ -151,10 +154,12 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
             result = iso_file_source_readlink(src, dest, PATH_MAX);
             if (result < 0) {
+                free(name);
                 return result;
             }
             link = malloc(sizeof(IsoSymlink));
             if (link == NULL) {
+                free(name);
                 return ISO_MEM_ERROR;
             }
             link->dest = strdup(dest);
@@ -171,6 +176,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             IsoSpecial *special;
             special = malloc(sizeof(IsoSpecial));
             if (special == NULL) {
+                free(name);
                 return ISO_MEM_ERROR;
             }
             special->dev = info.st_rdev;
@@ -182,7 +188,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     /* fill fields */
     new->refcount = 1;
-    new->name = strdup(name);
+    new->name = name;
     new->mode = info.st_mode;
     new->uid = info.st_uid;
     new->gid = info.st_gid;
