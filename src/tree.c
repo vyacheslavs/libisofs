@@ -296,6 +296,63 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     return ++parent->nchildren;
 }
 
+/**
+ * Set whether to follow or not symbolic links when added a file from a source
+ * to IsoImage.
+ */
+void iso_tree_set_follow_symlinks(IsoImage *image, int follow)
+{
+    image->recOpts.follow_symlinks = follow ? 1 : 0;
+}
+
+/**
+ * Get current setting for follow_symlinks.
+ * 
+ * @see iso_tree_set_follow_symlinks
+ */
+int iso_tree_get_follow_symlinks(IsoImage *image)
+{
+    return image->recOpts.follow_symlinks;
+}
+
+/**
+ * Set whether to skip or not hidden files when adding a directory recursibely.
+ * Default behavior is to not ignore them, i.e., to add hidden files to image.
+ */
+void iso_tree_set_ignore_hidden(IsoImage *image, int skip)
+{
+    image->recOpts.ignore_hidden = skip ? 1 : 0;
+}
+
+/**
+ * Get current setting for ignore_hidden.
+ * 
+ * @see iso_tree_set_ignore_hidden
+ */
+int iso_tree_get_ignore_hidden(IsoImage *image)
+{
+    return image->recOpts.ignore_hidden;
+}
+
+/**
+ * Set whether to stop or not when an error happens when adding recursively a 
+ * directory to the iso tree. Default value is to skip file and continue.
+ */
+void iso_tree_set_stop_on_error(IsoImage *image, int stop)
+{
+    image->recOpts.stop_on_error = stop ? 1 : 0;
+}
+
+/**
+ * Get current setting for stop_on_error.
+ * 
+ * @see iso_tree_set_stop_on_error
+ */
+int iso_tree_get_stop_on_error(IsoImage *image)
+{
+    return image->recOpts.stop_on_error;
+}
+
 static
 int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
                               IsoFileSource *src, IsoNodeBuilder *builder,
@@ -415,15 +472,19 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         char *name;
         IsoNode *new;
 
-        iso_msg_debug(image, "Adding file %s", iso_file_source_get_path(file));
-
         name = iso_file_source_get_name(file);
 
         if (check_excludes(image, iso_file_source_get_path(file))) {
+            iso_msg_debug(image, "Skipping excluded file %s", 
+                          iso_file_source_get_path(file));
             action = 2;
         } else if (check_hidden(image, name)) {
+            iso_msg_debug(image, "Skipping hidden file %s", 
+                          iso_file_source_get_path(file));
             action = 2;
         } else {
+            iso_msg_debug(image, "Adding file %s", 
+                          iso_file_source_get_path(file));
             action = 1;
         }
 

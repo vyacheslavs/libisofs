@@ -732,6 +732,45 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
                              dev_t dev, IsoSpecial **special);
 
 /**
+ * Set whether to follow or not symbolic links when added a file from a source
+ * to IsoImage. Default behavior is to not follow symlinks.
+ */
+void iso_tree_set_follow_symlinks(IsoImage *image, int follow);
+
+/**
+ * Get current setting for follow_symlinks.
+ * 
+ * @see iso_tree_set_follow_symlinks
+ */
+int iso_tree_get_follow_symlinks(IsoImage *image);
+
+/**
+ * Set whether to skip or not hidden files when adding a directory recursibely.
+ * Default behavior is to not ignore them, i.e., to add hidden files to image.
+ */
+void iso_tree_set_ignore_hidden(IsoImage *image, int skip);
+
+/**
+ * Get current setting for ignore_hidden.
+ * 
+ * @see iso_tree_set_ignore_hidden
+ */
+int iso_tree_get_ignore_hidden(IsoImage *image);
+
+/**
+ * Set whether to stop or not when an error happens when adding recursively a 
+ * directory to the iso tree. Default value is to skip file and continue.
+ */
+void iso_tree_set_stop_on_error(IsoImage *image, int stop);
+
+/**
+ * Get current setting for stop_on_error.
+ * 
+ * @see iso_tree_set_stop_on_error
+ */
+int iso_tree_get_stop_on_error(IsoImage *image);
+
+/**
  * Add a new node to the image tree, from an existing file. 
  * 
  * TODO comment Builder and Filesystem related issues when exposing both

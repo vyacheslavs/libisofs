@@ -33,18 +33,18 @@ struct Iso_Image_Rec_Opts
     /**
      * Whether to follow symlinks or just add them as symlinks
      */
-    unsigned int follow_symlinks;
+    unsigned int follow_symlinks : 1;
 
     /**
      * Whether to skip hidden files
      */
-    unsigned int ignore_hidden;
+    unsigned int ignore_hidden : 1;
 
     /**
      * Whether to stop on an error. Some errors, such as memory errors,
      * always cause a stop
      */
-    unsigned int stop_on_error;
+    unsigned int stop_on_error : 1;
 
     /**
      * Files to exclude
