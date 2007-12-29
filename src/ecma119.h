@@ -73,6 +73,10 @@ struct ecma119_image
     off_t total_size;
     uint32_t vol_space_size;
 
+    /* Bytes already written, just for progress notification */
+    off_t bytes_written;
+    int percent_written;
+
     /*
      * Block being processed, either during image writing or structure
      * size calculation.

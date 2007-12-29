@@ -656,6 +656,9 @@ void *write_function(void *arg)
     Ecma119Image *target = (Ecma119Image*)arg;
     iso_msg_debug(target->image, "Starting image writing...");
 
+    target->bytes_written = (off_t) 0;
+    target->percent_written = 0;
+
     /* Write System Area, 16 blocks of zeros (ECMA-119, 6.2.1) */
     memset(buf, 0, BLOCK_SIZE);
     for (i = 0; i < 16; ++i) {
@@ -960,5 +963,19 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         /* reader cancelled */
         return ISO_WRITE_ERROR;
     }
+    
+    target->bytes_written += count;
+    {
+        int percent = (target->bytes_written * 100) / target->total_size;
+        
+        /* only report in 5% chunks */
+        if (percent >= target->percent_written + 5) {
+            iso_msg_debug(target->image, "Processed %u of %u KB (%d %%)",
+                          (unsigned int) target->bytes_written >> 10, 
+                          (unsigned int) target->total_size >> 10, percent);
+            target->percent_written = percent;
+        }
+    }
+    
     return ret;
 }
