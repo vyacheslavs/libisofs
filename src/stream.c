@@ -159,6 +159,12 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     if (S_ISDIR(info.st_mode)) {
         return ISO_FILE_IS_DIR;
     }
+    
+    /* check for read access to contents */
+    r = iso_file_source_access(src);
+    if (r < 0) {
+        return r;
+    }
 
     str = malloc(sizeof(IsoStream));
     if (str == NULL) {

@@ -462,8 +462,8 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         result = builder->create_node(builder, image, file, &new);
         if (result < 0) {
 
-            iso_msg_debug(image, "Error %d when adding file %s", result,
-                          iso_file_source_get_path(file));
+            iso_msg_note(image, LIBISO_FILE_IGNORED, "Error %d when adding "
+                         "file %s", result, iso_file_source_get_path(file));
 
             if (image->recOpts->report) {
                 action = image->recOpts->report(file, result, flag);
