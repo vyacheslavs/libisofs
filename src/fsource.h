@@ -120,6 +120,26 @@ typedef struct IsoFileSource_Iface
     int (*stat)(IsoFileSource *src, struct stat *info);
 
     /**
+     * Check if the process has access to read file contents. Note that this
+     * is not necessarily related with (l)stat functions. For example, in a
+     * filesystem implementation to deal with an ISO image, if the user has
+     * read access to the image it will be able to read all files inside it,
+     * despite of the particular permission of each file in the RR tree, that
+     * are what the above functions return.
+     * 
+     * @return
+     *     1 if process has read access, < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*access)(IsoFileSource *src);
+
+    /**
      * Opens the source.
      * @return 1 on success, < 0 on error
      *      Error codes:
@@ -261,6 +281,12 @@ extern inline
 int iso_file_source_lstat(IsoFileSource *src, struct stat *info)
 {
     return src->class->lstat(src, info);
+}
+
+extern inline
+int iso_file_source_access(IsoFileSource *src)
+{
+    return src->class->access(src);
 }
 
 extern inline
