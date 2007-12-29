@@ -12,6 +12,7 @@
 #include "error.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct
 {
@@ -113,6 +114,14 @@ int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 }
 
 static
+char *fsrc_get_name(IsoStream *stream)
+{
+    FSrcStreamData *data;
+    data = (FSrcStreamData*)stream->data;
+    return strdup(iso_file_source_get_path(data->src));
+}
+
+static
 void fsrc_free(IsoStream *stream)
 {
     FSrcStreamData *data;
@@ -128,6 +137,7 @@ IsoStreamIface fsrc_stream_class = {
     fsrc_read,
     fsrc_is_repeatable,
     fsrc_get_id,
+    fsrc_get_name,
     fsrc_free
 };
 

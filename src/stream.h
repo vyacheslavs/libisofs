@@ -81,6 +81,13 @@ typedef struct IsoStream_Iface
                   ino_t *ino_id);
 
     /**
+     * Get a name that identifies the Stream contents. It is used only for
+     * informational or debug purposes, so you can return anything you 
+     * consider suitable for identification of the source, such as the path.
+     */
+    char *(*get_name)(IsoStream *stream);
+
+    /**
      * Free implementation specific data. Should never be called by user.
      * Use iso_stream_unref() instead.
      */
@@ -132,6 +139,12 @@ int iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                       ino_t *ino_id)
 {
     return stream->class->get_id(stream, fs_id, dev_id, ino_id);
+}
+
+extern inline
+char *iso_stream_get_name(IsoStream *stream)
+{
+    return stream->class->get_name(stream);
 }
 
 /**

@@ -237,9 +237,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * UPS, very ugly error, the best we can do is just to write
              * 0's to image
              */
-            // TODO Stream needs a get_path function
-            iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE,
-                          "File XXX can't be openned. Filling with 0s.");
+            char *name = iso_stream_get_name(file->stream);
+            iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, "File \"%s\" can't"
+                          " be opened. Filling with 0s.", name);
+            free(name);
             memset(buffer, 0, BLOCK_SIZE);
             for (b = 0; b < nblocks; ++b) {
                 res = iso_write(t, buffer, BLOCK_SIZE);
@@ -264,15 +265,18 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
         if (b < nblocks) {
             /* premature end of file, due to error or eof */
+            char *name = iso_stream_get_name(file->stream);
             if (res < 0) {
                 /* error */
                 iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE,
-                              "Read error in file XXXXX.");
+                              "Read error in file %s.", name);
             } else {
                 /* eof */
                 iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE,
-                              "Premature end of file XXXXX.");
+                              "Premature end of file %s.", name);
             }
+            free(name);
+
             /* fill with 0s */
             iso_msg_sorry(t->image, LIBISO_FILE_CANT_WRITE, "Filling with 0");
             memset(buffer, 0, BLOCK_SIZE);
