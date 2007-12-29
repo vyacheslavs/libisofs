@@ -964,15 +964,17 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         return ISO_WRITE_ERROR;
     }
     
-    target->bytes_written += count;
-    {
-        int percent = (target->bytes_written * 100) / target->total_size;
+    if (ret > 0){
+        unsigned int kbw = (unsigned int) target->bytes_written >> 10;
+        unsigned int kbt = (unsigned int) target->total_size >> 10;
+        int percent = (kbw * 100) / kbt;
+
+        target->bytes_written += count;
         
         /* only report in 5% chunks */
         if (percent >= target->percent_written + 5) {
             iso_msg_debug(target->image, "Processed %u of %u KB (%d %%)",
-                          (unsigned int) target->bytes_written >> 10, 
-                          (unsigned int) target->total_size >> 10, percent);
+                          kbw, kbt, percent);
             target->percent_written = percent;
         }
     }
