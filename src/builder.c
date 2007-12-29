@@ -99,7 +99,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     name = iso_file_source_get_name(src);
 
     /* get info about source */
-    if (image->recOpts->follow_symlinks) {
+    if (image->recOpts.follow_symlinks) {
         result = iso_file_source_stat(src, &info);
     } else {
         result = iso_file_source_lstat(src, &info);

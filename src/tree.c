@@ -369,10 +369,10 @@ static
 int check_excludes(IsoImage *image, const char *path)
 {
     char **exclude;
-    if (image->recOpts->excludes == NULL) {
+    if (image->recOpts.excludes == NULL) {
         return 0;
     }
-    exclude = image->recOpts->excludes;
+    exclude = image->recOpts.excludes;
     while (*exclude) {
         if (strcmp(*exclude, path) == 0) {
             return 1;
@@ -385,7 +385,7 @@ int check_excludes(IsoImage *image, const char *path)
 static
 int check_hidden(IsoImage *image, const char *name)
 {
-    return (image->recOpts->ignore_hidden && name[0] == '.');
+    return (image->recOpts.ignore_hidden && name[0] == '.');
 }
 
 /**
@@ -435,7 +435,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         }
         if (*pos != NULL && !strcmp((*pos)->name, name)) {
             flag = 1;
-            if (action == 1 && image->recOpts->replace == 0) {
+            if (action == 1 && image->recOpts.replace == 0) {
                 action = 2;
             }
         }
@@ -444,8 +444,8 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         free(name);
 
         /* ask user if callback has been set */
-        if (image->recOpts->report) {
-            action = image->recOpts->report(file, action, flag);
+        if (image->recOpts.report) {
+            action = image->recOpts.report(file, action, flag);
         }
 
         if (action == 2) {
@@ -465,10 +465,10 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             iso_msg_note(image, LIBISO_FILE_IGNORED, "Error %d when adding "
                          "file %s", result, iso_file_source_get_path(file));
 
-            if (image->recOpts->report) {
-                action = image->recOpts->report(file, result, flag);
+            if (image->recOpts.report) {
+                action = image->recOpts.report(file, result, flag);
             } else {
-                action = image->recOpts->stop_on_error ? 3 : 1;
+                action = image->recOpts.stop_on_error ? 3 : 1;
             }
 
             /* free file */
@@ -506,7 +506,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             iso_file_source_unref(file);
             if (result < 0) {
                 /* error */
-                if (image->recOpts->stop_on_error) {
+                if (image->recOpts.stop_on_error) {
                     action = 3; /* stop */
                     result = 1; /* prevent error to be passing up */
                     break;
@@ -522,7 +522,8 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
     }
 
     if (result < 0) {
-        // TODO printf message
+        /* error reading dir, should never occur */
+        iso_msg_sorry(image, LIBISO_CANT_READ_FILE, "Error reading dir");
         action = result;
     }
 

@@ -77,15 +77,6 @@ int iso_image_new(const char *name, IsoImage **image)
         return res;
     }
     img->refcount = 1;
-    img->recOpts = calloc(1, sizeof(IsoImageRecOpts));
-    if (img->recOpts == NULL) {
-        libiso_msgs_destroy(&img->messenger, 0);
-        iso_node_builder_unref(img->builder);
-        iso_filesystem_unref(img->fs);
-        iso_node_unref((IsoNode*)img->root);
-        free(img);
-        return ISO_MEM_ERROR;
-    }
 
     if (name != NULL) {
         img->volset_id = strdup(name);
@@ -116,7 +107,6 @@ void iso_image_unref(IsoImage *image)
         libiso_msgs_destroy(&image->messenger, 0);
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);
-        free(image->recOpts);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
