@@ -51,8 +51,8 @@ print_dir(Ecma119Node *dir, int level)
     sp[level * 2-1] = '-';
     sp[level * 2] = '\0';
 
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        Ecma119Node *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        Ecma119Node *child = dir->info.dir->children[i];
 
         if (child->type == ECMA119_DIR) {
             printf("%s+[D] ", sp);

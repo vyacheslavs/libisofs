@@ -96,20 +96,29 @@ int create_dir(Ecma119Image *img, IsoDir *iso, Ecma119Node **node)
 {
     int ret;
     Ecma119Node **children;
+    struct ecma119_dir_info *dir_info;
 
     children = calloc(1, sizeof(void*) * iso->nchildren);
     if (children == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    dir_info = calloc(1, sizeof(struct ecma119_dir_info));
+    if (dir_info == NULL) {
+        free(children);
         return ISO_MEM_ERROR;
     }
 
     ret = create_ecma119_node(img, (IsoNode*)iso, node);
     if (ret < 0) {
         free(children);
+        free(dir_info);
         return ret;
     }
     (*node)->type = ECMA119_DIR;
-    (*node)->info.dir.nchildren = 0;
-    (*node)->info.dir.children = children;
+    (*node)->info.dir = dir_info;
+    (*node)->info.dir->nchildren = 0;
+    (*node)->info.dir->children = children;
     return ISO_SUCCESS;
 }
 
@@ -191,10 +200,11 @@ void ecma119_node_free(Ecma119Node *node)
     }
     if (node->type == ECMA119_DIR) {
         int i;
-        for (i = 0; i < node->info.dir.nchildren; i++) {
-            ecma119_node_free(node->info.dir.children[i]);
+        for (i = 0; i < node->info.dir->nchildren; i++) {
+            ecma119_node_free(node->info.dir->children[i]);
         }
-        free(node->info.dir.children);
+        free(node->info.dir->children);
+        free(node->info.dir);
     }
     free(node->iso_name);
     iso_node_unref(node->node);
@@ -288,8 +298,8 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                     break;
                 } else if (cret == ISO_SUCCESS) {
                     /* add child to this node */
-                    int nchildren = node->info.dir.nchildren++;
-                    node->info.dir.children[nchildren] = child;
+                    int nchildren = node->info.dir->nchildren++;
+                    node->info.dir->children[nchildren] = child;
                     child->parent = node;
                 }
                 pos = pos->next;
@@ -329,11 +339,11 @@ void sort_tree(Ecma119Node *root)
 {
     size_t i;
 
-    qsort(root->info.dir.children, root->info.dir.nchildren, sizeof(void*),
+    qsort(root->info.dir->children, root->info.dir->nchildren, sizeof(void*),
           cmp_node_name);
-    for (i = 0; i < root->info.dir.nchildren; i++) {
-        if (root->info.dir.children[i]->type == ECMA119_DIR)
-            sort_tree(root->info.dir.children[i]);
+    for (i = 0; i < root->info.dir->nchildren; i++) {
+        if (root->info.dir->children[i]->type == ECMA119_DIR)
+            sort_tree(root->info.dir->children[i]);
     }
 }
 
@@ -341,8 +351,8 @@ static
 int contains_name(Ecma119Node *dir, const char *name)
 {
     int i;
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        Ecma119Node *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        Ecma119Node *child = dir->info.dir->children[i];
         if (!strcmp(child->iso_name, name)) {
             return 1;
         }
@@ -365,8 +375,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
     Ecma119Node **children;
     int need_sort = 0;
 
-    nchildren = dir->info.dir.nchildren;
-    children = dir->info.dir.children;
+    nchildren = dir->info.dir->nchildren;
+    children = dir->info.dir->children;
 
     for (i = 0; i < nchildren; ++i) {
         char *name, *ext;
@@ -534,9 +544,9 @@ int mangle_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
     }
 
     /* recurse */
-    for (i = 0; i < dir->info.dir.nchildren; ++i) {
-        if (dir->info.dir.children[i]->type == ECMA119_DIR) {
-            ret = mangle_dir(img, dir->info.dir.children[i], max_file_len,
+    for (i = 0; i < dir->info.dir->nchildren; ++i) {
+        if (dir->info.dir->children[i]->type == ECMA119_DIR) {
+            ret = mangle_dir(img, dir->info.dir->children[i], max_file_len,
                              max_dir_len);
             if (ret < 0) {
                 /* error */
@@ -611,8 +621,8 @@ static
 size_t max_child_name_len(Ecma119Node *dir)
 {
     size_t ret = 0, i;
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        size_t len = strlen(dir->info.dir.children[i]->iso_name);
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        size_t len = strlen(dir->info.dir->children[i]->iso_name);
         ret = MAX(ret, len);
     }
     return ret;
@@ -632,31 +642,31 @@ int reparent(Ecma119Node *child, Ecma119Node *parent)
     Ecma119Node *placeholder;
 
     /* replace the child in the original parent with a placeholder */
-    for (i = 0; i < child->parent->info.dir.nchildren; i++) {
-        if (child->parent->info.dir.children[i] == child) {
+    for (i = 0; i < child->parent->info.dir->nchildren; i++) {
+        if (child->parent->info.dir->children[i] == child) {
             ret = create_placeholder(child->parent, child, &placeholder);
             if (ret < 0) {
                 return ret;
             }
-            child->parent->info.dir.children[i] = placeholder;
+            child->parent->info.dir->children[i] = placeholder;
             break;
         }
     }
 
     /* just for debug, this should never happen... */
-    if (i == child->parent->info.dir.nchildren) {
+    if (i == child->parent->info.dir->nchildren) {
         return ISO_ERROR;
     }
 
     /* keep track of the real parent */
-    child->info.dir.real_parent = child->parent;
+    child->info.dir->real_parent = child->parent;
 
     /* add the child to its new parent */
     child->parent = parent;
-    parent->info.dir.nchildren++;
-    parent->info.dir.children = realloc(parent->info.dir.children, 
-                                   sizeof(void*) * parent->info.dir.nchildren);
-    parent->info.dir.children[parent->info.dir.nchildren - 1] = child;
+    parent->info.dir->nchildren++;
+    parent->info.dir->children = realloc(parent->info.dir->children, 
+                                 sizeof(void*) * parent->info.dir->nchildren);
+    parent->info.dir->children[parent->info.dir->nchildren - 1] = child;
     return ISO_SUCCESS;
 }
 
@@ -696,8 +706,8 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
     } else {
         size_t i;
 
-        for (i = 0; i < dir->info.dir.nchildren; i++) {
-            Ecma119Node *child = dir->info.dir.children[i];
+        for (i = 0; i < dir->info.dir->nchildren; i++) {
+            Ecma119Node *child = dir->info.dir->children[i];
             if (child->type == ECMA119_DIR) {
                 int newpathlen = pathlen + 1 + strlen(child->iso_name);
                 ret = reorder_tree(img, child, level + 1, newpathlen);

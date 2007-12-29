@@ -98,6 +98,13 @@ int mfs_stat(IsoFileSource *src, struct stat *info)
 }
 
 static
+int mfs_access(IsoFileSource *src)
+{
+    // TODO not implemented
+    return ISO_SUCCESS;
+}
+
+static
 int mfs_open(IsoFileSource *src)
 {
     // TODO not implemented
@@ -176,6 +183,7 @@ IsoFileSourceIface mfs_class = {
     mfs_get_name,
     mfs_lstat,
     mfs_stat,
+    mfs_access,
     mfs_open,
     mfs_close,
     mfs_read,

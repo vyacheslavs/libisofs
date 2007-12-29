@@ -71,9 +71,7 @@ struct ecma119_node
     union
     {
         IsoFileSrc *file;
-        // TODO this wastes too much memory, as dirs have much more
-        // atts than other kind of files. Replace with a pointer.
-        struct ecma119_dir_info dir;
+        struct ecma119_dir_info *dir;
         /** this field points to the relocated directory. */
         Ecma119Node *real_me;
     } info;

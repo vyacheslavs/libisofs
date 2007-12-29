@@ -143,7 +143,7 @@ int rrip_add_PL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     uint8_t *PL;
 
-    if (n->type != ECMA119_DIR || n->info.dir.real_parent == NULL) {
+    if (n->type != ECMA119_DIR || n->info.dir->real_parent == NULL) {
         /* should never occur */
         return ISO_ERROR;
     }
@@ -159,7 +159,7 @@ int rrip_add_PL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PL[3] = 1;
 
     /* write the location of the real parent, already computed */
-    iso_bb(&PL[4], n->info.dir.real_parent->info.dir.block, 4);
+    iso_bb(&PL[4], n->info.dir->real_parent->info.dir->block, 4);
     return susp_append(t, susp, PL);
 }
 
@@ -243,7 +243,7 @@ int rrip_add_CL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     CL[1] = 'L';
     CL[2] = 12;
     CL[3] = 1;
-    iso_bb(&CL[4], n->info.real_me->info.dir.block, 4);
+    iso_bb(&CL[4], n->info.real_me->info.dir->block, 4);
     return susp_append(t, susp, CL);
 }
 
@@ -547,7 +547,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     su_size = 44 + 26;
 
     if (n->type == ECMA119_DIR) {
-        if (n->info.dir.real_parent != NULL) {
+        if (n->info.dir->real_parent != NULL) {
             /* it is a reallocated entry */
             if (type == 2) {
                 /* we need to add a PL entry */
@@ -798,7 +798,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     }
 
     if (n->type == ECMA119_DIR) {
-        if (n->info.dir.real_parent != NULL) {
+        if (n->info.dir->real_parent != NULL) {
             /* it is a reallocated entry */
             if (type == 2) {
                 /* 

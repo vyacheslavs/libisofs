@@ -106,9 +106,9 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         *ce += ce_len;
     }
 
-    for (i = 0; i < dir->info.dir.nchildren; ++i) {
+    for (i = 0; i < dir->info.dir->nchildren; ++i) {
         size_t remaining;
-        Ecma119Node *child = dir->info.dir.children[i];
+        Ecma119Node *child = dir->info.dir->children[i];
         size_t dirent_len = calc_dirent_len(t, child);
         if (t->rockridge) {
             dirent_len += rrip_calc_len(t, child, 0, 255 - dirent_len, &ce_len);
@@ -123,7 +123,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         }
     }
     /* cache the len */
-    dir->info.dir.len = len;
+    dir->info.dir->len = len;
     return len;
 }
 
@@ -134,14 +134,14 @@ void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
     size_t ce_len = 0;
 
     t->ndirs++;
-    dir->info.dir.block = t->curblock;
+    dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir, &ce_len);
     t->curblock += div_up(len, BLOCK_SIZE);
     if (t->rockridge) {
         t->curblock += div_up(ce_len, BLOCK_SIZE);
     }
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        Ecma119Node *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        Ecma119Node *child = dir->info.dir->children[i];
         if (child->type == ECMA119_DIR) {
             calc_dir_pos(t, child);
         }
@@ -163,8 +163,8 @@ uint32_t calc_path_table_size(Ecma119Node *dir)
     size += (size % 2);
 
     /* and recurse */
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        Ecma119Node *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        Ecma119Node *child = dir->info.dir->children[i];
         if (child->type == ECMA119_DIR) {
             size += calc_path_table_size(child);
         }
@@ -240,8 +240,8 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
 
     if (node->type == ECMA119_DIR) {
         /* use the cached length */
-        len = node->info.dir.len;
-        block = node->info.dir.block;
+        len = node->info.dir->len;
+        block = node->info.dir->block;
     } else if (node->type == ECMA119_FILE) {
         len = iso_file_src_get_size(node->info.file);
         block = node->info.file->block;
@@ -389,8 +389,8 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     memset(&info, 0, sizeof(struct susp_info));
     if (t->rockridge) {
         /* initialize the ce_block, it might be needed */
-        info.ce_block = dir->info.dir.block + div_up(dir->info.dir.len, 
-                                                     BLOCK_SIZE);
+        info.ce_block = dir->info.dir->block + div_up(dir->info.dir->len, 
+                                                      BLOCK_SIZE);
     }
 
     /* write the "." and ".." entries first */
@@ -414,8 +414,8 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     write_one_dir_record(t, dir, 1, buf, 1, &info);
     buf += len;
 
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        Ecma119Node *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        Ecma119Node *child = dir->info.dir->children[i];
 
         /* compute len of directory entry */
         fi_len = strlen(child->iso_name);
@@ -474,8 +474,8 @@ int write_dirs(Ecma119Image *t, Ecma119Node *root)
     }
 
     /* recurse */
-    for (i = 0; i < root->info.dir.nchildren; i++) {
-        Ecma119Node *child = root->info.dir.children[i];
+    for (i = 0; i < root->info.dir->nchildren; i++) {
+        Ecma119Node *child = root->info.dir->children[i];
         if (child->type == ECMA119_DIR) {
             ret = write_dirs(t, child);
             if (ret < 0) {
@@ -514,7 +514,7 @@ int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
         rec = (struct ecma119_path_table_record*) buf;
         rec->len_di[0] = dir->parent ? (uint8_t) strlen(dir->iso_name) : 1;
         rec->len_xa[0] = 0;
-        write_int(rec->block, dir->info.dir.block, 4);
+        write_int(rec->block, dir->info.dir->block, 4);
         write_int(rec->parent, parent + 1, 2);
         if (dir->parent) {
             memcpy(rec->dir_id, dir->iso_name, rec->len_di[0]);
@@ -558,8 +558,8 @@ int write_path_tables(Ecma119Image *t)
 
     for (i = 0; i < t->ndirs; i++) {
         Ecma119Node *dir = pathlist[i];
-        for (j = 0; j < dir->info.dir.nchildren; j++) {
-            Ecma119Node *child = dir->info.dir.children[j];
+        for (j = 0; j < dir->info.dir->nchildren; j++) {
+            Ecma119Node *child = dir->info.dir->children[j];
             if (child->type == ECMA119_DIR) {
                 pathlist[cur++] = child;
             }
