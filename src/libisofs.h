@@ -9,6 +9,7 @@
 #define LIBISO_LIBISOFS_H_
 
 #include <sys/stat.h>
+#include <stdint.h>
 
 struct burn_source;
 
@@ -188,7 +189,7 @@ struct Iso_Data_Source {
      * @return
      *      1 if success, < 0 on error
      */
-    int (*read_block)(IsoDataSource *src, int lba, unsigned char *buffer);
+    int (*read_block)(IsoDataSource *src, uint32_t lba, uint8_t *buffer);
 
     /** 
      * Clean up the source specific data. Never call this directly, it is
