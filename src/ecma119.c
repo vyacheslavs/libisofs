@@ -963,13 +963,15 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         /* reader cancelled */
         return ISO_WRITE_ERROR;
     }
-    
-    if (ret > 0){
-        unsigned int kbw = (unsigned int) target->bytes_written >> 10;
-        unsigned int kbt = (unsigned int) target->total_size >> 10;
-        int percent = (kbw * 100) / kbt;
 
+    if (ret > 0){
+        unsigned int kbw, kbt;
+        int percent;
+        
         target->bytes_written += count;
+        kbw = (unsigned int) target->bytes_written >> 10;
+        kbt = (unsigned int) target->total_size >> 10;
+        percent = (kbw * 100) / kbt;
         
         /* only report in 5% chunks */
         if (percent >= target->percent_written + 5) {
