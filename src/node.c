@@ -553,6 +553,7 @@ const char *iso_symlink_get_dest(const IsoSymlink *link)
  */
 void iso_symlink_set_dest(IsoSymlink *link, const char *dest)
 {
+    // TODO guard against bad destinations, such as components bigger than 255
     if (dest == NULL || dest[0] == '\0') {
         /* guard against null or empty dest */
         return;
