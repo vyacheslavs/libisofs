@@ -13,6 +13,7 @@
 #include "error.h"
 #include "writer.h"
 #include "messages.h"
+#include "image.h"
 
 #include <string.h>
 
@@ -260,7 +261,7 @@ char *get_rr_name(Ecma119Image *t, Ecma119Node *n)
 
     ret = strconv(n->node->name, t->input_charset, t->output_charset, &name);
     if (ret < 0) {
-        iso_msg_sorry(t->image, LIBISO_CHARSET_ERROR, 
+        iso_msg_sorry(t->image->messenger, LIBISO_CHARSET_ERROR, 
                   "Charset conversion error. Can't convert %s from %s to %s",
                   n->node->name, t->input_charset, t->output_charset);
 

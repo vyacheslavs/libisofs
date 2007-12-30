@@ -185,12 +185,13 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target = writer->target;
 
     /* compute position of directories */
-    iso_msg_debug(target->image, "Computing position of dir structure");
+    iso_msg_debug(target->image->messenger, 
+                  "Computing position of dir structure");
     target->ndirs = 0;
     calc_dir_pos(target, target->root);
 
     /* compute length of pathlist */
-    iso_msg_debug(target->image, "Computing length of pathlist");
+    iso_msg_debug(target->image->messenger, "Computing length of pathlist");
     path_table_size = calc_path_table_size(target->root);
 
     /* compute location for path tables */
@@ -295,7 +296,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     t = writer->target;
     image = t->image;
 
-    iso_msg_debug(image, "Write Primary Volume Descriptor");
+    iso_msg_debug(image->messenger, "Write Primary Volume Descriptor");
 
     memset(&vol, 0, sizeof(struct ecma119_pri_vol_desc));
 
@@ -546,7 +547,7 @@ int write_path_tables(Ecma119Image *t)
     size_t i, j, cur;
     Ecma119Node **pathlist;
 
-    iso_msg_debug(t->image, "Writing ISO Path tables");
+    iso_msg_debug(t->image->messenger, "Writing ISO Path tables");
 
     /* allocate temporal pathlist */
     pathlist = malloc(sizeof(void*) * t->ndirs);
@@ -634,7 +635,8 @@ int ecma119_writer_create(Ecma119Image *target)
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
 
-    iso_msg_debug(target->image, "Creating low level ECMA-119 tree...");
+    iso_msg_debug(target->image->messenger, 
+                  "Creating low level ECMA-119 tree...");
     ret = ecma119_tree_create(target);
     if (ret < 0) {
         return ret;
@@ -654,7 +656,7 @@ void *write_function(void *arg)
     IsoImageWriter *writer;
 
     Ecma119Image *target = (Ecma119Image*)arg;
-    iso_msg_debug(target->image, "Starting image writing...");
+    iso_msg_debug(target->image->messenger, "Starting image writing...");
 
     target->bytes_written = (off_t) 0;
     target->percent_written = 0;
@@ -669,7 +671,7 @@ void *write_function(void *arg)
     }
 
     /* write volume descriptors, one per writer */
-    iso_msg_debug(target->image, "Write volume descriptors");
+    iso_msg_debug(target->image->messenger, "Write volume descriptors");
     for (i = 0; i < target->nwriters; ++i) {
         writer = target->writers[i];
         res = writer->write_vol_desc(writer);
@@ -706,7 +708,7 @@ void *write_function(void *arg)
     pthread_exit(NULL);
 
     write_error: ;
-    iso_msg_fatal(target->image, LIBISO_WRITE_ERROR,
+    iso_msg_fatal(target->image->messenger, LIBISO_WRITE_ERROR,
                   "Image write error, code %d", res);
     iso_ring_buffer_writer_close(target->buffer);
     pthread_exit(NULL);
@@ -843,7 +845,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     ret = pthread_create(&(target->wthread), &(target->th_attr),
                          write_function, (void *) target);
     if (ret != 0) {
-        iso_msg_fatal(target->image, LIBISO_THREAD_ERROR,
+        iso_msg_fatal(target->image->messenger, LIBISO_THREAD_ERROR,
                       "Cannot create writer thread");
         ret = ISO_THREAD_ERROR;
         goto target_cleanup;
@@ -874,7 +876,8 @@ static int bs_read(struct burn_source *bs, unsigned char *buf, int size)
         return size;
     } else if (ret < 0) {
         /* error */
-        iso_msg_fatal(t->image, LIBISO_READ_ERROR, "Error reading pipe");
+        iso_msg_fatal(t->image->messenger, LIBISO_READ_ERROR, 
+                      "Error reading buffer");
         return -1;
     } else {
         /* EOF */
@@ -898,9 +901,10 @@ static void bs_free_data(struct burn_source *bs)
     /* wait until writer thread finishes */
     pthread_join(target->wthread, NULL);
 
-    iso_msg_debug(target->image, "Writer thread joined");
-    iso_msg_debug(target->image, "Ring buffer was %d times full and %d times "
-                  "empty", iso_ring_buffer_get_times_full(target->buffer),
+    iso_msg_debug(target->image->messenger, "Writer thread joined");
+    iso_msg_debug(target->image->messenger, 
+                  "Ring buffer was %d times full and %d times empty", 
+                  iso_ring_buffer_get_times_full(target->buffer),
                   iso_ring_buffer_get_times_empty(target->buffer));
 
     /* now we can safety free target */
@@ -975,8 +979,8 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         
         /* only report in 5% chunks */
         if (percent >= target->percent_written + 5) {
-            iso_msg_debug(target->image, "Processed %u of %u KB (%d %%)",
-                          kbw, kbt, percent);
+            iso_msg_debug(target->image->messenger, 
+                          "Processed %u of %u KB (%d %%)", kbw, kbt, percent);
             target->percent_written = percent;
         }
     }

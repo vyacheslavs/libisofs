@@ -460,7 +460,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 
     result = iso_file_source_open(dir);
     if (result < 0) {
-        iso_msg_debug(image, "Can't open dir %s", 
+        iso_msg_debug(image->messenger, "Can't open dir %s", 
                       iso_file_source_get_path(dir));
         return result;
     }
@@ -475,15 +475,15 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         name = iso_file_source_get_name(file);
 
         if (check_excludes(image, iso_file_source_get_path(file))) {
-            iso_msg_debug(image, "Skipping excluded file %s", 
+            iso_msg_debug(image->messenger, "Skipping excluded file %s", 
                           iso_file_source_get_path(file));
             action = 2;
         } else if (check_hidden(image, name)) {
-            iso_msg_debug(image, "Skipping hidden file %s", 
+            iso_msg_debug(image->messenger, "Skipping hidden file %s", 
                           iso_file_source_get_path(file));
             action = 2;
         } else {
-            iso_msg_debug(image, "Adding file %s", 
+            iso_msg_debug(image->messenger, "Adding file %s", 
                           iso_file_source_get_path(file));
             action = 1;
         }
@@ -523,8 +523,9 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         result = builder->create_node(builder, image, file, &new);
         if (result < 0) {
 
-            iso_msg_note(image, LIBISO_FILE_IGNORED, "Error %d when adding "
-                         "file %s", result, iso_file_source_get_path(file));
+            iso_msg_note(image->messenger, LIBISO_FILE_IGNORED, 
+                         "Error %d when adding file %s", result, 
+                         iso_file_source_get_path(file));
 
             if (image->recOpts.report) {
                 action = image->recOpts.report(file, result, flag);
@@ -584,7 +585,8 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 
     if (result < 0) {
         /* error reading dir, should never occur */
-        iso_msg_sorry(image, LIBISO_CANT_READ_FILE, "Error reading dir");
+        iso_msg_sorry(image->messenger, LIBISO_CANT_READ_FILE, 
+                      "Error reading dir");
         action = result;
     }
 

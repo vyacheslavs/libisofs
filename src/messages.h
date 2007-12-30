@@ -74,16 +74,18 @@
 /** Unsupported file type for Joliet tree */
 #define LIBISO_JOLIET_WRONG_FILE_TYPE	0x00030301
 
-void iso_msg_debug(IsoImage *img, const char *fmt, ...);
+typedef struct libiso_msgs IsoMessenger;
 
-void iso_msg_note(IsoImage *img, int error_code, const char *fmt, ...);
+void iso_msg_debug(IsoMessenger *msgr, const char *fmt, ...);
 
-void iso_msg_hint(IsoImage *img, int error_code, const char *fmt, ...);
+void iso_msg_note(IsoMessenger *msgr, int error_code, const char *fmt, ...);
 
-void iso_msg_warn(IsoImage *img, int error_code, const char *fmt, ...);
+void iso_msg_hint(IsoMessenger *msgr, int error_code, const char *fmt, ...);
 
-void iso_msg_sorry(IsoImage *img, int error_code, const char *fmt, ...);
+void iso_msg_warn(IsoMessenger *msgr, int error_code, const char *fmt, ...);
 
-void iso_msg_fatal(IsoImage *img, int error_code, const char *fmt, ...);
+void iso_msg_sorry(IsoMessenger *msgr, int error_code, const char *fmt, ...);
+
+void iso_msg_fatal(IsoMessenger *msgr, int error_code, const char *fmt, ...);
 
 #endif /*MESSAGES_H_*/

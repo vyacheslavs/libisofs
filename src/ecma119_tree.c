@@ -34,7 +34,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 
     ret = str2ascii(img->input_charset, iso->name, &ascii_name);
     if (ret < 0) {
-        iso_msg_debug(img->image, "Can't convert %s", iso->name);
+        iso_msg_debug(img->image->messenger, "Can't convert %s", iso->name);
         return ret;
     }
 
@@ -135,7 +135,7 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 
     size = iso_stream_get_size(iso->stream);
     if (size > (off_t)0xffffffff) {
-        iso_msg_note(img->image, LIBISO_FILE_IGNORED,
+        iso_msg_note(img->image->messenger, LIBISO_FILE_IGNORED,
                      "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->node.name);
         return 0;
@@ -241,7 +241,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
     if (!image->rockridge && !image->allow_deep_paths) {
         if ((iso->type == LIBISO_DIR && depth > 8) || max_path > 255) {
-            iso_msg_note(image->image, LIBISO_FILE_IGNORED,
+            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED,
                          "File \"%s\" can't be added, because depth > 8 "
                              "or path length over 255", iso->name);
             free(iso_name);
@@ -258,8 +258,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_symlink(image, (IsoSymlink*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
-            iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" "
-                "ignored. Symlinks need RockRidge extensions.", iso->name);
+            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED, 
+                "File \"%s\" ignored. Symlinks need RockRidge extensions.", 
+                iso->name);
             ret = 0;
         }
         break;
@@ -268,8 +269,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_special(image, (IsoSpecial*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
-            iso_msg_note(image->image, LIBISO_FILE_IGNORED, "File \"%s\" "
-                "ignored. Special files need RockRidge extensions.", iso->name);
+            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED, 
+                "File \"%s\" ignored. Special files need RockRidge extensions.", 
+                iso->name);
             ret = 0;
         }
         break;
@@ -495,7 +497,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                     if (new == NULL) {
                         return ISO_MEM_ERROR;
                     }
-                    iso_msg_debug(img->image, "\"%s\" renamed to \"%s\"",
+                    iso_msg_debug(img->image->messenger, 
+                                  "\"%s\" renamed to \"%s\"",
                                   children[k]->iso_name, new);
                     free(children[k]->iso_name);
                     children[k]->iso_name = new;
@@ -735,10 +738,10 @@ int ecma119_tree_create(Ecma119Image *img)
     }
     img->root = root;
 
-    iso_msg_debug(img->image, "Sorting the low level tree...");
+    iso_msg_debug(img->image->messenger, "Sorting the low level tree...");
     sort_tree(root);
 
-    iso_msg_debug(img->image, "Mangling names...");
+    iso_msg_debug(img->image->messenger, "Mangling names...");
     ret = mangle_tree(img, 1);
     if (ret < 0) {
         return ret;
