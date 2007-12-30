@@ -135,6 +135,72 @@ typedef struct
     //                 */
 } Ecma119WriteOpts;
 
+typedef struct Iso_Data_Source IsoDataSource;
+
+/**
+ * Data source used by libisofs for reading an existing image.
+ * 
+ * It offers homogeneous read access to arbitrary blocks to different sources
+ * for images, such as .iso files, CD/DVD drives, etc... 
+ * 
+ * To create a multisession image, libisofs needs a IsoDataSource, that the
+ * user must provide. The function iso_data_source_new_from_file() constructs 
+ * an IsoDataSource that uses POSIX I/O functions to access data. You can use 
+ * it with regular .iso images, and also with block devices that represent a 
+ * drive.
+ */
+struct Iso_Data_Source {
+    
+    /** 
+     * Reference count for the data source. Should be 1 when a new source
+     * is created. Don't access it directly, but with iso_data_source_ref()
+     * and iso_data_source_unref() functions.
+     */
+    unsigned int refcount;
+
+    /**
+     * Opens the given source. You must open() the source before any attempt
+     * to read data from it. The open is the right place for grabbing the 
+     * underlying resources.
+     * 
+     * @return
+     *      1 if success, < 0 on error
+     */
+    int (*open)(IsoDataSource *src);
+
+    /**
+     * Close a given source, freeing all system resources previously grabbed in
+     * open().
+     * 
+     * @return
+     *      1 if success, < 0 on error
+     */
+    int (*close)(IsoDataSource *src);
+
+    /** 
+     * Read an arbitrary block (2048 bytes) of data from the source.
+     * 
+     * @param lba 
+     *     Block to be read.
+     * @param buffer 
+     *     Buffer where the data will be written. It should have at least 
+     *     2048 bytes.
+     * @return
+     *      1 if success, < 0 on error
+     */
+    int (*read_block)(IsoDataSource *src, int lba, unsigned char *buffer);
+
+    /** 
+     * Clean up the source specific data. Never call this directly, it is
+     * automatically called by iso_data_source_unref() when refcount reach 
+     * 0.
+     */
+    void (*free_data)(IsoDataSource *);
+
+    /** Source specific data */
+    void *data;
+};
+
 /**
  * Create a new image, empty.
  * 
@@ -149,6 +215,10 @@ typedef struct
  */
 int iso_image_new(const char *name, IsoImage **image);
 
+/**
+ * TODO we should have two "create" methods, one for grow images, another
+ * for images from scratch. Or we can just have a flag in Ecma119WriteOpts.
+ */
 int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
                      struct burn_source **burn_src);
 
@@ -829,6 +899,31 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
  *      1 found, 0 not found, < 0 error
  */
 int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
+
+/**
+ * Increments the reference counting of the given IsoDataSource.
+ */
+void iso_data_source_ref(IsoDataSource *src);
+
+/**
+ * Decrements the reference counting of the given IsoDataSource, freeing it
+ * if refcount reach 0.
+ */
+void iso_data_source_unref(IsoDataSource *src);
+
+/**
+ * Create a new IsoDataSource from a local file. This is suitable for
+ * accessing regular .iso images, or to acces drives via its block device
+ * and standard POSIX I/O calls.
+ * 
+ * @param path
+ *     The path of the file
+ * @param src
+ *     Will be filled with the pointer to the newly created data source.
+ * @return
+ *    1 on success, < 0 on error.
+ */
+int iso_data_source_new_from_file(const char *path, IsoDataSource **src);
 
 #define ISO_MSGS_MESSAGE_LEN 4096
 

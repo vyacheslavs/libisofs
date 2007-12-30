@@ -39,7 +39,8 @@ src_libisofs_la_SOURCES = \
 	src/writer.h \
 	src/buffer.c \
 	src/rockridge.h \
-	src/rockridge.c
+	src/rockridge.c \
+	src/data_source.c
 libinclude_HEADERS = \
 	src/libisofs.h
 
