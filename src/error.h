@@ -45,4 +45,8 @@
 
 #define ISO_MANGLE_TOO_MUCH_FILES       -200
 
+/* image read errors */
+#define ISO_WRONG_PVD                   -300
+
+
 #endif /*LIBISO_ERROR_H_*/

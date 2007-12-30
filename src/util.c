@@ -483,6 +483,18 @@ uint32_t iso_read_msb(const uint8_t *buf, int bytes)
     return ret;
 }
 
+uint32_t iso_read_bb(const uint8_t *buf, int bytes, int *error)
+{
+    uint32_t v1 = iso_read_lsb(buf, bytes);
+
+    if (error) {
+        uint32_t v2 = iso_read_msb(buf + bytes, bytes);
+        if (v1 != v2) 
+            *error = 1;
+    }
+    return v1;
+}
+
 void iso_datetime_7(unsigned char *buf, time_t t)
 {
     static int tzsetup = 0;
@@ -615,4 +627,22 @@ int iso_eaccess(const char *path)
         return err;
     }
     return ISO_SUCCESS;
+}
+
+char *strcopy(const char *buf, size_t len)
+{
+    char *str;
+    
+    str = malloc((len + 1) * sizeof(char));
+    if (str == NULL) {
+        return NULL;
+    }
+    strncpy(str, buf, len);
+    str[len] = '\0';
+    
+    /* remove trailing spaces */
+    for (len = len-1; str[len] == ' ' && len > 0; --len)
+        str[len] = '\0'; 
+    
+    return str;
 }

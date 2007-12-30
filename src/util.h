@@ -113,6 +113,11 @@ void iso_bb(uint8_t *buf, uint32_t num, int bytes);
 uint32_t iso_read_lsb(const uint8_t *buf, int bytes);
 uint32_t iso_read_msb(const uint8_t *buf, int bytes);
 
+/**
+ * if error != NULL it will be set to 1 if LSB and MSB integers don't match.
+ */
+uint32_t iso_read_bb(const uint8_t *buf, int bytes, int *error);
+
 /** Records the date/time into a 7 byte buffer (ECMA-119, 9.1.5) */
 void iso_datetime_7(uint8_t *buf, time_t t);
 
@@ -131,6 +136,12 @@ time_t iso_datetime_read_17(const uint8_t *buf);
  *     or any directory on the path).
  */
 int iso_eaccess(const char *path);
+
+/**
+ * Copy up to \p len chars from \p buf and return this newly allocated
+ * string. The new string is null-terminated.
+ */
+char *strcopy(const char *buf, size_t len);
 
 typedef struct iso_rbtree IsoRBTree;
 
