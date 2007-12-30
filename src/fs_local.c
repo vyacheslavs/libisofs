@@ -13,9 +13,6 @@
 #include "fsource.h"
 #include "error.h"
 
-/* for eaccess, define in unistd.h */
-#define __USE_GNU
-
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -154,33 +151,7 @@ int lfs_access(IsoFileSource *src)
     }
     data = src->data;
 
-    if (eaccess(data->path, R_OK) != 0) {
-        int err;
-
-        /* error, choose an appropriate return code */
-        switch (errno) {
-        case EACCES:
-            err = ISO_FILE_ACCESS_DENIED;
-            break;
-        case ENOTDIR:
-        case ENAMETOOLONG:
-        case ELOOP:
-            err = ISO_FILE_BAD_PATH;
-            break;
-        case ENOENT:
-            err = ISO_FILE_DOESNT_EXIST;
-            break;
-        case EFAULT:
-        case ENOMEM:
-            err = ISO_MEM_ERROR;
-            break;
-        default:
-            err = ISO_FILE_ERROR;
-            break;
-        }
-        return err;
-    }
-    return ISO_SUCCESS;
+    return iso_eaccess(data->path);
 }
 
 static

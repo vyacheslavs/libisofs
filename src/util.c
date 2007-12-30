@@ -19,6 +19,10 @@
 #include <stdio.h>
 #include <limits.h>
 
+/* for eaccess, define in unistd.h */
+#define __USE_GNU
+#include <unistd.h>
+
 int int_pow(int base, int power)
 {
     int result = 1;
@@ -571,4 +575,44 @@ time_t iso_datetime_read_17(const uint8_t *buf)
     tm.tm_mon -= 1;
 
     return timegm(&tm) - buf[16] * 60 * 15;
+}
+
+/**
+ * Check whether the caller process has read access to the given local file.
+ * 
+ * @return 
+ *     1 on success (i.e, the process has read access), < 0 on error 
+ *     (including ISO_FILE_ACCESS_DENIED on access denied to the specified file
+ *     or any directory on the path).
+ */
+int iso_eaccess(const char *path)
+{
+    // TODO replace non-standard eaccess with our own implementation
+    if (eaccess(path, R_OK) != 0) {
+        int err;
+
+        /* error, choose an appropriate return code */
+        switch (errno) {
+        case EACCES:
+            err = ISO_FILE_ACCESS_DENIED;
+            break;
+        case ENOTDIR:
+        case ENAMETOOLONG:
+        case ELOOP:
+            err = ISO_FILE_BAD_PATH;
+            break;
+        case ENOENT:
+            err = ISO_FILE_DOESNT_EXIST;
+            break;
+        case EFAULT:
+        case ENOMEM:
+            err = ISO_MEM_ERROR;
+            break;
+        default:
+            err = ISO_FILE_ERROR;
+            break;
+        }
+        return err;
+    }
+    return ISO_SUCCESS;
 }

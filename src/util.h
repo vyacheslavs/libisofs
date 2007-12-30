@@ -122,6 +122,16 @@ void iso_datetime_17(uint8_t *buf, time_t t);
 time_t iso_datetime_read_7(const uint8_t *buf);
 time_t iso_datetime_read_17(const uint8_t *buf);
 
+/**
+ * Check whether the caller process has read access to the given local file.
+ * 
+ * @return 
+ *     1 on success (i.e, the process has read access), < 0 on error 
+ *     (including ISO_FILE_ACCESS_DENIED on access denied to the specified file
+ *     or any directory on the path).
+ */
+int iso_eaccess(const char *path);
+
 typedef struct iso_rbtree IsoRBTree;
 
 /**
