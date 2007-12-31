@@ -118,7 +118,7 @@ char *fsrc_get_name(IsoStream *stream)
 {
     FSrcStreamData *data;
     data = (FSrcStreamData*)stream->data;
-    return strdup(iso_file_source_get_path(data->src));
+    return iso_file_source_get_path(data->src);
 }
 
 static

@@ -76,10 +76,10 @@ typedef struct IsoFileSource_Iface
      * belongs to.
      * 
      * @return
-     *     the path, that belong to the IsoFileSource and should not be
-     *     freed by the user.
+     *     the path of the FileSource inside the filesystem, it should be 
+     *     freed when no more needed.
      */
-    const char* (*get_path)(IsoFileSource *src);
+    char* (*get_path)(IsoFileSource *src);
 
     /**
      * Get the name of the file, with the dir component of the path. 
@@ -266,7 +266,7 @@ void iso_file_source_unref(IsoFileSource *src);
  * this are just helpers to invoque methods in class
  */
 extern inline
-const char* iso_file_source_get_path(IsoFileSource *src)
+char* iso_file_source_get_path(IsoFileSource *src)
 {
     return src->class->get_path(src);
 }

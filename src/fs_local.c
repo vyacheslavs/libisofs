@@ -12,6 +12,7 @@
 
 #include "fsource.h"
 #include "error.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -32,8 +33,6 @@ IsoFilesystem *lfs= NULL;
 
 typedef struct
 {
-    /* IsoFilesystem *fs; It seems not needed */
-
     char *path;
     unsigned int openned :2; /* 0: not openned, 1: file, 2:dir */
     union
@@ -44,11 +43,11 @@ typedef struct
 } _LocalFsFileSource;
 
 static
-const char* lfs_get_path(IsoFileSource *src)
+char* lfs_get_path(IsoFileSource *src)
 {
     _LocalFsFileSource *data;
     data = src->data;
-    return data->path;
+    return strdup(data->path);
 }
 
 static
