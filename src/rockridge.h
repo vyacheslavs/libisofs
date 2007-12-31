@@ -27,6 +27,9 @@
 #define LIBISO_ROCKRIDGE_H
 
 #include "ecma119.h"
+#include "messages.h"
+
+#define SUSP_SIG(entry, a, b) ((entry->sig[0] == a) && (entry->sig[1] == b))
 
 /**
  * This contains the information about the System Use Fields (SUSP, 4.1), 
@@ -49,6 +52,89 @@ struct susp_info
 
     size_t n_ce_susp_fields;
     uint8_t **ce_susp_fields;
+};
+
+/* SUSP 5.1 */
+struct susp_CE {
+    uint8_t block[8];
+    uint8_t offset[8];
+    uint8_t len[8];
+};
+
+/* SUSP 5.3 */
+struct susp_SP {
+    uint8_t be[1];
+    uint8_t ef[1];
+    uint8_t len_skp[1];
+};
+
+/* SUSP 5.5 */
+struct susp_ER {
+    uint8_t len_id[1];
+    uint8_t len_des[1];
+    uint8_t len_src[1];
+    uint8_t ext_ver[1];
+    uint8_t ext_id[1]; /*< up to len_id bytes */
+    /* ext_des, ext_src */
+};
+
+/** POSIX file attributes (RRIP, 4.1.1) */
+struct rr_PX {
+    uint8_t mode[8];
+    uint8_t links[8];
+    uint8_t uid[8];
+    uint8_t gid[8];
+    uint8_t serial[8];
+};
+
+/** Time stamps for a file (RRIP, 4.1.6) */
+struct rr_TF {
+    uint8_t flags[1];
+    uint8_t t_stamps[1];
+};
+
+/** Info for character and block device (RRIP, 4.1.2) */
+struct rr_PN {
+    uint8_t high[8];
+    uint8_t low[8];
+};
+
+/** Alternate name (RRIP, 4.1.4) */
+struct rr_NM {
+    uint8_t flags[1];
+    uint8_t name[1];
+};
+
+/** Link for a relocated directory (RRIP, 4.1.5.1) */
+struct rr_CL {
+    uint8_t child_loc[8];
+};
+
+/** Sim link (RRIP, 4.1.3) */
+struct rr_SL {
+    uint8_t flags[1];
+    uint8_t comps[1];
+};
+
+/**
+ * Struct for a SUSP System User Entry (SUSP, 4.1)
+ */
+struct susp_sys_user_entry
+{
+    uint8_t sig[2];
+    uint8_t len_sue[1];
+    uint8_t version[1];
+    union {
+        struct susp_CE CE;
+        struct susp_SP SP;
+        struct susp_ER ER;
+        struct rr_PX PX;
+        struct rr_TF TF;
+        struct rr_PN PN;
+        struct rr_NM NM;
+        struct rr_CL CL;
+        struct rr_SL SL;
+    } data; /* 5 to 4+len_sue */
 };
 
 /**
@@ -104,5 +190,35 @@ void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
  * After written, the ce_susp_fields array will be freed.
  */
 int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info);
+
+/**
+ * The SUSP iterator is used to iterate over the System User Entries
+ * of a ECMA-168 directory record.
+ * It takes care about Continuation Areas, handles the end of the different
+ * system user entries and skip padding areas. Thus, using an iteration
+ * we are accessing just to the meaning entries.
+ */
+typedef struct susp_iterator SuspIterator;
+
+SuspIterator *
+susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record, 
+              uint8_t len_skp, IsoMessenger *msgr);
+
+/**
+ * Get the next SUSP System User Entry using given iterator.
+ * 
+ * @param sue
+ *      Pointer to the next susp entry. It refers to an internal buffer and 
+ *      it's not guaranteed to be allocated after calling susp_iter_next() 
+ *      again. Thus, if you need to keep some entry you have to do a copy.
+ * @return
+ *      1 on success, 0 if no more entries, < 0 error
+ */
+int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue);
+
+/**
+ * Free a given susp iterator.
+ */
+void susp_iter_free(SuspIterator *iter);
 
 #endif /* LIBISO_ROCKRIDGE_H */

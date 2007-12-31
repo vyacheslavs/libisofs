@@ -42,6 +42,7 @@ src_libisofs_la_SOURCES = \
 	src/buffer.c \
 	src/rockridge.h \
 	src/rockridge.c \
+	src/rockridge_read.c \
 	src/data_source.c
 libinclude_HEADERS = \
 	src/libisofs.h
@@ -55,7 +56,8 @@ noinst_PROGRAMS = \
 	demo/catbuffer \
 	demo/tree \
 	demo/ecma119tree \
-	demo/iso 
+	demo/iso \
+	demo/isoread 
 
 demo_lsl_CPPFLAGS = -Isrc
 demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
@@ -80,6 +82,10 @@ demo_ecma119tree_SOURCES = demo/ecma119_tree.c
 demo_iso_CPPFLAGS = -Isrc
 demo_iso_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_iso_SOURCES = demo/iso.c
+
+demo_isoread_CPPFLAGS = -Isrc
+demo_isoread_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_isoread_SOURCES = demo/iso_read.c
 
 
 ## Build unit test

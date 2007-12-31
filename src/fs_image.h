@@ -42,12 +42,15 @@ struct iso_read_opts
      *  different on a multisession disc.
      */
 
-    unsigned int norock :1; /*< Do not read Rock Ridge extensions */
-    //    unsigned int nojoliet:1; /*< Do not read Joliet extensions */
-    //    unsigned int preferjoliet:1; 
-    /*< When both Joliet and RR extensions are present, the RR
-     *  tree is used. If you prefer using Joliet, set this to 1. */
+    unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
+    unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
 
+    /** 
+     * When both Joliet and RR extensions are present, the RR tree is used. 
+     * If you prefer using Joliet, set this to 1. 
+     */
+    unsigned int preferjoliet : 1; 
+    
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
     mode_t mode; /**< Default mode when no RR (only permissions) */

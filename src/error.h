@@ -47,6 +47,7 @@
 
 /* image read errors */
 #define ISO_WRONG_PVD                   -300
+#define ISO_WRONG_RR                    -301
 
 
 #endif /*LIBISO_ERROR_H_*/
