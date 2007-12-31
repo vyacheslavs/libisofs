@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+static int ifs_fs_open(IsoImageFilesystem *fs);
+static int ifs_fs_close(IsoImageFilesystem *fs);
+
 #define ISO_IMAGE_FS_ID     2
 
 /** unique identifier for each image */
@@ -263,7 +267,10 @@ void ifs_free(IsoFileSource *src)
         src->class->close(src);
     }
 
-    //TODO free destination on symlinks
+    /* free destination if it is a link */
+    if (S_ISLNK(data->info.st_mode)) {
+        free(data->data.content);
+    }
     iso_filesystem_unref((IsoFilesystem*)data->fs);
     iso_file_source_unref(data->parent);
     free(data->name);
@@ -614,10 +621,35 @@ ifs_cleanup: ;
 static
 int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
 {
-    //TODO ensure data source is opened
-    
-    //TODO not implemented
-    return -1;
+    int ret;
+    _ImageFsData *data;
+    uint8_t buffer[BLOCK_SIZE];
+
+    if (fs == NULL || fs->data == NULL || root == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    data = (_ImageFsData*)fs->data;
+
+    /* open the filesystem */
+    ret = ifs_fs_open((IsoImageFilesystem*)fs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* read extend for root record */
+    ret = data->src->read_block(data->src, data->iso_root_block, buffer);
+    if (ret < 0) {
+        ifs_fs_close((IsoImageFilesystem*)fs);
+        return ret;
+    }
+
+    /* get root attributes from "." entry */
+    ret = iso_file_source_new_ifs((IsoImageFilesystem*)fs, NULL,
+                                   (struct ecma119_dir_record*) buffer, root);
+
+    ifs_fs_close((IsoImageFilesystem*)fs);
+    return ret;
 }
 
 static
