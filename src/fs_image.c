@@ -20,6 +20,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define ISO_IMAGE_FS_ID     2
+
+/** unique identifier for each image */
+unsigned int fs_dev_id = 0;
+
 /**
  * Should the RR extensions be read?
  */
@@ -36,6 +41,9 @@ typedef struct
 {
     /** DataSource from where data will be read */
     IsoDataSource *src;
+    
+    /** unique id for the each image (filesystem instance) */
+    unsigned int id;
 
     /** 
      * Counter of the times the filesystem has been openned still pending of
@@ -70,12 +78,6 @@ typedef struct
      * different functions for both.
      */
     char *(*get_name)(const char *, size_t);
-
-    /** 
-     * Joliet and RR version 1.10 does not have file serial numbers,
-     * we need to generate it. TODO what is this for?!?!?!
-     */
-    //ino_t ino;
 
     /**
      * Bytes skipped within the System Use field of a directory record, before 
@@ -113,6 +115,522 @@ typedef struct
     //TODO el-torito information
 
 } _ImageFsData;
+
+typedef struct image_fs_data ImageFileSourceData;
+
+struct image_fs_data
+{
+    IsoImageFilesystem *fs; /**< reference to the image it belongs to */
+    IsoFileSource *parent; /**< reference to the parent (NULL if root) */
+    
+    struct stat info; /**< filled struct stat */
+    char *name; /**< name of this file */
+    
+    uint32_t block; /**< block of the extend */
+    unsigned int opened : 2; /**< 0 not opened, 1 opened file, 2 opened dir */
+    
+    /* info for content reading */
+    union
+    {
+        /**
+         * - For regular files, once opened it points to a temporary data 
+         *   buffer of 2048 bytes.
+         * - For dirs, once opened it points to a IsoFileSource* array with
+         *   its children
+         * - For symlinks, it points to link destination
+         */
+        void *content;
+
+        /**
+         * - For regular files, number of bytes already read.
+         * - For dirs, position of child iterator
+         */
+        uint32_t offset;
+    } data;
+};
+
+static
+char* ifs_get_path(IsoFileSource *src)
+{
+    ImageFileSourceData *data;
+    data = src->data;
+    
+    if (data->parent == NULL) {
+        return strdup("");
+    } else {
+        char *path = ifs_get_path(data->parent);
+        int pathlen = strlen(path);
+        path = realloc(path, pathlen + strlen(data->name) + 2);
+        path[pathlen] = '/';
+        path[pathlen + 1] = '\0';
+        return strcat(path, data->name);
+    }
+}
+
+static
+char* ifs_get_name(IsoFileSource *src)
+{
+    ImageFileSourceData *data;
+    data = src->data;
+    return strdup(data->name);
+}
+
+static
+int ifs_lstat(IsoFileSource *src, struct stat *info)
+{
+    ImageFileSourceData *data;
+
+    if (src == NULL || info == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    data = src->data;
+    *info = data->info;
+    return ISO_SUCCESS;
+}
+
+static
+int ifs_stat(IsoFileSource *src, struct stat *info)
+{
+    //TODO to implement
+    return -1;
+}
+
+static
+int ifs_access(IsoFileSource *src)
+{
+    /* we always have access, it is controlled by DataSource */
+    return ISO_SUCCESS;
+}
+
+static
+int ifs_open(IsoFileSource *src)
+{
+    //TODO implement
+    return -1;
+}
+
+static
+int ifs_close(IsoFileSource *src)
+{
+    //TODO implement
+    return -1;
+}
+
+static
+int ifs_read(IsoFileSource *src, void *buf, size_t count)
+{
+    //TODO implement
+    return -1;
+}
+
+static
+int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
+{
+    //TODO implement
+    return -1;
+}
+
+static
+int ifs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
+{
+    //TODO implement
+    return -1;
+}
+
+static
+IsoFilesystem* ifs_get_filesystem(IsoFileSource *src)
+{
+    ImageFileSourceData *data;
+
+    if (src == NULL) {
+        return NULL;
+    }
+
+    data = src->data;
+    return (IsoFilesystem*) data->fs;
+}
+
+static
+void ifs_free(IsoFileSource *src)
+{
+    ImageFileSourceData *data;
+
+    data = src->data;
+
+    /* close the file if it is already openned */
+    if (data->opened) {
+        src->class->close(src);
+    }
+
+    //TODO free destination on symlinks
+    iso_filesystem_unref((IsoFilesystem*)data->fs);
+    iso_file_source_unref(data->parent);
+    free(data->name);
+    free(data);
+}
+
+IsoFileSourceIface ifs_class = { 
+    ifs_get_path,
+    ifs_get_name,
+    ifs_lstat,
+    ifs_stat,
+    ifs_access,
+    ifs_open,
+    ifs_close,
+    ifs_read,
+    ifs_readdir,
+    ifs_readlink,
+    ifs_get_filesystem,
+    ifs_free
+};
+
+/**
+ * 
+ * @return
+ *      1 success, 0 record ignored (not an error, can be a relocated dir),
+ *      < 0 error
+ */
+static
+int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent, 
+                            struct ecma119_dir_record *record, 
+                            IsoFileSource **src)
+{
+    int ret;
+    struct stat atts;
+    time_t recorded;
+    _ImageFsData *fsdata;
+    IsoFileSource *ifsrc = NULL;
+    ImageFileSourceData *ifsdata = NULL;
+    
+    int namecont = 0; /* 1 if found a NM with CONTINUE flag */
+    char *name = NULL;
+
+    /* 1 if found a SL with CONTINUE flag, 
+     * 2 if found a component with continue flag */
+    int linkdestcont = 0; 
+    char *linkdest = NULL;
+    
+    uint32_t relocated_dir = 0;
+    
+    if (fs == NULL || fs->fs.data == NULL || parent == NULL || record == NULL 
+            || src == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    fsdata = (_ImageFsData*)fs->fs.data;
+    
+    memset(&atts, 0, sizeof(struct stat));
+    
+    /*
+     * The idea is to read all the RR entries (if we want to do that and RR
+     * extensions exist on image), storing the info we want from that. 
+     * Then, we need some sanity checks.
+     * Finally, we select what kind of node it is, and set values properly.
+     */
+    
+    if (fsdata->rr) {
+        struct susp_sys_user_entry *sue;
+        SuspIterator *iter;
+        
+
+        iter = susp_iter_new(fsdata->src, record, fsdata->len_skp, 
+                             fsdata->messenger);
+        if (iter == NULL) {
+            return ISO_MEM_ERROR;
+        }
+        
+        while ((ret = susp_iter_next(iter, &sue)) > 0) {
+            
+            /* ignore entries from different version */
+            if (sue->version[0] != 1)
+                continue; 
+            
+            if (SUSP_SIG(sue, 'P', 'X')) {
+                ret = read_rr_PX(sue, &atts);
+                if (ret < 0) {
+                    /* notify and continue */
+                    iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                                  "Invalid PX entry");
+                }
+            } else if (SUSP_SIG(sue, 'T', 'F')) {
+                ret = read_rr_TF(sue, &atts);
+                if (ret < 0) {
+                    /* notify and continue */
+                    iso_msg_warn(fsdata->messenger, LIBISO_RR_WARNING, 
+                                 "Invalid TF entry");
+                }
+            } else if (SUSP_SIG(sue, 'N', 'M')) {
+                if (name != NULL && namecont == 0) {
+                    /* ups, RR standard violation */
+                    iso_msg_warn(fsdata->messenger, LIBISO_RR_WARNING, 
+                                 "New NM entry found without previous"
+                                 "CONTINUE flag. Ignored");
+                    continue;
+                }
+                ret = read_rr_NM(sue, &name, &namecont);
+                if (ret < 0) {
+                    /* notify and continue */
+                    iso_msg_warn(fsdata->messenger, LIBISO_RR_WARNING, 
+                                 "Invalid NM entry");
+                }
+            } else if (SUSP_SIG(sue, 'S', 'L')) {
+                if (linkdest != NULL && linkdestcont == 0) {
+                    /* ups, RR standard violation */
+                    iso_msg_warn(fsdata->messenger, LIBISO_RR_WARNING, 
+                                 "New SL entry found without previous"
+                                 "CONTINUE flag. Ignored");
+                    continue;
+                }
+                ret = read_rr_SL(sue, &linkdest, &linkdestcont);
+                if (ret < 0) {
+                    /* notify and continue */
+                    iso_msg_warn(fsdata->messenger, LIBISO_RR_WARNING, 
+                                 "Invalid SL entry");
+                }
+            } else if (SUSP_SIG(sue, 'R', 'E')) {
+                /* 
+                 * this directory entry refers to a relocated directory.
+                 * We simply ignore it, as it will be correctly handled
+                 * when found the CL
+                 */
+                susp_iter_free(iter);
+                free(name);
+                return 0; /* it's not an error */
+            } else if (SUSP_SIG(sue, 'C', 'L')) {
+                /*
+                 * This entry is a placeholder for a relocated dir.
+                 * We need to ignore other entries, with the exception of NM.
+                 * Then we create a directory node that represents the 
+                 * relocated dir, and iterate over its children. 
+                 */
+                relocated_dir = iso_read_bb(sue->data.CL.child_loc, 4, NULL);
+                if (relocated_dir == 0) {
+                    iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                                  "Invalid SL entry, no child location");
+                    ret = ISO_WRONG_RR;
+                    break;
+                }
+            } else if (SUSP_SIG(sue, 'P', 'N')) {
+                ret = read_rr_PN(sue, &atts);
+                if (ret < 0) {
+                    /* notify and continue */
+                    iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                                  "Invalid PN entry");
+                }
+            } else if (SUSP_SIG(sue, 'S', 'F')) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_RR_UNSUPPORTED, 
+                              "Sparse files not supported.");
+                ret = ISO_UNSUPPORTED_RR;
+                break;
+            } else if (SUSP_SIG(sue, 'R', 'R')) {
+                /* TODO I've seen this RR on mkisofs images. what's this? */
+                continue;
+            } else {
+                iso_msg_hint(fsdata->messenger, LIBISO_SUSP_UNHANLED, 
+                    "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
+            }
+        }
+        
+        susp_iter_free(iter);
+        
+        /* check for RR problems */
+        
+        if (ret < 0) {
+            iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                          "Error parsing RR entries");
+        } else if (!relocated_dir && atts.st_mode == (mode_t) 0 ) {
+            iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, "Mandatory Rock "
+               "Ridge PX entry is not present or it contains invalid values.");
+            ret = ISO_WRONG_RR;
+        } else {
+            /* ensure both name and link dest are finished */
+            if (namecont != 0) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                              "Incomplete RR name, last NM entry continues");
+                ret = ISO_WRONG_RR;
+            }
+            if (linkdestcont != 0) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                    "Incomplete link destination, last SL entry continues");
+                ret = ISO_WRONG_RR;
+            }
+        }
+        
+        if (ret < 0) {
+            free(name);
+            return ret;
+        }
+           
+        //TODO convert name to needed charset!!
+        
+    } else {
+        /* RR extensions are not read / used */
+        atts.st_mode = fsdata->mode;
+        atts.st_gid = fsdata->gid;
+        atts.st_uid = fsdata->uid;
+        if (record->flags[0] & 0x02) 
+            atts.st_mode |= S_IFDIR;
+        else
+            atts.st_mode |= S_IFREG;
+    }
+    
+    /* 
+     * if we haven't RR extensions, or no NM entry is present,
+     * we use the name in directory record
+     */
+    if (!name) {
+        size_t len;
+        
+        if (record->file_id[0] == 0) {
+            /* "." entry, we can call this for root node, so... */
+            if (!(atts.st_mode & S_IFDIR)) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_WRONG_IMG, 
+                              "Wrong ISO file name. \".\" not dir");
+                return ISO_WRONG_ECMA119;
+            }
+        } else {
+            name = fsdata->get_name((char*)record->file_id, record->len_fi[0]);
+            
+            /* remove trailing version number */
+            len = strlen(name);
+            if (len > 2 && name[len-2] == ';' && name[len-1] == '1') {
+                name[len-2] = '\0';
+            }
+        }
+    }
+
+    if (relocated_dir) {
+        
+        /*
+         * We are dealing with a placeholder for a relocated dir.
+         * Thus, we need to read attributes for this directory from the "." 
+         * entry of the relocated dir.
+         */
+        uint8_t buffer[BLOCK_SIZE];
+        
+        ret = fsdata->src->read_block(fsdata->src, relocated_dir, buffer);
+        if (ret < 0) {
+            return ret;
+        }
+        
+        ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
+                                      buffer, src);
+        if (ret < 0) {
+            return ret;
+        }
+        
+        /* but the real name is the name of the placeholder */
+        ifsdata = (ImageFileSourceData*) (*src)->data;
+        ifsdata->name = name;
+        return ISO_SUCCESS;
+    }
+
+    if (fsdata->rr != RR_EXT_112) {
+        /*
+         * Only RRIP 1.12 provides valid inode numbers. If not, it is not easy
+         * to generate those serial numbers, and we use extend block instead.
+         * It BREAKS POSIX SEMANTICS, but its suitable for our needs
+         */
+        atts.st_ino = (ino_t) iso_read_bb(record->block, 4, NULL);
+        if (fsdata->rr == 0) {
+            atts.st_nlink = 1;
+        }
+    }
+    
+    /* 
+     * if we haven't RR extensions, or a needed TF time stamp is not present,
+     * we use plain iso recording time
+     */
+    recorded = iso_datetime_read_7(record->recording_time);
+    if (atts.st_atime == (time_t) 0) {
+        atts.st_atime = recorded;
+    }
+    if (atts.st_ctime == (time_t) 0) {
+        atts.st_ctime = recorded;
+    }
+    if (atts.st_mtime == (time_t) 0) {
+        atts.st_mtime = recorded;
+    }
+    
+    /* the size is read from iso directory record */
+    atts.st_size = iso_read_bb(record->length, 4, NULL);
+    
+    /* Fill last entries */
+    atts.st_dev = fsdata->id;
+    atts.st_blksize = BLOCK_SIZE;
+    atts.st_blocks = div_up(atts.st_size, BLOCK_SIZE);
+    
+    //TODO more sanity checks!!
+    if (S_ISLNK(atts.st_mode) && (linkdest == NULL)) {
+        iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                      "Link without destination.");
+        free(name);
+        return ISO_WRONG_RR;
+    }
+    
+    /* ok, we can now create the file source */
+    ifsdata = calloc(1, sizeof(ImageFileSourceData));
+    if (ifsdata == NULL) {
+        ret = ISO_MEM_ERROR;
+        goto ifs_cleanup;
+    }
+    ifsrc = calloc(1, sizeof(IsoFileSource));
+    if (ifsrc == NULL) {
+        ret = ISO_MEM_ERROR;
+        goto ifs_cleanup;
+    }
+    
+    /* fill data */
+    ifsdata->fs = fs;
+    iso_filesystem_ref((IsoFilesystem*)fs);
+    if (parent) {
+        ifsdata->parent = parent;
+        iso_file_source_ref(parent);
+    }
+    ifsdata->info = atts;
+    ifsdata->name = name;
+    ifsdata->block = iso_read_bb(record->block, 4, NULL);
+    
+    if (S_ISLNK(atts.st_mode)) {
+        ifsdata->data.content = linkdest;
+    }
+    
+    ifsrc->class = &ifs_class;
+    ifsrc->data = ifsdata;
+    ifsrc->refcount = 1;
+    
+    *src = ifsrc;
+    return ISO_SUCCESS;
+    
+ifs_cleanup: ;
+    free(name);
+    free(linkdest);
+    free(ifsdata);
+    free(ifsrc);
+    return ret;
+}
+
+static
+int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
+{
+    //TODO ensure data source is opened
+    
+    //TODO not implemented
+    return -1;
+}
+
+static
+int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
+{
+    //TODO not implemented
+    return -1;
+}
+
+unsigned int ifs_get_id(IsoFilesystem *fs)
+{
+    return ISO_IMAGE_FS_ID;
+}
 
 static
 int ifs_fs_open(IsoImageFilesystem *fs)
@@ -396,6 +914,9 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     iso_data_source_ref(src);
     data->open_count = 0; //TODO
 
+    /* get an id for the filesystem */
+    data->id = ++fs_dev_id;
+    
     /* fill data from opts */
     data->gid = opts->gid;
     data->uid = opts->uid;
@@ -407,7 +928,10 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     ifs->close = ifs_fs_close;
 
     ifs->fs.data = data;
+    ifs->fs.get_root = ifs_get_root;
+    ifs->fs.get_by_path = ifs_get_by_path;
     ifs->fs.free = ifs_fs_free;
+    ifs->fs.get_id = ifs_get_id;
 
     /* read Volume Descriptors and ensure it is a valid image */
 

@@ -53,10 +53,13 @@
 #define LIBISO_SUSP_WRONG			0x00030102
 /* Unsupported multiple SUSP ER entries where found */
 #define LIBISO_SUSP_MULTIPLE_ER		0x00030103
+
 /** Unsupported RR feature. */
 #define LIBISO_RR_UNSUPPORTED		0x00030111
 /** Error in a Rock Ridge entry. */
 #define LIBISO_RR_ERROR				0x00030112
+/* Wrong/Damaged Rock Ridge */
+#define LIBISO_RR_WARNING           0x00030113
 
 /** Unsupported boot vol desc. */
 #define LIBISO_BOOT_VD_UNHANLED			0x00030201

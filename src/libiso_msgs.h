@@ -409,6 +409,7 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  0x00030103 (WARNING,MEDIUM)= Multiple SUSP ER entries where found
  0x00030111 (SORRY,HIGH)    = Unsupported RR feature
  0x00030112 (SORRY,HIGH)    = Error in a Rock Ridge entry
+ 0x00030113 (WARNING,MEDIUM)= Wrong/Damaged Rock Ridge
  
  El-Torito:
  0x00030201 (HINT,MEDIUM)   = Unsupported Boot Vol Desc that will be ignored
