@@ -221,4 +221,48 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue);
  */
 void susp_iter_free(SuspIterator *iter);
 
+
+/**
+ * Fills a struct stat with the values of a Rock Ridge PX entry (RRIP, 4.1.1).
+ * 
+ * @return 
+ *      1 on success, < 0 on error
+ */
+int read_rr_PX(struct susp_sys_user_entry *px, struct stat *st);
+
+/**
+ * Fills a struct stat with the values of a Rock Ridge TF entry (RRIP, 4.1.6)
+ * 
+ * @return 
+ *      1 on success, < 0 on error
+ */
+int read_rr_TF(struct susp_sys_user_entry *tf, struct stat *st);
+
+/**
+ * Read a RR NM entry (RRIP, 4.1.4), and appends the name stored there to
+ * the given name. You can pass a pointer to NULL as name.
+ * 
+ * @return
+ *      1 on success, < 0 on error
+ */
+int read_rr_NM(struct susp_sys_user_entry *nm, char **name, int *cont);
+
+/**
+ * Read a SL RR entry (RRIP, 4.1.3), checking if the destination continues.
+ * 
+ * @param cont
+ *      0 not continue, 1 continue, 2 continue component 
+ * @return
+ *      1 on success, < 0 on error
+ */
+int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont);
+
+/**
+ * Fills a struct stat with the values of a Rock Ridge PN entry (RRIP, 4.1.2).
+ * 
+ * @return 
+ *      1 on success, < 0 on error
+ */
+int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
+
 #endif /* LIBISO_ROCKRIDGE_H */

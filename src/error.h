@@ -48,6 +48,8 @@
 /* image read errors */
 #define ISO_WRONG_PVD                   -300
 #define ISO_WRONG_RR                    -301
+#define ISO_UNSUPPORTED_RR              -302
+#define ISO_WRONG_ECMA119               -303
 
 
 #endif /*LIBISO_ERROR_H_*/
