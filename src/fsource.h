@@ -331,13 +331,6 @@ IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src)
     return src->class->get_filesystem(src);
 }
 
-/**
- * Create a new IsoFileSource from a local filesystem path.
- * While this is usually called by corresponding method in IsoFilesystem
- * object, for local filesystem it is legal to call this directly.
- */
-int iso_file_source_new_lfs(const char *path, IsoFileSource **src);
-
 void iso_filesystem_ref(IsoFilesystem *fs);
 void iso_filesystem_unref(IsoFilesystem *fs);
 

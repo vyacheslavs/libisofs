@@ -26,6 +26,10 @@
 
 #define ISO_LOCAL_FS_ID     1
 
+
+static
+int iso_file_source_new_lfs(const char *path, IsoFileSource **src);
+
 /*
  * We can share a local filesystem object, as it has no private atts.
  */
@@ -421,6 +425,7 @@ IsoFileSourceIface lfs_class = {
  * @return
  *     1 success, < 0 error
  */
+static
 int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
 {
     IsoFileSource *lfs_src;
