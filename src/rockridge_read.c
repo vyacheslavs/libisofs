@@ -155,7 +155,7 @@ int read_rr_PX(struct susp_sys_user_entry *px, struct stat *st)
         return ISO_WRONG_ARG_VALUE;
     }
     
-    if (px->len_sue[0] != 44 || px->len_sue[0] != 36) {
+    if (px->len_sue[0] != 44 && px->len_sue[0] != 36) {
         return ISO_WRONG_RR;
     }
     
