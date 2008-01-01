@@ -176,7 +176,7 @@ char* ifs_get_name(IsoFileSource *src)
 {
     ImageFileSourceData *data;
     data = src->data;
-    return strdup(data->name);
+    return data->name == NULL ? NULL : strdup(data->name);
 }
 
 static
@@ -272,7 +272,9 @@ void ifs_free(IsoFileSource *src)
         free(data->data.content);
     }
     iso_filesystem_unref((IsoFilesystem*)data->fs);
-    iso_file_source_unref(data->parent);
+    if (data->parent != NULL) {
+        iso_file_source_unref(data->parent);
+    }
     free(data->name);
     free(data);
 }
@@ -320,8 +322,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     
     uint32_t relocated_dir = 0;
     
-    if (fs == NULL || fs->fs.data == NULL || parent == NULL || record == NULL 
-            || src == NULL) {
+    if (fs == NULL || fs->fs.data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
 
@@ -591,7 +592,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     /* fill data */
     ifsdata->fs = fs;
     iso_filesystem_ref((IsoFilesystem*)fs);
-    if (parent) {
+    if (parent != NULL) {
         ifsdata->parent = parent;
         iso_file_source_ref(parent);
     }
