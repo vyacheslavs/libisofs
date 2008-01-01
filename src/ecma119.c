@@ -827,8 +827,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
      * The volume space size is just the size of the last session, in
      * case of ms images.
      */
-    target->total_size = (target->curblock - target->ms_block) * BLOCK_SIZE;
     target->vol_space_size = target->curblock - target->ms_block;
+    target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
     /* 4. Create and start writting thread */
 
@@ -972,9 +972,9 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         unsigned int kbw, kbt;
         int percent;
         
-        target->bytes_written += count;
-        kbw = (unsigned int) target->bytes_written >> 10;
-        kbt = (unsigned int) target->total_size >> 10;
+        target->bytes_written += (off_t) count;
+        kbw = (unsigned int) (target->bytes_written >> 10);
+        kbt = (unsigned int) (target->total_size >> 10);
         percent = (kbw * 100) / kbt;
         
         /* only report in 5% chunks */
