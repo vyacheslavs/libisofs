@@ -394,8 +394,28 @@ int ifs_open(IsoFileSource *src)
 static
 int ifs_close(IsoFileSource *src)
 {
-    //TODO implement
-    return -1;
+    ImageFileSourceData *data;
+    
+    if (src == NULL || src->data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = (ImageFileSourceData*)src->data;
+    
+    if (!data->opened) {
+        return ISO_FILE_NOT_OPENNED;
+    }
+    
+    if (data->opened == 2) {
+        /* close a dir, free all pending pre-allocated children */
+        child_list_free((struct child_list*) data->data.content);
+        data->data.content = NULL;
+        data->opened = 0;
+    } else {
+        // TODO handle files
+        return ISO_ERROR;
+    }
+    
+    return ISO_SUCCESS;
 }
 
 static
@@ -408,8 +428,38 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
 static
 int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
 {
-    //TODO implement
-    return -1;
+    ImageFileSourceData *data, *cdata;
+    struct child_list *children;
+    
+    if (src == NULL || src->data == NULL || child == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = (ImageFileSourceData*)src->data;
+    
+    if (!data->opened) {
+        return ISO_FILE_NOT_OPENNED;
+    } else if (data->opened != 2) {
+        return ISO_FILE_IS_NOT_DIR;
+    }
+    
+    /* return the first child and free it */
+    if (data->data.content == NULL) {
+        return 0; /* EOF */
+    }
+    
+    children = (struct child_list*)data->data.content;
+    *child = children->file;
+    cdata = (ImageFileSourceData*)(*child)->data;
+    
+    /* set the ref to the parent */
+    cdata->parent = src;
+    iso_file_source_ref(src);
+    
+    /* free the first element of the list */
+    data->data.content = children->next;
+    free(children);
+    
+    return ISO_SUCCESS;
 }
 
 static
