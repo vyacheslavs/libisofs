@@ -406,7 +406,11 @@ int ifs_close(IsoFileSource *src)
     }
     
     if (data->opened == 2) {
-        /* close a dir, free all pending pre-allocated children */
+        /* 
+         * close a dir, free all pending pre-allocated children.
+         * not that we don't need to close the filesystem, it was already 
+         * closed
+         */
         child_list_free((struct child_list*) data->data.content);
         data->data.content = NULL;
         data->opened = 0;
@@ -1214,6 +1218,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     ifs->close = ifs_fs_close;
 
     ifs->fs.data = data;
+    ifs->fs.refcount = 1;
     ifs->fs.get_root = ifs_get_root;
     ifs->fs.get_by_path = ifs_get_by_path;
     ifs->fs.free = ifs_fs_free;
