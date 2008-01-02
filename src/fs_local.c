@@ -246,6 +246,9 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
     if (src == NULL || buf == NULL) {
         return ISO_NULL_POINTER;
     }
+    if (count == 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
 
     data = src->data;
     switch (data->openned) {

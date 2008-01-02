@@ -177,6 +177,7 @@ typedef struct IsoFileSource_Iface
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
      *         ISO_FILE_NOT_OPENNED
+     *         ISO_WRONG_ARG_VALUE -> if count == 0
      *         ISO_FILE_IS_DIR
      *         ISO_MEM_ERROR
      *         ISO_INTERRUPTED

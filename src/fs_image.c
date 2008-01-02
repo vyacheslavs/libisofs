@@ -151,7 +151,7 @@ struct image_fs_data
         /**
          * - For regular files, number of bytes already read.
          */
-        uint32_t offset;
+        off_t offset;
     } data;
 };
 
@@ -216,8 +216,20 @@ int ifs_lstat(IsoFileSource *src, struct stat *info)
 static
 int ifs_stat(IsoFileSource *src, struct stat *info)
 {
-    //TODO to implement
-    return -1;
+    ImageFileSourceData *data;
+        
+    if (src == NULL || info == NULL || src->data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    data = (ImageFileSourceData*)src->data;
+    
+    if (S_ISLNK(data->info.st_mode)) {
+        /* TODO follow symlinks not supported yet */ 
+        return ISO_FILE_BAD_PATH;
+    }
+    *info = data->info;
+    return ISO_SUCCESS;
 }
 
 static
@@ -382,8 +394,17 @@ int ifs_open(IsoFileSource *src)
         
         return ret;
     } else if (S_ISREG(data->info.st_mode)) {
-        // TODO handle files
-        return ISO_FILE_ERROR;
+        /* ensure fs is openned */
+        ret = data->fs->open(data->fs);
+        if (ret < 0) {
+            return ret;
+        }
+        data->data.content = malloc(BLOCK_SIZE);
+        if (data->data.content == NULL) {
+            return ISO_MEM_ERROR;
+        }
+        data->data.offset = 0;
+        data->opened = 1;
     } else {
         /* symlinks and special files inside image can't be openned */
         return ISO_FILE_ERROR;
@@ -414,19 +435,91 @@ int ifs_close(IsoFileSource *src)
         child_list_free((struct child_list*) data->data.content);
         data->data.content = NULL;
         data->opened = 0;
+    } else if (data->opened == 1) {
+        /* close regular file */
+        free(data->data.content);
+        data->fs->close(data->fs);
+        data->data.content = NULL;
+        data->opened = 0;
     } else {
-        // TODO handle files
+        /* TODO only dirs and files supported for now */
         return ISO_ERROR;
     }
     
     return ISO_SUCCESS;
 }
 
+/**
+ * Attempts to read up to count bytes from the given source into
+ * the buffer starting at buf.
+ * 
+ * The file src must be open() before calling this, and close() when no 
+ * more needed. Not valid for dirs. On symlinks it reads the destination
+ * file.
+ * 
+ * @return 
+ *     number of bytes read, 0 if EOF, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_IS_DIR
+ *         ISO_MEM_ERROR
+ *         ISO_INTERRUPTED
+ */
 static
 int ifs_read(IsoFileSource *src, void *buf, size_t count)
 {
-    //TODO implement
-    return -1;
+    int ret;
+    ImageFileSourceData *data;
+    uint32_t read = 0;
+    
+    if (src == NULL || src->data == NULL || buf == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (count == 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    data = (ImageFileSourceData*)src->data;
+    
+    if (!data->opened) {
+        return ISO_FILE_NOT_OPENNED;
+    } else if (data->opened != 1) {
+        return ISO_FILE_IS_DIR;
+    }
+    
+    while (read < count) {
+        size_t bytes;
+        uint8_t *orig;
+        
+        if (data->data.offset % BLOCK_SIZE == 0) {
+            /* we need to buffer next block */
+            uint32_t block;
+            _ImageFsData *fsdata;
+            
+            if (data->data.offset >= data->info.st_size) {
+                /* EOF */
+                break;
+            }
+            fsdata = data->fs->fs.data;
+            block = data->block + (data->data.offset / BLOCK_SIZE);
+            ret = fsdata->src->read_block(fsdata->src, block, 
+                                          data->data.content);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+        
+        /* how much can I read */
+        bytes = MIN(BLOCK_SIZE - (data->data.offset % BLOCK_SIZE), 
+                    count - read);
+        orig = data->data.content;
+        orig += data->data.offset % BLOCK_SIZE;
+        memcpy((uint8_t*)buf + read, orig, bytes);
+        read += bytes;
+        orig += bytes;
+    }
+    return read;
 }
 
 static
