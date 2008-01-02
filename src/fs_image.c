@@ -23,6 +23,9 @@
 
 static int ifs_fs_open(IsoImageFilesystem *fs);
 static int ifs_fs_close(IsoImageFilesystem *fs);
+static int iso_file_source_new_ifs(IsoImageFilesystem *fs, 
+           IsoFileSource *parent, struct ecma119_dir_record *record, 
+           IsoFileSource **src);
 
 #define ISO_IMAGE_FS_ID     2
 
@@ -147,11 +150,28 @@ struct image_fs_data
 
         /**
          * - For regular files, number of bytes already read.
-         * - For dirs, position of child iterator
          */
         uint32_t offset;
     } data;
 };
+
+struct child_list
+{
+    IsoFileSource *file;
+    struct child_list *next;
+};
+
+void child_list_free(struct child_list *list)
+{
+    struct child_list *temp;
+    struct child_list *next = list;
+    while (next != NULL) {
+        temp = next->next;
+        iso_file_source_unref(next->file);
+        free(next);
+        next = temp;
+    }
+}
 
 static
 char* ifs_get_path(IsoFileSource *src)
@@ -207,11 +227,168 @@ int ifs_access(IsoFileSource *src)
     return ISO_SUCCESS;
 }
 
+/**
+ * Read all directory records in a directory, and creates an IsoFileSource for
+ * each of them, storing them in the data field of the IsoFileSource for the
+ * given dir. 
+ */
+static
+int read_dir(ImageFileSourceData *data)
+{
+    int ret;
+    uint32_t size;
+    uint32_t block;
+    IsoImageFilesystem *fs;
+    _ImageFsData *fsdata;
+    struct ecma119_dir_record *record;
+    uint8_t buffer[BLOCK_SIZE];
+    IsoFileSource *child = NULL;
+    uint32_t pos = 0;
+    uint32_t tlen = 0;
+
+    if (data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    fs = data->fs;
+    fsdata = fs->fs.data;
+
+    block = data->block;
+    ret = fsdata->src->read_block(fsdata->src, block, buffer);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* "." entry, get size of the dir and skip */
+    record = (struct ecma119_dir_record *)(buffer + pos);
+    size = iso_read_bb(record->length, 4, NULL);
+    tlen += record->len_dr[0];
+    pos += record->len_dr[0];
+
+    /* skip ".." */
+    record = (struct ecma119_dir_record *)(buffer + pos);
+    tlen += record->len_dr[0];
+    pos += record->len_dr[0];
+
+    while (tlen < size) {
+
+        record = (struct ecma119_dir_record *)(buffer + pos);
+        if (pos == 2048 || record->len_dr[0] == 0) {
+            /* 
+             * The directory entries are splitted in several blocks
+             * read next block 
+             */
+            ret = fsdata->src->read_block(fsdata->src, ++block, buffer);
+            if (ret < 0) {
+                return ret;
+            }
+            tlen += 2048 - pos;
+            pos = 0;
+            continue;
+        }
+
+        /*
+         * What about ignoring files with existence flag?
+         * if (record->flags[0] & 0x01)
+         *	continue;
+         */
+
+        /*
+         * For a extrange reason, mkisofs relocates directories under
+         * a RR_MOVED dir. It seems that it is only used for that purposes,
+         * and thus it should be removed from the iso tree before 
+         * generating a new image with libisofs, that don't uses it.
+         */
+        if (data->parent == NULL && record->len_fi[0] == 8
+            && !strncmp((char*)record->file_id, "RR_MOVED", 8)) {
+            
+            iso_msg_debug(fsdata->messenger, "Skipping RR_MOVE entry.");
+
+            tlen += record->len_dr[0];
+            pos += record->len_dr[0];
+            continue;
+        }
+
+        /*
+         * We pass a NULL parent instead of dir, to prevent the circular 
+         * reference from child to parent.
+         */
+        ret = iso_file_source_new_ifs(fs, NULL, record, &child);
+        if (ret < 0) {
+            return ret;
+        }
+
+        /* add to the child list */
+        {
+            struct child_list *node;
+            node = malloc(sizeof(struct child_list));
+            if (node == NULL) {
+                iso_file_source_unref(child);
+                return ISO_MEM_ERROR;
+            }
+            /*
+             * Note that we insert in reverse order. This leads to faster
+             * addition here, but also when adding to the tree, as insertion
+             * will be done, sorted, in the first position of the list.
+             */
+            node->next = data->data.content;
+            node->file = child;
+            data->data.content = node;
+        }
+        
+        tlen += record->len_dr[0];
+        pos += record->len_dr[0];
+    }
+
+    return ISO_SUCCESS;
+}
+
 static
 int ifs_open(IsoFileSource *src)
 {
-    //TODO implement
-    return -1;
+    int ret;
+    ImageFileSourceData *data;
+    
+    if (src == NULL || src->data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = (ImageFileSourceData*)src->data;
+    
+    if (data->opened) {
+        return ISO_FILE_ALREADY_OPENNED;
+    }
+    
+    if (S_ISDIR(data->info.st_mode)) {
+        /* ensure fs is openned */
+        ret = data->fs->open(data->fs);
+        if (ret < 0) {
+            return ret;
+        }
+        
+        /* 
+         * Cache all directory entries. 
+         * This can waste more memory, but improves as disc is read in much more
+         * sequencially way, thus reducing jump between tracks on disc
+         */
+        ret = read_dir(data);
+        data->fs->close(data->fs);
+        
+        if (ret < 0) {
+            /* free probably allocated children */
+            child_list_free((struct child_list*)data->data.content);
+        } else {
+            data->opened = 2;
+        }
+        
+        return ret;
+    } else if (S_ISREG(data->info.st_mode)) {
+        // TODO handle files
+        return ISO_FILE_ERROR;
+    } else {
+        /* symlinks and special files inside image can't be openned */
+        return ISO_FILE_ERROR;
+    }
+    return ISO_SUCCESS;
 }
 
 static
@@ -329,6 +506,32 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     fsdata = (_ImageFsData*)fs->fs.data;
     
     memset(&atts, 0, sizeof(struct stat));
+    
+    /*
+     * First of all, check for unsupported ECMA-119 features
+     */
+
+    /* check for unsupported multiextend */
+    if (record->flags[0] & 0x80) {
+        iso_msg_fatal(fsdata->messenger, LIBISO_IMG_UNSUPPORTED,
+                      "Unsupported image. This image makes use of Multi-Extend"
+                      " features, that are not supported at this time. If you "
+                      "need support for that, please request us this feature.");
+        return ISO_UNSUPPORTED_ECMA119;
+    }
+
+    /* check for unsupported interleaved mode */
+    if (record->file_unit_size[0] || record->interleave_gap_size[0]) {
+        iso_msg_fatal(fsdata->messenger, LIBISO_IMG_UNSUPPORTED,
+              "Unsupported image. This image has at least one file recorded "
+              "in interleaved mode. We don't support this mode, as we think "
+              "it's not used. If you're reading this, then we're wrong :) "
+              "Please contact libisofs developers, so we can fix this.");
+        return ISO_UNSUPPORTED_ECMA119;
+    }
+    
+    //TODO check for unsupported extended attribs?
+    //TODO check for other flags?
     
     /*
      * The idea is to read all the RR entries (if we want to do that and RR
