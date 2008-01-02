@@ -127,7 +127,7 @@ void ds_free_data(IsoDataSource *src)
     data = (struct file_data_src*)src->data;
 
     /* close the file if needed */
-    if (data->fd != 1) {
+    if (data->fd != -1) {
         close(data->fd);
     }
     free(data->path);
