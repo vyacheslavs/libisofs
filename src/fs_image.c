@@ -466,11 +466,59 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
     return ISO_SUCCESS;
 }
 
+/**
+ * Read the destination of a symlink. You don't need to open the file
+ * to call this.
+ * 
+ * @param buf 
+ *     allocated buffer of at least bufsiz bytes. 
+ *     The dest. will be copied there, and it will be NULL-terminated
+ * @param bufsiz
+ *     characters to be copied. Destination link will be truncated if
+ *     it is larger than given size. This include the \0 character.
+ * @return 
+ *     1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
+ *         ISO_FILE_IS_NOT_SYMLINK
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ * 
+ */
 static
 int ifs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 {
-    //TODO implement
-    return -1;
+    char *dest;
+    size_t len;
+    ImageFileSourceData *data;
+    
+    if (src == NULL || buf == NULL || src->data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    if (bufsiz <= 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
+    data = (ImageFileSourceData*)src->data;
+    
+    if (!S_ISLNK(data->info.st_mode)) {
+        return ISO_FILE_IS_NOT_SYMLINK;
+    }
+    
+    dest = (char*)data->data.content;
+    len = strlen(dest);
+    if (bufsiz <= len) {
+        len = bufsiz - 1;
+    }
+    
+    strncpy(buf, dest, len);
+    buf[len] = '\0';
+    
+    return ISO_SUCCESS;
 }
 
 static
