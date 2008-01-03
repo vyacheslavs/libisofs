@@ -17,6 +17,7 @@
 #include "messages.h"
 #include "rockridge.h"
 #include "image.h"
+#include "tree.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1801,19 +1802,43 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     }    
 
     /* recursively add image */
+    ret = iso_add_dir_src_rec(image, image->root, newroot);
     
+    iso_node_builder_unref(image->builder);
     
-    /* recover backed fs and builder */
-    
-    
-    /* set volume attributes */
-    
-    
-    if (features != NULL) {
-        //TODO
+    /* error during recursive image addition? */
+    if (ret <= 0) {
+        goto import_revert;
     }
     
-    //TODO
+    /* free old root */
+    iso_node_unref((IsoNode*)oldroot);
+    
+    /* recover backed fs and builder */
+    image->fs = fsback;
+    image->builder = blback;
+    
+    {
+        _ImageFsData *data;
+        data = fs->fs.data;
+
+        /* set volume attributes */
+        iso_image_set_volset_id(image, data->volset_id);
+        iso_image_set_volume_id(image, data->volume_id);
+        iso_image_set_publisher_id(image, data->publisher_id);
+        iso_image_set_data_preparer_id(image, data->data_preparer_id);
+        iso_image_set_system_id(image, data->system_id);
+        iso_image_set_application_id(image, data->application_id);
+        iso_image_set_copyright_file_id(image, data->copyright_file_id);
+        iso_image_set_abstract_file_id(image, data->abstract_file_id);
+        iso_image_set_biblio_file_id(image, data->biblio_file_id);
+                
+        if (features != NULL) {
+            features->hasJoliet = data->joliet;
+            features->hasRR = data->rr_version != 0;
+            features->size = data->nblocks;
+        }
+    }
     
     ret = ISO_SUCCESS;
     goto import_cleanup;

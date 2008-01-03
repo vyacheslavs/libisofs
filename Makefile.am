@@ -15,6 +15,7 @@ src_libisofs_la_SOURCES = \
 	src/error.h \
 	src/node.h \
 	src/node.c \
+	src/tree.h \
 	src/tree.c \
 	src/image.h \
 	src/image.c \
