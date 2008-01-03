@@ -38,9 +38,11 @@
  */
 struct iso_read_opts
 {
-    uint32_t block; /** Block where the image begins, usually 0, can be
-     *  different on a multisession disc.
+    /** 
+     * Block where the image begins, usually 0, can be different on a 
+     * multisession disc.
      */
+    uint32_t block; 
 
     unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */

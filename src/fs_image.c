@@ -19,6 +19,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
+#include <langinfo.h>
 
 
 static int ifs_fs_open(IsoImageFilesystem *fs);
@@ -66,6 +68,7 @@ typedef struct
     struct libiso_msgs *messenger;
 
     char *input_charset; /**< Input charset for RR names */
+    char *local_charset; /**< For RR names, will be set to the locale one */
 
     /**
      * Will be filled with the block lba of the extend for the root directory,
@@ -871,7 +874,22 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             return ret;
         }
            
-        //TODO convert name to needed charset!!
+        /* convert name to needed charset */
+        if (strcmp(fsdata->input_charset, fsdata->local_charset) && name) {
+            /* we need to convert name charset */
+            char *newname = NULL;
+            ret = strconv(name, fsdata->input_charset, fsdata->local_charset,
+                          &newname);
+            if (ret < 0) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_CHARSET_ERROR, 
+                    "Charset conversion error. Can't convert %s from %s to %s",
+                    name, fsdata->input_charset, fsdata->local_charset);
+                free(newname);
+            } else {
+                free(name);
+                name = newname;
+            }
+        }
         
     } else {
         /* RR extensions are not read / used */
@@ -1459,8 +1477,16 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->gid = opts->gid;
     data->uid = opts->uid;
     data->mode = opts->mode & ~S_IFMT;
-    data->input_charset = strdup(opts->input_charset);
     data->messenger = opts->messenger;
+    
+    data->input_charset = strdup(opts->input_charset);
+    
+    setlocale(LC_CTYPE, "");
+    data->local_charset = strdup(nl_langinfo(CODESET));
+    if (data->local_charset == NULL) {
+        ret = ISO_MEM_ERROR;
+        goto fs_cleanup;
+    }
 
     ifs->open = ifs_fs_open;
     ifs->close = ifs_fs_close;
