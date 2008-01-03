@@ -20,6 +20,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 
 static int ifs_fs_open(IsoImageFilesystem *fs);
@@ -1585,6 +1586,163 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     return ret;
 }
 
+static
+int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
+                              IsoFileSource *src, IsoNode **node)
+{
+    int result;
+    struct stat info;
+    IsoNode *new;
+    char *name;
+    ImageFileSourceData *data;
+
+    if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    data = (ImageFileSourceData*)src->data;
+
+    name = iso_file_source_get_name(src);
+
+    /* get info about source */
+    result = iso_file_source_lstat(src, &info);
+    if (result < 0) {
+        return result;
+    }
+
+    new = NULL;
+    switch (info.st_mode & S_IFMT) {
+    case S_IFREG:
+        {
+            /* source is a regular file */
+            IsoStream *stream;
+            IsoFile *file;
+            result = iso_file_source_stream_new(src, &stream);
+            if (result < 0) {
+                free(name);
+                return result;
+            }
+            /* take a ref to the src, as stream has taken our ref */
+            iso_file_source_ref(src);
+            file = calloc(1, sizeof(IsoFile));
+            if (file == NULL) {
+                free(name);
+                iso_stream_unref(stream);
+                return ISO_MEM_ERROR;
+            }
+
+            /* the msblock is taken from the image */
+            file->msblock = data->block;
+            
+            /* 
+             * and we set the sort weight based on the block on image, to
+             * improve performance on image modifying.
+             */ 
+            file->sort_weight = INT_MAX - data->block;
+
+            file->stream = stream;
+            file->node.type = LIBISO_FILE;
+            new = (IsoNode*) file;
+        }
+        break;
+    case S_IFDIR:
+        {
+            /* source is a directory */
+            new = calloc(1, sizeof(IsoDir));
+            if (new == NULL) {
+                free(name);
+                return ISO_MEM_ERROR;
+            }
+            new->type = LIBISO_DIR;
+        }
+        break;
+    case S_IFLNK:
+        {
+            /* source is a symbolic link */
+            char dest[PATH_MAX];
+            IsoSymlink *link;
+
+            result = iso_file_source_readlink(src, dest, PATH_MAX);
+            if (result < 0) {
+                free(name);
+                return result;
+            }
+            link = malloc(sizeof(IsoSymlink));
+            if (link == NULL) {
+                free(name);
+                return ISO_MEM_ERROR;
+            }
+            link->dest = strdup(dest);
+            link->node.type = LIBISO_SYMLINK;
+            new = (IsoNode*) link;
+        }
+        break;
+    case S_IFSOCK:
+    case S_IFBLK:
+    case S_IFCHR:
+    case S_IFIFO:
+        {
+            /* source is an special file */
+            IsoSpecial *special;
+            special = malloc(sizeof(IsoSpecial));
+            if (special == NULL) {
+                free(name);
+                return ISO_MEM_ERROR;
+            }
+            special->dev = info.st_rdev;
+            special->node.type = LIBISO_SPECIAL;
+            new = (IsoNode*) special;
+        }
+        break;
+    }
+
+    /* fill fields */
+    new->refcount = 1;
+    new->name = name;
+    new->mode = info.st_mode;
+    new->uid = info.st_uid;
+    new->gid = info.st_gid;
+    new->atime = info.st_atime;
+    new->mtime = info.st_mtime;
+    new->ctime = info.st_ctime;
+
+    new->hidden = 0;
+
+    new->parent = NULL;
+    new->next = NULL;
+
+    *node = new;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Create a new builder, that is exactly a copy of an old builder, but where
+ * create_node() function has been replaced by image_builder_create_node.
+ */
+int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
+{
+    IsoNodeBuilder *b;
+
+    if (builder == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    b = malloc(sizeof(IsoNodeBuilder));
+    if (b == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    b->refcount = 1;
+    b->create_file_data = old->create_file_data;
+    b->create_node_data = old->create_node_data;
+    b->create_file = old->create_file;
+    b->create_node = image_builder_create_node;
+    b->free = old->free;
+
+    *builder = b;
+    return ISO_SUCCESS;
+}
+
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts, 
                      struct iso_read_image_features *features)
@@ -1592,6 +1750,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     int ret;
     IsoImageFilesystem *fs;
     IsoFilesystem *fsback;
+    IsoNodeBuilder *blback;
+    IsoDir *oldroot;
+    IsoFileSource *newroot;
     
     if (image == NULL || src == NULL || opts == NULL) {
         return ISO_NULL_POINTER;
@@ -1602,17 +1763,43 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         return ret;
     }
     
-    /* backup image filesystem and builder */
-    fsback = image->fs;
-    //TODO
-    
-    
     /* get root from filesystem */
+    ret = fs->fs.get_root((IsoFilesystem*)fs, &newroot);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* backup image filesystem, builder and root */
+    fsback = image->fs;
+    blback = image->builder;
+    oldroot = image->root;
+    
+    /* create new builder */
+    ret = iso_image_builder_new(blback, &image->builder);
+    if (ret < 0) {
+        goto import_revert;
+    }
+    
+    image->fs = (IsoFilesystem*)fs;
 
-    
-    /* remove root node */
-    
-    
+    /* create new root, and set root attributes from source */
+    ret = iso_node_new_root(&image->root);
+    if (ret < 0) {
+        goto import_revert;
+    }
+    {
+        struct stat info;
+        
+        /* I know this will not fail */
+        iso_file_source_lstat(newroot, &info);
+        image->root->node.mode = info.st_mode;
+        image->root->node.uid = info.st_uid;
+        image->root->node.gid = info.st_gid;
+        image->root->node.atime = info.st_atime;
+        image->root->node.mtime = info.st_mtime;
+        image->root->node.ctime = info.st_ctime;
+    }    
+
     /* recursively add image */
     
     
@@ -1628,5 +1815,19 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     
     //TODO
     
-    return -1;
+    ret = ISO_SUCCESS;
+    goto import_cleanup;
+    
+    import_revert:;
+    
+    image->root = oldroot;
+    image->fs = fsback;
+    
+    import_cleanup:;
+    
+    iso_file_source_unref(newroot);
+    fs->close(fs);
+    iso_filesystem_unref((IsoFilesystem*)fs);
+    
+    return ret;
 }
