@@ -331,7 +331,7 @@ int read_dir(ImageFileSourceData *data)
         }
 
         /* add to the child list */
-        {
+        if (ret != 0) {
             struct child_list *node;
             node = malloc(sizeof(struct child_list));
             if (node == NULL) {
@@ -365,7 +365,7 @@ int ifs_open(IsoFileSource *src)
         return ISO_NULL_POINTER;
     }
     data = (ImageFileSourceData*)src->data;
-    
+
     if (data->opened) {
         return ISO_FILE_ALREADY_OPENNED;
     }
@@ -558,7 +558,7 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
     /* free the first element of the list */
     data->data.content = children->next;
     free(children);
-    
+
     return ISO_SUCCESS;
 }
 
@@ -925,7 +925,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         
         ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
                                       buffer, src);
-        if (ret < 0) {
+        if (ret <= 0) {
             return ret;
         }
         
