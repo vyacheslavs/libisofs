@@ -15,6 +15,7 @@ src_libisofs_la_SOURCES = \
 	src/error.h \
 	src/node.h \
 	src/node.c \
+	src/tree.h \
 	src/tree.c \
 	src/image.h \
 	src/image.c \
@@ -58,7 +59,8 @@ noinst_PROGRAMS = \
 	demo/ecma119tree \
 	demo/iso \
 	demo/isoread \
-	demo/isocat
+	demo/isocat \
+	demo/isomodify
 
 demo_lsl_CPPFLAGS = -Isrc
 demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
@@ -91,6 +93,10 @@ demo_isoread_SOURCES = demo/iso_read.c
 demo_isocat_CPPFLAGS = -Isrc
 demo_isocat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_isocat_SOURCES = demo/iso_cat.c
+
+demo_isomodify_CPPFLAGS = -Isrc
+demo_isomodify_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_isomodify_SOURCES = demo/iso_modify.c
 
 
 ## Build unit test

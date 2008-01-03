@@ -16,11 +16,14 @@
 #include "ecma119.h"
 #include "messages.h"
 #include "rockridge.h"
+#include "image.h"
+#include "tree.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
 #include <langinfo.h>
+#include <limits.h>
 
 
 static int ifs_fs_open(IsoImageFilesystem *fs);
@@ -334,7 +337,7 @@ int read_dir(ImageFileSourceData *data)
         }
 
         /* add to the child list */
-        {
+        if (ret != 0) {
             struct child_list *node;
             node = malloc(sizeof(struct child_list));
             if (node == NULL) {
@@ -368,7 +371,7 @@ int ifs_open(IsoFileSource *src)
         return ISO_NULL_POINTER;
     }
     data = (ImageFileSourceData*)src->data;
-    
+
     if (data->opened) {
         return ISO_FILE_ALREADY_OPENNED;
     }
@@ -561,7 +564,7 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
     /* free the first element of the list */
     data->data.content = children->next;
     free(children);
-    
+
     return ISO_SUCCESS;
 }
 
@@ -891,6 +894,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             }
         }
         
+        //TODO convert link destinatiion to needed charset 
+        
     } else {
         /* RR extensions are not read / used */
         atts.st_mode = fsdata->mode;
@@ -943,7 +948,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         
         ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
                                       buffer, src);
-        if (ret < 0) {
+        if (ret <= 0) {
             return ret;
         }
         
@@ -1257,6 +1262,7 @@ void ifs_fs_free(IsoFilesystem *fs)
     free(data->biblio_file_id);
 
     free(data->input_charset);
+    free(data->local_charset);
     free(data);
 }
 
@@ -1442,6 +1448,7 @@ int read_pvm(_ImageFsData *data, uint32_t block)
 }
 
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
+                             struct libiso_msgs *messenger,
                              IsoImageFilesystem **fs)
 {
     int ret;
@@ -1477,7 +1484,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->gid = opts->gid;
     data->uid = opts->uid;
     data->mode = opts->mode & ~S_IFMT;
-    data->messenger = opts->messenger;
+    data->messenger = messenger;
     
     data->input_charset = strdup(opts->input_charset);
     
@@ -1606,5 +1613,275 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     fs_cleanup: ;
     ifs_fs_free((IsoFilesystem*)ifs);
     free(ifs);
+    return ret;
+}
+
+static
+int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
+                              IsoFileSource *src, IsoNode **node)
+{
+    int result;
+    struct stat info;
+    IsoNode *new;
+    char *name;
+    ImageFileSourceData *data;
+
+    if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    data = (ImageFileSourceData*)src->data;
+
+    name = iso_file_source_get_name(src);
+
+    /* get info about source */
+    result = iso_file_source_lstat(src, &info);
+    if (result < 0) {
+        return result;
+    }
+
+    new = NULL;
+    switch (info.st_mode & S_IFMT) {
+    case S_IFREG:
+        {
+            /* source is a regular file */
+            IsoStream *stream;
+            IsoFile *file;
+            result = iso_file_source_stream_new(src, &stream);
+            if (result < 0) {
+                free(name);
+                return result;
+            }
+            /* take a ref to the src, as stream has taken our ref */
+            iso_file_source_ref(src);
+            file = calloc(1, sizeof(IsoFile));
+            if (file == NULL) {
+                free(name);
+                iso_stream_unref(stream);
+                return ISO_MEM_ERROR;
+            }
+
+            /* the msblock is taken from the image */
+            file->msblock = data->block;
+            
+            /* 
+             * and we set the sort weight based on the block on image, to
+             * improve performance on image modifying.
+             */ 
+            file->sort_weight = INT_MAX - data->block;
+
+            file->stream = stream;
+            file->node.type = LIBISO_FILE;
+            new = (IsoNode*) file;
+        }
+        break;
+    case S_IFDIR:
+        {
+            /* source is a directory */
+            new = calloc(1, sizeof(IsoDir));
+            if (new == NULL) {
+                free(name);
+                return ISO_MEM_ERROR;
+            }
+            new->type = LIBISO_DIR;
+        }
+        break;
+    case S_IFLNK:
+        {
+            /* source is a symbolic link */
+            char dest[PATH_MAX];
+            IsoSymlink *link;
+
+            result = iso_file_source_readlink(src, dest, PATH_MAX);
+            if (result < 0) {
+                free(name);
+                return result;
+            }
+            link = malloc(sizeof(IsoSymlink));
+            if (link == NULL) {
+                free(name);
+                return ISO_MEM_ERROR;
+            }
+            link->dest = strdup(dest);
+            link->node.type = LIBISO_SYMLINK;
+            new = (IsoNode*) link;
+        }
+        break;
+    case S_IFSOCK:
+    case S_IFBLK:
+    case S_IFCHR:
+    case S_IFIFO:
+        {
+            /* source is an special file */
+            IsoSpecial *special;
+            special = malloc(sizeof(IsoSpecial));
+            if (special == NULL) {
+                free(name);
+                return ISO_MEM_ERROR;
+            }
+            special->dev = info.st_rdev;
+            special->node.type = LIBISO_SPECIAL;
+            new = (IsoNode*) special;
+        }
+        break;
+    }
+
+    /* fill fields */
+    new->refcount = 1;
+    new->name = name;
+    new->mode = info.st_mode;
+    new->uid = info.st_uid;
+    new->gid = info.st_gid;
+    new->atime = info.st_atime;
+    new->mtime = info.st_mtime;
+    new->ctime = info.st_ctime;
+
+    new->hidden = 0;
+
+    new->parent = NULL;
+    new->next = NULL;
+
+    *node = new;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Create a new builder, that is exactly a copy of an old builder, but where
+ * create_node() function has been replaced by image_builder_create_node.
+ */
+int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
+{
+    IsoNodeBuilder *b;
+
+    if (builder == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    b = malloc(sizeof(IsoNodeBuilder));
+    if (b == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    b->refcount = 1;
+    b->create_file_data = old->create_file_data;
+    b->create_node_data = old->create_node_data;
+    b->create_file = old->create_file;
+    b->create_node = image_builder_create_node;
+    b->free = old->free;
+
+    *builder = b;
+    return ISO_SUCCESS;
+}
+
+int iso_image_import(IsoImage *image, IsoDataSource *src,
+                     struct iso_read_opts *opts, 
+                     struct iso_read_image_features *features)
+{
+    int ret;
+    IsoImageFilesystem *fs;
+    IsoFilesystem *fsback;
+    IsoNodeBuilder *blback;
+    IsoDir *oldroot;
+    IsoFileSource *newroot;
+    
+    if (image == NULL || src == NULL || opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    ret = iso_image_filesystem_new(src, opts, image->messenger, &fs);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* get root from filesystem */
+    ret = fs->fs.get_root((IsoFilesystem*)fs, &newroot);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* backup image filesystem, builder and root */
+    fsback = image->fs;
+    blback = image->builder;
+    oldroot = image->root;
+    
+    /* create new builder */
+    ret = iso_image_builder_new(blback, &image->builder);
+    if (ret < 0) {
+        goto import_revert;
+    }
+    
+    image->fs = (IsoFilesystem*)fs;
+
+    /* create new root, and set root attributes from source */
+    ret = iso_node_new_root(&image->root);
+    if (ret < 0) {
+        goto import_revert;
+    }
+    {
+        struct stat info;
+        
+        /* I know this will not fail */
+        iso_file_source_lstat(newroot, &info);
+        image->root->node.mode = info.st_mode;
+        image->root->node.uid = info.st_uid;
+        image->root->node.gid = info.st_gid;
+        image->root->node.atime = info.st_atime;
+        image->root->node.mtime = info.st_mtime;
+        image->root->node.ctime = info.st_ctime;
+    }    
+
+    /* recursively add image */
+    ret = iso_add_dir_src_rec(image, image->root, newroot);
+    
+    iso_node_builder_unref(image->builder);
+    
+    /* error during recursive image addition? */
+    if (ret <= 0) {
+        goto import_revert;
+    }
+    
+    /* free old root */
+    iso_node_unref((IsoNode*)oldroot);
+    
+    /* recover backed fs and builder */
+    image->fs = fsback;
+    image->builder = blback;
+    
+    {
+        _ImageFsData *data;
+        data = fs->fs.data;
+
+        /* set volume attributes */
+        iso_image_set_volset_id(image, data->volset_id);
+        iso_image_set_volume_id(image, data->volume_id);
+        iso_image_set_publisher_id(image, data->publisher_id);
+        iso_image_set_data_preparer_id(image, data->data_preparer_id);
+        iso_image_set_system_id(image, data->system_id);
+        iso_image_set_application_id(image, data->application_id);
+        iso_image_set_copyright_file_id(image, data->copyright_file_id);
+        iso_image_set_abstract_file_id(image, data->abstract_file_id);
+        iso_image_set_biblio_file_id(image, data->biblio_file_id);
+                
+        if (features != NULL) {
+            features->hasJoliet = data->joliet;
+            features->hasRR = data->rr_version != 0;
+            features->size = data->nblocks;
+        }
+    }
+    
+    ret = ISO_SUCCESS;
+    goto import_cleanup;
+    
+    import_revert:;
+    
+    image->root = oldroot;
+    image->fs = fsback;
+    
+    import_cleanup:;
+    
+    iso_file_source_unref(newroot);
+    fs->close(fs);
+    iso_filesystem_unref((IsoFilesystem*)fs);
+    
     return ret;
 }

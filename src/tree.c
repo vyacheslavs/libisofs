@@ -17,6 +17,7 @@
 #include "fsource.h"
 #include "builder.h"
 #include "messages.h"
+#include "tree.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -446,11 +447,12 @@ int check_hidden(IsoImage *image, const char *name)
 }
 
 /**
+ * Recursively add a given directory to the image tree.
+ * 
  * @return
  *      1 continue, 0 stop, < 0 error
  */
-static
-int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
+int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 {
     int result;
     int action; /* 1 add, 2 skip, 3 stop, < 0 error */
@@ -564,7 +566,7 @@ int iso_add_dir_aux(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 
         /* finally, if the node is a directory we need to recurse */
         if (new->type == LIBISO_DIR) {
-            result = iso_add_dir_aux(image, (IsoDir*)new, file);
+            result = iso_add_dir_src_rec(image, (IsoDir*)new, file);
             iso_file_source_unref(file);
             if (result < 0) {
                 /* error */
@@ -631,7 +633,7 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir)
         iso_file_source_unref(file);
         return ISO_FILE_IS_NOT_DIR;
     }
-    result = iso_add_dir_aux(image, parent, file);
+    result = iso_add_dir_src_rec(image, parent, file);
     iso_file_source_unref(file);
     return result;
 }

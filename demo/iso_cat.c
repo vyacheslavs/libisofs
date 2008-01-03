@@ -27,6 +27,7 @@ int main(int argc, char **argv)
     IsoFileSource *file;
     struct stat info;
     IsoDataSource *src;
+    struct libiso_msgs *messenger;
     struct iso_read_opts opts = {
         0, /* block */
         0, /* norock */
@@ -35,7 +36,6 @@ int main(int argc, char **argv)
         0, /* uid; */
         0, /* gid; */
         0, /* mode */
-        NULL, /* messenger */
         "UTF-8" /* input_charset */
     };
 
@@ -44,12 +44,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    res = libiso_msgs_new(&opts.messenger, 0);
+    res = libiso_msgs_new(&messenger, 0);
     if (res <= 0) {
         printf ("Can't create messenger\n");
         return 1;
     }
-    libiso_msgs_set_severities(opts.messenger, LIBISO_MSGS_SEV_NEVER, 
+    libiso_msgs_set_severities(messenger, LIBISO_MSGS_SEV_NEVER, 
                                LIBISO_MSGS_SEV_ALL, "", 0);
     
     res = iso_data_source_new_from_file(argv[1], &src);
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    res = iso_image_filesystem_new(src, &opts, &fs);
+    res = iso_image_filesystem_new(src, &opts, messenger, &fs);
     if (res < 0) {
         printf ("Error creating filesystem\n");
         return 1;
@@ -99,6 +99,6 @@ int main(int argc, char **argv)
     iso_file_source_unref(file);
     iso_filesystem_unref(fs);
     iso_data_source_unref(src);
-    libiso_msgs_destroy(&opts.messenger, 0);
+    libiso_msgs_destroy(&messenger, 0);
     return 0;
 }
