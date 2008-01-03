@@ -41,6 +41,13 @@ struct Iso_Filesystem
      * 
      * @return
      *     1 success, < 0 error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
      */
     int (*get_by_path)(IsoFilesystem *fs, const char *path,
                        IsoFileSource **file);

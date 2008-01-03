@@ -18,6 +18,7 @@
 #include "rockridge.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 
@@ -137,7 +138,7 @@ struct image_fs_data
     unsigned int opened : 2; /**< 0 not opened, 1 opened file, 2 opened dir */
     
     /* info for content reading */
-    union
+    struct 
     {
         /**
          * - For regular files, once opened it points to a temporary data 
@@ -488,7 +489,7 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
         return ISO_FILE_IS_DIR;
     }
     
-    while (read < count) {
+    while (read < count && data->data.offset < data->info.st_size) {
         size_t bytes;
         uint8_t *orig;
         
@@ -513,11 +514,14 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
         /* how much can I read */
         bytes = MIN(BLOCK_SIZE - (data->data.offset % BLOCK_SIZE), 
                     count - read);
+	if (data->data.offset + (off_t)bytes > data->info.st_size) {
+             bytes = data->info.st_size - data->data.offset;
+        }
         orig = data->data.content;
         orig += data->data.offset % BLOCK_SIZE;
         memcpy((uint8_t*)buf + read, orig, bytes);
         read += bytes;
-        orig += bytes;
+        data->data.offset += (off_t)bytes;
     }
     return read;
 }
@@ -1051,11 +1055,115 @@ int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
     return ret;
 }
 
+/**
+ * Find a file inside a node.
+ * 
+ * @param file
+ *     it is not modified if requested file is not found
+ * @return
+ *     1 success, 0 not found, < 0 error
+ */
+static
+int ifs_get_file(IsoFileSource *dir, const char *name, IsoFileSource **file)
+{
+    int ret;
+    IsoFileSource *src;
+
+    ret = iso_file_source_open(dir);
+    if (ret < 0) {
+        return ret;
+    }
+    while ((ret = iso_file_source_readdir(dir, &src)) == 1) {
+        char *fname = iso_file_source_get_name(src);
+        if (!strcmp(name, fname)) {
+            free(fname);
+            *file = src;
+            ret = ISO_SUCCESS;
+            break;
+        }
+        free(fname);
+        iso_file_source_unref(src);
+    }
+    iso_file_source_close(dir);
+    return ret;
+}
+
 static
 int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 {
-    //TODO not implemented
-    return -1;
+    int ret;
+    _ImageFsData *data;
+    IsoFileSource *src;
+    char *ptr, *brk_info, *component;
+
+    if (fs == NULL || fs->data == NULL || path == NULL || file == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    if (path[0] != '/') {
+        /* only absolute paths supported */
+        return ISO_FILE_BAD_PATH;
+    }
+
+    data = (_ImageFsData*)fs->data;
+
+    /* open the filesystem */
+    ret = ifs_fs_open((IsoImageFilesystem*)fs);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    ret = ifs_get_root(fs, &src);
+    if (ret < 0) {
+        return ret;
+    }
+    if (!strcmp(path, "/")) {
+        /* we are looking for root */
+        *file = src;
+        ret = ISO_SUCCESS;
+        goto get_path_exit;
+    }
+
+    ptr = strdup(path);
+    if (ptr == NULL) {
+        iso_file_source_unref(src);
+        ret = ISO_MEM_ERROR;
+        goto get_path_exit;
+    }
+    
+    component = strtok_r(ptr, "/", &brk_info);
+    while (component) {
+        IsoFileSource *child = NULL;
+        
+        ImageFileSourceData *fdata;
+        fdata = src->data;
+        if (!S_ISDIR(fdata->info.st_mode)) {
+            ret = ISO_FILE_BAD_PATH;
+            break;
+        }
+
+        ret = ifs_get_file(src, component, &child);
+        iso_file_source_unref(src);
+        if (ret <= 0) {
+            break;
+        }
+        
+        src = child;
+        component = strtok_r(NULL, "/", &brk_info);
+    }
+
+    free(ptr);
+    if (ret < 0) {
+        iso_file_source_unref(src);
+    } else if (ret == 0) {
+        ret = ISO_FILE_DOESNT_EXIST;
+    } else {
+        *file = src;
+    }
+
+    get_path_exit:;
+    ifs_fs_close((IsoImageFilesystem*)fs);
+    return ret;
 }
 
 unsigned int ifs_get_id(IsoFilesystem *fs)
