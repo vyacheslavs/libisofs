@@ -16,6 +16,7 @@
 #include "ecma119.h"
 #include "messages.h"
 #include "rockridge.h"
+#include "image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1424,6 +1425,7 @@ int read_pvm(_ImageFsData *data, uint32_t block)
 }
 
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
+                             struct libiso_msgs *messenger,
                              IsoImageFilesystem **fs)
 {
     int ret;
@@ -1460,7 +1462,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->uid = opts->uid;
     data->mode = opts->mode & ~S_IFMT;
     data->input_charset = strdup(opts->input_charset);
-    data->messenger = opts->messenger;
+    data->messenger = messenger;
 
     ifs->open = ifs_fs_open;
     ifs->close = ifs_fs_close;
@@ -1581,4 +1583,50 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     ifs_fs_free((IsoFilesystem*)ifs);
     free(ifs);
     return ret;
+}
+
+int iso_image_import(IsoImage *image, IsoDataSource *src,
+                     struct iso_read_opts *opts, 
+                     struct iso_read_image_features *features)
+{
+    int ret;
+    IsoImageFilesystem *fs;
+    IsoFilesystem *fsback;
+    
+    if (image == NULL || src == NULL || opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    ret = iso_image_filesystem_new(src, opts, image->messenger, &fs);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* backup image filesystem and builder */
+    fsback = image->fs;
+    //TODO
+    
+    
+    /* get root from filesystem */
+
+    
+    /* remove root node */
+    
+    
+    /* recursively add image */
+    
+    
+    /* recover backed fs and builder */
+    
+    
+    /* set volume attributes */
+    
+    
+    if (features != NULL) {
+        //TODO
+    }
+    
+    //TODO
+    
+    return -1;
 }

@@ -203,6 +203,72 @@ struct Iso_Data_Source {
 };
 
 /**
+ * Options for image reading.
+ * There are four kind of options:
+ * - Related to multisession support.
+ *   In most cases, an image begins at LBA 0 of the data source. However,
+ *   in multisession discs, the later image begins in the last session on
+ *   disc. The block option can be used to specify the start of that last
+ *   session.
+ * - Related to the tree that will be read.
+ *   As default, when Rock Ridge extensions are present in the image, that
+ *   will be used to get the tree. If RR extensions are not present, libisofs
+ *   will use the Joliet extensions if available. Finally, the plain ISO-9660
+ *   tree is used if neither RR nor Joliet extensions are available. With
+ *   norock, nojoliet, and preferjoliet options, you can change this
+ *   default behavior.
+ * - Related to default POSIX attributes.
+ *   When Rock Ridege extensions are not used, libisofs can't figure out what
+ *   are the the permissions, uid or gid for the files. You should supply
+ *   default values for that.
+ */
+struct iso_read_opts
+{
+    /** 
+     * Block where the image begins, usually 0, can be different on a 
+     * multisession disc.
+     */
+    uint32_t block; 
+
+    unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
+    unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
+
+    /** 
+     * When both Joliet and RR extensions are present, the RR tree is used. 
+     * If you prefer using Joliet, set this to 1. 
+     */
+    unsigned int preferjoliet : 1; 
+    
+    uid_t uid; /**< Default uid when no RR */
+    gid_t gid; /**< Default uid when no RR */
+    mode_t mode; /**< Default mode when no RR (only permissions) */
+    //TODO differ file and dir mode
+    //option to convert names to lower case?
+    
+    char *input_charset;
+};
+
+/**
+ * Return information for image.
+ * Both size, hasRR and hasJoliet will be filled by libisofs with suitable 
+ * values.
+ */
+struct iso_read_image_features
+{
+    /** It will be set to 1 if RR extensions are present, to 0 if not. */
+    unsigned int hasRR:1; 
+    
+    /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
+    unsigned int hasJoliet:1; 
+    
+    /** 
+     * Will be filled with the size (in 2048 byte block) of the image, as 
+     * reported in the PVM. 
+     */
+    uint32_t size; 
+};
+
+/**
  * Create a new image, empty.
  * 
  * The image will be owned by you and should be unref() when no more needed.
@@ -222,6 +288,27 @@ int iso_image_new(const char *name, IsoImage **image);
  */
 int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
                      struct burn_source **burn_src);
+
+/**
+ * Import a previous session or image, for growing or modify.
+ * 
+ * @param image
+ *     The image context to which old image will be imported. Note that all
+ *     files added to image, and image attributes, will be replaced with the
+ *     contents of the old image. TODO support for merging old image files
+ * @param src
+ *     Data Source from which old image will be read.
+ * @param opts
+ *     Options for image import
+ * @param features
+ *     Will be filled with the features of the old image. You can pass NULL
+ *     if you're not interested on them.
+ * @return
+ *     1 on success, < 0 on error
+ */
+int iso_image_import(IsoImage *image, IsoDataSource *src,
+                     struct iso_read_opts *opts, 
+                     struct iso_read_image_features *features);
 
 /**
  * Increments the reference counting of the given image.
