@@ -136,7 +136,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* sort files by weight, if needed */
     if (t->sort_files) {
-        qsort(t->files, size, sizeof(void*), cmp_by_weight);
+        qsort(filelist, size, sizeof(void*), cmp_by_weight);
     }
 
     /* fill block value */
