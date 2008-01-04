@@ -316,11 +316,20 @@ struct iso_read_image_features
 int iso_image_new(const char *name, IsoImage **image);
 
 /**
- * TODO we should have two "create" methods, one for grow images, another
- * for images from scratch. Or we can just have a flag in Ecma119WriteOpts.
+ * Create a burn_source to actually write the image. That burn_source can be 
+ * used with libburn as a data source for a track.
+ * 
+ * @param image
+ *     The image to write.
+ * @param opts
+ *     The options for image generation.
+ * @param burn_src
+ *     Location where the pointer to the burn_source will be stored
+ * @return
+ *     1 on success, < 0 on error 
  */
-int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
-                     struct burn_source **burn_src);
+int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
+                                 struct burn_source **burn_src);
 
 /**
  * Import a previous session or image, for growing or modify.

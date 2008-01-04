@@ -926,8 +926,8 @@ int bs_set_size(struct burn_source *bs, off_t size)
     return 1;
 }
 
-int iso_image_create(IsoImage *image, Ecma119WriteOpts *opts,
-                     struct burn_source **burn_src)
+int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
+                                 struct burn_source **burn_src)
 {
     int ret;
     struct burn_source *source;

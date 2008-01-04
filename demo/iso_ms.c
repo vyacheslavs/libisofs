@@ -104,7 +104,7 @@ int main(int argc, char **argv)
     /* generate a multisession image with new contents */
     opts.ms_block = atoi(argv[2]);
     opts.appendable = 1;
-    result = iso_image_create(image, &opts, &burn_src);
+    result = iso_image_create_burn_source(image, &opts, &burn_src);
     if (result < 0) {
         printf ("Cant create image, error %d\n", result);
         return 1;
