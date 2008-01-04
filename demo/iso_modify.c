@@ -32,7 +32,7 @@ int main(int argc, char **argv)
         1, /* rockridge */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
-        0, /* sort files */
+        1, /* sort files */
         0, /* replace_dir_mode */
         0, /* replace_file_mode */
         0, /* replace_uid */
