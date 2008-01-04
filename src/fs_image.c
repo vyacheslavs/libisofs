@@ -1475,7 +1475,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     /* get our ref to IsoDataSource */
     data->src = src;
     iso_data_source_ref(src);
-    data->open_count = 0; //TODO
+    data->open_count = 0;
 
     /* get an id for the filesystem */
     data->id = ++fs_dev_id;

@@ -193,12 +193,21 @@ size_t iso_rbtree_get_size(IsoRBTree *tree);
 /**
  * Get an array view of the elements of the tree.
  * 
+ * @param include_item
+ *    Function to select which elements to include in the array. It that takes
+ *    a pointer to an element and returns 1 if the element should be included,
+ *    0 if not. If you want to add all elements to the array, you can pass a
+ *    NULL pointer.
+ * @param size
+ *    If not null, will be filled with the number of elements in the array,
+ *    without counting the final NULL item.
  * @return
  *    A sorted array with the contents of the tree, or NULL if there is not
  *    enought memory to allocate the array. You should free(3) the array when
  *    no more needed. Note that the array is NULL-terminated, and thus it
  *    has size + 1 length.
  */
-void **iso_rbtree_to_array(IsoRBTree *tree);
+void **iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *), 
+                           size_t *size);
 
 #endif /*LIBISO_UTIL_H_*/

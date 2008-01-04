@@ -1,5 +1,5 @@
 /*
- * Little program to show how to modify an iso image.
+ * Little program to show how to create a multisession iso image.
  */
 
 #include "libisofs.h"
@@ -16,7 +16,7 @@
 
 void usage(char **argv)
 {
-    printf("%s [OPTIONS] IMAGE DIRECTORY OUTPUT\n", argv[0]);
+    printf("%s LSS NWA DISC DIRECTORY OUTPUT\n", argv[0]);
 }
 
 int main(int argc, char **argv)
@@ -57,18 +57,18 @@ int main(int argc, char **argv)
         "UTF-8" /* input_charset */
     };
 	
-    if (argc < 4) {
+    if (argc < 6) {
         usage(argv);
         return 1;
     }
-    
-    fd = fopen(argv[3], "w");
+
+    fd = fopen(argv[5], "w");
     if (!fd) {
         err(1, "error opening output file");
     }
     
     /* create the data source to accesss previous image */
-    result = iso_data_source_new_from_file(argv[1], &src);
+    result = iso_data_source_new_from_file(argv[3], &src);
     if (result < 0) {
         printf ("Error creating data source\n");
         return 1;
@@ -86,6 +86,7 @@ int main(int argc, char **argv)
     iso_tree_set_stop_on_error(image, 0);
     
     /* import previous image */
+    ropts.block = atoi(argv[1]);
     result = iso_image_import(image, src, &ropts, NULL);
     iso_data_source_unref(src);
     if (result < 0) {
@@ -94,13 +95,15 @@ int main(int argc, char **argv)
     }
     
     /* add new dir */
-    result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[2]);
+    result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[4]);
     if (result < 0) {
         printf ("Error adding directory %d\n", result);
         return 1;
     }
     
-    /* generate a new image with both previous and added contents */
+    /* generate a multisession image with new contents */
+    opts.ms_block = atoi(argv[2]);
+    opts.appendable = 1;
     result = iso_image_create(image, &opts, &burn_src);
     if (result < 0) {
         printf ("Cant create image, error %d\n", result);

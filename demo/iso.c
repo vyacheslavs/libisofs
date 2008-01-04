@@ -41,7 +41,10 @@ int main(int argc, char **argv)
         0, /* file_mode */
         0, /* uid */
         0, /* gid */
-        NULL /* output charset */
+        NULL, /* output charset */
+        0, /* appendable */
+        0, /* ms_block */
+        NULL /* overwrite */
     };
 	
     if (argc < 2) {

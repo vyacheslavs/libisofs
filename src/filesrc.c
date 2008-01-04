@@ -114,11 +114,19 @@ static int cmp_by_weight(const void *f1, const void *f2)
 }
 
 static
+int is_ms_file(void *arg)
+{
+    IsoFileSrc *f = (IsoFileSrc *)arg;
+    return f->prev_img ? 0 : 1;
+}
+
+static
 int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     size_t i, size;
     Ecma119Image *t;
     IsoFileSrc **filelist;
+    int (*inc_item)(void *);
 
     if (writer == NULL) {
         return ISO_MEM_ERROR;
@@ -126,13 +134,18 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t = writer->target;
 
+    /* on appendable images, ms files shouldn't be included */
+    if (t->appendable) {
+        inc_item = is_ms_file;
+    } else {
+        inc_item = NULL;
+    }
+    
     /* store the filesrcs in a array */
-    filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files);
+    filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files, inc_item, &size);
     if (filelist == NULL) {
         return ISO_MEM_ERROR;
     }
-
-    size = iso_rbtree_get_size(t->files);
 
     /* sort files by weight, if needed */
     if (t->sort_files) {
@@ -207,8 +220,9 @@ static
 int filesrc_writer_write_data(IsoImageWriter *writer)
 {
     int res;
-    size_t i, b, nfiles;
+    size_t i, b;
     Ecma119Image *t;
+    IsoFileSrc *file;
     IsoFileSrc **filelist;
     char buffer[BLOCK_SIZE];
 
@@ -221,9 +235,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
     iso_msg_debug(t->image->messenger, "Writing Files...");
 
-    nfiles = iso_rbtree_get_size(t->files);
-    for (i = 0; i < nfiles; ++i) {
-        IsoFileSrc *file = filelist[i];
+    i = 0;
+    while ((file = filelist[i++]) != NULL) {
 
         /*
          * TODO WARNING

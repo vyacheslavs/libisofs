@@ -66,6 +66,7 @@ struct ecma119_image
     char *input_charset;
     char *output_charset;
 
+    unsigned int appendable : 1;
     uint32_t ms_block; /**< start block for a ms image */
     time_t now; /**< Time at which writing began. */
 

@@ -754,7 +754,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->file_mode = opts->replace_file_mode == 2 ? opts->file_mode : 0444;
 
     target->now = time(NULL);
-    target->ms_block = 0;
+    target->ms_block = opts->ms_block;
+    target->appendable = opts->appendable;
 
     /* default to locale charset */
     setlocale(LC_CTYPE, "");

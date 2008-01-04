@@ -104,36 +104,69 @@ typedef struct
     uid_t uid; /** uid to use when replace_uid == 2. */
     gid_t gid; /** gid to use when replace_gid == 2. */
 
-    char *output_charset; /**< NULL to use default charset */
-    //    uint32_t ms_block;
-    /**< 
-     * Start block for multisession. When this is greater than 0, 
-     * it's suppossed to be the lba of the next writable address 
-     * on disc; all block lba on image will take this into account,
-     * and files from a previous session will not be written on 
-     * image. This behavior is only suitable for images to be
-     * appended to a multisession disc.
-     * When this is 0, no multisession image will be created. If 
-     * some files are taken from a previous image, its contents
-     * will be written again to the new image. Use this with new
-     * images or if you plan to modify an existin image. 
+    /**
+     * Charset for the RR filenames that will be created.
+     * NULL to use default charset, the locale one.
      */
-    //    struct data_source* src;
-    //                /**<
-    //                 * When modifying a image, this is the source of the original
-    //                 * image, used to read file contents.
-    //                 * Otherwise it can be NULL.
-    //                 */
-    //    uint8_t *overwrite;
-    //                /**<
-    //                 * When not NULL, it should point to a buffer of at least 
-    //                 * 64KiB, where libisofs will write the contents that should 
-    //                 * be written at the beginning of a overwriteable media, to
-    //                 * grow the image.
-    //                 * You shoudl initialize the buffer either with 0s, or with
-    //                 * the contents of the first blocks of the image you're
-    //                 * growing. In most cases, 0 is good enought.
-    //                 */
+    char *output_charset;
+
+    /**
+     * This flags control the type of the image to create. Libisofs support
+     * two kind of images: stand-alone and appendable. 
+     * 
+     * A stand-alone image is an image that is valid alone, and that can be
+     * mounted by its own. This is the kind of image you will want to create
+     * in most cases. A stand-alone image can be burned in an empty CD or DVD,
+     * or write to an .iso file for future burning or distribution.
+     * 
+     * On the other side, an appendable image is not self contained, it refers
+     * to serveral files that are stored outside the image. Its usage is for
+     * multisession discs, where you add data in a new session, while the 
+     * previous session data can still be accessed. In those cases, the old 
+     * data is not written again. Instead, the new image refers to it, and thus
+     * it's only valid when appended to the original. Note that in those cases
+     * the image will be written after the original, and thus you will want
+     * to use a ms_block greater than 0. 
+     * 
+     * Note that if you haven't import a previous image (by means of 
+     * iso_image_import()), the image will always be a stand-alone image, as
+     * there is no previous data to refer to.
+     */
+    unsigned int appendable : 1;
+    
+    /**
+     * Start block of the image. It is supposed to be the lba where the first
+     * block of the image will be written on disc. All references inside the
+     * ISO image will take this into account, thus providing a mountable image.
+     * 
+     * For appendable images, that are written to a new session, you should 
+     * pass here the lba of the next writable address on disc.
+     * 
+     * In stand alone images this is usually 0. However, you may want to 
+     * provide a different ms_block if you don't plan to burn the image in the
+     * first session on disc, such as in some CD-Extra disc whether the data
+     * image is written in a new session after some audio tracks. 
+     */
+    uint32_t ms_block;
+
+    /**
+     * When not NULL, it should point to a buffer of at least 64KiB, where 
+     * libisofs will write the contents that should be written at the beginning
+     * of a overwriteable media, to grow the image. The growing of an image is
+     * a way, used by first time in growisofs by Andy Polyakov, to allow the
+     * appending of new data to non-multisession media, such as DVD+RW, in the
+     * same way you append a new session to a multisession disc, i.e., without
+     * need to write again the contents of the previous image.   
+     * 
+     * Note that if you want this kind of image growing, you will also need to
+     * set appendable to "1" and provide a valid ms_block after the previous
+     * image.
+     * 
+     * You should initialize the buffer either with 0s, or with the contents of 
+     * the first blocks of the image you're growing. In most cases, 0 is good 
+     * enought.
+     */
+    uint8_t *overwrite;
 } Ecma119WriteOpts;
 
 typedef struct Iso_Data_Source IsoDataSource;
