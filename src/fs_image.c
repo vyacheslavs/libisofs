@@ -1486,11 +1486,18 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->mode = opts->mode & ~S_IFMT;
     data->messenger = messenger;
     
-    data->input_charset = strdup(opts->input_charset);
-    
     setlocale(LC_CTYPE, "");
     data->local_charset = strdup(nl_langinfo(CODESET));
     if (data->local_charset == NULL) {
+        ret = ISO_MEM_ERROR;
+        goto fs_cleanup;
+    }
+    if (opts->input_charset != NULL) {
+        data->input_charset = strdup(opts->input_charset);
+    } else {
+        data->input_charset = strdup(data->local_charset);
+    }
+    if (data->input_charset == NULL) {
         ret = ISO_MEM_ERROR;
         goto fs_cleanup;
     }

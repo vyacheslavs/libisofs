@@ -120,7 +120,7 @@ int main(int argc, char **argv)
         0, /* uid; */
         0, /* gid; */
         0, /* mode */
-        "UTF-8" /* input_charset */
+        NULL /* input_charset */
     };
 
     if (argc != 2) {

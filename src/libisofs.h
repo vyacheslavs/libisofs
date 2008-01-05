@@ -278,6 +278,9 @@ struct iso_read_opts
     //TODO differ file and dir mode
     //option to convert names to lower case?
     
+    /**
+     * Input charset for RR file names. NULL to use default locale charset.
+     */
     char *input_charset;
 };
 
