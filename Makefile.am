@@ -61,7 +61,8 @@ noinst_PROGRAMS = \
 	demo/isoread \
 	demo/isocat \
 	demo/isomodify \
-	demo/isoms
+	demo/isoms \
+	demo/isogrow
 
 demo_lsl_CPPFLAGS = -Isrc
 demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
@@ -102,6 +103,10 @@ demo_isomodify_SOURCES = demo/iso_modify.c
 demo_isoms_CPPFLAGS = -Isrc
 demo_isoms_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_isoms_SOURCES = demo/iso_ms.c
+
+demo_isogrow_CPPFLAGS = -Isrc -Ilibburn
+demo_isogrow_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS) -lburn
+demo_isogrow_SOURCES = demo/iso_grow.c
 
 
 ## Build unit test

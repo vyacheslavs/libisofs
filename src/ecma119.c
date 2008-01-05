@@ -717,7 +717,7 @@ void *write_function(void *arg)
 static
 int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
 {
-    int ret, i;
+    int ret, i, voldesc_size;
     Ecma119Image *target;
 
     /* 1. Allocate target and copy opts there */
@@ -801,6 +801,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
 
+    voldesc_size = target->curblock - target->ms_block - 16;
+    
     /* Volume Descriptor Set Terminator */
     target->curblock++;
 
@@ -824,6 +826,61 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
         }
     }
 
+    /* create the ring buffer */
+    ret = iso_ring_buffer_new(&target->buffer);
+    if (ret < 0) {
+        goto target_cleanup;
+    }
+
+    /* check if we need to provide a copy of volume descriptors */
+    if (opts->overwrite) {
+
+        /*
+         * Get a copy of the volume descriptors to be written in a DVD+RW
+         * disc
+         */
+
+        uint8_t *buf;
+        struct ecma119_vol_desc_terminator *vol;
+        IsoImageWriter *writer;
+
+        /*
+         * In the PVM to be written in the 16th sector of the disc, we
+         * need to specify the full size.
+         */
+        target->vol_space_size = target->curblock;
+
+        /* write volume descriptor */
+        for (i = 0; i < target->nwriters; ++i) {
+            writer = target->writers[i];
+            ret = writer->write_vol_desc(writer);
+            if (ret < 0) {
+                iso_msg_debug(target->image->messenger,
+                              "Error writing overwrite volume descriptors");
+                goto target_cleanup;
+            }
+        }
+
+        /* skip the first 16 blocks (system area) */
+        buf = opts->overwrite + 16 * BLOCK_SIZE;
+        voldesc_size *= BLOCK_SIZE;
+
+        /* copy the volume descriptors to the overwrite buffer... */
+        ret = iso_ring_buffer_read(target->buffer, buf, voldesc_size);
+        if (ret < 0) {
+            iso_msg_debug(target->image->messenger,
+                          "Error reading overwrite volume descriptors");
+            goto target_cleanup;
+        }
+
+        /* ...including the vol desc terminator */
+        memset(buf + voldesc_size, 0, BLOCK_SIZE);
+        vol = (struct ecma119_vol_desc_terminator*) (buf + voldesc_size);
+        vol->vol_desc_type[0] = 255;
+        memcpy(vol->std_identifier, "CD001", 5);
+        vol->vol_desc_version[0] = 1;
+    }
+
     /*
      * The volume space size is just the size of the last session, in
      * case of ms images.
@@ -832,12 +889,6 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
     /* 4. Create and start writting thread */
-
-    /* create the ring buffer */
-    ret = iso_ring_buffer_new(&target->buffer);
-    if (ret < 0) {
-        goto target_cleanup;
-    }
 
     /* ensure the thread is created joinable */
     pthread_attr_init(&(target->th_attr));
@@ -969,7 +1020,8 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         return ISO_WRITE_ERROR;
     }
 
-    if (ret > 0){
+    /* total size is 0 when writing the overwrite buffer */
+    if (ret > 0 && (target->total_size != (off_t) 0)){
         unsigned int kbw, kbt;
         int percent;
         
