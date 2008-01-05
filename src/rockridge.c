@@ -248,25 +248,29 @@ int rrip_add_CL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     return susp_append(t, susp, CL);
 }
 
+/**
+ * Convert a RR filename to the requested charset. On any conversion error, 
+ * the original name will be used.
+ */
 static
-char *get_rr_name(Ecma119Image *t, Ecma119Node *n)
+char *get_rr_fname(Ecma119Image *t, const char *str)
 {
     int ret;
     char *name;
 
     if (!strcmp(t->input_charset, t->output_charset)) {
         /* no conversion needed */
-        return strdup(n->node->name);
+        return strdup(str);
     }
 
-    ret = strconv(n->node->name, t->input_charset, t->output_charset, &name);
+    ret = strconv(str, t->input_charset, t->output_charset, &name);
     if (ret < 0) {
         iso_msg_sorry(t->image->messenger, LIBISO_CHARSET_ERROR, 
                   "Charset conversion error. Can't convert %s from %s to %s",
-                  n->node->name, t->input_charset, t->output_charset);
+                  str, t->input_charset, t->output_charset);
 
         /* use the original name, it's the best we can do */
-        name = strdup(n->node->name);
+        name = strdup(str);
     }
 
     return name;
@@ -569,7 +573,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     }
 
     if (type == 0) {
-        char *name = get_rr_name(t, n);
+        char *name = get_rr_fname(t, n->node->name);
         size_t namelen = strlen(name);
         free(name);
 
@@ -587,11 +591,12 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
             /* 
              * for symlinks, we also need to write the SL
              */
-            char *cur, *prev;
+            char *dest, *cur, *prev;
             size_t sl_len = 5;
             int cew = (*ce != 0); /* are we writing to CE? */
 
-            prev = ((IsoSymlink*)n->node)->dest;
+            dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
+            prev = dest;
             cur = strchr(prev, '/');
             while (1) {
                 size_t clen;
@@ -680,6 +685,8 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
                 cur = strchr(prev, '/');
             }
 
+            free(dest);
+
             /* and finally write the pending SL field */
             if (!cew) {
                 /* the whole SL fits into the SUA */
@@ -754,7 +761,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     int ret;
     size_t i;
     Ecma119Node *node;
-    char *name= NULL;
+    char *name = NULL;
+    char *dest = NULL;
 
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
@@ -844,7 +852,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         uint8_t **comps= NULL; /* components of the SL field */
         size_t n_comp = 0; /* number of components */
 
-        name = get_rr_name(t, n);
+        name = get_rr_fname(t, n->node->name);
         namelen = strlen(name);
 
         sua_free = space - info->suf_len;
@@ -869,7 +877,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             size_t sl_len = 5;
             int cew = (nm_type == 1); /* are we writing to CE? */
 
-            prev = ((IsoSymlink*)n->node)->dest;
+            dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
+            prev = dest;
             cur = strchr(prev, '/');
             while (1) {
                 size_t clen;
@@ -1107,10 +1116,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     info->suf_len += (info->suf_len % 2);
 
     free(name);
+    free(dest);
     return ISO_SUCCESS;
 
     add_susp_cleanup: ;
     free(name);
+    free(dest);
     susp_info_free(info);
     return ret;
 }

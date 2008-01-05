@@ -894,7 +894,22 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             }
         }
         
-        //TODO convert link destinatiion to needed charset 
+        /* convert link destination to needed charset */ 
+        if (strcmp(fsdata->input_charset, fsdata->local_charset) && linkdest) {
+            /* we need to convert name charset */
+            char *newlinkdest = NULL;
+            ret = strconv(linkdest, fsdata->input_charset, 
+                          fsdata->local_charset, &newlinkdest);
+            if (ret < 0) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_CHARSET_ERROR, 
+                    "Charset conversion error. Can't convert %s from %s to %s",
+                    linkdest, fsdata->input_charset, fsdata->local_charset);
+                free(newlinkdest);
+            } else {
+                free(linkdest);
+                linkdest = newlinkdest;
+            }
+        }
         
     } else {
         /* RR extensions are not read / used */
