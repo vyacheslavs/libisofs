@@ -647,6 +647,87 @@ int ecma119_writer_create(Ecma119Image *target)
     return ISO_SUCCESS;
 }
 
+/** compute how many padding bytes are needed */
+static
+int pad_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    Ecma119Image *target;
+
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    target = writer->target;
+    if (target->curblock < 32) {
+        target->pad_blocks = 32 - target->curblock;
+        target->curblock = 32;
+    }
+    return ISO_SUCCESS;
+}
+
+static
+int pad_writer_write_vol_desc(IsoImageWriter *writer)
+{
+    /* nothing to do */
+    return ISO_SUCCESS;
+}
+static
+int pad_writer_write_data(IsoImageWriter *writer)
+{
+    int ret;
+    Ecma119Image *t;
+    uint32_t pad[BLOCK_SIZE];
+    size_t i;
+
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    t = writer->target;
+    
+    if (t->pad_blocks == 0) {
+        return ISO_SUCCESS;
+    }
+
+    memset(pad, 0, BLOCK_SIZE);
+    for (i = 0; i < t->pad_blocks; ++i) {
+        ret = iso_write(t, pad, BLOCK_SIZE);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return ISO_SUCCESS;
+}
+
+static
+int pad_writer_free_data(IsoImageWriter *writer)
+{
+    /* nothing to do */
+    return ISO_SUCCESS;
+}
+
+static
+int pad_writer_create(Ecma119Image *target)
+{
+    IsoImageWriter *writer;
+
+    writer = malloc(sizeof(IsoImageWriter));
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    writer->compute_data_blocks = pad_writer_compute_data_blocks;
+    writer->write_vol_desc = pad_writer_write_vol_desc;
+    writer->write_data = pad_writer_write_data;
+    writer->free_data = pad_writer_free_data;
+    writer->data = NULL;
+    writer->target = target;
+
+    /* add this writer to image */
+    target->writers[target->nwriters++] = writer;
+    return ISO_SUCCESS;
+}
+
 static
 void *write_function(void *arg)
 {
@@ -717,7 +798,7 @@ void *write_function(void *arg)
 static
 int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
 {
-    int ret, i, voldesc_size;
+    int ret, i, voldesc_size, nwriters;
     Ecma119Image *target;
 
     /* 1. Allocate target and copy opts there */
@@ -788,7 +869,8 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->curblock = target->ms_block + 16;
 
     /* the number of writers is dependent of the extensions */
-    target->writers = malloc(2 * sizeof(void*));
+    nwriters = 1 + 1 + 1; /* ECMA-119 + padding + files */
+    target->writers = malloc(nwriters * sizeof(void*));
     if (target->writers == NULL) {
         iso_image_unref(src);
         free(target);
@@ -805,6 +887,15 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     
     /* Volume Descriptor Set Terminator */
     target->curblock++;
+
+    /* 
+     * Create the writer for possible padding to ensure that in case of image
+     * growing we can safety overwrite the first 64 KiB of image.
+     */
+    ret = pad_writer_create(target);
+    if (ret < 0) {
+        goto target_cleanup;
+    }
 
     /* create writer for file contents */
     ret = iso_file_src_writer_create(target);

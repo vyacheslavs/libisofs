@@ -93,6 +93,21 @@ struct ecma119_image
     uint32_t l_path_table_pos;
     uint32_t m_path_table_pos;
 
+    /*
+     * Number of pad blocks that we need to write. Padding blocks are blocks
+     * filled by 0s that we put between the directory structures and the file
+     * data. These padding blocks are added by libisofs to improve the handling
+     * of image growing. The idea is that the first blocks in the image are
+     * overwritten with the volume descriptors of the new image. These first
+     * blocks usually correspond to the volume descriptors and directory 
+     * structure of the old image, and can be safety overwritten. However, 
+     * with very small images they might correspond to valid data. To ensure 
+     * this never happens, what we do is to add padding bytes, to ensure no 
+     * file data is written in the first 64 KiB, that are the bytes we usually
+     * overwrite.
+     */
+    uint32_t pad_blocks;
+
     size_t nwriters;
     IsoImageWriter **writers;
 
