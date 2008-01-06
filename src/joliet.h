@@ -1,0 +1,60 @@
+/*
+ * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2007 Mario Danic
+ * 
+ * This file is part of the libisofs project; you can redistribute it and/or 
+ * modify it under the terms of the GNU General Public License version 2 as 
+ * published by the Free Software Foundation. See COPYING file for details.
+ */
+
+/**
+ * Declare Joliet related structures.
+ */
+
+#ifndef LIBISO_JOLIET_H
+#define LIBISO_JOLIET_H
+
+#include "libisofs.h"
+#include "ecma119.h"
+
+typedef struct joliet_node JolietNode;
+
+enum joliet_node_type {
+	JOLIET_FILE,
+	JOLIET_DIR
+};
+
+struct joliet_dir_info {
+    JolietNode **children;
+	size_t nchildren;
+	size_t len;
+	size_t block;
+};
+
+struct joliet_node
+{
+	uint16_t *name; /**< Name in UCS-2BE. */
+	//size_t dirent_len;
+
+    JolietNode *parent;
+
+    IsoNode *node; /*< reference to the iso node */
+
+	enum joliet_node_type type;
+	union {
+	    IsoFileSrc *file;
+	    //TODO change with a pointer
+		struct joliet_dir_info dir;
+	} info;
+};
+
+/**
+ * Create a IsoWriter to deal with Joliet estructures, and add it to the given
+ * target.
+ * 
+ * @return
+ *      1 on success, < 0 on error
+ */
+int joliet_writer_create(Ecma119Image *target);
+
+#endif /* LIBISO_JOLIET_H */

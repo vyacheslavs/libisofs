@@ -36,6 +36,9 @@ struct ecma119_image
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
     unsigned int allow_deep_paths :1;
+    
+    /** Allow paths on Joliet tree to be larger than 240 bytes */
+    unsigned int joliet_longer_paths :1;
     //    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
 
     /* 

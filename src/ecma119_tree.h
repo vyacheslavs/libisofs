@@ -21,7 +21,7 @@ enum ecma119_node_type {
 };
 
 /**
- * Struct with info about a node representing a tree
+ * Struct with info about a node representing a directory
  */
 struct ecma119_dir_info
 {

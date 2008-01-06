@@ -44,6 +44,8 @@ src_libisofs_la_SOURCES = \
 	src/rockridge.h \
 	src/rockridge.c \
 	src/rockridge_read.c \
+	src/joliet.h \
+	src/joliet.c \
 	src/data_source.c
 libinclude_HEADERS = \
 	src/libisofs.h

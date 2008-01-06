@@ -26,6 +26,12 @@
 #include <locale.h>
 #include <langinfo.h>
 
+/*
+ * TODO image with more than 65535 directories have path_table related problems
+ * due to 16 bits parent id. Note that this problem only affects to folders
+ * that are parent of another folder.
+ */
+
 static
 void ecma119_image_free(Ecma119Image *t)
 {
@@ -822,6 +828,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers;
     target->allow_deep_paths = opts->allow_deep_paths;
+    target->joliet_longer_paths = 0; //TODO
     target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
