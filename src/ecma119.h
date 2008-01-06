@@ -102,6 +102,10 @@ struct ecma119_image
      * Joliet related information
      */
     JolietNode *joliet_root;
+    size_t joliet_ndirs;
+    uint32_t joliet_path_table_size;
+    uint32_t joliet_l_path_table_pos;
+    uint32_t joliet_m_path_table_pos;
 
     /*
      * Number of pad blocks that we need to write. Padding blocks are blocks

@@ -275,11 +275,121 @@ int joliet_tree_create(Ecma119Image *t)
     return ISO_SUCCESS;
 }
 
+/**
+ * Compute the size of a directory entry for a single node
+ */
+static
+size_t calc_dirent_len(Ecma119Image *t, JolietNode *n)
+{
+    /* note than name len is always even, so we always need the pad byte */
+    int ret = n->name ? ucslen(n->name) * 2 + 34 : 34;
+    if (n->type == JOLIET_FILE && !t->omit_version_numbers) {
+        /* take into account version numbers */
+        ret += 4;
+    }
+    return ret;
+}
+
+/**
+ * Computes the total size of all directory entries of a single joliet dir.
+ * This is like ECMA-119 6.8.1.1, but taking care that names are stored in
+ * UCS.
+ */
+static
+size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
+{
+    size_t i, len;
+
+    /* size of "." and ".." entries */
+    len = 34 + 34;
+
+    for (i = 0; i < dir->info.dir.nchildren; ++i) {
+        size_t remaining;
+        JolietNode *child = dir->info.dir.children[i];
+        size_t dirent_len = calc_dirent_len(t, child);
+        remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
+        if (dirent_len > remaining) {
+            /* child directory entry doesn't fit on block */
+            len += remaining + dirent_len;
+        } else {
+            len += dirent_len;
+        }
+    }
+    /* cache the len */
+    dir->info.dir.len = len;
+    return len;
+}
+
+static
+void calc_dir_pos(Ecma119Image *t, JolietNode *dir)
+{
+    size_t i, len;
+
+    t->joliet_ndirs++;
+    dir->info.dir.block = t->curblock;
+    len = calc_dir_size(t, dir);
+    t->curblock += div_up(len, BLOCK_SIZE);
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        JolietNode *child = dir->info.dir.children[i];
+        if (child->type == JOLIET_DIR) {
+            calc_dir_pos(t, child);
+        }
+    }
+}
+
+/**
+ * Compute the length of the joliet path table, in bytes.
+ */
+static
+uint32_t calc_path_table_size(JolietNode *dir)
+{
+    uint32_t size;
+    size_t i;
+
+    /* size of path table for this entry */
+    size = 8;
+    size += dir->name ? ucslen(dir->name) * 2 : 2;
+
+    /* and recurse */
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        JolietNode *child = dir->info.dir.children[i];
+        if (child->type == JOLIET_DIR) {
+            size += calc_path_table_size(child);
+        }
+    }
+    return size;
+}
+
 static
 int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
 {
-    //TODO
-    return -1;
+    Ecma119Image *t;
+    uint32_t path_table_size;
+
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    t = writer->target;
+
+    /* compute position of directories */
+    iso_msg_debug(t->image->messenger, 
+                  "Computing position of Joliet dir structure");
+    t->joliet_ndirs = 0;
+    calc_dir_pos(t, t->joliet_root);
+
+    /* compute length of pathlist */
+    iso_msg_debug(t->image->messenger, "Computing length of Joliet pathlist");
+    path_table_size = calc_path_table_size(t->joliet_root);
+
+    /* compute location for path tables */
+    t->joliet_l_path_table_pos = t->curblock;
+    t->curblock += div_up(path_table_size, BLOCK_SIZE);
+    t->joliet_m_path_table_pos = t->curblock;
+    t->curblock += div_up(path_table_size, BLOCK_SIZE);
+    t->joliet_path_table_size = path_table_size;
+
+    return ISO_SUCCESS;
 }
 
 static
