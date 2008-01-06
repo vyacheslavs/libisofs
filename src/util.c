@@ -234,6 +234,95 @@ int str2ascii(const char *icharset, const char *input, char **output)
     return ISO_SUCCESS;
 }
 
+int str2ucs(const char *icharset, const char *input, uint16_t **output)
+{
+    int result;
+    wchar_t *wsrc_;
+    char *src;
+    char *ret;
+    char *ret_;
+    iconv_t conv;
+    size_t numchars;
+    size_t outbytes;
+    size_t inbytes;
+    size_t n;
+
+    if (icharset == NULL || input == NULL || output == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    /* convert the string to a wide character string. Note: outbytes
+     * is in fact the number of characters in the string and doesn't
+     * include the last NULL character.
+     */
+    result = str2wchar(icharset, input, &wsrc_);
+    if (result < 0) {
+        return result;
+    }
+    src = (char *)wsrc_;
+    numchars = wcslen(wsrc_);
+
+    inbytes = numchars * sizeof(wchar_t);
+
+    ret_ = malloc((numchars+1) * sizeof(uint16_t));
+    if (ret_ == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    outbytes = numchars * sizeof(uint16_t);
+    ret = ret_;
+
+    /* initialize iconv */
+    conv = iconv_open("UCS-2BE", "WCHAR_T");
+    if (conv == (iconv_t)-1) {
+        free(wsrc_);
+        free(ret_);
+        return ISO_CHARSET_CONV_ERROR;
+    }
+
+    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
+    while (n == -1) {
+        /* The destination buffer is too small. Stops here. */
+        if (errno == E2BIG)
+            break;
+
+        /* An incomplete multi bytes sequence was found. We 
+         * can't do anything here. That's quite unlikely. */
+        if (errno == EINVAL)
+            break;
+
+        /* The last possible error is an invalid multi bytes
+         * sequence. Just replace the character with a "_". 
+         * Probably the character doesn't exist in ascii like
+         * "é, è, à, ç, ..." in French. */
+        *((uint16_t*) ret) = '_';
+        ret += sizeof(uint16_t);
+        outbytes -= sizeof(uint16_t);
+
+        if (!outbytes)
+            break;
+
+        /* There was an error with one character but some other remain
+         * to be converted. That's probably a multibyte character.
+         * See above comment. */
+        src += sizeof(wchar_t);
+        inbytes -= sizeof(wchar_t);
+
+        if (!inbytes)
+            break;
+
+        n = iconv(conv, &src, &inbytes, &ret, &outbytes);
+    }
+
+    iconv_close(conv);
+
+    /* close the ucs string */
+    *((uint16_t*) ret) = 0;
+    free(wsrc_);
+
+    *output = (uint16_t*)ret_;
+    return ISO_SUCCESS;
+}
+
 static int valid_d_char(char c)
 {
     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c == '_');
@@ -243,6 +332,13 @@ static int valid_a_char(char c)
 {
     return (c >= ' ' && c <= '"') || (c >= '%' && c <= '?') || 
            (c >= 'A' && c <= 'Z') || (c == '_');
+}
+
+static int valid_j_char(uint16_t c)
+{
+    return !(c < (uint16_t)' ' || c == (uint16_t)'*' || c == (uint16_t)'/' 
+            || c == (uint16_t)':' || c == (uint16_t)';' || c == (uint16_t)'?' 
+            || c == (uint16_t)'\\');
 }
 
 static
@@ -369,6 +465,118 @@ char *iso_2_fileid(const char *src)
     }
     dest[pos] = '\0';
     return strdup(dest);
+}
+
+uint16_t *iso_j_id(const uint16_t *src)
+{
+    uint16_t *dot;
+    size_t lname, lext, lnname, lnext, pos, i;
+    uint16_t dest[66]; /* 65 = 64 (name + ext) + 1 (.) + 1 (\0) */
+
+    if (src == NULL) {
+        return NULL;
+    }
+
+    dot = ucsrchr(src, '.');
+
+    /* 
+     * Since the maximum length can be divided freely over the name and
+     * extension, we need to calculate their new lengths (lnname and
+     * lnext). If the original filename is too long, we start by trimming
+     * the extension, but keep a minimum extension length of 3. 
+     */
+    if (dot == NULL || *(dot + 1) == (uint16_t)'\0') {
+        lname = ucslen(src);
+        lnname = (lname > 64) ? 64 : lname;
+        lext = lnext = 0;
+    } else {
+        lext = ucslen(dot + 1);
+        lname = ucslen(src) - lext - 1;
+        lnext = (ucslen(src) > 65 && lext > 3) ? (lname < 61 ? 64 - lname : 3)
+                : lext;
+        lnname = (ucslen(src) > 65) ? 64 - lnext : lname;
+    }
+
+    if (lnname == 0 && lnext == 0) {
+        return NULL;
+    }
+
+    pos = 0;
+
+    /* Convert up to lnname characters of the filename. */
+    for (i = 0; i < lnname; i++) {
+        uint16_t c = src[i];
+        dest[pos++] = valid_j_char(c) ? c : (uint16_t)'_';
+    }
+    dest[pos++] = (uint16_t)'.';
+
+    /* Convert up to lnext characters of the extension, if any. */
+    for (i = 0; i < lnext; i++) {
+        uint16_t c = src[lname + 1 + i];
+        dest[pos++] = valid_j_char(c) ? c : (uint16_t)'_';
+    }
+    dest[pos] = (uint16_t)'\0';
+    return ucsdup(dest);
+}
+
+size_t ucslen(const uint16_t *str)
+{
+    size_t i;
+
+    for (i = 0; str[i]; i++)
+        ;
+    return i;
+}
+
+uint16_t *ucsrchr(const uint16_t *str, uint16_t c)
+{
+    size_t len = ucslen(str);
+
+    while (len-- > 0) {
+        if (str[len] == c) {
+            return (uint16_t*)(str + len);
+        }
+    }
+    return NULL;
+}
+
+uint16_t *ucsdup(const uint16_t *str)
+{
+    uint16_t *ret;
+    size_t len = ucslen(str);
+    
+    ret = malloc(2 * (len + 1));
+    if (ret != NULL) {
+        memcpy(ret, str, 2 * (len + 1));
+    }
+    return ret;
+}
+
+/**
+ * Although each character is 2 bytes, we actually compare byte-by-byte
+ * (thats what the spec says).
+ */
+int ucscmp(const uint16_t *s1, const uint16_t *s2)
+{
+    const char *s = (const char*)s1;
+    const char *t = (const char*)s2;
+    size_t len1 = ucslen(s1);
+    size_t len2 = ucslen(s2);
+    size_t i, len = MIN(len1, len2) * 2;
+
+    for (i = 0; i < len; i++) {
+        if (s[i] < t[i]) {
+            return -1;
+        } else if (s[i] > t[i]) {
+            return 1;
+        }
+    }
+
+    if (len1 < len2)
+        return -1;
+    else if (len1 > len2)
+        return 1;
+    return 0;
 }
 
 int str2d_char(const char *icharset, const char *input, char **output)

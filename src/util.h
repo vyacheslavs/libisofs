@@ -64,6 +64,21 @@ int strconv(const char *input, const char *icharset, const char *ocharset,
 int str2ascii(const char *icharset, const char *input, char **output);
 
 /**
+ * Convert a given string from any input charset to UCS-2BE charset,
+ * used for Joliet file identifiers.
+ * 
+ * @param icharset
+ *      Input charset. Must be supported by iconv
+ * @param input
+ *      Input string
+ * @param output
+ *      Location where the pointer to the ouput string will be stored
+ * @return
+ *      1 on success, < 0 on error
+ */
+int str2ucs(const char *icharset, const char *input, uint16_t **output);
+
+/**
  * Create a level 1 directory identifier.
  * 
  * @param src
@@ -97,6 +112,39 @@ char *iso_1_fileid(const char *src);
  *      The identifier, in ASCII encoding.
  */
 char *iso_2_fileid(const char *src);
+
+/**
+ * Create a Joliet file or directory identifier that consists of name and
+ * extension. The combined name and extension length will not exceed 128 bytes, 
+ * and the name and extension will be separated (.). All characters consist of 
+ * 2 bytes and the resulting string is NULL-terminated by a 2-byte NULL. 
+ * 
+ * Note that version number and (;1) is not appended.
+ *
+ * @return 
+ *        NULL if the original name and extension both are of length 0.
+ */
+uint16_t *iso_j_id(const uint16_t *src);
+
+/**
+ * Like strlen, but for Joliet strings.
+ */
+size_t ucslen(const uint16_t *str);
+
+/**
+ * Like strrchr, but for Joliet strings.
+ */
+uint16_t *ucsrchr(const uint16_t *str, uint16_t c);
+
+/**
+ * Like strdup, but for Joliet strings.
+ */
+uint16_t *ucsdup(const uint16_t *str);
+
+/**
+ * Like strcmp, but for Joliet strings.
+ */
+int ucscmp(const uint16_t *s1, const uint16_t *s2);
 
 /**
  * Convert a given input string to d-chars.
