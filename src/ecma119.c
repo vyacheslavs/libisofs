@@ -598,7 +598,7 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
     Ecma119Image *t;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_NULL_POINTER;
     }
     t = writer->target;
 

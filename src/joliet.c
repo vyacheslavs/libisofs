@@ -552,10 +552,194 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 }
 
 static
+int write_one_dir(Ecma119Image *t, JolietNode *dir)
+{
+    int ret;
+    uint8_t buffer[BLOCK_SIZE];
+    size_t i;
+    size_t fi_len, len;
+
+    /* buf will point to current write position on buffer */
+    uint8_t *buf = buffer;
+
+    /* initialize buffer with 0s */
+    memset(buffer, 0, BLOCK_SIZE);
+
+    /* write the "." and ".." entries first */
+    write_one_dir_record(t, dir, 0, buf, 1);
+    buf += 34;
+    write_one_dir_record(t, dir, 1, buf, 1);
+    buf += 34;
+
+    for (i = 0; i < dir->info.dir.nchildren; i++) {
+        JolietNode *child = dir->info.dir.children[i];
+
+        /* compute len of directory entry */
+        fi_len = ucslen(child->name) * 2;
+        len = fi_len + 34;
+        if (child->type == JOLIET_FILE && !t->omit_version_numbers) {
+            len += 4;
+        }
+
+        if ( (buf + len - buffer) > BLOCK_SIZE) {
+            /* dir doesn't fit in current block */
+            ret = iso_write(t, buffer, BLOCK_SIZE);
+            if (ret < 0) {
+                return ret;
+            }
+            memset(buffer, 0, BLOCK_SIZE);
+            buf = buffer;
+        }
+        /* write the directory entry in any case */
+        write_one_dir_record(t, child, -1, buf, fi_len);
+        buf += len;
+    }
+
+    /* write the last block */
+    ret = iso_write(t, buffer, BLOCK_SIZE);
+    return ret;
+}
+
+static
+int write_dirs(Ecma119Image *t, JolietNode *root)
+{
+    int ret;
+    size_t i;
+
+    /* write all directory entries for this dir */
+    ret = write_one_dir(t, root);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* recurse */
+    for (i = 0; i < root->info.dir.nchildren; i++) {
+        JolietNode *child = root->info.dir.children[i];
+        if (child->type == JOLIET_DIR) {
+            ret = write_dirs(t, child);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+    return ISO_SUCCESS;
+}
+
+static
+int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
+{
+    size_t i, len;
+    uint8_t buf[256]; /* 256 is just a convenient size larger enought */
+    struct ecma119_path_table_record *rec;
+    void (*write_int)(uint8_t*, uint32_t, int);
+    JolietNode *dir;
+    uint32_t path_table_size;
+    int parent = 0;
+    int ret= ISO_SUCCESS;
+
+    path_table_size = 0;
+    write_int = l_type ? iso_lsb : iso_msb;
+
+    for (i = 0; i < t->joliet_ndirs; i++) {
+        dir = pathlist[i];
+
+        /* find the index of the parent in the table */
+        while ((i) && pathlist[parent] != dir->parent) {
+            parent++;
+        }
+
+        /* write the Path Table Record (ECMA-119, 9.4) */
+        memset(buf, 0, 256);
+        rec = (struct ecma119_path_table_record*) buf;
+        rec->len_di[0] = dir->parent ? (uint8_t) ucslen(dir->name) * 2 : 1;
+        rec->len_xa[0] = 0;
+        write_int(rec->block, dir->info.dir.block, 4);
+        write_int(rec->parent, parent + 1, 2);
+        if (dir->parent) {
+            memcpy(rec->dir_id, dir->name, rec->len_di[0]);
+        }
+        len = 8 + rec->len_di[0] + (rec->len_di[0] % 2);
+        ret = iso_write(t, buf, len);
+        if (ret < 0) {
+            /* error */
+            return ret;
+        }
+        path_table_size += len;
+    }
+
+    /* we need to fill the last block with zeros */
+    path_table_size %= BLOCK_SIZE;
+    if (path_table_size) {
+        uint8_t zeros[BLOCK_SIZE];
+        len = BLOCK_SIZE - path_table_size;
+        memset(zeros, 0, len);
+        ret = iso_write(t, zeros, len);
+    }
+    return ret;
+}
+
+static
+int write_path_tables(Ecma119Image *t)
+{
+    int ret;
+    size_t i, j, cur;
+    JolietNode **pathlist;
+
+    iso_msg_debug(t->image->messenger, "Writing Joliet Path tables");
+
+    /* allocate temporal pathlist */
+    pathlist = malloc(sizeof(void*) * t->joliet_ndirs);
+    if (pathlist == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    pathlist[0] = t->joliet_root;
+    cur = 1;
+
+    for (i = 0; i < t->joliet_ndirs; i++) {
+        JolietNode *dir = pathlist[i];
+        for (j = 0; j < dir->info.dir.nchildren; j++) {
+            JolietNode *child = dir->info.dir.children[j];
+            if (child->type == JOLIET_DIR) {
+                pathlist[cur++] = child;
+            }
+        }
+    }
+
+    /* Write L Path Table */
+    ret = write_path_table(t, pathlist, 1);
+    if (ret < 0) {
+        goto write_path_tables_exit;
+    }
+
+    /* Write L Path Table */
+    ret = write_path_table(t, pathlist, 0);
+
+    write_path_tables_exit: ;
+    free(pathlist);
+    return ret;
+}
+
+static
 int joliet_writer_write_data(IsoImageWriter *writer)
 {
-    //TODO
-    return -1;
+    int ret;
+    Ecma119Image *t;
+
+    if (writer == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    t = writer->target;
+
+    /* first of all, we write the directory structure */
+    ret = write_dirs(t, t->joliet_root);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* and write the path tables */
+    ret = write_path_tables(t);
+
+    return ret;
 }
 
 static
