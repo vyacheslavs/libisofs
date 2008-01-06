@@ -222,6 +222,28 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
     return ISO_SUCCESS;
 }
 
+static int
+cmp_node(const void *f1, const void *f2)
+{
+    JolietNode *f = *((JolietNode**)f1);
+    JolietNode *g = *((JolietNode**)f2);
+    return ucscmp(f->name, g->name);
+}
+
+static 
+void sort_tree(JolietNode *root)
+{
+    size_t i;
+
+    qsort(root->info.dir.children, root->info.dir.nchildren, 
+          sizeof(void*), cmp_node);
+    for (i = 0; i < root->info.dir.nchildren; i++) {
+        JolietNode *child = root->info.dir.children[i];
+        if (child->type == JOLIET_DIR)
+            sort_tree(child);
+    }
+}
+
 static
 int joliet_tree_create(IsoImageWriter *writer)
 {
@@ -248,10 +270,10 @@ int joliet_tree_create(IsoImageWriter *writer)
     writer->data = root;
 
     iso_msg_debug(t->image->messenger, "Sorting the Joliet tree...");
-    //TODO sort_tree(root);
+    sort_tree(root);
 
-    iso_msg_debug(t->image->messenger, "Mangling Joliet names...");
-    // TODO ret = mangle_tree(writer, 1);
+    //iso_msg_debug(t->image->messenger, "Mangling Joliet names...");
+    // FIXME ret = mangle_tree(writer, 1);
 
     return ISO_SUCCESS;
 }
