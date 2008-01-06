@@ -579,6 +579,13 @@ int ucscmp(const uint16_t *s1, const uint16_t *s2)
     return 0;
 }
 
+uint16_t *ucsncpy(uint16_t *dest, const uint16_t *src, size_t n)
+{
+    n = MIN(n, ucslen(src) + 1);
+    memcpy(dest, src, n*2);
+    return dest;
+}
+
 int str2d_char(const char *icharset, const char *input, char **output)
 {
     int ret;

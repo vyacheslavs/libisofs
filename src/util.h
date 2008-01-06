@@ -147,6 +147,13 @@ uint16_t *ucsdup(const uint16_t *str);
 int ucscmp(const uint16_t *s1, const uint16_t *s2);
 
 /**
+ * Like strncpy, but for Joliet strings.
+ * @param n
+ *      Maximum number of characters to copy (2 bytes per char).
+ */
+uint16_t *ucsncpy(uint16_t *dest, const uint16_t *src, size_t n);
+
+/**
  * Convert a given input string to d-chars.
  * @return
  *      1 on succes, < 0 error, 0 if input was null (output is set to null)

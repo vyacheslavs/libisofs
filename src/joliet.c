@@ -15,6 +15,7 @@
 #include "filesrc.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 static
 int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
@@ -392,11 +393,162 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
     return ISO_SUCCESS;
 }
 
+/**
+ * Write a single directory record for Joliet. It is like (ECMA-119, 9.1),
+ * but file identifier is stored in UCS.
+ * 
+ * @param file_id
+ *     if >= 0, we use it instead of the filename (for "." and ".." entries).
+ * @param len_fi
+ *     Computed length of the file identifier. Total size of the directory
+ *     entry will be len + 34 (ECMA-119, 9.1.12), as padding is always needed
+ */
+static
+void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
+                          uint8_t *buf, size_t len_fi)
+{
+    uint32_t len;
+    uint32_t block;
+    uint8_t len_dr; /*< size of dir entry */
+    uint8_t *name = (file_id >= 0) ? (uint8_t*)&file_id
+            : (uint8_t*)node->name;
+
+    struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
+
+    len_dr = 33 + len_fi + (len_fi % 2 ? 0 : 1);
+
+    memcpy(rec->file_id, name, len_fi);
+
+    if (node->type == JOLIET_FILE && !t->omit_version_numbers) {
+        len_dr += 4;
+        rec->file_id[len_fi++] = 0;
+        rec->file_id[len_fi++] = ';';
+        rec->file_id[len_fi++] = 0;
+        rec->file_id[len_fi++] = '1';
+    }
+
+    if (node->type == JOLIET_DIR) {
+        /* use the cached length */
+        len = node->info.dir.len;
+        block = node->info.dir.block;
+    } else if (node->type == JOLIET_FILE) {
+        len = iso_file_src_get_size(node->info.file);
+        block = node->info.file->block;
+    } else {
+        //TODO el-torito???!?
+        /* 
+         * for nodes other than files and dirs, we set both 
+         * len and block to 0 
+         */
+        len = 0;
+        block = 0;
+    }
+
+    /*
+     * For ".." entry we need to write the parent info!
+     */
+    if (file_id == 1 && node->parent)
+        node = node->parent;
+
+    rec->len_dr[0] = len_dr;
+    iso_bb(rec->block, block, 4);
+    iso_bb(rec->length, len, 4);
+    iso_datetime_7(rec->recording_time, t->now);
+    rec->flags[0] = (node->type == JOLIET_DIR) ? 2 : 0;
+    iso_bb(rec->vol_seq_number, 1, 2);
+    rec->len_fi[0] = len_fi;
+}
+
 static
 int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 {
-    //TODO
-    return -1;
+    IsoImage *image;
+    Ecma119Image *t;
+    struct ecma119_sup_vol_desc vol;
+
+    uint16_t *vol_id = NULL, *pub_id = NULL, *data_id = NULL;
+    uint16_t *volset_id = NULL, *system_id = NULL, *application_id = NULL;
+    uint16_t *copyright_file_id = NULL, *abstract_file_id = NULL;
+    uint16_t *biblio_file_id = NULL;
+
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    t = writer->target;
+    image = t->image;
+
+    iso_msg_debug(image->messenger, "Write SVD for Joliet");
+
+    memset(&vol, 0, sizeof(struct ecma119_sup_vol_desc));
+
+    str2ucs(t->input_charset, image->volume_id, &vol_id);
+    str2ucs(t->input_charset, image->publisher_id, &pub_id);
+    str2ucs(t->input_charset, image->data_preparer_id, &data_id);
+    str2ucs(t->input_charset, image->volset_id, &volset_id);
+
+    str2ucs(t->input_charset, image->system_id, &system_id);
+    str2ucs(t->input_charset, image->application_id, &application_id);
+    str2ucs(t->input_charset, image->copyright_file_id, &copyright_file_id);
+    str2ucs(t->input_charset, image->abstract_file_id, &abstract_file_id);
+    str2ucs(t->input_charset, image->biblio_file_id, &biblio_file_id);
+
+    vol.vol_desc_type[0] = 2;
+    memcpy(vol.std_identifier, "CD001", 5);
+    vol.vol_desc_version[0] = 1;
+    if (vol_id) {
+        ucsncpy((uint16_t*)vol.volume_id, vol_id, 32);
+    }
+    
+    /* make use of UCS-2 Level 3 */
+    memcpy(vol.esc_sequences, "%/E", 3);
+
+    iso_bb(vol.vol_space_size, t->vol_space_size, 4);
+    iso_bb(vol.vol_set_size, 1, 2);
+    iso_bb(vol.vol_seq_number, 1, 2);
+    iso_bb(vol.block_size, BLOCK_SIZE, 2);
+    iso_bb(vol.path_table_size, t->joliet_path_table_size, 4);
+    iso_lsb(vol.l_path_table_pos, t->joliet_l_path_table_pos, 4);
+    iso_msb(vol.m_path_table_pos, t->joliet_m_path_table_pos, 4);
+
+    write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1);
+
+    if (volset_id)
+        ucsncpy((uint16_t*)vol.vol_set_id, volset_id, 128);
+    if (pub_id)
+        ucsncpy((uint16_t*)vol.publisher_id, pub_id, 128);
+    if (data_id)
+        ucsncpy((uint16_t*)vol.data_prep_id, data_id, 128);
+    
+    if (system_id)
+        ucsncpy((uint16_t*)vol.system_id, system_id, 32);
+
+    if (application_id)
+        ucsncpy((uint16_t*)vol.application_id, application_id, 128);
+    if (copyright_file_id)
+        ucsncpy((uint16_t*)vol.copyright_file_id, copyright_file_id, 37);
+    if (abstract_file_id)
+        ucsncpy((uint16_t*)vol.abstract_file_id, abstract_file_id, 37);
+    if (biblio_file_id)
+        ucsncpy((uint16_t*)vol.bibliographic_file_id, biblio_file_id, 37);
+
+    iso_datetime_17(vol.vol_creation_time, t->now);
+    iso_datetime_17(vol.vol_modification_time, t->now);
+    iso_datetime_17(vol.vol_effective_time, t->now);
+    vol.file_structure_version[0] = 1;
+
+    free(vol_id);
+    free(volset_id);
+    free(pub_id);
+    free(data_id);
+    free(system_id);
+    free(application_id);
+    free(copyright_file_id);
+    free(abstract_file_id);
+    free(biblio_file_id);
+
+    /* Finally write the Volume Descriptor */
+    return iso_write(t, &vol, sizeof(struct ecma119_sup_vol_desc));
 }
 
 static
