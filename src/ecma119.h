@@ -20,6 +20,7 @@
 
 typedef struct ecma119_image Ecma119Image;
 typedef struct ecma119_node Ecma119Node;
+typedef struct joliet_node JolietNode;
 typedef struct Iso_File_Src IsoFileSrc;
 typedef struct Iso_Image_Writer IsoImageWriter;
 
@@ -32,6 +33,7 @@ struct ecma119_image
 
     /* extensions */
     unsigned int rockridge :1;
+    unsigned int joliet :1;
 
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
@@ -95,6 +97,11 @@ struct ecma119_image
     uint32_t path_table_size;
     uint32_t l_path_table_pos;
     uint32_t m_path_table_pos;
+    
+    /*
+     * Joliet related information
+     */
+    JolietNode *joliet_root;
 
     /*
      * Number of pad blocks that we need to write. Padding blocks are blocks

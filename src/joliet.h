@@ -17,8 +17,6 @@
 #include "libisofs.h"
 #include "ecma119.h"
 
-typedef struct joliet_node JolietNode;
-
 enum joliet_node_type {
 	JOLIET_FILE,
 	JOLIET_DIR

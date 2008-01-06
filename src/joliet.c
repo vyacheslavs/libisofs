@@ -245,17 +245,14 @@ void sort_tree(JolietNode *root)
 }
 
 static
-int joliet_tree_create(IsoImageWriter *writer)
+int joliet_tree_create(Ecma119Image *t)
 {
     int ret;
     JolietNode *root;
-    Ecma119Image *t;
     
-    if (writer == NULL || writer->target == NULL) {
+    if (t == NULL) {
         return ISO_NULL_POINTER;
     }
-    
-    t = writer->target;
 
     ret = create_tree(t, (IsoNode*)t->image->root, &root, 0);
     if (ret <= 0) {
@@ -266,14 +263,14 @@ int joliet_tree_create(IsoImageWriter *writer)
         return ret;
     }
     
-    /* the Joliet tree is stored in the writer data field */
-    writer->data = root;
+    /* the Joliet tree is stored in Ecma119Image target */
+    t->joliet_root = root;
 
     iso_msg_debug(t->image->messenger, "Sorting the Joliet tree...");
     sort_tree(root);
 
     //iso_msg_debug(t->image->messenger, "Mangling Joliet names...");
-    // FIXME ret = mangle_tree(writer, 1);
+    // FIXME ret = mangle_tree(t, 1);
 
     return ISO_SUCCESS;
 }
@@ -303,7 +300,8 @@ static
 int joliet_writer_free_data(IsoImageWriter *writer)
 {
     /* free the Joliet tree */
-    joliet_node_free(writer->data);
+    Ecma119Image *t = writer->target;
+    joliet_node_free(t->joliet_root);
     return ISO_SUCCESS;
 }
 
@@ -326,7 +324,7 @@ int joliet_writer_create(Ecma119Image *target)
 
     iso_msg_debug(target->image->messenger, 
                   "Creating low level Joliet tree...");
-    ret = joliet_tree_create(writer);
+    ret = joliet_tree_create(target);
     if (ret < 0) {
         return ret;
     }

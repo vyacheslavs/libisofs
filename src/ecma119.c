@@ -825,6 +825,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
 
     target->iso_level = opts->level;
     target->rockridge = opts->rockridge;
+    target->joliet = 0; //TODO opts->joliet;
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers;
     target->allow_deep_paths = opts->allow_deep_paths;
