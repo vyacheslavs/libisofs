@@ -150,6 +150,12 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     if (!iso_node_is_valid_name(name)) {
         return ISO_WRONG_ARG_VALUE;
     }
+    
+    /* check if destination is valid */
+    if (!iso_node_is_valid_link_dest(dest)) {
+        /* guard against null or empty dest */
+        return ISO_WRONG_ARG_VALUE;
+    }
 
     /* find place where to insert */
     pos = &(parent->children);

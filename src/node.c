@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
 /**
  * Increments the reference counting of the given node.
@@ -541,15 +542,20 @@ const char *iso_symlink_get_dest(const IsoSymlink *link)
 /**
  * Set the destination of a link.
  */
-void iso_symlink_set_dest(IsoSymlink *link, const char *dest)
+int iso_symlink_set_dest(IsoSymlink *link, const char *dest)
 {
-    // TODO guard against bad destinations, such as components bigger than 255
-    if (dest == NULL || dest[0] == '\0') {
+    char *d;
+    if (!iso_node_is_valid_link_dest(dest)) {
         /* guard against null or empty dest */
-        return;
+        return ISO_WRONG_ARG_VALUE;
+    }
+    d = strdup(dest);
+    if (d == NULL) {
+        return ISO_MEM_ERROR;
     }
     free(link->dest);
-    link->dest = strdup(dest);
+    link->dest = d;
+    return ISO_SUCCESS;
 }
 
 /**
@@ -613,6 +619,48 @@ int iso_node_is_valid_name(const char *name)
         return 0;
     }
     return 1;
+}
+
+int iso_node_is_valid_link_dest(const char *dest)
+{
+    int ret;
+    char *ptr, *brk_info, *component;
+
+    /* a dest can't be NULL */
+    if (dest == NULL) {
+        return 0;
+    }
+
+    /* guard against the empty string or big dest... */
+    if (dest[0] == '\0' || strlen(dest) > PATH_MAX) {
+        return 0;
+    }
+    
+    /* check that all components are valid */
+    if (!strcmp(dest, "/")) {
+        /* "/" is a valid component */
+        return 1;
+    }
+    
+    ptr = strdup(dest);
+    if (ptr == NULL) {
+        return 0;
+    }
+    
+    ret = 1;
+    component = strtok_r(ptr, "/", &brk_info);
+    while (component) {
+        if (strcmp(component, ".") && strcmp(component, "..")) {
+            ret = iso_node_is_valid_name(component);
+            if (ret == 0) {
+                break;
+            }
+        }
+        component = strtok_r(NULL, "/", &brk_info);
+    }
+    free(ptr);
+
+    return ret;
 }
 
 int iso_node_new_root(IsoDir **root)

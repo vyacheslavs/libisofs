@@ -115,4 +115,12 @@ int iso_node_new_root(IsoDir **root);
  */
 int iso_node_is_valid_name(const char *name);
 
+/**
+ * Check if a given path is valid for the destination of a link.
+ * 
+ * @return
+ *     1 if yes, 0 if not
+ */
+int iso_node_is_valid_link_dest(const char *dest);
+
 #endif /*LIBISO_NODE_H_*/

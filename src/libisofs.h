@@ -819,8 +819,10 @@ const char *iso_symlink_get_dest(const IsoSymlink *link);
  * @param dest
  *     New destination for the link. It must be a non-empty string, otherwise
  *     this function doesn't modify previous destination.
+ * @return
+ *     1 on success, < 0 on error
  */
-void iso_symlink_set_dest(IsoSymlink *link, const char *dest);
+int iso_symlink_set_dest(IsoSymlink *link, const char *dest);
 
 /**
  * Sets the order in which a node will be written on image. High weihted files
