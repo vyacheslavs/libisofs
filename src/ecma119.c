@@ -898,9 +898,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     }
     
     /* create writer for Joliet structure */
-    ret = joliet_writer_create(target);
-    if (ret < 0) {
-        goto target_cleanup;
+    if (target->joliet) {
+        ret = joliet_writer_create(target);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
     }
     
     /* Volume Descriptor Set Terminator */
