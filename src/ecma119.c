@@ -283,6 +283,27 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
 }
 
 /**
+ * Copy up to \p max characters from \p src to \p dest. If \p src has less than
+ * \p max characters, we pad dest with " " characters.
+ */
+static
+void strncpy_pad(char *dest, const char *src, size_t max)
+{
+    size_t len, i;
+    
+    if (src != NULL) {
+        len = MIN(strlen(src), max);
+    } else {
+        len = 0;
+    }
+    
+    for (i = 0; i < len; ++i)
+        dest[i] = src[i];
+    for (i = len; i < max; ++i) 
+        dest[i] = ' ';
+}
+
+/**
  * Write the Primary Volume Descriptor (ECMA-119, 8.4)
  */
 static
@@ -321,15 +342,8 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_type[0] = 1;
     memcpy(vol.std_identifier, "CD001", 5);
     vol.vol_desc_version[0] = 1;
-    if (system_id) {
-        strncpy((char*)vol.system_id, system_id, 32);
-    } else {
-        /* put linux by default? */
-        memcpy(vol.system_id, "LINUX", 5);
-    }
-    if (vol_id) {
-        strncpy((char*)vol.volume_id, vol_id, 32);
-    }
+    strncpy_pad((char*)vol.system_id, system_id, 32);
+    strncpy_pad((char*)vol.volume_id, vol_id, 32);
     iso_bb(vol.vol_space_size, t->vol_space_size, 4);
     iso_bb(vol.vol_set_size, 1, 2);
     iso_bb(vol.vol_seq_number, 1, 2);
@@ -340,21 +354,14 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
 
     write_one_dir_record(t, t->root, 0, vol.root_dir_record, 1, NULL);
 
-    if (volset_id)
-        strncpy((char*)vol.vol_set_id, volset_id, 128);
-    if (pub_id)
-        strncpy((char*)vol.publisher_id, pub_id, 128);
-    if (data_id)
-        strncpy((char*)vol.data_prep_id, data_id, 128);
+    strncpy_pad((char*)vol.vol_set_id, volset_id, 128);
+    strncpy_pad((char*)vol.publisher_id, pub_id, 128);
+    strncpy_pad((char*)vol.data_prep_id, data_id, 128);
 
-    if (application_id)
-        strncpy((char*)vol.application_id, application_id, 128);
-    if (copyright_file_id)
-        strncpy((char*)vol.copyright_file_id, copyright_file_id, 37);
-    if (abstract_file_id)
-        strncpy((char*)vol.abstract_file_id, abstract_file_id, 37);
-    if (biblio_file_id)
-        strncpy((char*)vol.bibliographic_file_id, biblio_file_id, 37);
+    strncpy_pad((char*)vol.application_id, application_id, 128);
+    strncpy_pad((char*)vol.copyright_file_id, copyright_file_id, 37);
+    strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
+    strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
     iso_datetime_17(vol.vol_creation_time, t->now);
     iso_datetime_17(vol.vol_modification_time, t->now);
