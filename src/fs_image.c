@@ -73,11 +73,24 @@ typedef struct
     char *input_charset; /**< Input charset for RR names */
     char *local_charset; /**< For RR names, will be set to the locale one */
 
+    /** 
+     * Will be filled with the block lba of the extend for the root directory
+     * of the hierarchy that will be read, either from the PVD (ISO, RR) or
+     * from the SVD (Joliet)
+     */
+    uint32_t iso_root_block;
+
     /**
      * Will be filled with the block lba of the extend for the root directory,
      * as read from the PVM
      */
-    uint32_t iso_root_block;
+    uint32_t pvd_root_block;
+
+    /**
+     * Will be filled with the block lba of the extend for the root directory,
+     * as read from the SVD
+     */
+    uint32_t svd_root_block;
 
     /**
      * If we need to read RR extensions. i.e., if the image contains RR 
@@ -939,7 +952,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     if (!name) {
         size_t len;
         
-        if (record->file_id[0] == 0) {
+        if (record->len_fi[0] == 1 && record->file_id[0] == 0) {
             /* "." entry, we can call this for root node, so... */
             if (!(atts.st_mode & S_IFDIR)) {
                 iso_msg_sorry(fsdata->messenger, LIBISO_WRONG_IMG, 
@@ -948,6 +961,11 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             }
         } else {
             name = fsdata->get_name((char*)record->file_id, record->len_fi[0]);
+            if (name == NULL) {
+                iso_msg_sorry(fsdata->messenger, LIBISO_WRONG_IMG, 
+                              "Can't retrieve file name");
+                return ISO_WRONG_ECMA119;
+            }
             
             /* remove trailing version number */
             len = strlen(name);
@@ -1467,7 +1485,7 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     data->nblocks = iso_read_bb(pvm->vol_space_size, 4, NULL);
 
     rootdr = (struct ecma119_dir_record*) pvm->root_dir_record;
-    data->iso_root_block = iso_read_bb(rootdr->block, 4, NULL);
+    data->pvd_root_block = iso_read_bb(rootdr->block, 4, NULL);
 
     /*
      * TODO
@@ -1576,9 +1594,29 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             break;
         case 2:
             /* suplementary volume descritor */
-            // TODO support Joliet
-            iso_msg_hint(data->messenger, LIBISO_UNSUPPORTED_VD,
-                         "Joliet extensions not supported yet");
+            {
+                struct ecma119_sup_vol_desc *sup;
+                struct ecma119_dir_record *root;
+                
+                sup = (struct ecma119_sup_vol_desc*)buffer;
+                if (sup->esc_sequences[0] == 0x25 && 
+                    sup->esc_sequences[1] == 0x2F &&
+                    (sup->esc_sequences[2] == 0x40 ||
+                     sup->esc_sequences[2] == 0x43 ||
+                     sup->esc_sequences[2] == 0x45) ) {
+                    
+                    /* it's a Joliet Sup. Vol. Desc. */
+                    data->joliet = 1;
+                    root = (struct ecma119_dir_record*)sup->root_dir_record;
+                    data->svd_root_block = iso_read_bb(root->block, 4, NULL);
+
+                    //TODO maybe we can set the IsoImage attribs from this
+                    //descriptor
+                } else {
+                    iso_msg_hint(data->messenger, LIBISO_UNSUPPORTED_VD,
+                        "Unsupported (not Joliet) Sup. Vol. Desc found.");
+                }
+            }
             break;
         case 255:
             /* 
@@ -1597,7 +1635,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     } while (buffer[0] != 255);
 
     /* 4. check if RR extensions are being used */
-    ret = read_root_susp_entries(data, data->iso_root_block);
+    ret = read_root_susp_entries(data, data->pvd_root_block);
     if (ret < 0) {
         return ret;
     }
@@ -1612,35 +1650,29 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     /* select what tree to read */
     if (data->rr) {
         /* RR extensions are available */
-        if (opts->preferjoliet && data->joliet) {
+        if (!opts->nojoliet && opts->preferjoliet && data->joliet) {
             /* if user prefers joliet, that is used */
             iso_msg_debug(data->messenger, "Reading Joliet extensions.");
-            //data->get_name = ucs2str;
+            data->get_name = ucs2str;
             data->rr = RR_EXT_NO;
-            //data->root_dir_block = joliet root
-            /* root_dir_block already contains root for joliet */
-            //TODO add joliet support
-            goto fs_cleanup;
+            data->iso_root_block = data->svd_root_block;
         } else {
             /* RR will be used */
             iso_msg_debug(data->messenger, "Reading Rock Ridge extensions.");
-            //data->root_dir_block = info.iso_root_block;
+            data->iso_root_block = data->pvd_root_block;
             data->get_name = strcopy;
         }
     } else {
         /* RR extensions are not available */
-        if (opts->preferjoliet && data->joliet) {
+        if (!opts->nojoliet && data->joliet) {
             /* joliet will be used */
             iso_msg_debug(data->messenger, "Reading Joliet extensions.");
-            //data->get_name = ucs2str;
-            //data->root_dir_block = joliet root
-            /* root_dir_block already contains root for joliet */
-            //TODO add joliet support
-            goto fs_cleanup;
+            data->get_name = ucs2str;
+            data->iso_root_block = data->svd_root_block;
         } else {
             /* default to plain iso */
             iso_msg_debug(data->messenger, "Reading plain ISO-9660 tree.");
-            //data->root_dir_block = info.iso_root_block;
+            data->iso_root_block = data->pvd_root_block;
             data->get_name = strcopy;
         }
     }

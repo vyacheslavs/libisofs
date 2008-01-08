@@ -18,8 +18,10 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <limits.h>
+#include <locale.h>
+#include <langinfo.h>
 
-/* for eaccess, define in unistd.h */
+/* for eaccess, defined in unistd.h */
 #define __USE_GNU
 #include <unistd.h>
 
@@ -920,4 +922,42 @@ char *strcopy(const char *buf, size_t len)
         str[len] = '\0'; 
     
     return str;
+}
+
+char *ucs2str(const char *buf, size_t len)
+{
+    size_t outbytes, inbytes;
+    char *str, *src, *out;
+    iconv_t conv;
+    size_t n;
+    
+    inbytes = len;
+    
+    outbytes = (inbytes+1) * MB_LEN_MAX;
+    
+    /* ensure enought space */
+    out = alloca(outbytes);
+
+    /* convert to local charset */
+    setlocale(LC_CTYPE, "");
+    conv = iconv_open(nl_langinfo(CODESET), "UCS-2BE");
+    if (conv == (iconv_t)(-1)) {
+        return NULL;
+    }
+    src = (char *)buf;
+    str = (char *)out;
+
+    n = iconv(conv, &src, &inbytes, &str, &outbytes);
+    if (n == -1) {
+        /* error */
+        iconv_close(conv);
+        return NULL;
+    }
+    iconv_close(conv);
+    *str = '\0';
+
+    /* remove trailing spaces */
+    for (len = strlen(out) - 1; out[len] == ' ' && len > 0; --len)
+        out[len] = '\0';
+    return strdup(out);
 }

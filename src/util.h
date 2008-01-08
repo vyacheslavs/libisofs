@@ -209,6 +209,12 @@ int iso_eaccess(const char *path);
  */
 char *strcopy(const char *buf, size_t len);
 
+/**
+ * Convert a Joliet string with a length of \p len bytes to a new string
+ * in local charset.
+ */
+char *ucs2str(const char *buf, size_t len);
+
 typedef struct iso_rbtree IsoRBTree;
 
 /**
