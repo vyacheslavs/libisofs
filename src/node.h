@@ -107,4 +107,12 @@ struct Iso_Dir_Iter
 
 int iso_node_new_root(IsoDir **root);
 
+/**
+ * Check if a given name is valid for an iso node.
+ * 
+ * @return
+ *     1 if yes, 0 if not
+ */
+int iso_node_is_valid_name(const char *name);
+
 #endif /*LIBISO_NODE_H_*/

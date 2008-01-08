@@ -56,6 +56,11 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     if (dir) {
         *dir = NULL;
     }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
 
     /* find place where to insert */
     pos = &(parent->children);
@@ -139,6 +144,11 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     }
     if (link) {
         *link = NULL;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
     }
 
     /* find place where to insert */
@@ -247,6 +257,11 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     }
     if (special) {
         *special = NULL;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
     }
 
     /* find place where to insert */

@@ -80,36 +80,26 @@ int iso_node_set_name(IsoNode *node, const char *name)
 {
     char *new;
 
-    /* guard against the empty string or big names... */
-    if (name[0] == '\0' || strlen(name) > 255) {
-        return ISO_WRONG_ARG_VALUE;
-    }
-
-    /* ...against "." and ".." names... */
-    if (!strcmp(name, ".") || !strcmp(name, "..")) {
-        return ISO_WRONG_ARG_VALUE;
-    }
-
-    /* ...and against names with '/' */
-    if (strchr(name, '/') != NULL) {
-        return ISO_WRONG_ARG_VALUE;
-    }
-
     if ((IsoNode*)node->parent == node) {
         /* you can't change name of the root node */
         return ISO_WRONG_ARG_VALUE;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    if (node->parent != NULL) {
+        /* check if parent already has a node with same name */
+        if (iso_dir_get_node(node->parent, name, NULL) == 1) {
+            return ISO_NODE_NAME_NOT_UNIQUE;
+        }
     }
 
     new = strdup(name);
     if (new == NULL) {
         return ISO_MEM_ERROR;
-    }
-    if (node->parent != NULL) {
-        /* check if parent already has a node with same name */
-        if (iso_dir_get_node(node->parent, name, NULL) == 1) {
-            free(new);
-            return ISO_NODE_NAME_NOT_UNIQUE;
-        }
     }
     free(node->name);
     node->name = new;
@@ -593,6 +583,36 @@ void iso_node_set_sort_weight(IsoNode *node, int w)
 int iso_file_get_sort_weight(IsoFile *file)
 {
     return file->sort_weight;
+}
+
+/**
+ * Check if a given name is valid for an iso node.
+ * 
+ * @return
+ *     1 if yes, 0 if not
+ */
+int iso_node_is_valid_name(const char *name)
+{
+    /* a name can't be NULL */
+    if (name == NULL) {
+        return 0;
+    }
+
+    /* guard against the empty string or big names... */
+    if (name[0] == '\0' || strlen(name) > 255) {
+        return 0;
+    }
+
+    /* ...against "." and ".." names... */
+    if (!strcmp(name, ".") || !strcmp(name, "..")) {
+        return 0;
+    }
+
+    /* ...and against names with '/' */
+    if (strchr(name, '/') != NULL) {
+        return 0;
+    }
+    return 1;
 }
 
 int iso_node_new_root(IsoDir **root)
