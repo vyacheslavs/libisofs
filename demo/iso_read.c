@@ -119,7 +119,7 @@ int main(int argc, char **argv)
         0, /* preferjoliet */
         0, /* uid; */
         0, /* gid; */
-        0, /* mode */
+        0444, /* mode */
         NULL /* input_charset */
     };
 

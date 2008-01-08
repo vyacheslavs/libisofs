@@ -734,7 +734,17 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         return ISO_UNSUPPORTED_ECMA119;
     }
     
-    //TODO check for unsupported extended attribs?
+    /*
+     * Check for extended attributes, that are not supported. Note that even
+     * if we don't support them, it is easy to ignore them.
+     */
+    if (record->len_xa[0]) {
+        iso_msg_fatal(fsdata->messenger, LIBISO_IMG_UNSUPPORTED,
+              "Unsupported image. This image has at least one file with "
+              "Extended Attributes, that are not supported");
+        return ISO_UNSUPPORTED_ECMA119;
+    }
+
     //TODO check for other flags?
     
     /*
@@ -942,7 +952,15 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             /* remove trailing version number */
             len = strlen(name);
             if (len > 2 && name[len-2] == ';' && name[len-1] == '1') {
-                name[len-2] = '\0';
+                if (len > 3 && name[len-3] == '.') {
+                    /* 
+                     * the "." is mandatory, so in most cases is included only
+                     * for standard compliance
+                     */
+                    name[len-3] = '\0';
+                } else {
+                    name[len-2] = '\0';
+                }
             }
         }
     }
