@@ -134,7 +134,7 @@ size_t ucslen(const uint16_t *str);
 /**
  * Like strrchr, but for Joliet strings.
  */
-uint16_t *ucsrchr(const uint16_t *str, uint16_t c);
+uint16_t *ucsrchr(const uint16_t *str, char c);
 
 /**
  * Like strdup, but for Joliet strings.

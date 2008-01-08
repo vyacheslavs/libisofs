@@ -234,6 +234,31 @@ int str2ascii(const char *icharset, const char *input, char **output)
     return ISO_SUCCESS;
 }
 
+static
+void set_ucsbe(uint16_t *ucs, char c)
+{
+    char *v = (char*)ucs;
+    v[0] = (char)0;
+    v[1] = c;
+}
+
+/**
+ * @return
+ *      -1, 0, 1 if *ucs <, == or > than c
+ */
+static
+int cmp_ucsbe(const uint16_t *ucs, char c)
+{
+    char *v = (char*)ucs;
+    if (v[0] != 0) {
+        return 1;
+    } else if (v[1] == c) {
+        return 0;
+    } else {
+        return (uint8_t)c > (uint8_t)v[1] ? -1 : 1;
+    }
+}
+
 int str2ucs(const char *icharset, const char *input, uint16_t **output)
 {
     int result;
@@ -292,9 +317,8 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
 
         /* The last possible error is an invalid multi bytes
          * sequence. Just replace the character with a "_". 
-         * Probably the character doesn't exist in ascii like
-         * "é, è, à, ç, ..." in French. */
-        *((uint16_t*) ret) = '_';
+         * Probably the character doesn't exist in UCS */
+        set_ucsbe((uint16_t*) ret, '_');
         ret += sizeof(uint16_t);
         outbytes -= sizeof(uint16_t);
 
@@ -316,7 +340,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     iconv_close(conv);
 
     /* close the ucs string */
-    *((uint16_t*) ret) = 0;
+    set_ucsbe((uint16_t*) ret, '\0');
     free(wsrc_);
 
     *output = (uint16_t*)ret_;
@@ -336,9 +360,9 @@ static int valid_a_char(char c)
 
 static int valid_j_char(uint16_t c)
 {
-    return !(c < (uint16_t)' ' || c == (uint16_t)'*' || c == (uint16_t)'/' 
-            || c == (uint16_t)':' || c == (uint16_t)';' || c == (uint16_t)'?' 
-            || c == (uint16_t)'\\');
+    return cmp_ucsbe(&c, ' ') != -1 && cmp_ucsbe(&c, '*') && cmp_ucsbe(&c, '/')
+        && cmp_ucsbe(&c, ':') && cmp_ucsbe(&c, ';') && cmp_ucsbe(&c, '?') 
+        && cmp_ucsbe(&c, '\\');
 }
 
 static
@@ -485,7 +509,7 @@ uint16_t *iso_j_id(const uint16_t *src)
      * lnext). If the original filename is too long, we start by trimming
      * the extension, but keep a minimum extension length of 3. 
      */
-    if (dot == NULL || *(dot + 1) == (uint16_t)'\0') {
+    if (dot == NULL || cmp_ucsbe(dot + 1, '\0') == 0) {
         lname = ucslen(src);
         lnname = (lname > 64) ? 64 : lname;
         lext = lnext = 0;
@@ -506,16 +530,27 @@ uint16_t *iso_j_id(const uint16_t *src)
     /* Convert up to lnname characters of the filename. */
     for (i = 0; i < lnname; i++) {
         uint16_t c = src[i];
-        dest[pos++] = valid_j_char(c) ? c : (uint16_t)'_';
+        if (valid_j_char(c)) {
+            dest[pos++] = c;
+        } else {
+            set_ucsbe(dest + pos, '_');
+            pos++;
+        }
     }
-    dest[pos++] = (uint16_t)'.';
+    set_ucsbe(dest + pos, '.');
+    pos++;
 
     /* Convert up to lnext characters of the extension, if any. */
     for (i = 0; i < lnext; i++) {
         uint16_t c = src[lname + 1 + i];
-        dest[pos++] = valid_j_char(c) ? c : (uint16_t)'_';
+        if (valid_j_char(c)) {
+            dest[pos++] = c;
+        } else {
+            set_ucsbe(dest + pos, '_');
+            pos++;
+        }
     }
-    dest[pos] = (uint16_t)'\0';
+    set_ucsbe(dest + pos, '\0');
     return ucsdup(dest);
 }
 
@@ -528,12 +563,12 @@ size_t ucslen(const uint16_t *str)
     return i;
 }
 
-uint16_t *ucsrchr(const uint16_t *str, uint16_t c)
+uint16_t *ucsrchr(const uint16_t *str, char c)
 {
     size_t len = ucslen(str);
 
     while (len-- > 0) {
-        if (str[len] == c) {
+        if (cmp_ucsbe(str + len, c) == 0) {
             return (uint16_t*)(str + len);
         }
     }
