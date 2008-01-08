@@ -464,6 +464,34 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
     rec->len_fi[0] = len_fi;
 }
 
+/**
+ * Copy up to \p max characters from \p src to \p dest. If \p src has less than
+ * \p max characters, we pad dest with " " characters.
+ */
+static
+void ucsncpy_pad(uint16_t *dest, const uint16_t *src, size_t max)
+{
+    char *cdest, *csrc;
+    size_t len, i;
+    
+    cdest = (char*)dest;
+    csrc = (char*)src;
+    
+    if (src != NULL) {
+        len = MIN(ucslen(src) * 2, max);
+    } else {
+        len = 0;
+    }
+    
+    for (i = 0; i < len; ++i)
+        cdest[i] = csrc[i];
+    
+    for (i = len; i < max; i += 2) {
+        cdest[i] = '\0';
+        cdest[i + 1] = ' ';
+    }
+}
+
 static
 int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 {
@@ -501,9 +529,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_type[0] = 2;
     memcpy(vol.std_identifier, "CD001", 5);
     vol.vol_desc_version[0] = 1;
-    if (vol_id) {
-        ucsncpy((uint16_t*)vol.volume_id, vol_id, 32);
-    }
+    ucsncpy_pad((uint16_t*)vol.volume_id, vol_id, 32);
     
     /* make use of UCS-2 Level 3 */
     memcpy(vol.esc_sequences, "%/E", 3);
@@ -518,24 +544,16 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 
     write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1);
 
-    if (volset_id)
-        ucsncpy((uint16_t*)vol.vol_set_id, volset_id, 128);
-    if (pub_id)
-        ucsncpy((uint16_t*)vol.publisher_id, pub_id, 128);
-    if (data_id)
-        ucsncpy((uint16_t*)vol.data_prep_id, data_id, 128);
+    ucsncpy_pad((uint16_t*)vol.vol_set_id, volset_id, 128);
+    ucsncpy_pad((uint16_t*)vol.publisher_id, pub_id, 128);
+    ucsncpy_pad((uint16_t*)vol.data_prep_id, data_id, 128);
     
-    if (system_id)
-        ucsncpy((uint16_t*)vol.system_id, system_id, 32);
+    ucsncpy_pad((uint16_t*)vol.system_id, system_id, 32);
 
-    if (application_id)
-        ucsncpy((uint16_t*)vol.application_id, application_id, 128);
-    if (copyright_file_id)
-        ucsncpy((uint16_t*)vol.copyright_file_id, copyright_file_id, 37);
-    if (abstract_file_id)
-        ucsncpy((uint16_t*)vol.abstract_file_id, abstract_file_id, 37);
-    if (biblio_file_id)
-        ucsncpy((uint16_t*)vol.bibliographic_file_id, biblio_file_id, 37);
+    ucsncpy_pad((uint16_t*)vol.application_id, application_id, 128);
+    ucsncpy_pad((uint16_t*)vol.copyright_file_id, copyright_file_id, 37);
+    ucsncpy_pad((uint16_t*)vol.abstract_file_id, abstract_file_id, 37);
+    ucsncpy_pad((uint16_t*)vol.bibliographic_file_id, biblio_file_id, 37);
 
     iso_datetime_17(vol.vol_creation_time, t->now);
     iso_datetime_17(vol.vol_modification_time, t->now);
