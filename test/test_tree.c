@@ -258,6 +258,7 @@ void test_iso_tree_add_node_dir()
     IsoImage *image;
     IsoFilesystem *fs;
     struct stat info;
+    struct mock_file *mroot, *dir1, *dir2;
     
     result = iso_image_new("volume_id", &image);
     CU_ASSERT_EQUAL(result, 1);
@@ -269,6 +270,7 @@ void test_iso_tree_add_node_dir()
     result = test_mocked_filesystem_new(&fs);
     CU_ASSERT_EQUAL(result, 1);
     image->fs = fs;
+    mroot = test_mocked_fs_get_root(fs);
     
     /* add some files to the filesystem */
     info.st_mode = S_IFDIR | 0550;
@@ -277,7 +279,7 @@ void test_iso_tree_add_node_dir()
     info.st_atime = 234523;
     info.st_ctime = 23432432;
     info.st_mtime = 1111123;
-    result = test_mocked_fs_add_dir(fs, "/dir", info);
+    result = test_mocked_fs_add_dir("dir", mroot, info, &dir1);
     CU_ASSERT_EQUAL(result, 1);
     
     info.st_mode = S_IFDIR | 0555;
@@ -286,7 +288,7 @@ void test_iso_tree_add_node_dir()
     info.st_atime = 3234523;
     info.st_ctime = 3234432;
     info.st_mtime = 3111123;
-    result = test_mocked_fs_add_dir(fs, "/dir/a child node", info);
+    result = test_mocked_fs_add_dir("a child node", dir1, info, &dir2);
     CU_ASSERT_EQUAL(result, 1);
     
     info.st_mode = S_IFDIR | 0750;
@@ -295,7 +297,7 @@ void test_iso_tree_add_node_dir()
     info.st_atime = 4234523;
     info.st_ctime = 4234432;
     info.st_mtime = 4111123;
-    result = test_mocked_fs_add_dir(fs, "/dir/another one", info);
+    result = test_mocked_fs_add_dir("another one", dir1, info, &dir2);
     CU_ASSERT_EQUAL(result, 1);
     
     info.st_mode = S_IFDIR | 0755;
@@ -304,7 +306,7 @@ void test_iso_tree_add_node_dir()
     info.st_atime = 5234523;
     info.st_ctime = 5234432;
     info.st_mtime = 5111123;
-    result = test_mocked_fs_add_dir(fs, "/zzzz", info);
+    result = test_mocked_fs_add_dir("zzzz", mroot, info, &dir2);
     CU_ASSERT_EQUAL(result, 1);
     
     /* and now insert those files to the image */
@@ -400,6 +402,7 @@ void test_iso_tree_add_node_link()
     IsoImage *image;
     IsoFilesystem *fs;
     struct stat info;
+    struct mock_file *mroot, *link;
     
     result = iso_image_new("volume_id", &image);
     CU_ASSERT_EQUAL(result, 1);
@@ -411,6 +414,7 @@ void test_iso_tree_add_node_link()
     result = test_mocked_filesystem_new(&fs);
     CU_ASSERT_EQUAL(result, 1);
     image->fs = fs;
+    mroot = test_mocked_fs_get_root(fs);
     
     /* add some files to the filesystem */
     info.st_mode = S_IFLNK | 0777;
@@ -419,7 +423,7 @@ void test_iso_tree_add_node_link()
     info.st_atime = 123444;
     info.st_ctime = 123555;
     info.st_mtime = 123666;
-    result = test_mocked_fs_add_symlink(fs, "/link1", info, "/home/me");
+    result = test_mocked_fs_add_symlink("link1", mroot, info, "/home/me", &link);
     CU_ASSERT_EQUAL(result, 1);
     
     info.st_mode = S_IFLNK | 0555;
@@ -428,7 +432,7 @@ void test_iso_tree_add_node_link()
     info.st_atime = 223444;
     info.st_ctime = 223555;
     info.st_mtime = 223666;
-    result = test_mocked_fs_add_symlink(fs, "/another link", info, "/");
+    result = test_mocked_fs_add_symlink("another link", mroot, info, "/", &link);
     CU_ASSERT_EQUAL(result, 1);
     
     info.st_mode = S_IFLNK | 0750;
@@ -437,7 +441,7 @@ void test_iso_tree_add_node_link()
     info.st_atime = 323444;
     info.st_ctime = 323555;
     info.st_mtime = 323666;
-    result = test_mocked_fs_add_symlink(fs, "/this will be the last", info, "/etc");
+    result = test_mocked_fs_add_symlink("this will be the last", mroot, info, "/etc", &link);
     CU_ASSERT_EQUAL(result, 1);
     
     /* and now insert those files to the image */
@@ -507,7 +511,6 @@ void test_iso_tree_path_to_node()
     IsoNode *node;
     IsoImage *image;
     IsoFilesystem *fs;
-    struct stat info;
     
     result = iso_image_new("volume_id", &image);
     CU_ASSERT_EQUAL(result, 1);

@@ -13,87 +13,74 @@
 #include <string.h>
 #include <libgen.h>
 #include <stdlib.h>
+#include <time.h>
 
 static
 struct mock_file *path_to_node(IsoFilesystem *fs, const char *path);
 
-struct mock_file {
-    struct stat info;
-    char *name;
-    void *content;
-};
-
-struct mock_fs_src
+static
+char *get_path_aux(struct mock_file *file)
 {
-    IsoFilesystem *fs;
-    char *path;
-} _MockedFsFileSource;
+    if (file->parent == NULL) {
+        return strdup("");
+    } else {
+        char *path = get_path_aux(file->parent);
+        int pathlen = strlen(path);
+        path = realloc(path, pathlen + strlen(file->name) + 2);
+        path[pathlen] = '/';
+        path[pathlen + 1] = '\0';
+        return strcat(path, file->name);
+    }
+}
 
 static
-const char* mfs_get_path(IsoFileSource *src)
+char* mfs_get_path(IsoFileSource *src)
 {
-    struct mock_fs_src *data;
+    struct mock_file *data;
     data = src->data;
-    return data->path;
+    return get_path_aux(data);
 }
 
 static
 char* mfs_get_name(IsoFileSource *src)
 {
-    char *name, *p;
-    struct mock_fs_src *data;
+    struct mock_file *data;
     data = src->data;
-    p = strdup(data->path); /* because basename() might modify its arg */
-    name = strdup(basename(p));
-    free(p);    
-    return name;
+    return strdup(data->name);
 }
     
 static
 int mfs_lstat(IsoFileSource *src, struct stat *info)
 {
-    struct mock_fs_src *data;
-    struct mock_file *node;
+    struct mock_file *data;
 
     if (src == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
     data = src->data;
     
-    node = path_to_node(data->fs, data->path);
-    if (node == NULL) {
-        return ISO_FILE_BAD_PATH;
-    }
-    
-    *info = node->info;
+    *info = data->atts;
     return ISO_SUCCESS;
 }
     
 static
 int mfs_stat(IsoFileSource *src, struct stat *info)
 {
-    struct mock_fs_src *data;
     struct mock_file *node;
-
     if (src == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
-    data = src->data;
+    node = src->data;
     
-    node = path_to_node(data->fs, data->path);
-    if (node == NULL) {
-        return ISO_FILE_BAD_PATH;
-    }
-    
-    while ( S_ISLNK(node->info.st_mode) ) {
+    while ( S_ISLNK(node->atts.st_mode) ) {
         /* the destination is stated */
-        node = path_to_node(data->fs, (char *)node->content);
+        node = path_to_node(node->fs, (char *)node->content);
         if (node == NULL) {
             return ISO_FILE_ERROR;
         }
     }
-    
-    *info = node->info;
+
+    *info = node->atts;
     return ISO_SUCCESS;
 }
 
@@ -101,7 +88,7 @@ static
 int mfs_access(IsoFileSource *src)
 {
     // TODO not implemented
-    return ISO_SUCCESS;
+    return ISO_ERROR;
 }
 
 static
@@ -135,8 +122,7 @@ int mfs_readdir(IsoFileSource *src, IsoFileSource **child)
 static
 int mfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 {
-    struct mock_fs_src *data;
-    struct mock_file *node;
+    struct mock_file *data;
 
     if (src == NULL || buf == NULL) {
         return ISO_NULL_POINTER;
@@ -147,14 +133,10 @@ int mfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
     }
     data = src->data;
     
-    node = path_to_node(data->fs, data->path);
-    if (node == NULL) {
-        return ISO_FILE_BAD_PATH;
-    }
-    if (!S_ISLNK(node->info.st_mode)) {
+    if (!S_ISLNK(data->atts.st_mode)) {
         return ISO_FILE_IS_NOT_SYMLINK;
     }
-    strncpy(buf, node->content, bufsiz);
+    strncpy(buf, data->content, bufsiz);
     buf[bufsiz-1] = '\0';
     return ISO_SUCCESS;
 }
@@ -162,7 +144,7 @@ int mfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 static
 IsoFilesystem* mfs_get_filesystem(IsoFileSource *src)
 {
-    struct mock_fs_src *data;
+    struct mock_file *data;
     data = src->data;
     return data->fs;
 }
@@ -170,12 +152,7 @@ IsoFilesystem* mfs_get_filesystem(IsoFileSource *src)
 static
 void mfs_free(IsoFileSource *src)
 {
-    struct mock_fs_src *data;
-
-    data = src->data;
-    free(data->path);
-    iso_filesystem_unref(data->fs);
-    free(data);
+    /* nothing to do */
 }
 
 IsoFileSourceIface mfs_class = {
@@ -199,21 +176,15 @@ IsoFileSourceIface mfs_class = {
  *     1 success, < 0 error
  */
 static
-int mocked_file_source_new(IsoFilesystem *fs, const char *path, 
-                           IsoFileSource **src)
+int mocked_file_source_new(struct mock_file *data, IsoFileSource **src)
 {
     IsoFileSource *mocked_src;
-    struct mock_fs_src *data;
 
-    if (src == NULL || fs == NULL) {
+    if (src == NULL || data == NULL) {
         return ISO_NULL_POINTER;
     }
     
     /* allocate memory */
-    data = malloc(sizeof(struct mock_fs_src));
-    if (data == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
     mocked_src = malloc(sizeof(IsoFileSource));
     if (mocked_src == NULL) {
         free(data);
@@ -221,25 +192,12 @@ int mocked_file_source_new(IsoFilesystem *fs, const char *path,
     }
 
     /* fill struct */
-    data->path = strdup(path);
-    {
-        /* remove trailing '/' */
-        int len = strlen(path);
-        if (len > 1) {
-            /* don't remove / for root! */
-            if (path[len-1] == '/') {
-                data->path[len-1] = '\0';
-            }
-        }
-    }
-    data->fs = fs;
-
     mocked_src->refcount = 1;
     mocked_src->data = data;
     mocked_src->class = &mfs_class;
     
     /* take a ref to filesystem */
-    iso_filesystem_ref(fs);
+    //iso_filesystem_ref(fs);
 
     /* return */
     *src = mocked_src;
@@ -267,7 +225,7 @@ struct mock_file *path_to_node(IsoFilesystem *fs, const char *path)
     while (component) {
         size_t i;
         
-        if ( !S_ISDIR(node->info.st_mode) ) {
+        if ( !S_ISDIR(node->atts.st_mode) ) {
             node=NULL;
             break;
         }
@@ -298,67 +256,52 @@ struct mock_file *path_to_node(IsoFilesystem *fs, const char *path)
 }
 
 static
-struct mock_file *add_node(IsoFilesystem *fs, const char *path, 
-                            struct stat info)
+void add_node(struct mock_file *parent, struct mock_file *node)
 {
-    char *dir, *name, *ptr;
-    struct mock_file *node, *parent;
     int i;
 
-    if (!strcmp(path, "/"))
-        return NULL;
-    
-    dir = dirname(strdup(path));
-    ptr = strdup(path);
-    name = basename(ptr);
-    /*printf("Added %s to %s\n", name, dir);*/
-    
-    parent = path_to_node(fs, dir);
-    if (!S_ISDIR(parent->info.st_mode)) {
-        return NULL;
-    }
     i = 0;
     if (parent->content) {
         while (((struct mock_file**)parent->content)[i]) {
             ++i;
         }
     }
-    parent->content = realloc(parent->content, (i+2) * sizeof(struct mock_file*));
-    node = malloc(sizeof(struct mock_file));
-    node->info = info;
-    node->content = NULL;
-    node->name = strdup(name);
+    parent->content = realloc(parent->content, (i+2) * sizeof(void*));
     ((struct mock_file**)parent->content)[i] = node;
     ((struct mock_file**)parent->content)[i+1] = NULL;
-
-    free(dir);
-    free(ptr);
-    return node;
 }
 
-int test_mocked_fs_add_file(IsoFilesystem *fs, const char *path, 
-                            struct stat info)
+struct mock_file *test_mocked_fs_get_root(IsoFilesystem *fs)
 {
-    struct mock_file *node = add_node(fs, path, info);
-    return (node == NULL) ? -1 : 1;
+    return fs->data;
 }
 
-int test_mocked_fs_add_dir(IsoFilesystem *fs, const char *path, 
-                            struct stat info)
+int test_mocked_fs_add_dir(const char *name, struct mock_file *p, 
+                           struct stat atts, struct mock_file **node)
 {
-    struct mock_file *node = add_node(fs, path, info);
-    return (node == NULL) ? -1 : 1;
+    struct mock_file *dir = calloc(1, sizeof(struct mock_file));
+    dir->fs = p->fs;
+    dir->atts = atts;
+    dir->name = strdup(name);
+    dir->parent = p;
+    add_node(p, dir);
+    
+    *node = dir;
+    return ISO_SUCCESS;
 }
 
-int test_mocked_fs_add_symlink(IsoFilesystem *fs, const char *path, 
-                            struct stat info, const char *dest)
+int test_mocked_fs_add_symlink(const char *name, struct mock_file *p, 
+          struct stat atts, const char *dest, struct mock_file **node)
 {
-    struct mock_file *node = add_node(fs, path, info);
-    if (node == NULL) {
-        return -1;
-    }
-    node->content = strdup(dest);
-    return 1;
+    struct mock_file *link = calloc(1, sizeof(struct mock_file));
+    link->fs = p->fs;
+    link->atts = atts;
+    link->name = strdup(name);
+    link->parent = p;
+    add_node(p, link);
+    link->content = strdup(dest);
+    *node = link;
+    return ISO_SUCCESS;
 }
 
 static
@@ -367,22 +310,24 @@ int mocked_get_root(IsoFilesystem *fs, IsoFileSource **root)
     if (fs == NULL || root == NULL) {
         return ISO_NULL_POINTER;
     }
-    return mocked_file_source_new(fs, "/", root);
+    return mocked_file_source_new(fs->data, root);
 }
 
 static
 int mocked_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 {
+    struct mock_file *f;
     if (fs == NULL || path == NULL || file == NULL) {
         return ISO_NULL_POINTER;
     }
-    return mocked_file_source_new(fs, path, file);
+    f = path_to_node(fs, path);
+    return mocked_file_source_new(f, file);
 }
 
 static
 void free_mocked_file(struct mock_file *file)
 {
-    if (S_ISDIR(file->info.st_mode)) {
+    if (S_ISDIR(file->atts.st_mode)) {
         if (file->content) {
             int i = 0;
             while (((struct mock_file**)file->content)[i]) {
@@ -391,6 +336,7 @@ void free_mocked_file(struct mock_file *file)
             }
         }
     }
+    free(file->content);
     free(file->name);
     free(file);
 }
@@ -400,19 +346,27 @@ void mocked_fs_free(IsoFilesystem *fs)
 {
     free_mocked_file((struct mock_file *)fs->data);
 }
-    
+
 int test_mocked_filesystem_new(IsoFilesystem **fs)
 {
-    IsoFilesystem *filesystem;
     struct mock_file *root;
+    IsoFilesystem *filesystem;
+    
     if (fs == NULL) {
         return ISO_NULL_POINTER;
     }
     
+    root = calloc(1, sizeof(struct mock_file));
+    root->atts.st_atime = time(NULL);
+    root->atts.st_ctime = time(NULL);
+    root->atts.st_mtime = time(NULL);
+    root->atts.st_uid = 0;
+    root->atts.st_gid = 0;
+    root->atts.st_mode = S_IFDIR | 0777;
+        
     filesystem = malloc(sizeof(IsoFilesystem));
     filesystem->refcount = 1;
-    root = calloc(1, sizeof(struct mock_file));
-    root->info.st_mode = S_IFDIR | 0777;
+    root->fs = filesystem;
     filesystem->data = root;
     filesystem->get_root = mocked_get_root;
     filesystem->get_by_path = mocked_get_by_path;
