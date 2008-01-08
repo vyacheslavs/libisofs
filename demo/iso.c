@@ -30,8 +30,10 @@ int main(int argc, char **argv)
     Ecma119WriteOpts opts = {
         1, /* level */ 
         1, /* rockridge */
+        1, /* joliet */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
+        0, /* joliet_longer_paths */
         0, /* sort files */
         0, /* replace_dir_mode */
         0, /* replace_file_mode */

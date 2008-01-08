@@ -65,10 +65,12 @@ typedef struct
 
     /** Which extensions to support. */
     unsigned int rockridge :1;
+    unsigned int joliet :1;
 
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
     unsigned int allow_deep_paths :1;
+    unsigned int joliet_longer_paths :1;
     //int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
 
     //unsigned int copy_eltorito:1;

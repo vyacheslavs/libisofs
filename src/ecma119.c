@@ -9,6 +9,7 @@
 
 #include "libisofs.h"
 #include "ecma119.h"
+#include "joliet.h"
 #include "ecma119_tree.h"
 #include "error.h"
 #include "filesrc.h"
@@ -825,11 +826,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
 
     target->iso_level = opts->level;
     target->rockridge = opts->rockridge;
-    target->joliet = 0; //TODO opts->joliet;
+    target->joliet = opts->joliet;
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers;
     target->allow_deep_paths = opts->allow_deep_paths;
-    target->joliet_longer_paths = 0; //TODO
+    target->joliet_longer_paths = opts->joliet_longer_paths;
     target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
@@ -878,6 +879,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
 
     /* the number of writers is dependent of the extensions */
     nwriters = 1 + 1 + 1; /* ECMA-119 + padding + files */
+
+    if (target->joliet) {
+        nwriters++;
+    }
+
     target->writers = malloc(nwriters * sizeof(void*));
     if (target->writers == NULL) {
         iso_image_unref(src);
@@ -890,11 +896,17 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     if (ret < 0) {
         goto target_cleanup;
     }
-
-    voldesc_size = target->curblock - target->ms_block - 16;
+    
+    /* create writer for Joliet structure */
+    ret = joliet_writer_create(target);
+    if (ret < 0) {
+        goto target_cleanup;
+    }
     
     /* Volume Descriptor Set Terminator */
     target->curblock++;
+
+    voldesc_size = target->curblock - target->ms_block - 16;
 
     /* 
      * Create the writer for possible padding to ensure that in case of image
