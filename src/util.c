@@ -491,11 +491,11 @@ char *iso_2_fileid(const char *src)
     return strdup(dest);
 }
 
-uint16_t *iso_j_id(const uint16_t *src)
+uint16_t *iso_j_file_id(const uint16_t *src)
 {
     uint16_t *dot;
     size_t lname, lext, lnname, lnext, pos, i;
-    uint16_t dest[66]; /* 65 = 64 (name + ext) + 1 (.) + 1 (\0) */
+    uint16_t dest[66]; /* 66 = 64 (name + ext) + 1 (.) + 1 (\0) */
 
     if (src == NULL) {
         return NULL;
@@ -551,6 +551,31 @@ uint16_t *iso_j_id(const uint16_t *src)
         }
     }
     set_ucsbe(dest + pos, '\0');
+    return ucsdup(dest);
+}
+
+uint16_t *iso_j_dir_id(const uint16_t *src)
+{
+    size_t len, i;
+    uint16_t dest[65]; /* 65 = 64 + 1 (\0) */
+
+    if (src == NULL) {
+        return NULL;
+    }
+
+    len = ucslen(src);
+    if (len > 64) {
+        len = 64;
+    }
+    for (i = 0; i < len; i++) {
+        uint16_t c = src[i];
+        if (valid_j_char(c)) {
+            dest[i] = c;
+        } else {
+            set_ucsbe(dest + i, '_');
+        }
+    }
+    set_ucsbe(dest + len, '\0');
     return ucsdup(dest);
 }
 

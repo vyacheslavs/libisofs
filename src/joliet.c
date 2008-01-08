@@ -36,7 +36,11 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
     }
 
     // TODO add support for relaxed constraints
-    jname = iso_j_id(ucs_name);
+    if (iso->type == LIBISO_DIR) {
+        jname = iso_j_dir_id(ucs_name);
+    } else {
+        jname = iso_j_file_id(ucs_name);
+    }
     free(ucs_name);
     if (jname != NULL) {
         *name = jname;
@@ -125,6 +129,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
     joliet->node = iso;
     iso_node_ref(iso);
 
+    *node = joliet;
     return ISO_SUCCESS;
 }
 
@@ -138,7 +143,7 @@ static
 int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
 {
     int ret, max_path;
-    JolietNode *node;
+    JolietNode *node = NULL;
     uint16_t *jname = NULL;
 
     if (t == NULL || iso == NULL || tree == NULL) {
