@@ -591,6 +591,14 @@ int iso_file_get_sort_weight(IsoFile *file)
     return file->sort_weight;
 }
 
+/** 
+ * Get the size of the file, in bytes 
+ */
+off_t iso_file_get_size(IsoFile *file)
+{
+    return iso_stream_get_size(file->stream);
+}
+
 /**
  * Check if a given name is valid for an iso node.
  * 

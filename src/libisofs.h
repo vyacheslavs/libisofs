@@ -843,6 +843,11 @@ void iso_node_set_sort_weight(IsoNode *node, int w);
  */
 int iso_file_get_sort_weight(IsoFile *file);
 
+/** 
+ * Get the size of the file, in bytes 
+ */
+off_t iso_file_get_size(IsoFile *file);
+
 /**
  * Add a new directory to the iso tree. Permissions, owner and hidden atts
  * are taken from parent, you can modify them later.
