@@ -911,11 +911,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
+
+    voldesc_size = target->curblock - target->ms_block - 16;
     
     /* Volume Descriptor Set Terminator */
     target->curblock++;
-
-    voldesc_size = target->curblock - target->ms_block - 16;
 
     /* 
      * Create the writer for possible padding to ensure that in case of image

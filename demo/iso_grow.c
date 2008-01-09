@@ -35,8 +35,10 @@ int main(int argc, char **argv)
     Ecma119WriteOpts opts = {
         1, /* level */ 
         1, /* rockridge */
+        0, /* joliet */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
+        0, /* joliet_longer_paths */
         1, /* sort files */
         0, /* replace_dir_mode */
         0, /* replace_file_mode */
@@ -88,7 +90,8 @@ int main(int argc, char **argv)
     }
     
     drive = drives[0].drive;
-    
+
+#ifdef ISO_GROW_CHECK_MEDIA
     {
         /* some check before going on */
         enum burn_disc_status state;
@@ -109,6 +112,7 @@ int main(int argc, char **argv)
             goto exit_cleanup;
         }
     }
+#endif
     
     /* create the data source to accesss previous image */
     src = libburn_data_source_new(drive);
