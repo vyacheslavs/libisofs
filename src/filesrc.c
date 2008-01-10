@@ -20,7 +20,6 @@
 int iso_file_src_cmp(const void *n1, const void *n2)
 {
     const IsoFileSrc *f1, *f2;
-    int res;
     unsigned int fs_id1, fs_id2;
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
@@ -28,10 +27,8 @@ int iso_file_src_cmp(const void *n1, const void *n2)
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
 
-    res = iso_stream_get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
-    res = iso_stream_get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
-
-    //TODO take care about res <= 0
+    iso_stream_get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
+    iso_stream_get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
 
     if (fs_id1 < fs_id2) {
         return -1;
@@ -52,7 +49,7 @@ int iso_file_src_cmp(const void *n1, const void *n2)
 
 int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 {
-    int res;
+    int ret;
     IsoFileSrc *fsrc;
     unsigned int fs_id;
     dev_t dev_id;
@@ -62,35 +59,24 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         return ISO_NULL_POINTER;
     }
 
-    res = iso_stream_get_id(file->stream, &fs_id, &dev_id, &ino_id);
-    if (res < 0) {
-        return res;
-    } else if (res == 0) {
-        // TODO this corresponds to Stream that cannot provide a valid id
-        // Not implemented for now, but that shouldn't be here, the get_id
-        // above is not needed at all, the comparison function should take
-        // care of it
-        return ISO_ERROR;
-    } else {
-        int ret;
+    iso_stream_get_id(file->stream, &fs_id, &dev_id, &ino_id);
 
-        fsrc = malloc(sizeof(IsoFileSrc));
-        if (fsrc == NULL) {
-            return ISO_MEM_ERROR;
-        }
+    fsrc = malloc(sizeof(IsoFileSrc));
+    if (fsrc == NULL) {
+        return ISO_MEM_ERROR;
+    }
 
-        /* fill key and other atts */
-        fsrc->prev_img = file->msblock ? 1 : 0;
-        fsrc->block = file->msblock;
-        fsrc->sort_weight = file->sort_weight;
-        fsrc->stream = file->stream;
+    /* fill key and other atts */
+    fsrc->prev_img = file->msblock ? 1 : 0;
+    fsrc->block = file->msblock;
+    fsrc->sort_weight = file->sort_weight;
+    fsrc->stream = file->stream;
 
-        /* insert the filesrc in the tree */
-        ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
-        if (ret <= 0) {
-            free(fsrc);
-            return ret;
-        }
+    /* insert the filesrc in the tree */
+    ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
+    if (ret <= 0) {
+        free(fsrc);
+        return ret;
     }
     return ISO_SUCCESS;
 }

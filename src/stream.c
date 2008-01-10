@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+ino_t serial_id = (ino_t)1;
+
 typedef struct
 {
     IsoFileSource *src;
@@ -90,27 +92,18 @@ int fsrc_is_repeatable(IsoStream *stream)
 }
 
 static
-int fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+void fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                 ino_t *ino_id)
 {
     FSrcStreamData *data;
     IsoFilesystem *fs;
-
-    if (stream == NULL || fs_id == NULL || dev_id == NULL || ino_id == NULL) {
-        return ISO_NULL_POINTER;
-    }
+    
     data = (FSrcStreamData*)stream->data;
-
     fs = iso_file_source_get_filesystem(data->src);
 
     *fs_id = fs->get_id(fs);
-    if (fs_id == 0) {
-        return 0;
-    }
-
     *dev_id = data->dev_id;
     *ino_id = data->ino_id;
-    return ISO_SUCCESS;
 }
 
 static
@@ -178,9 +171,27 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
 
     /* take the ref to IsoFileSource */
     data->src = src;
-    data->dev_id = info.st_dev;
-    data->ino_id = info.st_ino;
     data->size = info.st_size;
+    
+    /* get the id numbers */
+    {
+        IsoFilesystem *fs;
+        unsigned int fs_id;
+        fs = iso_file_source_get_filesystem(data->src);
+
+        fs_id = fs->get_id(fs);
+        if (fs_id == 0) {
+            /* 
+             * the filesystem implementation is unable to provide valid
+             * st_dev and st_ino fields. Use serial_id.
+             */
+            data->dev_id = (dev_t) 0;
+            data->ino_id = serial_id++;
+        } else {
+            data->dev_id = info.st_dev;
+            data->ino_id = info.st_ino;
+        }
+    }
 
     str->refcount = 1;
     str->data = data;

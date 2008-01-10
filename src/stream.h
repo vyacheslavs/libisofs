@@ -13,6 +13,13 @@
  */
 #include "fsource.h"
 
+/** 
+ * serial number to be used when you can't get a valid id for a Stream by other
+ * means. If you use this, both fs_id and dev_id should be set to 0.
+ * This must be incremented each time you get a reference to it.
+ */
+extern ino_t serial_id;
+
 /*
  * Some functions here will be moved to libisofs.h when we expose 
  * Streams.
@@ -70,14 +77,9 @@ typedef struct IsoStream_Iface
     int (*is_repeatable)(IsoStream *stream);
 
     /**
-     * Get an unique identifier for the IsoStream. If your implementation
-     * is unable to return a valid identifier, this function should return
-     * 0.
-     * 
-     * @return
-     *      1 on success, 0 if idenfier is not valid, < 0 error 
+     * Get an unique identifier for the IsoStream.
      */
-    int (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+    void (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                   ino_t *ino_id);
 
     /**
@@ -135,10 +137,10 @@ int iso_stream_is_repeatable(IsoStream *stream)
 }
 
 extern inline
-int iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                       ino_t *ino_id)
 {
-    return stream->class->get_id(stream, fs_id, dev_id, ino_id);
+    stream->class->get_id(stream, fs_id, dev_id, ino_id);
 }
 
 extern inline
