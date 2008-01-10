@@ -10,9 +10,9 @@
 #include <stdlib.h>
 
 /**
- * Values belong 100 are reserved for out own usage
+ * Values belong 1000 are reserved for libisofs usage
  */
-unsigned int iso_fs_global_id = 100;
+unsigned int iso_fs_global_id = 1000;
 
 void iso_file_source_ref(IsoFileSource *src)
 {

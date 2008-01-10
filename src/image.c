@@ -11,6 +11,7 @@
 #include "error.h"
 #include "node.h"
 #include "messages.h"
+#include "eltorito.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -107,6 +108,7 @@ void iso_image_unref(IsoImage *image)
         libiso_msgs_destroy(&image->messenger, 0);
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);
+        el_torito_boot_catalog_free(image->bootcat);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);

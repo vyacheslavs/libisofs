@@ -32,8 +32,6 @@ static int iso_file_source_new_ifs(IsoImageFilesystem *fs,
            IsoFileSource *parent, struct ecma119_dir_record *record, 
            IsoFileSource **src);
 
-#define ISO_IMAGE_FS_ID     2
-
 /** unique identifier for each image */
 unsigned int fs_dev_id = 0;
 

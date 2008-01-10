@@ -23,6 +23,9 @@ typedef struct Iso_Special IsoSpecial;
 
 typedef struct Iso_Dir_Iter IsoDirIter;
 
+typedef struct el_torito_boot_image ElToritoBootImage;
+typedef struct Iso_Boot IsoBoot;
+
 /**
  * The type of an IsoNode.
  * 
@@ -54,6 +57,15 @@ enum IsoNodeType {
 enum IsoHideNodeFlag {
     LIBISO_HIDE_ON_RR = 1 << 0,
     LIBISO_HIDE_ON_JOLIET = 1 << 1
+};
+
+/**
+ * El-Torito bootable image type.
+ */
+enum eltorito_boot_media_type {
+    ELTORITO_FLOPPY_EMUL,
+    ELTORITO_HARD_DISC_EMUL,
+    ELTORITO_NO_EMUL
 };
 
 /**
@@ -490,6 +502,121 @@ void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
  * changed.
  */
 const char *iso_image_get_biblio_file_id(const IsoImage *image);
+
+/**
+ * Create a bootable image by adding a El-Torito boot image.
+ * 
+ * This also add a catalog boot node to the image filesystem tree.
+ * 
+ * @param image 
+ *      The image to make bootable. If it was already bootable this function
+ *      returns an error and the image remains unmodified.
+ * @param image_path 
+ *      The path on the image tree of a regular file to use as default boot 
+ *      image.
+ * @param type 
+ *      The boot media type. This can be one of 3 types:
+ *             - Floppy emulation: Boot image file must be exactly
+ *               1200 kB, 1440 kB or 2880 kB.
+ *             - Hard disc emulation: The image must begin with a master
+ *               boot record with a single image.
+ *             - No emulation. You should specify load segment and load size
+ *               of image.
+ * @param catalog_path
+ *      The path on the image tree where the catalog will be stored. The
+ *      directory component of this path must be a directory existent on the 
+ *      image tree, and the filename component must be unique among all 
+ *      children of that directory on image. Otherwise a correspodent error
+ *      code will be returned. This function will add an IsoBoot node that acts 
+ *      as a placeholder for the real catalog, that will be generated at image 
+ *      creation time. 
+ * @param boot
+ *      Location where a pointer to the added boot image will be stored. That 
+ *      object is owned by the IsoImage and should not be freed by the user,
+ *      nor dereferenced once the last reference to the IsoImage was disposed
+ *      via iso_image_unref(). A NULL value is allowed if you don't need a
+ *      reference to the boot image. 
+ * @return 
+ *      1 on success, < 0 on error
+ */
+int iso_image_set_boot_image(IsoImage *image, const char *image_path,
+                             enum eltorito_boot_media_type type,
+                             const char *catalog_path,
+                             ElToritoBootImage **boot);
+
+//TODO add support for "hidden" bootable images.
+
+/**
+ * Get El-Torito boot image of an ISO image, if any.
+ * 
+ * This can be useful, for example, to check if a volume read from a previous
+ * session or an existing image is bootable. It can also be useful to get
+ * the image and catalog tree nodes. An application would want those, for 
+ * example, to prevent the user removing it.
+ * 
+ * Both nodes are owned by libisofs and should not be freed. You can get your
+ * own ref with iso_node_ref(). You can can also check if the node is already 
+ * on the tree by getting its parent (note that when reading El-Torito info 
+ * from a previous image, the nodes might not be on the tree even if you haven't 
+ * removed them). Remember that you'll need to get a new ref 
+ * (with iso_node_ref()) before inserting them again to the tree, and probably 
+ * you will also need to set the name or permissions.
+ * 
+ * @param image
+ *      The image from which to get the boot image.
+ * @param boot
+ *      If not NULL, it will be filled with a pointer to the boot image, if 
+ *      any. That  object is owned by the IsoImage and should not be freed by 
+ *      the user, nor dereferenced once the last reference to the IsoImage was
+ *      disposed via iso_image_unref().
+ * @param imgnode 
+ *      When not NULL, it will be filled with the image tree node. No extra ref
+ *      is added, you can use iso_node_ref() to get one if you need it.
+ * @param catnode 
+ *      When not NULL, it will be filled with the catnode tree node. No extra 
+ *      ref is added, you can use iso_node_ref() to get one if you need it.
+ * @return
+ *      1 on success, 0 is the image is not bootable (i.e., it has no El-Torito
+ *      image), < 0 error.
+ */
+int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
+                             IsoFile **imgnode, IsoBoot **catnode);
+
+/**
+ * Removes the El-Torito bootable image. 
+ * 
+ * The IsoBoot node that acts as placeholder for the catalog is also removed
+ * for the image tree, if there.
+ * If the image is not bootable (don't have el-torito boot image) this function
+ * just returns.
+ */
+void iso_image_remove_boot_image(IsoImage *image);
+
+/**
+ * Sets the load segment for the initial boot image. This is only for
+ * no emulation boot images, and is a NOP for other image types.
+ */
+void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment);
+
+/**
+ * Sets the number of sectors (512b) to be load at load segment during
+ * the initial boot procedure. This is only for
+ * no emulation boot images, and is a NOP for other image types.
+ */
+void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors);
+
+/**
+ * Marks the specified boot image as not bootable
+ */
+void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
+
+/**
+ * Specifies that this image needs to be patched. This involves the writting
+ * of a 56 bytes boot information table at offset 8 of the boot image file.
+ * The original boot image file won't be modified.
+ * This is needed for isolinux boot images.
+ */
+void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
 
 /**
  * Increments the reference counting of the given node.

@@ -24,9 +24,6 @@
 #include <libgen.h>
 #include <string.h>
 
-#define ISO_LOCAL_FS_ID     1
-
-
 static
 int iso_file_source_new_lfs(const char *path, IsoFileSource **src);
 

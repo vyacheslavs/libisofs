@@ -46,6 +46,8 @@ src_libisofs_la_SOURCES = \
 	src/rockridge_read.c \
 	src/joliet.h \
 	src/joliet.c \
+	src/eltorito.h \
+	src/eltorito.c \
 	src/data_source.c
 libinclude_HEADERS = \
 	src/libisofs.h

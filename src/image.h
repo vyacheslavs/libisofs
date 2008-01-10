@@ -99,6 +99,9 @@ struct Iso_Image
     char *copyright_file_id;
     char *abstract_file_id;
     char *biblio_file_id;
+    
+    /* el-torito boot catalog */
+    struct el_torito_boot_catalog *bootcat;
 
     /* message messenger for the image */
     struct libiso_msgs *messenger;
