@@ -13,6 +13,7 @@
 #include "filesrc.h"
 #include "image.h"
 #include "messages.h"
+#include "writer.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -528,7 +529,7 @@ write_section_entry(uint8_t *buf, Ecma119Image *t)
     iso_lsb(se->load_seg, img->load_seg, 2);
     se->system_type[0] = img->partition_type;
     iso_lsb(se->sec_count, img->load_size, 2);
-    iso_lsb(se->block, t->imgblock, 4);
+    iso_lsb(se->block, t->bootimg->block, 4);
 }
 
 static
@@ -715,6 +716,110 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
     if (ret <= 0) {
         iso_stream_unref(stream);
         free(file);
+    } else {
+        target->cat = *src;
     }
     return ret;
 }
+
+/******************* EL-TORITO WRITER *******************************/
+
+static
+int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    /* nothing to do, the files are written by the file writer */
+    return ISO_SUCCESS;
+}
+
+/**
+ * Write the Boot Record Volume Descriptor (ECMA-119, 8.2)
+ */
+static
+int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
+{
+    Ecma119Image *t;
+    struct el_torito_boot_catalog *cat;
+    struct ecma119_boot_rec_vol_desc vol;
+
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    t = writer->target;
+    cat = t->catalog;
+
+    iso_msg_debug(t->image->messenger, "Write El-Torito boot record");
+
+    memset(&vol, 0, sizeof(struct ecma119_boot_rec_vol_desc));
+    vol.vol_desc_type[0] = 0;
+    memcpy(vol.std_identifier, "CD001", 5);
+    vol.vol_desc_version[0] = 1;
+    memcpy(vol.boot_sys_id, "EL TORITO SPECIFICATION", 23);
+    iso_lsb(vol.boot_catalog, t->cat->block, 4);
+    
+    return iso_write(t, &vol, sizeof(struct ecma119_boot_rec_vol_desc));
+}
+
+static
+int eltorito_writer_write_data(IsoImageWriter *writer)
+{
+    /* nothing to do */
+    return ISO_SUCCESS;
+}
+
+static
+int eltorito_writer_free_data(IsoImageWriter *writer)
+{
+    /* nothing to do */
+    return ISO_SUCCESS;
+}
+
+int eltorito_writer_create(Ecma119Image *target)
+{
+    int ret;
+    IsoImageWriter *writer;
+    IsoFile *bootimg;
+    IsoFileSrc *src;
+
+    writer = malloc(sizeof(IsoImageWriter));
+    if (writer == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    writer->compute_data_blocks = eltorito_writer_compute_data_blocks;
+    writer->write_vol_desc = eltorito_writer_write_vol_desc;
+    writer->write_data = eltorito_writer_write_data;
+    writer->free_data = eltorito_writer_free_data;
+    writer->data = NULL;
+    writer->target = target;
+
+    /* add this writer to image */
+    target->writers[target->nwriters++] = writer;
+
+    /* 
+     * get catalog and image file sources.
+     * Note that the catalog may be already added, when creating the low
+     * level ECMA-119 tree.
+     */
+    if (target->cat == NULL) {
+        ret = el_torito_catalog_file_src_create(target, &src);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    bootimg = target->catalog->image->image;
+    ret = iso_file_src_create(target, bootimg, &src);
+    if (ret < 0) {
+        return ret;
+    }
+    target->bootimg = src;
+    
+    if (target->catalog->image->isolinux) {
+        // TODO
+    }
+
+    /* we need the bootable volume descriptor */
+    target->curblock++;
+    return ISO_SUCCESS;
+}
+

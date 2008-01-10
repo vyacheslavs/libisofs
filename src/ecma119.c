@@ -10,6 +10,7 @@
 #include "libisofs.h"
 #include "ecma119.h"
 #include "joliet.h"
+#include "eltorito.h"
 #include "ecma119_tree.h"
 #include "error.h"
 #include "filesrc.h"
@@ -856,6 +857,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     
     /* el-torito? */
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
+    target->catalog = src->bootcat;
 
     /* default to locale charset */
     setlocale(LC_CTYPE, "");
@@ -890,6 +892,9 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     /* the number of writers is dependent of the extensions */
     nwriters = 1 + 1 + 1; /* ECMA-119 + padding + files */
 
+    if (target->eltorito) {
+        nwriters++;
+    }
     if (target->joliet) {
         nwriters++;
     }
@@ -905,6 +910,14 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     ret = ecma119_writer_create(target);
     if (ret < 0) {
         goto target_cleanup;
+    }
+    
+    /* create writer for El-Torito */
+    if (target->eltorito) {
+        ret = eltorito_writer_create(target);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
     }
     
     /* create writer for Joliet structure */

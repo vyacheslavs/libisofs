@@ -113,7 +113,7 @@ struct ecma119_image
      */
     struct el_torito_boot_catalog *catalog;
     IsoFileSrc *cat; /**< location of the boot catalog in the new image */
-    uint32_t imgblock; /**< location of the boot image in the new image */
+    IsoFileSrc *bootimg; /**< location of the boot image in the new image */
 
     /*
      * Number of pad blocks that we need to write. Padding blocks are blocks
@@ -220,6 +220,18 @@ struct ecma119_sup_vol_desc
     uint8_t reserved1                BP(883, 883);
     uint8_t app_use                  BP(884, 1395);
     uint8_t reserved2                BP(1396, 2048);
+};
+
+/* ECMA-119, 8.2 */
+struct ecma119_boot_rec_vol_desc
+{
+    uint8_t vol_desc_type            BP(1, 1);
+    uint8_t std_identifier           BP(2, 6);
+    uint8_t vol_desc_version         BP(7, 7);
+    uint8_t boot_sys_id              BP(8, 39);
+    uint8_t boot_id                  BP(40, 71);
+    uint8_t boot_catalog             BP(72, 75);
+    uint8_t unused                   BP(76, 2048);
 };
 
 /* ECMA-119, 9.1 */

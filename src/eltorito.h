@@ -100,4 +100,9 @@ void el_torito_boot_catalog_free(struct el_torito_boot_catalog *cat);
  */
 int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src);
 
+/**
+ * Create a writer for el-torito information.
+ */
+int eltorito_writer_create(Ecma119Image *target);
+
 #endif /* LIBISO_ELTORITO_H */
