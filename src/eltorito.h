@@ -93,4 +93,11 @@ struct el_torito_section_entry {
 
 void el_torito_boot_catalog_free(struct el_torito_boot_catalog *cat);
 
+/**
+ * Create a IsoFileSrc for writing the el-torito catalog for the given
+ * target, and add it to target. If the target already has a src for the
+ * catalog, it just returns.
+ */
+int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src);
+
 #endif /* LIBISO_ELTORITO_H */

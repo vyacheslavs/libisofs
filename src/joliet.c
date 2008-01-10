@@ -13,6 +13,7 @@
 #include "error.h"
 #include "image.h"
 #include "filesrc.h"
+#include "eltorito.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -118,9 +119,19 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
         }
         joliet->info.file = src;
         joliet->type = JOLIET_FILE;
+    } else if (iso->type == LIBISO_BOOT) {
+        /* it's a el-torito boot catalog, that we write as a file */
+        IsoFileSrc *src;
+
+        ret = el_torito_catalog_file_src_create(t, &src);
+        if (ret < 0) {
+            free(joliet);
+            return ret;
+        }
+        joliet->info.file = src;
+        joliet->type = JOLIET_FILE;
     } else {
         /* should never happen */
-        //TODO handle boot nodes?!?
         free(joliet);
         return ISO_ERROR;
     }
@@ -205,8 +216,15 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         }
         break;
     case LIBISO_BOOT:
-        //TODO
-        return 0;
+        if (t->eltorito) {
+            ret = create_node(t, iso, &node);
+        } else {
+            /* log and ignore */
+            iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED, 
+                "El-Torito catalog found on a image without El-Torito.", 
+                iso->name);
+            ret = 0;
+        }
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:

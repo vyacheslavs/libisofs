@@ -15,6 +15,7 @@
 #include "messages.h"
 #include "image.h"
 #include "stream.h"
+#include "eltorito.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -161,6 +162,35 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 }
 
 /**
+ * Create a new ECMA-119 node representing a regular file from an El-Torito
+ * boot catalog
+ */
+static
+int create_boot_cat(Ecma119Image *img, IsoBoot *iso, Ecma119Node **node)
+{
+    int ret;
+    IsoFileSrc *src;
+
+    ret = el_torito_catalog_file_src_create(img, &src);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = create_ecma119_node(img, (IsoNode*)iso, node);
+    if (ret < 0) {
+        /* 
+         * the src doesn't need to be freed, it is free together with
+         * the Ecma119Image 
+         */
+        return ret;
+    }
+    (*node)->type = ECMA119_FILE;
+    (*node)->info.file = src;
+
+    return ret;
+}
+
+/**
  * Create a new ECMA-119 node representing a symbolic link from a iso symlink
  * node.
  */
@@ -276,9 +306,15 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         }
         break;
     case LIBISO_BOOT:
-        //TODO
-        free(iso_name);
-        return 0;
+        if (image->eltorito) {
+            ret = create_boot_cat(image, (IsoBoot*)iso, &node);
+        } else {
+            /* log and ignore */
+            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED, 
+                "El-Torito catalog found on a image without El-Torito.", 
+                iso->name);
+            ret = 0;
+        }
         break;
     case LIBISO_DIR:
         {

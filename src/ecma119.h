@@ -34,6 +34,7 @@ struct ecma119_image
     /* extensions */
     unsigned int rockridge :1;
     unsigned int joliet :1;
+    unsigned int eltorito :1;
 
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
@@ -106,6 +107,13 @@ struct ecma119_image
     uint32_t joliet_path_table_size;
     uint32_t joliet_l_path_table_pos;
     uint32_t joliet_m_path_table_pos;
+    
+    /*
+     * El-Torito related information
+     */
+    struct el_torito_boot_catalog *catalog;
+    IsoFileSrc *cat; /**< location of the boot catalog in the new image */
+    uint32_t imgblock; /**< location of the boot image in the new image */
 
     /*
      * Number of pad blocks that we need to write. Padding blocks are blocks

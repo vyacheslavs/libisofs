@@ -10,6 +10,7 @@
 #include "stream.h"
 #include "error.h"
 #include "fsource.h"
+#include "filesrc.h"
 #include "image.h"
 #include "messages.h"
 
@@ -482,7 +483,7 @@ void el_torito_boot_catalog_free(struct el_torito_boot_catalog *cat)
  */
 struct catalog_stream
 {
-    struct el_torito_boot_catalog *catalog;
+    Ecma119Image *target;
     uint8_t buffer[BLOCK_SIZE];
     int offset; /* -1 if stream is not openned */
 };
@@ -507,4 +508,213 @@ write_validation_entry(uint8_t *buf)
         checksum -= (buf[i] << 8);
     }
     iso_lsb(ve->checksum, checksum, 2);
+}
+
+/**
+ * Write one section entry.
+ * Currently this is used only for default image (the only supported just now)
+ */
+static void
+write_section_entry(uint8_t *buf, Ecma119Image *t)
+{
+    struct el_torito_boot_image *img;
+    struct el_torito_section_entry *se = 
+        (struct el_torito_section_entry*)buf;
+        
+    img = t->catalog->image;
+
+    se->boot_indicator[0] = img->bootable ? 0x88 : 0x00;
+    se->boot_media_type[0] = img->type;
+    iso_lsb(se->load_seg, img->load_seg, 2);
+    se->system_type[0] = img->partition_type;
+    iso_lsb(se->sec_count, img->load_size, 2);
+    iso_lsb(se->block, t->imgblock, 4);
+}
+
+static
+int catalog_open(IsoStream *stream)
+{
+    struct catalog_stream *data;
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = stream->data;
+    
+    if (data->offset != -1) {
+        return ISO_FILE_ALREADY_OPENNED;
+    }
+    
+    memset(data->buffer, 0, BLOCK_SIZE);
+    
+    /* fill the buffer with the catalog contents */
+    write_validation_entry(data->buffer);
+
+    /* write default entry */
+    write_section_entry(data->buffer + 32, data->target);
+
+    data->offset = 0;
+    return ISO_SUCCESS;
+}
+
+static
+int catalog_close(IsoStream *stream)
+{
+    struct catalog_stream *data;
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = stream->data;
+    
+    if (data->offset == -1) {
+        return ISO_FILE_NOT_OPENNED;
+    }
+    data->offset = -1;
+    return ISO_SUCCESS;
+}
+
+static
+off_t catalog_get_size(IsoStream *stream)
+{
+    return BLOCK_SIZE;
+}
+
+static
+int catalog_read(IsoStream *stream, void *buf, size_t count)
+{
+    size_t len;
+    struct catalog_stream *data;
+    if (stream == NULL || buf == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (count == 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    data = stream->data;
+    
+    if (data->offset == -1) {
+        return ISO_FILE_NOT_OPENNED;
+    }
+    
+    len = MIN(count, BLOCK_SIZE - data->offset);
+    memcpy(buf, data->buffer + data->offset, len);
+    return len;
+}
+
+static
+int catalog_is_repeatable(IsoStream *stream)
+{
+    return 1;
+}
+
+/**
+ * fs_id will be the id reserved for El-Torito
+ * dev_id will be 0 for catalog, 1 for boot image (if needed)
+ * we leave ino_id for future use when we support multiple boot images 
+ */
+static
+void catalog_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+                   ino_t *ino_id)
+{
+    *fs_id = ISO_ELTORITO_FS_ID;
+    *dev_id = 0;
+    *ino_id = 0;
+}
+
+static
+char *catalog_get_name(IsoStream *stream)
+{
+    return strdup("El-Torito Boot Catalog");
+}
+
+static
+void catalog_free(IsoStream *stream)
+{
+    free(stream->data);
+}
+
+IsoStreamIface catalog_stream_class = {
+    catalog_open,
+    catalog_close,
+    catalog_get_size,
+    catalog_read,
+    catalog_is_repeatable,
+    catalog_get_id,
+    catalog_get_name,
+    catalog_free
+};
+
+/**
+ * Create an IsoStream for writing El-Torito catalog for a given target. 
+ */
+static
+int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
+{
+    IsoStream *str;
+    struct catalog_stream *data;
+
+    if (target == NULL || stream == NULL || target->catalog == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    str = malloc(sizeof(IsoStream));
+    if (str == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    data = malloc(sizeof(struct catalog_stream));
+    if (str == NULL) {
+        free(str);
+        return ISO_MEM_ERROR;
+    }
+
+    /* fill data */
+    data->target = target;
+    data->offset = -1;
+
+    str->refcount = 1;
+    str->data = data;
+    str->class = &catalog_stream_class;
+
+    *stream = str;
+    return ISO_SUCCESS;
+}
+
+int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
+{
+    int ret;
+    IsoFileSrc *file;
+    IsoStream *stream;
+    
+    if (target == NULL || src == NULL || target->catalog == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    
+    if (target->cat != NULL) {
+        /* catalog file src already created */
+        *src = target->cat;
+        return ISO_SUCCESS;
+    }
+    
+    file = malloc(sizeof(IsoFileSrc));
+    if (file == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    ret = catalog_stream_new(target, &stream);
+    if (ret < 0) {
+        free(file);
+        return ret;
+    }
+    
+    /* fill fields */
+    file->prev_img = 0; /* TODO allow copy of old img catalog???? */
+    file->block = 0; /* to be filled later */
+    file->sort_weight = 1000; /* slightly high */
+    file->stream = stream;
+
+    ret = iso_file_src_add(target, file, src);
+    if (ret <= 0) {
+        iso_stream_unref(stream);
+        free(file);
+    }
+    return ret;
 }

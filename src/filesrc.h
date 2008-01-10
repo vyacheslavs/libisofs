@@ -44,6 +44,27 @@ int iso_file_src_cmp(const void *n1, const void *n2);
 int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src);
 
 /**
+ * Add a given IsoFileSrc to the given image target.
+ * 
+ * The IsoFileSrc will be cached in a tree to prevent the same file for 
+ * being written several times to image. If you call again this function
+ * with a node that refers to the same source file, the previously
+ * created one will be returned.
+ * 
+ * @param img
+ *      The image where this file is to be written
+ * @param new
+ *      The IsoFileSrc to add
+ * @param src
+ *      Will be filled with a pointer to the IsoFileSrc really present in
+ *      the tree. It could be different than new if the same file already
+ *      exists in the tree. 
+ * @return
+ *      1 on success, 0 if file already exists on tree, < 0 error
+ */
+int iso_file_src_add(Ecma119Image *img, IsoFileSrc *new, IsoFileSrc **src);
+
+/**
  * Free the IsoFileSrc especific data
  */
 void iso_file_src_free(void *node);

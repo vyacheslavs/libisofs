@@ -853,6 +853,9 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->now = time(NULL);
     target->ms_block = opts->ms_block;
     target->appendable = opts->appendable;
+    
+    /* el-torito? */
+    target->eltorito = (src->bootcat == NULL ? 0 : 1);
 
     /* default to locale charset */
     setlocale(LC_CTYPE, "");
