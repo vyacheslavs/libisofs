@@ -7,6 +7,7 @@
 #include "libburn/libburn.h"
 
 #include <stdio.h>
+#include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -15,22 +16,43 @@
 #include <fcntl.h>
 #include <err.h>
 
+const char * const optstring = "JRL:b:hV:";
+extern char *optarg;
+extern int optind;
+
 void usage(char **argv)
 {
     printf("%s [OPTIONS] DIRECTORY OUTPUT\n", argv[0]);
 }
 
+void help()
+{
+    printf(
+        "Options:\n"
+        "  -J        Add Joliet support\n"
+        "  -R        Add Rock Ridge support\n"
+        "  -V label  Volume Label\n"
+        "  -L <num>  Set the ISO level (1 or 2)\n"
+        "  -b file   Specifies a boot image to add to image\n"
+        "  -h        Print this message\n"
+    );
+}
+
 int main(int argc, char **argv)
 {
     int result;
+    int c;
     IsoImage *image;
     struct burn_source *burn_src;
     unsigned char buf[2048];
     FILE *fd;
+    char *volid = "VOLID";
+    char *boot_img = NULL;
+    
     Ecma119WriteOpts opts = {
         1, /* level */ 
-        1, /* rockridge */
-        1, /* joliet */
+        0, /* rockridge */
+        0, /* joliet */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
         0, /* joliet_longer_paths */
@@ -48,6 +70,35 @@ int main(int argc, char **argv)
         0, /* ms_block */
         NULL /* overwrite */
     };
+
+    while ((c = getopt(argc, argv, optstring)) != -1) {
+        switch(c) {
+        case 'h':
+            usage(argv);
+            help();
+            exit(0);
+            break;
+        case 'J':
+            opts.joliet = 1;
+            break;
+        case 'R':
+            opts.rockridge = 1;
+            break;
+        case 'L':
+            opts.level = atoi(optarg);
+            break;
+        case 'b':
+            boot_img = optarg;
+            break;
+        case 'V':
+            volid = optarg;
+            break;
+        case '?':
+            usage(argv);
+            exit(1);
+            break;
+        }
+    }
 	
     if (argc < 2) {
         printf ("Please pass directory from which to build ISO\n");
@@ -65,7 +116,7 @@ int main(int argc, char **argv)
         err(1, "error opening output file");
     }
     
-    result = iso_image_new("volume_id", &image);
+    result = iso_image_new(volid, &image);
     if (result < 0) {
         printf ("Error creating image\n");
         return 1;
@@ -75,10 +126,23 @@ int main(int argc, char **argv)
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_stop_on_error(image, 0);
     
-    result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[1]);
+    result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[optind]);
     if (result < 0) {
         printf ("Error adding directory %d\n", result);
         return 1;
+    }
+    
+    if (boot_img) {
+        /* adds El-Torito boot info. Tunned for isolinux */
+        ElToritoBootImage *bootimg;
+        result = iso_image_set_boot_image(image, boot_img, ELTORITO_NO_EMUL,
+                                     "/isolinux/boot.cat", &bootimg);
+        if (result < 0) {
+            printf ("Error adding boot image %d\n", result);
+            return 1;
+        }
+        el_torito_set_load_size(bootimg, 4);
+        el_torito_patch_isolinux_image(bootimg);
     }
     
     result = iso_image_create_burn_source(image, &opts, &burn_src);
