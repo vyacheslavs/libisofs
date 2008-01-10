@@ -836,6 +836,18 @@ int iso_node_take(IsoNode *node);
  */
 int iso_node_remove(IsoNode *node);
 
+/*
+ * Get the parent of the given iso tree node. No extra ref is added to the
+ * returned directory, you must take your ref. with iso_node_ref() if you
+ * need it.
+ * 
+ * If node is the root node, the same node will be returned as its parent.
+ * 
+ * This returns NULL if the node doesn't pertain to any tree 
+ * (it was removed/take).
+ */
+IsoDir *iso_node_get_parent(IsoNode *node);
+
 /**
  * Get an iterator for the children of the given dir.
  * 
