@@ -18,6 +18,7 @@
 #include "rockridge.h"
 #include "image.h"
 #include "tree.h"
+#include "eltorito.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -136,7 +137,15 @@ typedef struct
      */
     uint32_t nblocks;
 
-    //TODO el-torito information
+    /* el-torito information */
+    unsigned int eltorito : 1; /* is el-torito available */
+    unsigned int bootable:1; /**< If the entry is bootable. */
+    unsigned char type; /**< The type of image */
+    unsigned char partition_type; /**< type of partition for HD-emul images */
+    short load_seg; /**< Load segment for the initial boot image. */
+    short load_size; /**< Number of sectors to load. */
+    uint32_t imgblock; /**< Block for El-Torito boot image */
+    uint32_t catblock; /**< Block for El-Torito catalog */
 
 } _ImageFsData;
 
@@ -1496,6 +1505,57 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     return ISO_SUCCESS;
 }
 
+static
+int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
+{
+    int ret;
+    struct el_torito_validation_entry *ve;
+    struct el_torito_default_entry *entry;
+    unsigned char buffer[BLOCK_SIZE];
+
+    ret = data->src->read_block(data->src, block, buffer);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    ve = (struct el_torito_validation_entry*)buffer;
+    
+    /* check if it is a valid catalog (TODO: check also the checksum)*/
+    if ( (ve->header_id[0] != 1) || (ve->key_byte1[0] != 0x55) 
+         || (ve->key_byte2[0] != 0xAA) ) {
+            
+        iso_msg_sorry(data->messenger, LIBISO_EL_TORITO_WRONG, 
+                      "Wrong or damaged El-Torito Catalog. El-Torito info "
+                      "will be ignored.");
+        return ISO_WRONG_EL_TORITO;
+    }
+    
+    /* check for a valid platform */
+    if (ve->platform_id[0] != 0) {
+        iso_msg_hint(data->messenger, LIBISO_EL_TORITO_UNHANLED, 
+                     "Unsupported El-Torito platform. Only 80x86 is "
+                     "supported. El-Torito info will be ignored.");
+        return ISO_WRONG_EL_TORITO;
+    }
+    
+    /* ok, once we are here we assume it is a valid catalog */
+    
+    /* parse the default entry */
+    entry = (struct el_torito_default_entry *)(buffer + 32);
+    
+    data->eltorito = 1;
+    data->bootable = entry->boot_indicator[0] ? 1 : 0;
+    data->type = entry->boot_media_type[0];
+    data->partition_type = entry->system_type[0];
+    data->load_seg = iso_read_lsb(entry->load_seg, 2);
+    data->load_size = iso_read_lsb(entry->sec_count, 2);
+    data->imgblock = iso_read_lsb(entry->block, 4);
+
+    //TODO check if there are more entries?
+
+    return ISO_SUCCESS;
+}
+
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              struct libiso_msgs *messenger,
                              IsoImageFilesystem **fs)
@@ -1582,13 +1642,26 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         }
         switch (buffer[0]) {
         case 0:
-            /* 
-             * This is a boot record 
-             * Here we handle el-torito
-             */
-            //TODO add support for El-Torito
-            iso_msg_hint(data->messenger, LIBISO_UNSUPPORTED_VD,
-                         "El-Torito extensions not supported yet");
+            /* boot record */
+            {
+                struct ecma119_boot_rec_vol_desc *vol;
+                vol = (struct ecma119_boot_rec_vol_desc*)buffer;
+
+                /* some sanity checks */
+                if (strncmp((char*)vol->std_identifier, "CD001", 5)
+                    || vol->vol_desc_version[0] != 1 
+                    || strncmp((char*)vol->boot_sys_id, 
+                               "EL TORITO SPECIFICATION", 23)) {
+
+                     iso_msg_hint(data->messenger, LIBISO_BOOT_VD_UNHANLED, 
+                          "Unsupported Boot Vol. Desc. Only El-Torito "
+                          "Specification, Version 1.0 Volume "
+                          "Descriptors are supported. Ignoring boot info");
+                     break;
+                }
+                data->catblock = iso_read_lsb(vol->boot_catalog, 4);
+                read_el_torito_boot_catalog(data, data->catblock);
+            }
             break;
         case 2:
             /* suplementary volume descritor */
@@ -1623,10 +1696,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
              */
             break;
         default:
-            {
-                iso_msg_hint(data->messenger, LIBISO_UNSUPPORTED_VD,
-                             "Ignoring Volume descriptor %x.", buffer[0]);
-            }
+            iso_msg_hint(data->messenger, LIBISO_UNSUPPORTED_VD,
+                         "Ignoring Volume descriptor %x.", buffer[0]);
             break;
         }
         block++;
@@ -1717,6 +1788,8 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             /* source is a regular file */
             IsoStream *stream;
             IsoFile *file;
+            _ImageFsData *fsdata = data->fs->fs.data;
+            
             result = iso_file_source_stream_new(src, &stream);
             if (result < 0) {
                 free(name);
@@ -1724,25 +1797,63 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             }
             /* take a ref to the src, as stream has taken our ref */
             iso_file_source_ref(src);
-            file = calloc(1, sizeof(IsoFile));
-            if (file == NULL) {
-                free(name);
-                iso_stream_unref(stream);
-                return ISO_MEM_ERROR;
-            }
-
-            /* the msblock is taken from the image */
-            file->msblock = data->block;
             
-            /* 
-             * and we set the sort weight based on the block on image, to
-             * improve performance on image modifying.
-             */ 
-            file->sort_weight = INT_MAX - data->block;
-
-            file->stream = stream;
-            file->node.type = LIBISO_FILE;
-            new = (IsoNode*) file;
+            if (fsdata->eltorito && data->block == fsdata->catblock) {
+                
+                if (image->bootcat->node != NULL) {
+                    iso_msg_hint(image->messenger, LIBISO_EL_TORITO_UNHANLED, 
+                                 "More than one catalog node has been found. "
+                                 "We will continue, but that could lead to "
+                                 "problems");
+                    iso_node_unref((IsoNode*)image->bootcat->node);
+                }
+                
+                /* we create a placeholder for the catalog instead of
+                 * a regular file */
+                new = calloc(1, sizeof(IsoBoot));
+                if (new == NULL) {
+                    result = ISO_MEM_ERROR;
+                    free(name);
+                    return result;
+                }
+                
+                /* and set the image node */
+                image->bootcat->node = (IsoBoot*)new;
+                new->refcount++;
+            } else {
+            
+                file = calloc(1, sizeof(IsoFile));
+                if (file == NULL) {
+                    free(name);
+                    iso_stream_unref(stream);
+                    return ISO_MEM_ERROR;
+                }
+    
+                /* the msblock is taken from the image */
+                file->msblock = data->block;
+                
+                /* 
+                 * and we set the sort weight based on the block on image, to
+                 * improve performance on image modifying.
+                 */ 
+                file->sort_weight = INT_MAX - data->block;
+    
+                file->stream = stream;
+                file->node.type = LIBISO_FILE;
+                new = (IsoNode*) file;
+                
+                if (fsdata->eltorito && data->block == fsdata->imgblock) {
+                    /* it is boot image node */
+                    if (image->bootcat->image->image != NULL) {
+                        iso_msg_hint(image->messenger, LIBISO_EL_TORITO_UNHANLED, 
+                                     "More than one image node has been found. ");
+                    } else {
+                        /* and set the image node */
+                        image->bootcat->image->image = file;
+                        new->refcount++;
+                    }
+                }
+            }
         }
         break;
     case S_IFDIR:
@@ -1797,7 +1908,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
     /* fill fields */
-    new->refcount = 1;
+    new->refcount++;
     new->name = name;
     new->mode = info.st_mode;
     new->uid = info.st_uid;
@@ -1843,6 +1954,77 @@ int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
     return ISO_SUCCESS;
 }
 
+/**
+ * Create a file source to access the El-Torito boot image, when it is not
+ * accessible from the ISO filesystem. 
+ */
+static
+int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
+{
+    int ret;
+    struct stat atts;
+    _ImageFsData *fsdata;
+    IsoFileSource *ifsrc = NULL;
+    ImageFileSourceData *ifsdata = NULL;
+    
+    if (fs == NULL || fs->fs.data == NULL || src == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    fsdata = (_ImageFsData*)fs->fs.data;
+    
+    memset(&atts, 0, sizeof(struct stat));
+    atts.st_mode = S_IFREG;
+    atts.st_ino = fsdata->imgblock; /* not the best solution, but... */
+    atts.st_nlink = 1;
+
+    /* 
+     * this is the greater problem. We don't know the size. For now, we
+     * just use a single block of data. In a future, maybe we could figure out
+     * a better idea. Another alternative is to use several blocks, that way
+     * is less probable that we throw out valid data.  
+     */
+    atts.st_size = (off_t)BLOCK_SIZE;
+    
+    /* Fill last entries */
+    atts.st_dev = fsdata->id;
+    atts.st_blksize = BLOCK_SIZE;
+    atts.st_blocks = div_up(atts.st_size, BLOCK_SIZE);
+    
+    /* ok, we can now create the file source */
+    ifsdata = calloc(1, sizeof(ImageFileSourceData));
+    if (ifsdata == NULL) {
+        ret = ISO_MEM_ERROR;
+        goto boot_fs_cleanup;
+    }
+    ifsrc = calloc(1, sizeof(IsoFileSource));
+    if (ifsrc == NULL) {
+        ret = ISO_MEM_ERROR;
+        goto boot_fs_cleanup;
+    }
+    
+    /* fill data */
+    ifsdata->fs = fs;
+    iso_filesystem_ref((IsoFilesystem*)fs);
+    ifsdata->parent = NULL;
+    ifsdata->info = atts;
+    ifsdata->name = NULL;
+    ifsdata->block = fsdata->imgblock;
+
+    ifsrc->class = &ifs_class;
+    ifsrc->data = ifsdata;
+    ifsrc->refcount = 1;
+    
+    *src = ifsrc;
+    return ISO_SUCCESS;
+    
+boot_fs_cleanup: ;
+    free(ifsdata);
+    free(ifsrc);
+    return ret;
+}
+
+
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts, 
                      struct iso_read_image_features *features)
@@ -1853,6 +2035,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     IsoNodeBuilder *blback;
     IsoDir *oldroot;
     IsoFileSource *newroot;
+    _ImageFsData *data;
+    struct el_torito_boot_catalog *oldbootcat;
     
     if (image == NULL || src == NULL || opts == NULL) {
         return ISO_NULL_POINTER;
@@ -1862,6 +2046,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     if (ret < 0) {
         return ret;
     }
+    data = fs->fs.data;
     
     /* get root from filesystem */
     ret = fs->fs.get_root((IsoFilesystem*)fs, &newroot);
@@ -1873,6 +2058,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     fsback = image->fs;
     blback = image->builder;
     oldroot = image->root;
+    oldbootcat = image->bootcat; /* could be NULL */
+    
+    image->bootcat = NULL;
     
     /* create new builder */
     ret = iso_image_builder_new(blback, &image->builder);
@@ -1889,7 +2077,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     }
     {
         struct stat info;
-        
+
         /* I know this will not fail */
         iso_file_source_lstat(newroot, &info);
         image->root->node.mode = info.st_mode;
@@ -1898,56 +2086,113 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         image->root->node.atime = info.st_atime;
         image->root->node.mtime = info.st_mtime;
         image->root->node.ctime = info.st_ctime;
-    }    
+    }
+    
+    /* if old image has el-torito, add a new catalog */
+    if (data->eltorito) {
+        struct el_torito_boot_catalog *catalog;
+        ElToritoBootImage *boot_image= NULL;
+        
+        boot_image = calloc(1, sizeof(ElToritoBootImage));
+        if (boot_image == NULL) {
+            ret = ISO_MEM_ERROR;
+            goto import_revert;
+        }
+        boot_image->bootable = data->bootable;
+        boot_image->type = data->type;
+        boot_image->partition_type = data->partition_type;
+        boot_image->load_seg = data->load_seg;
+        boot_image->load_size = data->load_size;
+        
+        catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
+        if (catalog == NULL) {
+            ret = ISO_MEM_ERROR;
+            goto import_revert;
+        }
+        catalog->image = boot_image;
+        image->bootcat = catalog;
+    }
 
     /* recursively add image */
     ret = iso_add_dir_src_rec(image, image->root, newroot);
     
-    iso_node_builder_unref(image->builder);
-    
     /* error during recursive image addition? */
     if (ret <= 0) {
+        iso_node_builder_unref(image->builder);
         goto import_revert;
     }
+
+    if (data->eltorito) {
+        /* if catalog and image nodes were not filled, we create them here */
+        if (image->bootcat->image->image == NULL) {
+            IsoFileSource *src;
+            IsoNode *node;
+            ret = create_boot_img_filesrc(fs, &src);
+            if (ret < 0) {
+                iso_node_builder_unref(image->builder);
+                goto import_revert;
+            }
+            ret = image_builder_create_node(image->builder, image, src, &node);
+            if (ret < 0) {
+                iso_node_builder_unref(image->builder);
+                goto import_revert;
+            }
+            image->bootcat->image->image = (IsoFile*)node;
+        }
+        if (image->bootcat->node == NULL) {
+            IsoNode *node = calloc(1, sizeof(IsoBoot));
+            if (node == NULL) {
+                ret = ISO_MEM_ERROR;
+                goto import_revert;
+            }
+            node->mode = S_IFREG;
+            node->refcount = 1;
+            image->bootcat->node = (IsoBoot*)node;
+        }
+    }
+
+    iso_node_builder_unref(image->builder);
     
     /* free old root */
     iso_node_unref((IsoNode*)oldroot);
-    
-    /* recover backed fs and builder */
-    image->fs = fsback;
-    image->builder = blback;
-    
-    {
-        _ImageFsData *data;
-        data = fs->fs.data;
 
-        /* set volume attributes */
-        iso_image_set_volset_id(image, data->volset_id);
-        iso_image_set_volume_id(image, data->volume_id);
-        iso_image_set_publisher_id(image, data->publisher_id);
-        iso_image_set_data_preparer_id(image, data->data_preparer_id);
-        iso_image_set_system_id(image, data->system_id);
-        iso_image_set_application_id(image, data->application_id);
-        iso_image_set_copyright_file_id(image, data->copyright_file_id);
-        iso_image_set_abstract_file_id(image, data->abstract_file_id);
-        iso_image_set_biblio_file_id(image, data->biblio_file_id);
-                
-        if (features != NULL) {
-            features->hasJoliet = data->joliet;
-            features->hasRR = data->rr_version != 0;
-            features->size = data->nblocks;
-        }
+    /* free old boot catalog */
+    el_torito_boot_catalog_free(oldbootcat);
+
+    /* set volume attributes */
+    iso_image_set_volset_id(image, data->volset_id);
+    iso_image_set_volume_id(image, data->volume_id);
+    iso_image_set_publisher_id(image, data->publisher_id);
+    iso_image_set_data_preparer_id(image, data->data_preparer_id);
+    iso_image_set_system_id(image, data->system_id);
+    iso_image_set_application_id(image, data->application_id);
+    iso_image_set_copyright_file_id(image, data->copyright_file_id);
+    iso_image_set_abstract_file_id(image, data->abstract_file_id);
+    iso_image_set_biblio_file_id(image, data->biblio_file_id);
+            
+    if (features != NULL) {
+        features->hasJoliet = data->joliet;
+        features->hasRR = data->rr_version != 0;
+        features->hasElTorito = data->eltorito;
+        features->size = data->nblocks;
     }
     
     ret = ISO_SUCCESS;
     goto import_cleanup;
-    
+
     import_revert:;
-    
+
+    iso_node_unref((IsoNode*)image->root);
+    el_torito_boot_catalog_free(image->bootcat);
     image->root = oldroot;
     image->fs = fsback;
-    
+    image->bootcat = oldbootcat;
+
     import_cleanup:;
+
+    /* recover backed fs and builder */
+    image->fs = fsback;
+    image->builder = blback;
     
     iso_file_source_unref(newroot);
     fs->close(fs);

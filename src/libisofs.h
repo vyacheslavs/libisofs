@@ -306,10 +306,13 @@ struct iso_read_opts
 struct iso_read_image_features
 {
     /** It will be set to 1 if RR extensions are present, to 0 if not. */
-    unsigned int hasRR:1; 
+    unsigned int hasRR :1;
     
     /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
-    unsigned int hasJoliet:1; 
+    unsigned int hasJoliet :1;
+    
+    /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
+    unsigned int hasElTorito :1;
     
     /** 
      * Will be filled with the size (in 2048 byte block) of the image, as 

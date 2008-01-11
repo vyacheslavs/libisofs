@@ -24,11 +24,6 @@
 struct Iso_Boot
 {
     IsoNode node;
-
-    /**
-     * Location of a file extent in a ms disc, 0 for newly added file
-     */
-    uint32_t msblock;
 };
 
 struct el_torito_boot_catalog {

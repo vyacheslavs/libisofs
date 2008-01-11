@@ -78,6 +78,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         free(fsrc);
         return ret;
     }
+    iso_stream_ref(fsrc->stream);
     return ISO_SUCCESS;
 }
 
@@ -115,6 +116,7 @@ int iso_file_src_add(Ecma119Image *img, IsoFileSrc *new, IsoFileSrc **src)
 
 void iso_file_src_free(void *node)
 {
+    iso_stream_unref(((IsoFileSrc*)node)->stream);
     free(node);
 }
 

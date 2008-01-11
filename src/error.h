@@ -51,6 +51,7 @@
 #define ISO_UNSUPPORTED_RR              -302
 #define ISO_WRONG_ECMA119               -303
 #define ISO_UNSUPPORTED_ECMA119         -304
+#define ISO_WRONG_EL_TORITO             -305
 
 /* el-torito errors */
 #define ISO_IMAGE_ALREADY_BOOTABLE      -350

@@ -150,8 +150,6 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     node->node.atime = now;
     node->node.ctime = now;
     node->node.mtime = now;
-    
-    node->msblock = 0;
 
     /* add to dir */
     node->node.parent = parent;
