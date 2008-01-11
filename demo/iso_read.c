@@ -147,7 +147,22 @@ int main(int argc, char **argv)
         printf ("Error creating filesystem\n");
         return 1;
     }
+    
+    printf("\nVOLUME INFORMATION\n");
+    printf("==================\n\n");
+    
+    printf("Vol. id: %s\n", iso_image_fs_get_volume_id(fs));
+    printf("Publisher: %s\n", iso_image_fs_get_publisher_id(fs));
+    printf("Data preparer: %s\n", iso_image_fs_get_data_preparer_id(fs));
+    printf("System: %s\n", iso_image_fs_get_system_id(fs));
+    printf("Application: %s\n", iso_image_fs_get_application_id(fs));
+    printf("Copyright: %s\n", iso_image_fs_get_copyright_file_id(fs));
+    printf("Abstract: %s\n", iso_image_fs_get_abstract_file_id(fs));
+    printf("Biblio: %s\n", iso_image_fs_get_biblio_file_id(fs));
 
+    printf("\nDIRECTORY TREE\n");
+    printf("==============\n");
+    
     result = fs->fs.get_root((IsoFilesystem*)fs, &root);
     if (result < 0) {
         printf ("Can't get root %d\n", result);

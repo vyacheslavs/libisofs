@@ -1786,17 +1786,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFREG:
         {
             /* source is a regular file */
-            IsoStream *stream;
-            IsoFile *file;
             _ImageFsData *fsdata = data->fs->fs.data;
-            
-            result = iso_file_source_stream_new(src, &stream);
-            if (result < 0) {
-                free(name);
-                return result;
-            }
-            /* take a ref to the src, as stream has taken our ref */
-            iso_file_source_ref(src);
             
             if (fsdata->eltorito && data->block == fsdata->catblock) {
                 
@@ -1819,8 +1809,19 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 
                 /* and set the image node */
                 image->bootcat->node = (IsoBoot*)new;
-                new->refcount++;
+                new->type = LIBISO_BOOT;
+                new->refcount = 1;
             } else {
+                IsoStream *stream;
+                IsoFile *file;
+                
+                result = iso_file_source_stream_new(src, &stream);
+                if (result < 0) {
+                    free(name);
+                    return result;
+                }
+                /* take a ref to the src, as stream has taken our ref */
+                iso_file_source_ref(src);
             
                 file = calloc(1, sizeof(IsoFile));
                 if (file == NULL) {
@@ -1841,6 +1842,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 file->stream = stream;
                 file->node.type = LIBISO_FILE;
                 new = (IsoNode*) file;
+                new->refcount = 0;
                 
                 if (fsdata->eltorito && data->block == fsdata->imgblock) {
                     /* it is boot image node */
@@ -1865,6 +1867,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 return ISO_MEM_ERROR;
             }
             new->type = LIBISO_DIR;
+            new->refcount = 0;
         }
         break;
     case S_IFLNK:
@@ -1886,6 +1889,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             link->dest = strdup(dest);
             link->node.type = LIBISO_SYMLINK;
             new = (IsoNode*) link;
+            new->refcount = 0;
         }
         break;
     case S_IFSOCK:
@@ -1903,6 +1907,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
             new = (IsoNode*) special;
+            new->refcount = 0;
         }
         break;
     }
@@ -1930,6 +1935,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
  * Create a new builder, that is exactly a copy of an old builder, but where
  * create_node() function has been replaced by image_builder_create_node.
  */
+static
 int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
 {
     IsoNodeBuilder *b;
@@ -2199,4 +2205,59 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_filesystem_unref((IsoFilesystem*)fs);
     
     return ret;
+}
+
+const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->volset_id;
+}
+
+const char *iso_image_fs_get_volume_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->volume_id;
+}
+
+const char *iso_image_fs_get_publisher_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->publisher_id;
+}
+
+const char *iso_image_fs_get_data_preparer_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->data_preparer_id;
+}
+
+const char *iso_image_fs_get_system_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->system_id;
+}
+
+const char *iso_image_fs_get_application_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->application_id;
+}
+
+const char *iso_image_fs_get_copyright_file_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->copyright_file_id;
+}
+
+const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data;
+    data = (_ImageFsData*) fs->fs.data;
+    return data->abstract_file_id;
+}
+
+const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs)
+{
+    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    return data->biblio_file_id;
 }

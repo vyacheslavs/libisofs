@@ -47,4 +47,22 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              struct libiso_msgs *messenger,
                              IsoImageFilesystem **fs);
 
+const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_volume_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_publisher_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_data_preparer_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_system_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_application_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_copyright_file_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
+
+const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
+
 #endif /*LIBISO_FS_IMAGE_H_*/
