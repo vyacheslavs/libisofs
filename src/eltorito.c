@@ -740,7 +740,7 @@ int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
     struct ecma119_boot_rec_vol_desc vol;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_NULL_POINTER;
     }
 
     t = writer->target;
@@ -758,10 +758,97 @@ int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
     return iso_write(t, &vol, sizeof(struct ecma119_boot_rec_vol_desc));
 }
 
+/**
+ * Patch an isolinux boot image.
+ */
+static 
+void patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
+{
+    struct boot_info_table *info;
+    uint32_t checksum;
+    size_t offset;
+    
+    if (imgsize < 64) {
+        iso_msg_warn(t->image->messenger, LIBISO_ISOLINUX_CANT_PATCH, 
+            "Isolinux image too small. We won't patch it.");
+        return;
+    }
+    
+    memset(&info, 0, sizeof(info));
+    
+    /* compute checksum, as the the sum of all 32 bit words in boot image
+     * from offset 64 */
+    checksum = 0;
+    offset = (size_t) 64;
+    
+    while (offset <= imgsize - 4) {
+        checksum += iso_read_lsb(buf + offset, 4);
+        offset += 4;
+    }
+    if (offset != imgsize) {
+        /* file length not multiple of 4 */
+        iso_msg_warn(t->image->messenger, LIBISO_ISOLINUX_CANT_PATCH, 
+            "Unexpected isolinux image length. Patch might not work.");
+    }
+    
+    /* patch boot info table */
+    info = (struct boot_info_table*)(buf + 8);
+    memset(info, 0, sizeof(struct boot_info_table));
+    iso_lsb(info->bi_pvd, t->ms_block + 16, 4);
+    iso_lsb(info->bi_file, t->bootimg->block, 4);
+    iso_lsb(info->bi_length, imgsize, 4);
+    iso_lsb(info->bi_csum, checksum, 4);
+}
+
 static
 int eltorito_writer_write_data(IsoImageWriter *writer)
 {
-    /* nothing to do */
+    /*
+     * We have nothing to write, but if we need to patch an isolinux image,
+     * this is a good place to do so. 
+     */
+    Ecma119Image *t;
+    int ret;
+
+    if (writer == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    t = writer->target;
+    
+    if (t->catalog->image->isolinux) {
+        /* we need to patch the image */
+        size_t size;
+        uint8_t *buf;
+        IsoStream *new = NULL;
+        IsoStream *original = t->bootimg->stream;
+        size = (size_t) iso_stream_get_size(original);
+        buf = malloc(size);
+        if (buf == NULL) {
+            return ISO_MEM_ERROR;
+        }
+        ret = iso_stream_open(original);
+        if (ret < 0) {
+            return ret;
+        }
+        ret = iso_stream_read(original, buf, size);
+        iso_stream_close(original);
+        if (ret != size) {
+            return (ret < 0) ? ret : ISO_FILE_READ_ERROR;
+        }
+        
+        /* ok, patch the read buffer */
+        patch_boot_image(buf, t, size);
+        
+        /* replace the original stream with a memory stream that reads from
+         * the patched buffer */
+        ret = iso_memory_stream_new(buf, size, &new);
+        if (ret < 0) {
+            return ret;
+        }
+        t->bootimg->stream = new;
+        iso_stream_unref(original);
+    }
     return ISO_SUCCESS;
 }
 
@@ -811,10 +898,6 @@ int eltorito_writer_create(Ecma119Image *target)
         return ret;
     }
     target->bootimg = src;
-    
-    if (target->catalog->image->isolinux) {
-        // TODO
-    }
 
     /* we need the bootable volume descriptor */
     target->curblock++;
