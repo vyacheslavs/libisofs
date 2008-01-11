@@ -22,6 +22,7 @@
 #define ISO_LOCAL_FS_ID        1
 #define ISO_IMAGE_FS_ID        2
 #define ISO_ELTORITO_FS_ID     3
+#define ISO_MEM_FS_ID          4
 
 typedef struct Iso_File_Source IsoFileSource;
 typedef struct Iso_Filesystem IsoFilesystem;

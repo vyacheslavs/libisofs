@@ -162,4 +162,13 @@ char *iso_stream_get_name(IsoStream *stream)
  */
 int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream);
 
+/**
+ * Create a stream for reading from a arbitrary memory buffer.
+ * When the Stream refcount reach 0, the buffer is free(3).
+ * 
+ * @return
+ *      1 sucess, < 0 error
+ */
+int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
+
 #endif /*STREAM_H_*/
