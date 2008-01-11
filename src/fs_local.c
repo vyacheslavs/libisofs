@@ -25,7 +25,8 @@
 #include <string.h>
 
 static
-int iso_file_source_new_lfs(const char *path, IsoFileSource **src);
+int iso_file_source_new_lfs(IsoFileSource *parent, const char *name, 
+                            IsoFileSource **src);
 
 /*
  * We can share a local filesystem object, as it has no private atts.
@@ -34,7 +35,9 @@ IsoFilesystem *lfs= NULL;
 
 typedef struct
 {
-    char *path;
+    /** reference to the parent (if root it points to itself) */
+    IsoFileSource *parent;
+    char *name;
     unsigned int openned :2; /* 0: not openned, 1: file, 2:dir */
     union
     {
@@ -48,32 +51,43 @@ char* lfs_get_path(IsoFileSource *src)
 {
     _LocalFsFileSource *data;
     data = src->data;
-    return strdup(data->path);
+
+    if (data->parent == src) {
+        return strdup("/");
+    } else {
+        char *path = lfs_get_path(data->parent);
+        int pathlen = strlen(path);
+        path = realloc(path, pathlen + strlen(data->name) + 2);
+        if (pathlen != 1) {
+            /* pathlen can only be 1 for root */
+            path[pathlen] = '/';
+            path[pathlen + 1] = '\0';
+        }
+        return strcat(path, data->name);
+    }
 }
 
 static
 char* lfs_get_name(IsoFileSource *src)
 {
-    char *name, *p;
     _LocalFsFileSource *data;
     data = src->data;
-    p = strdup(data->path); /* because basename() might modify its arg */
-    name = strdup(basename(p));
-    free(p);
-    return name;
+    return strdup(data->name);
 }
 
 static
 int lfs_lstat(IsoFileSource *src, struct stat *info)
 {
     _LocalFsFileSource *data;
+    char *path;
 
     if (src == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
     data = src->data;
+    path = lfs_get_path(src);
 
-    if (lstat(data->path, info) != 0) {
+    if (lstat(path, info) != 0) {
         int err;
 
         /* error, choose an appropriate return code */
@@ -99,6 +113,7 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
         }
         return err;
     }
+    free(path);
     return ISO_SUCCESS;
 }
 
@@ -106,13 +121,15 @@ static
 int lfs_stat(IsoFileSource *src, struct stat *info)
 {
     _LocalFsFileSource *data;
+    char *path;
 
     if (src == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
     data = src->data;
+    path = lfs_get_path(src);
 
-    if (stat(data->path, info) != 0) {
+    if (stat(path, info) != 0) {
         int err;
 
         /* error, choose an appropriate return code */
@@ -138,20 +155,26 @@ int lfs_stat(IsoFileSource *src, struct stat *info)
         }
         return err;
     }
+    free(path);
     return ISO_SUCCESS;
 }
 
 static
 int lfs_access(IsoFileSource *src)
 {
+    int ret;
     _LocalFsFileSource *data;
+    char *path;
 
     if (src == NULL) {
         return ISO_NULL_POINTER;
     }
     data = src->data;
+    path = lfs_get_path(src);
 
-    return iso_eaccess(data->path);
+    ret = iso_eaccess(path);
+    free(path);
+    return ret;
 }
 
 static
@@ -160,6 +183,7 @@ int lfs_open(IsoFileSource *src)
     int err;
     struct stat info;
     _LocalFsFileSource *data;
+    char *path;
 
     if (src == NULL) {
         return ISO_NULL_POINTER;
@@ -176,13 +200,15 @@ int lfs_open(IsoFileSource *src)
         return err;
     }
 
+    path = lfs_get_path(src);
     if (S_ISDIR(info.st_mode)) {
-        data->info.dir = opendir(data->path);
+        data->info.dir = opendir(path);
         data->openned = data->info.dir ? 2 : 0;
     } else {
-        data->info.fd = open(data->path, O_RDONLY);
+        data->info.fd = open(path, O_RDONLY);
         data->openned = data->info.fd != -1 ? 1 : 0;
     }
+    free(path);
 
     /*
      * check for possible errors, note that many of possible ones are
@@ -294,9 +320,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
         return ISO_FILE_IS_NOT_DIR;
     case 2: /* directory */
         {
-            char *path;
             struct dirent *entry;
-            size_t a, b;
             int ret;
 
             /* while to skip "." and ".." dirs */
@@ -313,21 +337,8 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
                 }
             }
 
-            /* constructs the new path */
-            a = strlen(data->path);
-            b = strlen(entry->d_name);
-            path = malloc(a + b + 2);
-            if (path == NULL) {
-                return ISO_MEM_ERROR;
-            }
-            strncpy(path, data->path, a);
-            path[a] = '/';
-            path[a + 1] = '\0';
-            strncat(path, entry->d_name, b);
-
             /* create the new FileSrc */
-            ret = iso_file_source_new_lfs(path, child);
-            free(path);
+            ret = iso_file_source_new_lfs(src, entry->d_name, child);
             return ret;
         }
     default:
@@ -340,6 +351,7 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 {
     int size;
     _LocalFsFileSource *data;
+    char *path;
 
     if (src == NULL || buf == NULL) {
         return ISO_NULL_POINTER;
@@ -350,12 +362,14 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
     }
 
     data = src->data;
+    path = lfs_get_path(src);
 
     /*
      * invoke readlink, with bufsiz -1 to reserve an space for
      * the NULL character
      */
-    size = readlink(data->path, buf, bufsiz - 1);
+    size = readlink(path, buf, bufsiz - 1);
+    free(path);
     if (size < 0) {
         /* error */
         switch (errno) {
@@ -399,8 +413,10 @@ void lfs_free(IsoFileSource *src)
     if (data->openned) {
         src->class->close(src);
     }
-
-    free(data->path);
+    if (data->parent != src) {
+        iso_file_source_unref(data->parent);
+    }
+    free(data->name);
     free(data);
     iso_filesystem_unref(lfs);
 }
@@ -426,7 +442,8 @@ IsoFileSourceIface lfs_class = {
  *     1 success, < 0 error
  */
 static
-int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
+int iso_file_source_new_lfs(IsoFileSource *parent, const char *name, 
+                            IsoFileSource **src)
 {
     IsoFileSource *lfs_src;
     _LocalFsFileSource *data;
@@ -452,18 +469,14 @@ int iso_file_source_new_lfs(const char *path, IsoFileSource **src)
     }
 
     /* fill struct */
-    data->path = strdup(path);
-    {
-        /* remove trailing '/' */
-        int len = strlen(path);
-        if (len > 1) {
-            /* don't remove / for root! */
-            if (path[len-1] == '/') {
-                data->path[len-1] = '\0';
-            }
-        }
-    }
+    data->name = name ? strdup(name) : NULL;
     data->openned = 0;
+    if (parent) {
+        data->parent = parent;
+        iso_file_source_ref(parent);
+    } else {
+        data->parent = lfs_src;
+    }
 
     lfs_src->refcount = 1;
     lfs_src->data = data;
@@ -483,16 +496,94 @@ int lfs_get_root(IsoFilesystem *fs, IsoFileSource **root)
     if (fs == NULL || root == NULL) {
         return ISO_NULL_POINTER;
     }
-    return iso_file_source_new_lfs("/", root);
+    return iso_file_source_new_lfs(NULL, NULL, root);
 }
 
 static
 int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 {
+    int ret;
+    IsoFileSource *src;
+    struct stat info;
+    char *ptr, *brk_info, *component;
+    
     if (fs == NULL || path == NULL || file == NULL) {
         return ISO_NULL_POINTER;
     }
-    return iso_file_source_new_lfs(path, file);
+    
+    /* 
+     * first of all check that it is a valid path.
+     */
+    if (lstat(path, &info) != 0) {
+        int err;
+
+        /* error, choose an appropriate return code */
+        switch (errno) {
+        case EACCES:
+            err = ISO_FILE_ACCESS_DENIED;
+            break;
+        case ENOTDIR:
+        case ENAMETOOLONG:
+        case ELOOP:
+            err = ISO_FILE_BAD_PATH;
+            break;
+        case ENOENT:
+            err = ISO_FILE_DOESNT_EXIST;
+            break;
+        case EFAULT:
+        case ENOMEM:
+            err = ISO_MEM_ERROR;
+            break;
+        default:
+            err = ISO_FILE_ERROR;
+            break;
+        }
+        return err;
+    }
+    
+    /* ok, path is valid. create the file source */
+    ret = lfs_get_root(fs, &src);
+    if (ret < 0) {
+        return ret;
+    }
+    if (!strcmp(path, "/")) {
+        /* we are looking for root */
+        *file = src;
+        return ISO_SUCCESS;
+    }
+
+    ptr = strdup(path);
+    if (ptr == NULL) {
+        iso_file_source_unref(src);
+        return ISO_MEM_ERROR;
+    }
+    
+    component = strtok_r(ptr, "/", &brk_info);
+    while (component) {
+        IsoFileSource *child = NULL;
+        if (!strcmp(component, ".")) {
+            child = src;
+        } else if (!strcmp(component, "..")) {
+            child = ((_LocalFsFileSource*)src->data)->parent;
+            iso_file_source_ref(child);
+            iso_file_source_unref(src);
+        } else {
+            ret = iso_file_source_new_lfs(src, component, &child);
+            iso_file_source_unref(src);
+            if (ret < 0) {
+                break;
+            }
+        }
+        
+        src = child;
+        component = strtok_r(NULL, "/", &brk_info);
+    }
+
+    free(ptr);
+    if (ret > 0) {
+        *file = src;
+    }
+    return ret;
 }
 
 static
