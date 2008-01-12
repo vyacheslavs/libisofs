@@ -57,7 +57,7 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
 
     inbytes = strlen(str);
     outbytes = (inbytes + 1) * MB_LEN_MAX;
-    out = malloc(outbytes);
+    out = alloca(outbytes);
     if (out == NULL) {
         return ISO_MEM_ERROR;
     }
@@ -78,7 +78,11 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     *ret = '\0';
     iconv_close(conv);
 
-    *output = realloc(out, ret - out + 1);
+    *output = malloc(ret - out + 1);
+    if (*output == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    memcpy(*output, out, ret - out + 1);
     return ISO_SUCCESS;
 }
 
