@@ -55,13 +55,8 @@ struct Iso_Image_Rec_Opts
     /**
      * if the dir already contains a node with the same name, whether to
      * replace or not the old node with the new. 
-     *      - 0 not replace
-     *      - 1 replace 
-     *      TODO #00006 define more values
-     *          to replace only if both are the same kind of file
-     *          if both are dirs, add contents (and what to do with conflicts?)
      */
-    int replace;
+    enum iso_replace_mode replace;
 
     /**
      * When this is not NULL, it is a pointer to a function that will

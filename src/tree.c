@@ -488,7 +488,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         flag = 0;
         if (iso_dir_exists(parent, name, &pos)) {
             flag = 1;
-            if (action == 1 && image->recOpts.replace == 0) {
+            if (action == 1 && image->recOpts.replace == ISO_REPLACE_NEVER) {
                 action = 2;
             }
         }
