@@ -175,26 +175,60 @@ static void test_iso_datetime_7()
 
 static void test_iso_1_dirid()
 {
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dir1"), "DIR1" );
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dIR1"), "DIR1" );
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("DIR1"), "DIR1" );
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dirwithbigname"), "DIRWITHB");
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dirwith8"), "DIRWITH8");
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("dir.1"), "DIR_1");
-    CU_ASSERT_STRING_EQUAL( iso_1_dirid("4f<0KmM::xcvf"), "4F_0KMM_");
+    char *dir;
+    dir = iso_1_dirid("dir1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_1_dirid("dIR1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_1_dirid("DIR1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_1_dirid("dirwithbigname");
+    CU_ASSERT_STRING_EQUAL(dir, "DIRWITHB");
+    free(dir);
+    dir = iso_1_dirid("dirwith8");
+    CU_ASSERT_STRING_EQUAL(dir, "DIRWITH8");
+    free(dir);
+    dir = iso_1_dirid("dir.1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR_1");
+    free(dir);
+    dir = iso_1_dirid("4f<0KmM::xcvf");
+    CU_ASSERT_STRING_EQUAL(dir, "4F_0KMM_");
+    free(dir);
 }
 
 static void test_iso_2_dirid()
 {
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dir1"), "DIR1" );
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dIR1"), "DIR1" );
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("DIR1"), "DIR1" );
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dirwithbigname"), "DIRWITHBIGNAME");
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dirwith8"), "DIRWITH8");
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("dir.1"), "DIR_1");
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("4f<0KmM::xcvf"), "4F_0KMM__XCVF");
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("directory with 31 characters ok"), "DIRECTORY_WITH_31_CHARACTERS_OK");
-    CU_ASSERT_STRING_EQUAL( iso_2_dirid("directory with more than 31 characters"), "DIRECTORY_WITH_MORE_THAN_31_CHA");
+    char *dir;
+    dir = iso_2_dirid("dir1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_2_dirid("dIR1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_2_dirid("DIR1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_2_dirid("dirwithbigname");
+    CU_ASSERT_STRING_EQUAL(dir, "DIRWITHBIGNAME");
+    free(dir);
+    dir = iso_2_dirid("dirwith8");
+    CU_ASSERT_STRING_EQUAL(dir, "DIRWITH8");
+    free(dir);
+    dir = iso_2_dirid("dir.1");
+    CU_ASSERT_STRING_EQUAL(dir, "DIR_1");
+    free(dir);
+    dir = iso_2_dirid("4f<0KmM::xcvf");
+    CU_ASSERT_STRING_EQUAL(dir, "4F_0KMM__XCVF");
+    free(dir);
+    dir = iso_2_dirid("directory with 31 characters ok");
+    CU_ASSERT_STRING_EQUAL(dir, "DIRECTORY_WITH_31_CHARACTERS_OK");
+    free(dir);
+    dir = iso_2_dirid("directory with more than 31 characters");
+    CU_ASSERT_STRING_EQUAL(dir, "DIRECTORY_WITH_MORE_THAN_31_CHA");
+    free(dir);
 }
 
 static void test_iso_1_fileid()

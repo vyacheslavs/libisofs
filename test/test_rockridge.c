@@ -267,6 +267,8 @@ static void test_rrip_calc_len_symlink()
     CU_ASSERT_EQUAL(ce_len, 252 + 255 + 9);
     CU_ASSERT_EQUAL(sua_len, 44 + (5 + 74) + (5 + 3*7) + 1 + 28);
 
+    free(link);
+    free(node);
 }
 
 static
@@ -712,6 +714,8 @@ static void test_rrip_get_susp_fields_symlink()
     CU_ASSERT_EQUAL(entry[47], 0);
     CU_ASSERT_EQUAL(entry[48], 10);
     CU_ASSERT_NSTRING_EQUAL(entry + 49, "components", 10);
+
+    susp_info_free(&susp);
     
     /* case 3. name fits, dest is one byte larger to fit */
     /* 3.a extra byte in dest */
