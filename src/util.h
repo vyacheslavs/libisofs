@@ -20,15 +20,8 @@
 #   define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-extern inline int div_up(unsigned int n, unsigned int div)
-{
-    return (n + div - 1) / div;
-}
-
-extern inline int round_up(unsigned int n, unsigned int mul)
-{
-    return div_up(n, mul) * mul;
-}
+int div_up(unsigned int n, unsigned int div);
+int round_up(unsigned int n, unsigned int mul);
 
 int int_pow(int base, int power);
 

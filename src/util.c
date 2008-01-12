@@ -25,6 +25,16 @@
 #define __USE_GNU
 #include <unistd.h>
 
+inline int div_up(unsigned int n, unsigned int div)
+{
+    return (n + div - 1) / div;
+}
+
+inline int round_up(unsigned int n, unsigned int mul)
+{
+    return div_up(n, mul) * mul;
+}
+
 int int_pow(int base, int power)
 {
     int result = 1;

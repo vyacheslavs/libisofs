@@ -278,71 +278,176 @@ void iso_file_source_unref(IsoFileSource *src);
 /* 
  * this are just helpers to invoque methods in class
  */
-extern inline
-char* iso_file_source_get_path(IsoFileSource *src)
-{
-    return src->class->get_path(src);
-}
 
-extern inline
-char* iso_file_source_get_name(IsoFileSource *src)
-{
-    return src->class->get_name(src);
-}
+/**
+ * Get the path, relative to the filesystem this file source
+ * belongs to.
+ * 
+ * @return
+ *     the path of the FileSource inside the filesystem, it should be 
+ *     freed when no more needed.
+ */
+char* iso_file_source_get_path(IsoFileSource *src);
 
-extern inline
-int iso_file_source_lstat(IsoFileSource *src, struct stat *info)
-{
-    return src->class->lstat(src, info);
-}
+/**
+ * Get the name of the file, with the dir component of the path. 
+ * 
+ * @return
+ *     the name of the file, it should be freed when no more needed.
+ */
+char* iso_file_source_get_name(IsoFileSource *src);
 
-extern inline
-int iso_file_source_access(IsoFileSource *src)
-{
-    return src->class->access(src);
-}
+/**
+ * Get information about the file.
+ * @return
+ *    1 success, < 0 error
+ *      Error codes:
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_lstat(IsoFileSource *src, struct stat *info);
 
-extern inline
-int iso_file_source_stat(IsoFileSource *src, struct stat *info)
-{
-    return src->class->stat(src, info);
-}
+/**
+ * Check if the process has access to read file contents. Note that this
+ * is not necessarily related with (l)stat functions. For example, in a
+ * filesystem implementation to deal with an ISO image, if the user has
+ * read access to the image it will be able to read all files inside it,
+ * despite of the particular permission of each file in the RR tree, that
+ * are what the above functions return.
+ * 
+ * @return
+ *     1 if process has read access, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_access(IsoFileSource *src);
 
-extern inline
-int iso_file_source_open(IsoFileSource *src)
-{
-    return src->class->open(src);
-}
+/**
+ * Get information about the file. If the file is a symlink, the info
+ * returned refers to the destination.
+ * 
+ * @return
+ *    1 success, < 0 error
+ *      Error codes:
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_stat(IsoFileSource *src, struct stat *info);
 
-extern inline
-int iso_file_source_close(IsoFileSource *src)
-{
-    return src->class->close(src);
-}
+/**
+ * Opens the source.
+ * @return 1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ALREADY_OPENNED
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_open(IsoFileSource *src);
 
-extern inline
-int iso_file_source_read(IsoFileSource *src, void *buf, size_t count)
-{
-    return src->class->read(src, buf, count);
-}
+/**
+ * Close a previuously openned file
+ * @return 1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ */
+int iso_file_source_close(IsoFileSource *src);
 
-extern inline
-int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child)
-{
-    return src->class->readdir(src, child);
-}
+/**
+ * Attempts to read up to count bytes from the given source into
+ * the buffer starting at buf.
+ * 
+ * The file src must be open() before calling this, and close() when no 
+ * more needed. Not valid for dirs. On symlinks it reads the destination
+ * file.
+ * 
+ * @return 
+ *     number of bytes read, 0 if EOF, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ *         ISO_WRONG_ARG_VALUE -> if count == 0
+ *         ISO_FILE_IS_DIR
+ *         ISO_MEM_ERROR
+ *         ISO_INTERRUPTED
+ */
+int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
 
-extern inline
-int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
-{
-    return src->class->readlink(src, buf, bufsiz);
-}
+/**
+ * Read a directory. 
+ * 
+ * Each call to this function will return a new children, until we reach
+ * the end of file (i.e, no more children), in that case it returns 0.
+ * 
+ * The dir must be open() before calling this, and close() when no more
+ * needed. Only valid for dirs. 
+ * 
+ * Note that "." and ".." children MUST NOT BE returned.
+ * 
+ * @param child
+ *     pointer to be filled with the given child. Undefined on error or OEF
+ * @return 
+ *     1 on success, 0 if EOF (no more children), < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_IS_NOT_DIR
+ *         ISO_MEM_ERROR
+ */
+int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
 
-extern inline
-IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src)
-{
-    return src->class->get_filesystem(src);
-}
+/**
+ * Read the destination of a symlink. You don't need to open the file
+ * to call this.
+ * 
+ * @param buf 
+ *     allocated buffer of at least bufsiz bytes. 
+ *     The dest. will be copied there, and it will be NULL-terminated
+ * @param bufsiz
+ *     characters to be copied. Destination link will be truncated if
+ *     it is larger than given size. This include the \0 character.
+ * @return 
+ *     1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
+ *         ISO_FILE_IS_NOT_SYMLINK
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ * 
+ */
+int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
+
+/**
+ * Get the filesystem for this source. No extra ref is added, so you
+ * musn't unref the IsoFilesystem.
+ * 
+ * @return
+ *     The filesystem, NULL on error
+ */
+IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src);
 
 void iso_filesystem_ref(IsoFilesystem *fs);
 void iso_filesystem_unref(IsoFilesystem *fs);

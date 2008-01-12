@@ -106,48 +106,20 @@ struct Iso_Stream
 void iso_stream_ref(IsoStream *stream);
 void iso_stream_unref(IsoStream *stream);
 
-extern inline
-int iso_stream_open(IsoStream *stream)
-{
-    return stream->class->open(stream);
-}
+int iso_stream_open(IsoStream *stream);
 
-extern inline
-int iso_stream_close(IsoStream *stream)
-{
-    return stream->class->close(stream);
-}
+int iso_stream_close(IsoStream *stream);
 
-extern inline
-off_t iso_stream_get_size(IsoStream *stream)
-{
-    return stream->class->get_size(stream);
-}
+off_t iso_stream_get_size(IsoStream *stream);
 
-extern inline
-int iso_stream_read(IsoStream *stream, void *buf, size_t count)
-{
-    return stream->class->read(stream, buf, count);
-}
+int iso_stream_read(IsoStream *stream, void *buf, size_t count);
 
-extern inline
-int iso_stream_is_repeatable(IsoStream *stream)
-{
-    return stream->class->is_repeatable(stream);
-}
+int iso_stream_is_repeatable(IsoStream *stream);
 
-extern inline
 void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
-                      ino_t *ino_id)
-{
-    stream->class->get_id(stream, fs_id, dev_id, ino_id);
-}
+                      ino_t *ino_id);
 
-extern inline
-char *iso_stream_get_name(IsoStream *stream)
-{
-    return stream->class->get_name(stream);
-}
+char *iso_stream_get_name(IsoStream *stream);
 
 /**
  * Create a stream to read from a IsoFileSource.

@@ -39,3 +39,73 @@ void iso_filesystem_unref(IsoFilesystem *fs)
         free(fs);
     }
 }
+
+/* 
+ * this are just helpers to invoque methods in class
+ */
+
+inline
+char* iso_file_source_get_path(IsoFileSource *src)
+{
+    return src->class->get_path(src);
+}
+
+inline
+char* iso_file_source_get_name(IsoFileSource *src)
+{
+    return src->class->get_name(src);
+}
+
+inline
+int iso_file_source_lstat(IsoFileSource *src, struct stat *info)
+{
+    return src->class->lstat(src, info);
+}
+
+inline
+int iso_file_source_access(IsoFileSource *src)
+{
+    return src->class->access(src);
+}
+
+inline
+int iso_file_source_stat(IsoFileSource *src, struct stat *info)
+{
+    return src->class->stat(src, info);
+}
+
+inline
+int iso_file_source_open(IsoFileSource *src)
+{
+    return src->class->open(src);
+}
+
+inline
+int iso_file_source_close(IsoFileSource *src)
+{
+    return src->class->close(src);
+}
+
+inline
+int iso_file_source_read(IsoFileSource *src, void *buf, size_t count)
+{
+    return src->class->read(src, buf, count);
+}
+
+inline
+int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child)
+{
+    return src->class->readdir(src, child);
+}
+
+inline
+int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
+{
+    return src->class->readlink(src, buf, bufsiz);
+}
+
+inline
+IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src)
+{
+    return src->class->get_filesystem(src);
+}
