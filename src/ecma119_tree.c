@@ -385,19 +385,6 @@ void sort_tree(Ecma119Node *root)
     }
 }
 
-static
-int contains_name(Ecma119Node *dir, const char *name)
-{
-    int i;
-    for (i = 0; i < dir->info.dir->nchildren; i++) {
-        Ecma119Node *child = dir->info.dir->children[i];
-        if (!strcmp(child->iso_name, name)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 /**
  * Ensures that the ISO name of each children of the given dir is unique,
  * changing some of them if needed.
@@ -409,12 +396,28 @@ static
 int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                       int max_dir_len)
 {
+    int ret;
     int i, nchildren;
     Ecma119Node **children;
+    IsoHTable *table;
     int need_sort = 0;
 
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
+    
+    /* a hash table will temporary hold the names, for fast searching */
+    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash, 
+                            (compare_function_t)strcmp, &table);
+    if (ret < 0) {
+        return ret;
+    }
+    for (i = 0; i < nchildren; ++i) {
+        char *name = children[i]->iso_name;
+        ret = iso_htable_add(table, name, name);
+        if (ret < 0) {
+            goto mangle_cleanup;
+        }
+    }
 
     for (i = 0; i < nchildren; ++i) {
         char *name, *ext;
@@ -483,7 +486,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                          * error, we don't support extensions < 3
                          * This can't happen with current limit of digits. 
                          */
-                        return ISO_ERROR;
+                        ret = ISO_ERROR;
+                        goto mangle_cleanup;
                     }
                 }
                 /* ok, reduce name by digits */
@@ -523,7 +527,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                         ok = 0;
                         break;
                     }
-                    if (!contains_name(dir, tmp)) {
+                    if (!iso_htable_get(table, tmp, NULL)) {
                         /* the name is unique, so it can be used */
                         break;
                     }
@@ -531,13 +535,18 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                 if (ok) {
                     char *new = strdup(tmp);
                     if (new == NULL) {
-                        return ISO_MEM_ERROR;
+                        ret = ISO_MEM_ERROR;
+                        goto mangle_cleanup;
                     }
                     iso_msg_debug(img->image->messenger, 
                                   "\"%s\" renamed to \"%s\"",
                                   children[k]->iso_name, new);
+
+                    iso_htable_remove(table, children[k]->iso_name, NULL);
                     free(children[k]->iso_name);
                     children[k]->iso_name = new;
+                    iso_htable_add(table, new, new);
+
                     /* 
                      * if we change a name we need to sort again children
                      * at the end
@@ -555,7 +564,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
             }
         }
         if (digits == 8) {
-            return ISO_MANGLE_TOO_MUCH_FILES;
+            ret = ISO_MANGLE_TOO_MUCH_FILES;
+            goto mangle_cleanup;
         }
         i = j;
     }
@@ -567,7 +577,11 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
         qsort(children, nchildren, sizeof(void*), cmp_node_name);
     }
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+    
+mangle_cleanup : ;
+    iso_htable_destroy(table, NULL);
+    return ret;
 }
 
 static

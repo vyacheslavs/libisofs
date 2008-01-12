@@ -125,6 +125,9 @@ int main(int argc, char **argv)
     printf("\n\n");
 
     ecma119_node_free(ecma119->root);
+    iso_rbtree_destroy(ecma119->files, iso_file_src_free);
+    free(ecma119->input_charset);
+    free(ecma119);
     iso_image_unref(image);
     return 0;
 }
