@@ -123,4 +123,50 @@ int iso_node_is_valid_name(const char *name);
  */
 int iso_node_is_valid_link_dest(const char *dest);
 
+/**
+ * Find the position where to insert a node
+ * 
+ * @param dir
+ *      A valid dir. It can't be NULL
+ * @param name
+ *      The node name to search for. It can't be NULL
+ * @param pos
+ *      Will be filled with the position where to insert. It can't be NULL
+ */
+void iso_dir_find(IsoDir *dir, const char *name, IsoNode ***pos);
+
+/**
+ * Check if a node with the given name exists in a dir.
+ * 
+ * @param dir
+ *      A valid dir. It can't be NULL
+ * @param name
+ *      The node name to search for. It can't be NULL
+ * @param pos
+ *      If not NULL, will be filled with the position where to insert. If the
+ *      node exists, (**pos) will refer to the given node.
+ * @return
+ *      1 if node exists, 0 if not
+ */
+int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos);
+
+/**
+ * Inserts a given node in a dir, at the specified position.
+ * 
+ * @param dir
+ *     Dir where to insert. It can't be NULL
+ * @param node
+ *     The node to insert. It can't be NULL
+ * @param pos
+ *     Position where the node will be inserted. It is a pointer previously
+ *     obtained with a call to iso_dir_exists() or iso_dir_find(). 
+ *     It can't be NULL.
+ * @param replace 
+ *     Whether to replace an old node with the same name with the new node.
+ * @return
+ *     If success, number of children in dir. < 0 on error  
+ */
+int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos, 
+                   enum iso_replace_mode replace);
+
 #endif /*LIBISO_NODE_H_*/

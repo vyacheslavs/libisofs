@@ -69,6 +69,27 @@ enum eltorito_boot_media_type {
 };
 
 /**
+ * Replace mode used when addding a node to a file.
+ * TODO comment
+ */
+enum iso_replace_mode {
+    /**
+     * Never replace an existing node, and instead fail with 
+     * ISO_NODE_NAME_NOT_UNIQUE.
+     */
+    ISO_REPLACE_NEVER,
+    /**
+     * Always replace the old node with the new.
+     */
+    ISO_REPLACE_ALWAYS
+    /*
+     * TODO #00006 define more values
+     *  -to replace only if both are the same kind of file
+     *  -if both are dirs, add contents (and what to do with conflicts?)
+     */
+};
+
+/**
  * Holds the options for the image generation.
  */
 typedef struct
@@ -770,11 +791,6 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs);
  * @param replace
  *     if the dir already contains a node with the same name, whether to
  *     replace or not the old node with this. 
- *      - 0 not replace (will fail with ISO_NODE_NAME_NOT_UNIQUE)
- *      - 1 replace 
- *      TODO #00006 define more values
- *          to replace only if both are the same kind of file
- *          if both are dirs, add contents (and what to do with conflicts?)
  * @return
  *     number of nodes in dir if succes, < 0 otherwise
  *     Possible errors:
@@ -783,7 +799,8 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs);
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE, if child == dir, or replace != (0,1)
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace);
+int iso_dir_add_node(IsoDir *dir, IsoNode *child, 
+                     enum iso_replace_mode replace);
 
 /**
  * Locate a node inside a given dir.
@@ -1251,7 +1268,7 @@ int iso_image_obtain_msgs(IsoImage *image, char *minimum_severity,
 
 /**
  * Return the messenger object handle used by the given image. This handle
- * may be used by related libraries to replace their own compatible
+ * may be used by related libraries to  their own compatible
  * messenger objects and thus to direct their messages to the libisofs
  * message queue. See also: libburn, API function burn_set_messenger().
  * 

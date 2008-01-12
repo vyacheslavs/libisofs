@@ -259,10 +259,14 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs)
  *     to other dir, and that the node name is unique inside the child.
  *     Otherwise this function will return a failure, and the child won't be
  *     inserted.
+ * @param replace
+ *     if the dir already contains a node with the same name, whether to
+ *     replace or not the old node with this. 
  * @return
  *     number of nodes in dir if succes, < 0 otherwise
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
+int iso_dir_add_node(IsoDir *dir, IsoNode *child, 
+                     enum iso_replace_mode replace)
 {
     IsoNode **pos;
 
@@ -281,32 +285,8 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
         return ISO_NODE_ALREADY_ADDED;
     }
 
-    pos = &(dir->children);
-    while (*pos != NULL && strcmp((*pos)->name, child->name) < 0) {
-        pos = &((*pos)->next);
-    }
-    if (*pos != NULL && !strcmp((*pos)->name, child->name)) {
-        /* a node with same name already exists */
-        if (replace == 0) {
-            return ISO_NODE_NAME_NOT_UNIQUE;
-        } else if (replace == 1) {
-            child->next = (*pos)->next;
-            (*pos)->parent = NULL;
-            (*pos)->next = NULL;
-            iso_node_unref(*pos);
-            *pos = child;
-            child->parent = dir;
-            return dir->nchildren;
-        } else {
-            return ISO_WRONG_ARG_VALUE;
-        }
-    }
-
-    child->next = *pos;
-    *pos = child;
-    child->parent = dir;
-
-    return ++dir->nchildren;
+    iso_dir_find(dir, child->name, &pos);
+    return iso_dir_insert(dir, child, pos, replace);
 }
 
 /**
@@ -328,17 +308,14 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child, int replace)
  */
 int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
 {
-    IsoNode *pos;
+    int ret;
+    IsoNode **pos;
     if (dir == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    pos = dir->children;
-    while (pos != NULL && strcmp(pos->name, name) < 0) {
-        pos = pos->next;
-    }
-
-    if (pos == NULL || strcmp(pos->name, name)) {
+    ret = iso_dir_exists(dir, name, &pos);
+    if (ret == 0) {
         if (node) {
             *node = NULL;
         }
@@ -346,7 +323,7 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
     }
 
     if (node) {
-        *node = pos;
+        *node = *pos;
     }
     return 1;
 }
@@ -684,6 +661,53 @@ int iso_node_is_valid_link_dest(const char *dest)
     free(ptr);
 
     return ret;
+}
+
+void iso_dir_find(IsoDir *dir, const char *name, IsoNode ***pos)
+{
+    *pos = &(dir->children);
+    while (**pos != NULL && strcmp((**pos)->name, name) < 0) {
+        *pos = &((**pos)->next);
+    } 
+}
+
+int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos)
+{
+    IsoNode **node;
+    
+    iso_dir_find(dir, name, &node);
+    if (pos) {
+        *pos = node;
+    }
+    return (*node != NULL && !strcmp((*node)->name, name)) ? 1 : 0;
+}
+
+int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos, 
+                   enum iso_replace_mode replace)
+{
+    if (*pos != NULL && !strcmp((*pos)->name, node->name)) {
+        /* a node with same name already exists */
+        if (replace == ISO_REPLACE_NEVER) {
+            return ISO_NODE_NAME_NOT_UNIQUE;
+        } else if (replace == ISO_REPLACE_ALWAYS) {
+            node->next = (*pos)->next;
+            (*pos)->parent = NULL;
+            (*pos)->next = NULL;
+            iso_node_unref(*pos);
+            *pos = node;
+            node->parent = dir;
+            return dir->nchildren;
+        } else {
+            /* CAN'T HAPPEN */
+            return ISO_WRONG_ARG_VALUE;
+        }
+    }
+
+    node->next = *pos;
+    *pos = node;
+    node->parent = dir;
+
+    return ++dir->nchildren;
 }
 
 int iso_node_new_root(IsoDir **root)

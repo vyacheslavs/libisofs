@@ -62,12 +62,8 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
         return ISO_WRONG_ARG_VALUE;
     }
 
-    /* find place where to insert */
-    pos = &(parent->children);
-    while (*pos != NULL && strcmp((*pos)->name, name) < 0) {
-        pos = &((*pos)->next);
-    }
-    if (*pos != NULL && !strcmp((*pos)->name, name)) {
+    /* find place where to insert and check if it exists */
+    if (iso_dir_exists(parent, name, &pos)) {
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
@@ -97,15 +93,12 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     node->node.ctime = now;
     node->node.mtime = now;
 
-    /* add to dir */
-    node->node.parent = parent;
-    node->node.next = *pos;
-    *pos = (IsoNode*)node;
-
     if (dir) {
         *dir = node;
     }
-    return ++parent->nchildren;
+
+    /* add to dir */
+    return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
 }
 
 /**
@@ -158,11 +151,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     }
 
     /* find place where to insert */
-    pos = &(parent->children);
-    while (*pos != NULL && strcmp((*pos)->name, name) < 0) {
-        pos = &((*pos)->next);
-    }
-    if (*pos != NULL && !strcmp((*pos)->name, name)) {
+    if (iso_dir_exists(parent, name, &pos)) {
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
@@ -199,15 +188,12 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     node->node.ctime = now;
     node->node.mtime = now;
 
-    /* add to dir */
-    node->node.parent = parent;
-    node->node.next = *pos;
-    *pos = (IsoNode*)node;
-
     if (link) {
         *link = node;
     }
-    return ++parent->nchildren;
+
+    /* add to dir */
+    return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
 }
 
 /**
@@ -271,11 +257,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     }
 
     /* find place where to insert */
-    pos = &(parent->children);
-    while (*pos != NULL && strcmp((*pos)->name, name) < 0) {
-        pos = &((*pos)->next);
-    }
-    if (*pos != NULL && !strcmp((*pos)->name, name)) {
+    if (iso_dir_exists(parent, name, &pos)) {
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
@@ -307,15 +289,12 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     node->node.ctime = now;
     node->node.mtime = now;
 
-    /* add to dir */
-    node->node.parent = parent;
-    node->node.next = *pos;
-    *pos = (IsoNode*)node;
-
     if (special) {
         *special = node;
     }
-    return ++parent->nchildren;
+
+    /* add to dir */
+    return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
 }
 
 /**
@@ -395,30 +374,24 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
     name = iso_file_source_get_name(src);
 
     /* find place where to insert */
-    pos = &(parent->children);
-    while (*pos != NULL && strcmp((*pos)->name, name) < 0) {
-        pos = &((*pos)->next);
-    }
-    if (*pos != NULL && !strcmp((*pos)->name, name)) {
+    result = iso_dir_exists(parent, name, &pos);
+    free(name);
+    if (result) {
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
-    free(name);
 
     result = builder->create_node(builder, image, src, &new);
     if (result < 0) {
         return result;
     }
 
-    /* finally, add node to parent */
-    new->parent = parent;
-    new->next = *pos;
-    *pos = new;
-
     if (node) {
         *node = new;
     }
-    return ++parent->nchildren;
+
+    /* finally, add node to parent */
+    return iso_dir_insert(parent, (IsoNode*)new, pos, ISO_REPLACE_NEVER);
 }
 
 int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
@@ -513,11 +486,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 
         /* find place where to insert */
         flag = 0;
-        pos = &(parent->children);
-        while (*pos != NULL && strcmp((*pos)->name, name) < 0) {
-            pos = &((*pos)->next);
-        }
-        if (*pos != NULL && !strcmp((*pos)->name, name)) {
+        if (iso_dir_exists(parent, name, &pos)) {
             flag = 1;
             if (action == 1 && image->recOpts.replace == 0) {
                 action = 2;
@@ -569,21 +538,8 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         }
 
         /* ok, node has correctly created, we need to add it */
-        if (flag) {
-            /* replace node */
-            new->next = (*pos)->next;
-            (*pos)->parent = NULL;
-            (*pos)->next = NULL;
-            iso_node_unref(*pos);
-            *pos = new;
-            new->parent = parent;
-        } else {
-            /* just add */
-            new->next = *pos;
-            *pos = new;
-            new->parent = parent;
-            ++parent->nchildren;
-        }
+        iso_dir_insert(parent, new, pos, flag ? ISO_REPLACE_ALWAYS :
+                                         ISO_REPLACE_NEVER);
 
         /* finally, if the node is a directory we need to recurse */
         if (new->type == LIBISO_DIR) {
