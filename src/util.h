@@ -88,6 +88,19 @@ char *iso_1_dirid(const char *src);
 char *iso_2_dirid(const char *src);
 
 /**
+ * Create a dir name suitable for an ISO image with relaxed constraints.
+ * 
+ * @param src
+ *      The identifier, in ASCII encoding.
+ * @param size
+ *     Max len for the name
+ * @param relaxed
+ *     0 only allow d-characters, 1 allow also lowe case chars, 
+ *     2 allow all characters 
+ */
+char *iso_r_dirid(const char *src, int size, int relaxed);
+
+/**
  * Create a level 1 file identifier that consists of a name, in 8.3 
  * format.
  * Note that version number is not added to the file name
@@ -107,8 +120,10 @@ char *iso_1_fileid(const char *src);
 char *iso_2_fileid(const char *src);
 
 /**
- * Create a file/dir name suitable for an ISO image with relaxed constraints.
+ * Create a file name suitable for an ISO image with relaxed constraints.
  * 
+ * @param src
+ *      The identifier, in ASCII encoding.
  * @param len
  *     Max len for the name, without taken the "." into account.
  * @param relaxed
@@ -117,7 +132,7 @@ char *iso_2_fileid(const char *src);
  * @param forcedot
  *     Whether to ensure that "." is added
  */
-char *iso_r_id(const char *src, size_t len, int relaxed, int forcedot);
+char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot);
 
 /**
  * Create a Joliet file identifier that consists of name and extension. The 

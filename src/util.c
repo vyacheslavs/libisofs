@@ -508,7 +508,53 @@ char *iso_2_fileid(const char *src)
 }
 
 /**
- * Create a file/dir name suitable for an ISO image with relaxed constraints.
+ * Create a dir name suitable for an ISO image with relaxed constraints.
+ * 
+ * @param size
+ *     Max len for the name
+ * @param relaxed
+ *     0 only allow d-characters, 1 allow also lowe case chars, 
+ *     2 allow all characters 
+ */
+char *iso_r_dirid(const char *src, int size, int relaxed)
+{
+    size_t len, i;
+    char *dest;
+
+    len = strlen(src);
+    if (len > size) {
+        len = size;
+    }
+    dest = malloc(len + 1);
+    for (i = 0; i < len; i++) {
+        char c= src[i];
+        if (relaxed == 2) {
+            /* all chars are allowed */
+            dest[i] = c;
+        } else if (valid_d_char(c)) {
+            /* it is a valid char */
+            dest[i] = c;
+        } else {
+            c= toupper(src[i]);
+            if (valid_d_char(c)) {
+                if (relaxed) {
+                    /* lower chars are allowed */
+                    dest[i] = src[i];
+                } else {
+                    dest[i] = c;
+                }
+            } else {
+                dest[i] = '_';
+            }
+        }
+    }
+
+    dest[len] = '\0';
+    return dest;
+}
+
+/**
+ * Create a file name suitable for an ISO image with relaxed constraints.
  * 
  * @param len
  *     Max len for the name, without taken the "." into account.
@@ -518,7 +564,7 @@ char *iso_2_fileid(const char *src)
  * @param forcedot
  *     Whether to ensure that "." is added
  */
-char *iso_r_id(const char *src, size_t len, int relaxed, int forcedot)
+char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
 {
     char *dot;
     int lname, lext, lnname, lnext, pos, i;

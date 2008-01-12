@@ -374,136 +374,198 @@ static void test_iso_2_fileid()
     free(file);
 }
 
-static void test_iso_r_id()
+static void test_iso_r_dirid()
+{
+    char *dir;
+
+    dir = iso_r_dirid("dir1", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+
+    dir = iso_r_dirid("dIR1", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+
+    /* allow lowercase */
+    dir = iso_r_dirid("dIR1", 31, 1);
+    CU_ASSERT_STRING_EQUAL(dir, "dIR1");
+    free(dir);
+    dir = iso_r_dirid("dIR1", 31, 2);
+    CU_ASSERT_STRING_EQUAL(dir, "dIR1");
+    free(dir);
+
+    dir = iso_r_dirid("DIR1", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIR1");
+    free(dir);
+    dir = iso_r_dirid("dirwithbigname", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIRWITHBIGNAME");
+    free(dir);
+    dir = iso_r_dirid("dirwith8", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIRWITH8");
+    free(dir);
+
+    /* dot is not allowed */
+    dir = iso_r_dirid("dir.1", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIR_1");
+    free(dir);
+    dir = iso_r_dirid("dir.1", 31, 1);
+    CU_ASSERT_STRING_EQUAL(dir, "dir_1");
+    free(dir);
+    dir = iso_r_dirid("dir.1", 31, 2);
+    CU_ASSERT_STRING_EQUAL(dir, "dir.1");
+    free(dir);
+
+    dir = iso_r_dirid("4f<0KmM::xcvf", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "4F_0KMM__XCVF");
+    free(dir);
+    dir = iso_r_dirid("4f<0KmM::xcvf", 31, 1);
+    CU_ASSERT_STRING_EQUAL(dir, "4f_0KmM__xcvf");
+    free(dir);
+    dir = iso_r_dirid("4f<0KmM::xcvf", 31, 2);
+    CU_ASSERT_STRING_EQUAL(dir, "4f<0KmM::xcvf");
+    free(dir);
+
+    dir = iso_r_dirid("directory with 31 characters ok", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIRECTORY_WITH_31_CHARACTERS_OK");
+    free(dir);
+    dir = iso_r_dirid("directory with more than 31 characters", 31, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIRECTORY_WITH_MORE_THAN_31_CHA");
+    free(dir);
+    dir = iso_r_dirid("directory with more than 31 characters", 35, 0);
+    CU_ASSERT_STRING_EQUAL(dir, "DIRECTORY_WITH_MORE_THAN_31_CHARACT");
+    free(dir);
+}
+
+static void test_iso_r_fileid()
 {
     char *file;
     
     /* force dot */
-    file = iso_r_id("file1", 30, 0, 1);
+    file = iso_r_fileid("file1", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "FILE1.");
     free(file);
     
     /* and not */
-    file = iso_r_id("file1", 30, 0, 0);
+    file = iso_r_fileid("file1", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE1");
     free(file);
     
     /* allow lowercase */
-    file = iso_r_id("file1", 30, 1, 0);
+    file = iso_r_fileid("file1", 30, 1, 0);
     CU_ASSERT_STRING_EQUAL(file, "file1");
     free(file);
-    file = iso_r_id("file1", 30, 2, 0);
+    file = iso_r_fileid("file1", 30, 2, 0);
     CU_ASSERT_STRING_EQUAL(file, "file1");
     free(file);
     
     /* force d-char and dot */
-    file = iso_r_id("fILe1", 30, 0, 1);
+    file = iso_r_fileid("fILe1", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "FILE1.");
     free(file);
     /* force d-char but not dot */
-    file = iso_r_id("fILe1", 30, 0, 0);
+    file = iso_r_fileid("fILe1", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE1");
     free(file);
     /* allow lower case but force dot */
-    file = iso_r_id("fILe1", 30, 1, 1);
+    file = iso_r_fileid("fILe1", 30, 1, 1);
     CU_ASSERT_STRING_EQUAL(file, "fILe1.");
     free(file);
     
-    file = iso_r_id("FILE1", 30, 0, 1);
+    file = iso_r_fileid("FILE1", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "FILE1.");
     free(file);
-    file = iso_r_id(".EXT", 30, 0, 1);
+    file = iso_r_fileid(".EXT", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, ".EXT");
     free(file);
-    file = iso_r_id(".EXT", 30, 1, 0);
+    file = iso_r_fileid(".EXT", 30, 1, 0);
     CU_ASSERT_STRING_EQUAL(file, ".EXT");
     free(file);
     
-    file = iso_r_id("file.ext", 30, 0, 1);
+    file = iso_r_fileid("file.ext", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
     free(file);
     
     /* not force dot is the same in this case */
-    file = iso_r_id("fiLE.ext", 30, 0, 0);
+    file = iso_r_fileid("fiLE.ext", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
     free(file);
-    file = iso_r_id("fiLE.ext", 30, 2, 0);
+    file = iso_r_fileid("fiLE.ext", 30, 2, 0);
     CU_ASSERT_STRING_EQUAL(file, "fiLE.ext");
     free(file);
 
-    file = iso_r_id("file.EXt", 30, 0, 1);
+    file = iso_r_fileid("file.EXt", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
     free(file);
-    file = iso_r_id("FILE.EXT", 30, 0, 1);
+    file = iso_r_fileid("FILE.EXT", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
     free(file);
     
-    file = iso_r_id("31 characters filename.extensio", 30, 0, 1);
+    file = iso_r_fileid("31 characters filename.extensio", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "31_CHARACTERS_FILENAME.EXTENSIO");
     free(file);
-    file = iso_r_id("32 characters filename.extension", 30, 0, 1);
+    file = iso_r_fileid("32 characters filename.extension", 30, 0, 1);
     CU_ASSERT_STRING_EQUAL(file, "32_CHARACTERS_FILENAME.EXTENSIO");
     free(file);
     
     /* allow lowercase */
-    file = iso_r_id("31 characters filename.extensio", 30, 1, 1);
+    file = iso_r_fileid("31 characters filename.extensio", 30, 1, 1);
     CU_ASSERT_STRING_EQUAL(file, "31_characters_filename.extensio");
     free(file);
     
     /* and all characters */
-    file = iso_r_id("31 characters filename.extensio", 30, 2, 1);
+    file = iso_r_fileid("31 characters filename.extensio", 30, 2, 1);
     CU_ASSERT_STRING_EQUAL(file, "31 characters filename.extensio");
     free(file);
     
-    file = iso_r_id("more than 30 characters filename.extension", 30, 0, 0);
+    file = iso_r_fileid("more than 30 characters filename.extension", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FIL.EXT");
     
     /* incrementing the size... */
-    file = iso_r_id("more than 30 characters filename.extension", 35, 0, 0);
+    file = iso_r_fileid("more than 30 characters filename.extension", 35, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FILENAME.EXT");
-    file = iso_r_id("more than 30 characters filename.extension", 36, 0, 0);
+    file = iso_r_fileid("more than 30 characters filename.extension", 36, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FILENAME.EXTE");
     
     free(file);
-    file = iso_r_id("file.bigext", 30, 1, 0);
+    file = iso_r_fileid("file.bigext", 30, 1, 0);
     CU_ASSERT_STRING_EQUAL(file, "file.bigext");
     free(file);
-    file = iso_r_id(".bigext", 30, 0, 0);
+    file = iso_r_fileid(".bigext", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, ".BIGEXT");
     
     /* "strange" characters */
-    file = iso_r_id("file<:a.ext", 30, 0, 0);
+    file = iso_r_fileid("file<:a.ext", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE__A.EXT");
     free(file);
-    file = iso_r_id("file<:a.ext", 30, 1, 0);
+    file = iso_r_fileid("file<:a.ext", 30, 1, 0);
     CU_ASSERT_STRING_EQUAL(file, "file__a.ext");
     free(file);
-    file = iso_r_id("file<:a.ext", 30, 2, 0);
+    file = iso_r_fileid("file<:a.ext", 30, 2, 0);
     CU_ASSERT_STRING_EQUAL(file, "file<:a.ext");
     free(file);
     
     /* multiple dots */
-    file = iso_r_id("fi.le.a.ext", 30, 0, 0);
+    file = iso_r_fileid("fi.le.a.ext", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FI_LE_A.EXT");
     free(file);
-    file = iso_r_id("fi.le.a.ext", 30, 1, 0);
+    file = iso_r_fileid("fi.le.a.ext", 30, 1, 0);
     CU_ASSERT_STRING_EQUAL(file, "fi_le_a.ext");
     free(file);
-    file = iso_r_id("fi.le.a.ext", 30, 2, 0);
+    file = iso_r_fileid("fi.le.a.ext", 30, 2, 0);
     CU_ASSERT_STRING_EQUAL(file, "fi.le.a.ext");
     
-    file = iso_r_id("file.<:a", 30, 0, 0);
+    file = iso_r_fileid("file.<:a", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE.__A");
     free(file);
-    file = iso_r_id("file<:a.--a", 30, 0, 0);
+    file = iso_r_fileid("file<:a.--a", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE__A.__A");
     free(file);
 
-    file = iso_r_id(".file.bigext", 30, 0, 0);
+    file = iso_r_fileid(".file.bigext", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "_FILE.BIGEXT");
     free(file);
 
-    file = iso_r_id(".file.bigext", 30, 2, 0);
+    file = iso_r_fileid(".file.bigext", 30, 2, 0);
     CU_ASSERT_STRING_EQUAL(file, ".file.bigext");
     free(file);
 }
@@ -643,7 +705,8 @@ void add_util_suite()
     CU_add_test(pSuite, "iso_2_dirid()", test_iso_2_dirid);
     CU_add_test(pSuite, "iso_1_fileid()", test_iso_1_fileid);
     CU_add_test(pSuite, "iso_2_fileid()", test_iso_2_fileid);
-    CU_add_test(pSuite, "iso_r_id()", test_iso_r_id);
+    CU_add_test(pSuite, "iso_r_dirid()", test_iso_r_dirid);
+    CU_add_test(pSuite, "iso_r_fileid()", test_iso_r_fileid);
     CU_add_test(pSuite, "iso_rbtree_insert()", test_iso_rbtree_insert);
     CU_add_test(pSuite, "iso_htable_put/get()", test_iso_htable_put_get);
 }
