@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 static void test_strconv()
 {
@@ -233,54 +234,144 @@ static void test_iso_2_dirid()
 
 static void test_iso_1_fileid()
 {
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file1"), "FILE1.");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("fILe1"), "FILE1.");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("FILE1"), "FILE1.");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid(".EXT"), ".EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.ext"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("fiLE.ext"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.EXt"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("FILE.EXT"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename"), "BIGFILEN.");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename.ext"), "BIGFILEN.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename.e"), "BIGFILEN.E");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.bigext"), "FILE.BIG");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid(".bigext"), ".BIG");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("bigfilename.bigext"), "BIGFILEN.BIG");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file<:a.ext"), "FILE__A.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.<:a"), "FILE.__A");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file<:a.--a"), "FILE__A.__A");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.ex1.ex2"), "FILE_EX1.EX2");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("file.ex1.ex2.ex3"), "FILE_EX1.EX3");
-    CU_ASSERT_STRING_EQUAL( iso_1_fileid("fil.ex1.ex2.ex3"), "FIL_EX1_.EX3");
+    char *file;
+    file = iso_1_fileid("file1");
+    CU_ASSERT_STRING_EQUAL(file, "FILE1.");
+    free(file);
+    file = iso_1_fileid("fILe1");
+    CU_ASSERT_STRING_EQUAL(file, "FILE1.");
+    free(file);
+    file = iso_1_fileid("FILE1");
+    CU_ASSERT_STRING_EQUAL(file, "FILE1.");
+    free(file);
+    file = iso_1_fileid(".EXT");
+    CU_ASSERT_STRING_EQUAL(file, ".EXT");
+    free(file);
+    file = iso_1_fileid("file.ext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_1_fileid("fiLE.ext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_1_fileid("file.EXt");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_1_fileid("FILE.EXT");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_1_fileid("bigfilename");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILEN.");
+    free(file);
+    file = iso_1_fileid("bigfilename.ext");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILEN.EXT");
+    free(file);
+    file = iso_1_fileid("bigfilename.e");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILEN.E");
+    free(file);
+    file = iso_1_fileid("file.bigext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.BIG");
+    free(file);
+    file = iso_1_fileid(".bigext");
+    CU_ASSERT_STRING_EQUAL(file, ".BIG");
+    free(file);
+    file = iso_1_fileid("bigfilename.bigext");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILEN.BIG");
+    free(file);
+    file = iso_1_fileid("file<:a.ext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE__A.EXT");
+    free(file);
+    file = iso_1_fileid("file.<:a");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.__A");
+    free(file);
+    file = iso_1_fileid("file<:a.--a");
+    CU_ASSERT_STRING_EQUAL(file, "FILE__A.__A");
+    free(file);
+    file = iso_1_fileid("file.ex1.ex2");
+    CU_ASSERT_STRING_EQUAL(file, "FILE_EX1.EX2");
+    free(file);
+    file = iso_1_fileid("file.ex1.ex2.ex3");
+    CU_ASSERT_STRING_EQUAL(file, "FILE_EX1.EX3");
+    free(file);
+    file = iso_1_fileid("fil.ex1.ex2.ex3");
+    CU_ASSERT_STRING_EQUAL(file, "FIL_EX1_.EX3");
+    free(file);
 }
 
 static void test_iso_2_fileid()
 {
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file1"), "FILE1.");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("fILe1"), "FILE1.");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("FILE1"), "FILE1.");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid(".EXT"), ".EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.ext"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("fiLE.ext"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.EXt"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("FILE.EXT"), "FILE.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename"), "BIGFILENAME.");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename.ext"), "BIGFILENAME.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename.e"), "BIGFILENAME.E");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("31 characters filename.extensio"), "31_CHARACTERS_FILENAME.EXTENSIO");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("32 characters filename.extension"), "32_CHARACTERS_FILENAME.EXTENSIO");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("more than 30 characters filename.extension"), "MORE_THAN_30_CHARACTERS_FIL.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.bigext"), "FILE.BIGEXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid(".bigext"), ".BIGEXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("bigfilename.bigext"), "BIGFILENAME.BIGEXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file<:a.ext"), "FILE__A.EXT");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.<:a"), "FILE.__A");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file<:a.--a"), "FILE__A.__A");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.ex1.ex2"), "FILE_EX1.EX2");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("file.ex1.ex2.ex3"), "FILE_EX1_EX2.EX3");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid("fil.ex1.ex2.ex3"), "FIL_EX1_EX2.EX3");
-    CU_ASSERT_STRING_EQUAL( iso_2_fileid(".file.bigext"), "_FILE.BIGEXT");
+    char *file;
+    file = iso_2_fileid("file1");
+    CU_ASSERT_STRING_EQUAL(file, "FILE1.");
+    free(file);
+    file = iso_2_fileid("fILe1");
+    CU_ASSERT_STRING_EQUAL(file, "FILE1.");
+    free(file);
+    file = iso_2_fileid("FILE1");
+    CU_ASSERT_STRING_EQUAL(file, "FILE1.");
+    free(file);
+    file = iso_2_fileid(".EXT");
+    CU_ASSERT_STRING_EQUAL(file, ".EXT");
+    free(file);
+    file = iso_2_fileid("file.ext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_2_fileid("fiLE.ext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_2_fileid("file.EXt");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_2_fileid("FILE.EXT");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.EXT");
+    free(file);
+    file = iso_2_fileid("bigfilename");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILENAME.");
+    free(file);
+    file = iso_2_fileid("bigfilename.ext");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILENAME.EXT");
+    free(file);
+    file = iso_2_fileid("bigfilename.e");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILENAME.E");
+    free(file);
+    file = iso_2_fileid("31 characters filename.extensio");
+    CU_ASSERT_STRING_EQUAL(file, "31_CHARACTERS_FILENAME.EXTENSIO");
+    free(file);
+    file = iso_2_fileid("32 characters filename.extension");
+    CU_ASSERT_STRING_EQUAL(file, "32_CHARACTERS_FILENAME.EXTENSIO");
+    free(file);
+    file = iso_2_fileid("more than 30 characters filename.extension");
+    CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FIL.EXT");
+    free(file);
+    file = iso_2_fileid("file.bigext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.BIGEXT");
+    free(file);
+    file = iso_2_fileid(".bigext");
+    CU_ASSERT_STRING_EQUAL(file, ".BIGEXT");
+    free(file);
+    file = iso_2_fileid("bigfilename.bigext");
+    CU_ASSERT_STRING_EQUAL(file, "BIGFILENAME.BIGEXT");
+    free(file);
+    file = iso_2_fileid("file<:a.ext");
+    CU_ASSERT_STRING_EQUAL(file, "FILE__A.EXT");
+    free(file);
+    file = iso_2_fileid("file.<:a");
+    CU_ASSERT_STRING_EQUAL(file, "FILE.__A");
+    free(file);
+    file = iso_2_fileid("file<:a.--a");
+    CU_ASSERT_STRING_EQUAL(file, "FILE__A.__A");
+    free(file);
+    file = iso_2_fileid("file.ex1.ex2");
+    CU_ASSERT_STRING_EQUAL(file, "FILE_EX1.EX2");
+    free(file);
+    file = iso_2_fileid("file.ex1.ex2.ex3");
+    CU_ASSERT_STRING_EQUAL(file, "FILE_EX1_EX2.EX3");
+    free(file);
+    file = iso_2_fileid("fil.ex1.ex2.ex3");
+    CU_ASSERT_STRING_EQUAL(file, "FIL_EX1_EX2.EX3");
+    free(file);
+    file = iso_2_fileid(".file.bigext");
+    CU_ASSERT_STRING_EQUAL(file, "_FILE.BIGEXT");
+    free(file);
 }
 
 static void test_iso_rbtree_insert()
