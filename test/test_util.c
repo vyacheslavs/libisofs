@@ -256,7 +256,7 @@ static void test_iso_rbtree_insert()
     char *str1, *str2, *str3, *str4, *str5;
     void *str;
 
-    res = iso_rbtree_new(strcmp, &tree);
+    res = iso_rbtree_new((compare_function_t)strcmp, &tree);
     CU_ASSERT_EQUAL(res, 1);
 
     /* ok, insert one str  */
@@ -300,6 +300,75 @@ static void test_iso_rbtree_insert()
     iso_rbtree_destroy(tree, NULL);
 }
 
+void test_iso_htable_put_get()
+{
+    int res;
+    IsoHTable *table;
+    char *str1, *str2, *str3, *str4, *str5;
+    void *str;
+    
+    res = iso_htable_create(4, iso_str_hash, (compare_function_t)strcmp, &table);
+    CU_ASSERT_EQUAL(res, 1);
+
+    /* try to get str from empty table */
+    res = iso_htable_get(table, "first str", &str);
+    CU_ASSERT_EQUAL(res, 0);
+    
+    /* ok, insert one str  */
+    str1 = "first str";
+    res = iso_htable_put(table, str1, str1);
+    CU_ASSERT_EQUAL(res, 1);
+
+    /* and now get str from table */
+    res = iso_htable_get(table, "first str", &str);
+    CU_ASSERT_EQUAL(res, 1);
+    CU_ASSERT_PTR_EQUAL(str, str1);
+    res = iso_htable_get(table, "second str", &str);
+    CU_ASSERT_EQUAL(res, 0);
+
+    str2 = "second str";
+    res = iso_htable_put(table, str2, str2);
+    CU_ASSERT_EQUAL(res, 1);
+    
+    str = NULL;
+    res = iso_htable_get(table, "first str", &str);
+    CU_ASSERT_EQUAL(res, 1);
+    CU_ASSERT_PTR_EQUAL(str, str1);
+    res = iso_htable_get(table, "second str", &str);
+    CU_ASSERT_EQUAL(res, 1);
+    CU_ASSERT_PTR_EQUAL(str, str2);
+
+    /* insert again, with same key but other data */
+    res = iso_htable_put(table, str2, str1);
+    CU_ASSERT_EQUAL(res, 0);
+    
+    res = iso_htable_get(table, "second str", &str);
+    CU_ASSERT_EQUAL(res, 1);
+    CU_ASSERT_PTR_EQUAL(str, str2);
+
+    str3 = "third str";
+    res = iso_htable_put(table, str3, str3);
+    CU_ASSERT_EQUAL(res, 1);
+
+    str4 = "four str";
+    res = iso_htable_put(table, str4, str4);
+    CU_ASSERT_EQUAL(res, 1);
+
+    str5 = "fifth str";
+    res = iso_htable_put(table, str5, str5);
+    CU_ASSERT_EQUAL(res, 1);
+
+    /* some searches */
+    res = iso_htable_get(table, "sixth str", &str);
+    CU_ASSERT_EQUAL(res, 0);
+    
+    res = iso_htable_get(table, "fifth str", &str);
+    CU_ASSERT_EQUAL(res, 1);
+    CU_ASSERT_PTR_EQUAL(str, str5);
+    
+    iso_htable_destroy(table, NULL);
+}
+
 void add_util_suite()
 {
     CU_pSuite pSuite = CU_add_suite("UtilSuite", NULL, NULL);
@@ -316,4 +385,5 @@ void add_util_suite()
     CU_add_test(pSuite, "iso_1_fileid()", test_iso_1_fileid);
     CU_add_test(pSuite, "iso_2_fileid()", test_iso_2_fileid);
     CU_add_test(pSuite, "iso_rbtree_insert()", test_iso_rbtree_insert);
+    CU_add_test(pSuite, "iso_htable_put/get()", test_iso_htable_put_get);
 }

@@ -216,6 +216,11 @@ char *strcopy(const char *buf, size_t len);
 char *ucs2str(const char *buf, size_t len);
 
 typedef struct iso_rbtree IsoRBTree;
+typedef struct iso_htable IsoHTable;
+
+typedef unsigned int (*hash_funtion_t)(const void *key);
+typedef int (*compare_function_t)(const void *a, const void *b);
+typedef void (*hfree_data_t)(void *key, void *data);
 
 /**
  * Create a new binary tree. libisofs binary trees allow you to add any data
@@ -281,5 +286,84 @@ size_t iso_rbtree_get_size(IsoRBTree *tree);
  */
 void **iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *), 
                            size_t *size);
+
+/**
+ * Create a new hash table.
+ * 
+ * @param size
+ *     Number of slots in table.
+ * @param hash
+ *     Function used to generate
+ */
+int iso_htable_create(size_t size, hash_funtion_t hash, 
+                      compare_function_t compare, IsoHTable **table);
+
+/**
+ * Put an element in a Hash Table. The element will be identified by
+ * the given key, that you should use to retrieve the element again.
+ * 
+ * This function allow duplicates, i.e., two items with the same key. In those
+ * cases, the value returned by iso_htable_get() is undefined. If you don't
+ * want to allow duplicates, use iso_htable_put() instead;
+ * 
+ * Both the key and data pointers will be stored internally, so you should
+ * free the objects they point to. Use iso_htable_remove() to delete an 
+ * element from the table.
+ */
+int iso_htable_add(IsoHTable *table, void *key, void *data);
+
+/**
+ * Like iso_htable_add(), but this doesn't allow dulpicates.
+ * 
+ * @return
+ *     1 success, 0 if an item with the same key already exists, < 0 error
+ */
+int iso_htable_put(IsoHTable *table, void *key, void *data);
+
+/**
+ * Retrieve an element from the given table. 
+ * 
+ * @param table
+ *     Hash table
+ * @param key
+ *     Key of the element that will be removed
+ * @param data
+ *     Will be filled with the element found. Remains untouched if no
+ *     element with the given key is found.
+ * @return
+ *      1 if found, 0 if not, < 0 on error
+ */
+int iso_htable_get(IsoHTable *table, void *key, void **data);
+
+/**
+ * Remove an item with the given key from the table. In tables that allow 
+ * duplicates, it is undefined the element that will be deleted.
+ * 
+ * @param table
+ *     Hash table
+ * @param key
+ *     Key of the element that will be removed
+ * @param free_data
+ *     Function that will be called passing as parameters both the key and 
+ *     the element that will be deleted. The user can use it to free the
+ *     element. You can pass NULL if you don't want to delete the item itself.
+ * @return
+ *     1 success, 0 no element exists with the given key, < 0 error
+ */
+int iso_htable_remove(IsoHTable *table, void *key, hfree_data_t free_data);
+
+/**
+ * Destroy the given hash table.
+ * 
+ * Note that you're responsible to actually destroy the elements by providing
+ * a valid free_data function. You can pass NULL if you only want to delete
+ * the hash structure.
+ */
+void iso_htable_destroy(IsoHTable *table, hfree_data_t free_data);
+
+/**
+ * Hash function suitable for keys that are char strings.
+ */
+unsigned int iso_str_hash(const void *key);
 
 #endif /*LIBISO_UTIL_H_*/
