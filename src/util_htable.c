@@ -178,7 +178,7 @@ int iso_htable_remove(IsoHTable *table, void *key, hfree_data_t free_data)
     struct iso_hnode *node, *prev;
     unsigned int hash;
     
-    if (table == NULL || key == NULL || free_data == NULL) {
+    if (table == NULL || key == NULL) {
         return ISO_NULL_POINTER;
     }
     
@@ -188,7 +188,7 @@ int iso_htable_remove(IsoHTable *table, void *key, hfree_data_t free_data)
     while (node) {
         if (!table->compare(key, node->key)) {
             if (free_data)
-                free_data(key, node->data);
+                free_data(node->key, node->data);
             if (prev) {
                 prev->next = node->next;
             } else {
@@ -232,7 +232,7 @@ void iso_htable_destroy(IsoHTable *table, hfree_data_t free_data)
     size_t i;
     struct iso_hnode *node, *tmp;
     
-    if (table == NULL || free_data == NULL) {
+    if (table == NULL) {
         return;
     }
     
@@ -243,6 +243,7 @@ void iso_htable_destroy(IsoHTable *table, hfree_data_t free_data)
             if (free_data)
                 free_data(node->key, node->data);
             free(node);
+            node = tmp;
         }
     }
     free(table->table);
