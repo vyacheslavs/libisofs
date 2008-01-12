@@ -507,6 +507,108 @@ char *iso_2_fileid(const char *src)
     return strdup(dest);
 }
 
+/**
+ * Create a file/dir name suitable for an ISO image with relaxed constraints.
+ * 
+ * @param len
+ *     Max len for the name, without taken the "." into account.
+ * @param relaxed
+ *     0 only allow d-characters, 1 allow also lowe case chars, 
+ *     2 allow all characters 
+ * @param forcedot
+ *     Whether to ensure that "." is added
+ */
+char *iso_r_id(const char *src, size_t len, int relaxed, int forcedot)
+{
+    char *dot;
+    int lname, lext, lnname, lnext, pos, i;
+    char *dest = alloca(len + 1 + 1);
+
+    if (src == NULL) {
+        return NULL;
+    }
+
+    dot = strrchr(src, '.');
+
+    /* 
+     * Since the maximum length can be divided freely over the name and
+     * extension, we need to calculate their new lengths (lnname and
+     * lnext). If the original filename is too long, we start by trimming
+     * the extension, but keep a minimum extension length of 3. 
+     */
+    if (dot == NULL || *(dot + 1) == '\0') {
+        lname = strlen(src);
+        lnname = (lname > len) ? len : lname;
+        lext = lnext = 0;
+    } else {
+        lext = strlen(dot + 1);
+        lname = strlen(src) - lext - 1;
+        lnext = (strlen(src) > len + 1 && lext > 3) ? 
+                (lname < len - 3 ? len - lname : 3)
+                : lext;
+        lnname = (strlen(src) > len + 1) ? len - lnext : lname;
+    }
+
+    if (lnname == 0 && lnext == 0) {
+        return NULL;
+    }
+
+    pos = 0;
+
+    /* Convert up to lnname characters of the filename. */
+    for (i = 0; i < lnname; i++) {
+        char c= src[i];
+        if (relaxed == 2) {
+            /* all chars are allowed */
+            dest[pos++] = c;
+        } else if (valid_d_char(c)) {
+            /* it is a valid char */
+            dest[pos++] = c;
+        } else {
+            c= toupper(src[i]);
+            if (valid_d_char(c)) {
+                if (relaxed) {
+                    /* lower chars are allowed */
+                    dest[pos++] = src[i];
+                } else {
+                    dest[pos++] = c;
+                }
+            } else {
+                dest[pos++] = '_';
+            }
+        }
+    }
+    if (lnext > 0 || forcedot) {
+        dest[pos++] = '.';
+    }
+
+    /* Convert up to lnext characters of the extension, if any. */
+    for (i = lname + 1; i < lname + 1 + lnext; i++) {
+        char c= src[i];
+        if (relaxed == 2) {
+            /* all chars are allowed */
+            dest[pos++] = c;
+        } else if (valid_d_char(c)) {
+            /* it is a valid char */
+            dest[pos++] = c;
+        } else {
+            c= toupper(src[i]);
+            if (valid_d_char(c)) {
+                if (relaxed) {
+                    /* lower chars are allowed */
+                    dest[pos++] = src[i];
+                } else {
+                    dest[pos++] = c;
+                }
+            } else {
+                dest[pos++] = '_';
+            }
+        }
+    }
+    dest[pos] = '\0';
+    return strdup(dest);
+}
+
 uint16_t *iso_j_file_id(const uint16_t *src)
 {
     uint16_t *dot;

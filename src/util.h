@@ -107,6 +107,19 @@ char *iso_1_fileid(const char *src);
 char *iso_2_fileid(const char *src);
 
 /**
+ * Create a file/dir name suitable for an ISO image with relaxed constraints.
+ * 
+ * @param len
+ *     Max len for the name, without taken the "." into account.
+ * @param relaxed
+ *     0 only allow d-characters, 1 allow also lowe case chars, 
+ *     2 allow all characters 
+ * @param forcedot
+ *     Whether to ensure that "." is added
+ */
+char *iso_r_id(const char *src, size_t len, int relaxed, int forcedot);
+
+/**
  * Create a Joliet file identifier that consists of name and extension. The 
  * combined name and extension length will not exceed 128 bytes, and the 
  * name and extension will be separated (.). All characters consist of 
