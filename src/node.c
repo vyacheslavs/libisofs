@@ -59,6 +59,14 @@ void iso_node_unref(IsoNode *node)
             /* TODO #00002 handle deletion of each kind of node */
             break;
         }
+    
+#ifdef LIBISO_EXTENDED_INFORMATION
+        if (node->xinfo) {
+            /* free extended info */
+            node->xinfo->process(node->xinfo->data, 1);
+            free(node->xinfo);
+        }
+#endif
         free(node->name);
         free(node);
     }

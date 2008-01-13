@@ -20,6 +20,51 @@
 #include <unistd.h>
 #include <stdint.h>
 
+/* #define LIBISO_EXTENDED_INFORMATION */
+#ifdef LIBISO_EXTENDED_INFORMATION
+
+/**
+ * The extended information is a way to attach additional information to each
+ * IsoNode. External applications may want to use this extension system to 
+ * store application speficic information related to each node. On the other
+ * side, libisofs may make use of this struct to attach information to nodes in
+ * some particular, uncommon, cases, without incrementing the size of the
+ * IsoNode struct.
+ * 
+ * It is implemented like a chained list.
+ */
+typedef struct iso_extended_info IsoExtendedInfo;
+
+struct iso_extended_info {
+    /**
+     * Next struct in the chain. NULL if it is the last item
+     */
+    IsoExtendedInfo *next;
+    
+    /**
+     * Function to handle this particular extended information. The function
+     * pointer acts as an identifier for the type of the information. Structs
+     * with same information type must use the same function.
+     * 
+     * @param data
+     *     Attached data
+     * @param flag
+     *     What to do with the data. At this time the following values are 
+     *     defined:
+     *      -> 1 the data must be freed
+     * @return
+     *     1
+     */
+    int (*process)(void *data, int flag);
+    
+    /**
+     * Pointer to information specific data.
+     */
+    void *data;
+};
+
+#endif
+
 /**
  * 
  */
@@ -56,6 +101,13 @@ struct Iso_Node
      * Pointer to the linked list of children in a dir.
      */
     IsoNode *next;
+
+#ifdef LIBISO_EXTENDED_INFORMATION
+    /**
+     * Extended information for the node.
+     */
+    IsoExtendedInfo *xinfo;
+#endif
 };
 
 struct Iso_Dir
