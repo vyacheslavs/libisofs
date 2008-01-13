@@ -39,10 +39,13 @@ struct ecma119_image
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
     unsigned int allow_deep_paths :1;
+    unsigned int max_37_char_filenames :1;
+    unsigned int no_force_dots :1;
+    unsigned int allow_lowercase :1;
+    unsigned int allow_full_ascii :1;
     
     /** Allow paths on Joliet tree to be larger than 240 bytes */
     unsigned int joliet_longer_paths :1;
-    //    int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
 
     /* 
      * Mode replace. If one of these flags is set, the correspodent values are

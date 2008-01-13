@@ -103,17 +103,11 @@ typedef struct
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
     unsigned int allow_deep_paths :1;
+    unsigned int max_37_char_filenames :1;
+    unsigned int no_force_dots :1;
+    unsigned int allow_lowercase :1;
+    unsigned int allow_full_ascii :1;
     unsigned int joliet_longer_paths :1;
-    //int relaxed_constraints; /**< see ecma119_relaxed_constraints_flag */
-
-    //unsigned int copy_eltorito:1;
-    /**<
-     * In multisession discs, select whether to copy el-torito catalog
-     * and boot image. Copy is needed for isolinux images, that need to
-     * be patched. However, it can lead to problems when the image is 
-     * not present in the iso filesystem, because we can't figure out
-     * its size. In those cases, we only copy 1 block of data.
-     */
 
     /**< If files should be sorted based on their weight. */
     unsigned int sort_files :1;

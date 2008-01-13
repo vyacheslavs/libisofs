@@ -24,7 +24,7 @@
 static
 int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
-    int ret;
+    int ret, relaxed;
     char *ascii_name;
     char *isoname= NULL;
 
@@ -39,18 +39,45 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
         return ret;
     }
 
-    // TODO add support for relaxed constraints
+    if (img->allow_full_ascii) {
+        relaxed = 2;
+    } else {
+        relaxed = (int)img->allow_lowercase;
+    }
     if (iso->type == LIBISO_DIR) {
-        if (img->iso_level == 1) {
-            isoname = iso_1_dirid(ascii_name);
+        if (img->max_37_char_filenames) {
+            isoname = iso_r_dirid(ascii_name, 37, relaxed);
+        } else if (img->iso_level == 1) {
+            if (relaxed) {
+                isoname = iso_r_dirid(ascii_name, 8, relaxed);
+            } else {
+                isoname = iso_1_dirid(ascii_name);
+            }
         } else {
-            isoname = iso_2_dirid(ascii_name);
+            if (relaxed) {
+                isoname = iso_r_dirid(ascii_name, 8, relaxed);
+            } else {
+                isoname = iso_2_dirid(ascii_name);
+            }
         }
     } else {
-        if (img->iso_level == 1) {
-            isoname = iso_1_fileid(ascii_name);
+        if (img->max_37_char_filenames) {
+            isoname = iso_r_fileid(ascii_name, 36, relaxed, 
+                                   img->no_force_dots ? 0 : 1);
+        } else if (img->iso_level == 1) {
+            if (relaxed) {
+                isoname = iso_r_fileid(ascii_name, 11, relaxed, 
+                                       img->no_force_dots ? 0 : 1);
+            } else {
+                isoname = iso_1_fileid(ascii_name);
+            }
         } else {
-            isoname = iso_2_fileid(ascii_name);
+            if (relaxed) {
+                isoname = iso_r_fileid(ascii_name, 30, relaxed, 
+                                       img->no_force_dots ? 0 : 1);
+            } else {
+                isoname = iso_2_fileid(ascii_name);
+            }
         }
     }
     free(ascii_name);
@@ -615,8 +642,9 @@ int mangle_tree(Ecma119Image *img, int recurse)
 {
     int max_file, max_dir;
 
-    // TODO take care about relaxed constraints
-    if (img->iso_level == 1) {
+    if (img->max_37_char_filenames) {
+        max_file = max_dir = 37;
+    } else if (img->iso_level == 1) {
         max_file = 12; /* 8 + 3 + 1 */
         max_dir = 8;
     } else {

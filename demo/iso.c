@@ -55,6 +55,10 @@ int main(int argc, char **argv)
         0, /* joliet */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
+        0, /* max_37_char_filenames */
+        0, /* no_force_dots */
+        0, /* allow_lowercase */
+        0, /* allow_full_ascii */
         0, /* joliet_longer_paths */
         0, /* sort files */
         0, /* replace_dir_mode */

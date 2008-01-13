@@ -836,8 +836,13 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
     target->ino = 0;
-    target->omit_version_numbers = opts->omit_version_numbers;
+    target->omit_version_numbers = opts->omit_version_numbers 
+                                 | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;
+    target->max_37_char_filenames = opts->max_37_char_filenames;
+    target->no_force_dots = opts->no_force_dots;
+    target->allow_lowercase = opts->allow_lowercase;
+    target->allow_full_ascii = opts->allow_full_ascii;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->sort_files = opts->sort_files;
 
