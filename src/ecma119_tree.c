@@ -569,7 +569,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                                   "\"%s\" renamed to \"%s\"",
                                   children[k]->iso_name, new);
 
-                    iso_htable_remove(table, children[k]->iso_name, NULL);
+                    iso_htable_remove_ptr(table, children[k]->iso_name, NULL);
                     free(children[k]->iso_name);
                     children[k]->iso_name = new;
                     iso_htable_add(table, new, new);

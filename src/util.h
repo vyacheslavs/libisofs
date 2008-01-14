@@ -249,8 +249,8 @@ typedef void (*hfree_data_t)(void *key, void *data);
  * two elements.
  *
  * @param compare
- *     A function to compare two elements. It takes a pointer to both elements
- *     and return 0, -1 or 1 if the first element is equal, less or greater 
+ *     A function to compare two keys. It takes a pointer to both keys
+ *     and return 0, -1 or 1 if the first key is equal, less or greater 
  *     than the second one.
  * @param tree
  *     Location where the tree structure will be stored.
@@ -372,6 +372,31 @@ int iso_htable_get(IsoHTable *table, void *key, void **data);
  *     1 success, 0 no element exists with the given key, < 0 error
  */
 int iso_htable_remove(IsoHTable *table, void *key, hfree_data_t free_data);
+
+/**
+ * Like remove, but instead of checking for key equality using the compare
+ * function, it just compare the key pointers. If the table allows duplicates,
+ * and you provide different keys (i.e. different pointers) to elements 
+ * with same key (i.e. same content), this function ensure the exact element
+ * is removed. 
+ * 
+ * It has the problem that you must provide the same key pointer, and not just
+ * a key whose contents are equal. Moreover, if you use the same key (same
+ * pointer) to identify several objects, what of those are removed is 
+ * undefined.
+ * 
+ * @param table
+ *     Hash table
+ * @param key
+ *     Key of the element that will be removed
+ * @param free_data
+ *     Function that will be called passing as parameters both the key and 
+ *     the element that will be deleted. The user can use it to free the
+ *     element. You can pass NULL if you don't want to delete the item itself.
+ * @return
+ *     1 success, 0 no element exists with the given key, < 0 error
+ */
+int iso_htable_remove_ptr(IsoHTable *table, void *key, hfree_data_t free_data);
 
 /**
  * Destroy the given hash table.

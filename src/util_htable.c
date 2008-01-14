@@ -205,6 +205,60 @@ int iso_htable_remove(IsoHTable *table, void *key, hfree_data_t free_data)
 }
 
 /**
+ * Like remove, but instead of checking for key equality using the compare
+ * function, it just compare the key pointers. If the table allows duplicates,
+ * and you provide different keys (i.e. different pointers) to elements 
+ * with same key (i.e. same content), this function ensure the exact element
+ * is removed. 
+ * 
+ * It has the problem that you must provide the same key pointer, and not just
+ * a key whose contents are equal. Moreover, if you use the same key (same
+ * pointer) to identify several objects, what of those are removed is 
+ * undefined.
+ * 
+ * @param table
+ *     Hash table
+ * @param key
+ *     Key of the element that will be removed
+ * @param free_data
+ *     Function that will be called passing as parameters both the key and 
+ *     the element that will be deleted. The user can use it to free the
+ *     element. You can pass NULL if you don't want to delete the item itself.
+ * @return
+ *     1 success, 0 no element exists with the given key, < 0 error
+ */
+int iso_htable_remove_ptr(IsoHTable *table, void *key, hfree_data_t free_data)
+{
+    struct iso_hnode *node, *prev;
+    unsigned int hash;
+    
+    if (table == NULL || key == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    hash = table->hash(key) % table->cap;
+    node = table->table[hash];
+    prev = NULL;
+    while (node) {
+        if (key == node->key) {
+            if (free_data)
+                free_data(node->key, node->data);
+            if (prev) {
+                prev->next = node->next;
+            } else {
+                table->table[hash] = node->next;
+            }
+            free(node);
+            table->size--;
+            return 1;
+        }
+        prev = node;
+        node = node->next;
+    }
+    return 0;
+}
+
+/**
  * Hash function suitable for keys that are char strings.
  */
 unsigned int iso_str_hash(const void *key)
