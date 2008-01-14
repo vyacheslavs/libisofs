@@ -72,7 +72,8 @@ int main(int argc, char **argv)
         NULL, /* output charset */
         0, /* appendable */
         0, /* ms_block */
-        NULL /* overwrite */
+        NULL, /* overwrite */
+        1024 /* fifo_size */
     };
 
     while ((c = getopt(argc, argv, optstring)) != -1) {

@@ -12,21 +12,23 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-/* 2 MB buffer */
 #define BLOCK_SIZE          2048
-#define BUFFER_SIZE         1024
 
 typedef struct iso_ring_buffer IsoRingBuffer;
 
 /**
  * Create a new buffer.
  * 
- * The created buffer can be freed with iso_ring_buffer_free(3)
+ * The created buffer should be freed with iso_ring_buffer_free()
  * 
+ * @param size
+ *     Number of blocks in buffer. You should supply a number >= 32, otherwise
+ *     size will be ignored and 32 will be used by default, which leads to a
+ *     64 KiB buffer.
  * @return
  *     1 success, < 0 error
  */
-int iso_ring_buffer_new(IsoRingBuffer **rbuf);
+int iso_ring_buffer_new(size_t size, IsoRingBuffer **rbuf);
 
 /**
  * Free a given buffer
@@ -64,15 +66,21 @@ int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count);
  * Close the buffer (to be called by the writer).
  * You have to explicity close the buffer when you don't have more data to
  * write, otherwise reader will be waiting forever.
+ * 
+ * @param error
+ *     Writer has finished prematurely due to an error
  */
-void iso_ring_buffer_writer_close(IsoRingBuffer *buf);
+void iso_ring_buffer_writer_close(IsoRingBuffer *buf, int error);
 
 /** 
  * Close the buffer (to be called by the reader).
  * If for any reason you don't want to read more data, you need to call this
  * to let the writer thread finish.
+ * 
+ * @param error
+ *     Reader has finished prematurely due to an error
  */
-void iso_ring_buffer_reader_close(IsoRingBuffer *buf);
+void iso_ring_buffer_reader_close(IsoRingBuffer *buf, int error);
 
 /**
  * Get the times the buffer was full.

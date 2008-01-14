@@ -196,6 +196,13 @@ typedef struct
      * enought.
      */
     uint8_t *overwrite;
+    
+    /**
+     * Size, in number of blocks, of the FIFO buffer used between the writer
+     * thread and the burn_source. You have to provide at least a 32 blocks
+     * buffer.
+     */
+    size_t fifo_size;
 } Ecma119WriteOpts;
 
 typedef struct Iso_Data_Source IsoDataSource;
@@ -1220,6 +1227,28 @@ void iso_data_source_unref(IsoDataSource *src);
  *    1 on success, < 0 on error.
  */
 int iso_data_source_new_from_file(const char *path, IsoDataSource **src);
+
+/**
+ * Get the status of the buffer used by a burn_source.
+ * 
+ * @param b
+ *      A burn_source previously obtained with 
+ *      iso_image_create_burn_source().
+ * @param size
+ *      Will be filled with the total size of the buffer, in bytes
+ * @param free_bytes
+ *      Will be filled with the bytes currently available in buffer
+ * @return
+ *      < 0 error, > 0 state:
+ *           1="active"    : input and consumption are active
+ *           2="ending"    : input has ended without error
+ *           3="failing"   : input had error and ended,
+ *           5="abandoned" : consumption has ended prematurely
+ *           6="ended"     : consumption has ended without input error
+ *           7="aborted"   : consumption has ended after input error
+ */
+int iso_ring_buffer_get_status(struct burn_source *b, size_t *size, 
+                               size_t *free_bytes);
 
 #define ISO_MSGS_MESSAGE_LEN 4096
 

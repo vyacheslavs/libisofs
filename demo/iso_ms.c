@@ -50,7 +50,8 @@ int main(int argc, char **argv)
         NULL, /* output charset */
         0, /* appendable */
         0, /* ms_block */
-        NULL /* overwrite */
+        NULL, /* overwrite */
+        1024 /* fifo_size */
     };
     struct iso_read_opts ropts = {
         0, /* block */

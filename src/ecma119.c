@@ -808,13 +808,13 @@ void *write_function(void *arg)
         }
     }
 
-    iso_ring_buffer_writer_close(target->buffer);
+    iso_ring_buffer_writer_close(target->buffer, 0);
     pthread_exit(NULL);
 
     write_error: ;
     iso_msg_fatal(target->image->messenger, LIBISO_WRITE_ERROR,
                   "Image write error, code %d", res);
-    iso_ring_buffer_writer_close(target->buffer);
+    iso_ring_buffer_writer_close(target->buffer, 1);
     pthread_exit(NULL);
 }
 
@@ -976,7 +976,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     }
 
     /* create the ring buffer */
-    ret = iso_ring_buffer_new(&target->buffer);
+    ret = iso_ring_buffer_new(opts->fifo_size, &target->buffer);
     if (ret < 0) {
         goto target_cleanup;
     }
@@ -1097,7 +1097,7 @@ static void bs_free_data(struct burn_source *bs)
     Ecma119Image *target = (Ecma119Image*)bs->data;
 
     /* forces writer to stop if it is still running */
-    iso_ring_buffer_reader_close(target->buffer);
+    iso_ring_buffer_reader_close(target->buffer, 0);
 
     /* wait until writer thread finishes */
     pthread_join(target->wthread, NULL);

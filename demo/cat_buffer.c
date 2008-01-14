@@ -42,7 +42,7 @@ void *write_function(void *arg)
     int fd = open(data->path, O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "Writer thread error: Can't open file");
-        iso_ring_buffer_writer_close(data->rbuf);
+        iso_ring_buffer_writer_close(data->rbuf, 1);
         pthread_exit(NULL);
     }
 
@@ -64,7 +64,7 @@ void *write_function(void *arg)
     fprintf(stderr, "Writer finish: %d\n", res);
 
     close(fd);
-    iso_ring_buffer_writer_close(data->rbuf);
+    iso_ring_buffer_writer_close(data->rbuf, 0);
     pthread_exit(NULL);
 }
 
@@ -88,7 +88,7 @@ void *read_function(void *arg)
     }
     fprintf(stderr, "Reader finish: %d\n", res);
 
-    iso_ring_buffer_reader_close(data->rbuf);
+    iso_ring_buffer_reader_close(data->rbuf, 0);
 
     pthread_exit(NULL);
 }
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    res = iso_ring_buffer_new(&data.rbuf);
+    res = iso_ring_buffer_new(1024, &data.rbuf);
     if (res < 0) {
         fprintf(stderr, "Can't create buffer\n");
         return 1;
