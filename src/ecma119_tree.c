@@ -296,11 +296,17 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         return ret;
     }
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
-    if (!image->rockridge && !image->allow_deep_paths) {
-        if ((iso->type == LIBISO_DIR && depth > 8) || max_path > 255) {
+    if (!image->rockridge) {
+        if ((iso->type == LIBISO_DIR && depth > 8) && !image->allow_deep_paths) {
             iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED,
-                         "File \"%s\" can't be added, because depth > 8 "
-                             "or path length over 255", iso->name);
+                         "File \"%s\" can't be added, because directory depth "
+                         "is greater than  8.", iso->name);
+            free(iso_name);
+            return 0;
+        } else if (max_path > 255 && !image->allow_longer_paths) {
+            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED,
+                         "File \"%s\" can't be added, because path length "
+                         "is greater than 255 characters", iso->name);
             free(iso_name);
             return 0;
         }

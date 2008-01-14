@@ -847,6 +847,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->omit_version_numbers = opts->omit_version_numbers 
                                  | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;
+    target->allow_longer_paths = opts->allow_longer_paths;
     target->max_37_char_filenames = opts->max_37_char_filenames;
     target->no_force_dots = opts->no_force_dots;
     target->allow_lowercase = opts->allow_lowercase;

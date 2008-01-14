@@ -12,6 +12,7 @@
 #include "filesrc.h"
 #include "node.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,7 +42,7 @@ static void
 print_dir(Ecma119Node *dir, int level)
 {
     int i;
-    char sp[level * 2 + 1];
+    char *sp = alloca(level * 2 + 1);
 
     for (i = 0; i < level * 2; i += 2) {
         sp[i] = '|';

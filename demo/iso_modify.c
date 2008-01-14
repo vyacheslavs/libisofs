@@ -33,6 +33,7 @@ int main(int argc, char **argv)
         0, /* joliet */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
+        0, /* allow_longer_paths */
         0, /* max_37_char_filenames */
         0, /* no_force_dots */
         0, /* allow_lowercase */

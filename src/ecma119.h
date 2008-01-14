@@ -39,6 +39,7 @@ struct ecma119_image
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
     unsigned int allow_deep_paths :1;
+    unsigned int allow_longer_paths :1;
     unsigned int max_37_char_filenames :1;
     unsigned int no_force_dots :1;
     unsigned int allow_lowercase :1;

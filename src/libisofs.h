@@ -100,13 +100,57 @@ typedef struct
     unsigned int rockridge :1;
     unsigned int joliet :1;
 
-    /* relaxed constraints */
+    /* 
+     * Relaxed constraints. Setting any of these to 1 break the specifications,
+     * but it is supposed to work on most moderns systems. Use with caution. 
+     */
+    
+    /**
+     * Omit the version number (";1") at the end of the ISO-9660 identifiers.
+     * Version numbers are usually not used.
+     */
     unsigned int omit_version_numbers :1;
+
+    /**
+     * Allow ISO-9660 directory hierarchy to be deeper than 8 levels. 
+     */
     unsigned int allow_deep_paths :1;
+
+    /**
+     * Allow path in the ISO-9660 tree to have more than 255 characters.
+     */
+    unsigned int allow_longer_paths :1;
+
+    /**
+     * Allow a single file or directory hierarchy to have up to 37 characters.
+     * This is larger than the 31 characters allowed by ISO level 2, and the
+     * extra space is taken from the version number, so this also forces
+     * omit_version_numbers.
+     */
     unsigned int max_37_char_filenames :1;
+
+    /**
+     * ISO-9660 forces filenames to have a ".", that separates file name from
+     * extension. libisofs adds it if original filename doesn't has one. Set 
+     * this to 1 to prevent this behavior
+     */
     unsigned int no_force_dots :1;
+    
+    /**
+     * Allow lowercase characters in ISO-9660 filenames. By default, only 
+     * uppercase characters, numbers and a few other characters are allowed. 
+     */
     unsigned int allow_lowercase :1;
+    
+    /**
+     * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
+     * that "/" and "\0" characters are never allowed, even in RR names.
+     */
     unsigned int allow_full_ascii :1;
+    
+    /**
+     * Allow paths in the Joliet tree to have more than 240 characters.
+     */
     unsigned int joliet_longer_paths :1;
 
     /**< If files should be sorted based on their weight. */
