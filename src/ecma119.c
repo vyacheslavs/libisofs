@@ -130,6 +130,14 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
             len += dirent_len;
         }
     }
+    
+    /*
+     * The size of a dir is always a multiple of block size, as we must add 
+     * the size of the unused space after the last directory record 
+     * (ECMA-119, 6.8.1.3)
+     */
+    len = div_up(len, BLOCK_SIZE) * BLOCK_SIZE;
+
     /* cache the len */
     dir->info.dir->len = len;
     return len;
