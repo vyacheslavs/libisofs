@@ -1175,6 +1175,27 @@ void iso_tree_set_ignore_hidden(IsoImage *image, int skip);
 int iso_tree_get_ignore_hidden(IsoImage *image);
 
 /**
+ * Set whether to skip or not special files. Default behavior is to not skip
+ * them. Note that, despite of this setting, special files won't never be added
+ * to an image unless RR extensions were enabled.
+ * 
+ * @param skip 
+ *      Bitmask to determine what kind of special files will be skipped:
+ *          bit0: ignore FIFOs
+ *          bit1: ignore Sockets
+ *          bit2: ignore char devices
+ *          bit3: ignore block devices
+ */
+void iso_tree_set_ignore_special(IsoImage *image, int skip);
+
+/**
+ * Get current setting for ignore_special.
+ * 
+ * @see iso_tree_set_ignore_special
+ */
+int iso_tree_get_ignore_special(IsoImage *image);
+
+/**
  * Set whether to stop or not when an error happens when adding recursively a 
  * directory to the iso tree. Default value is to skip file and continue.
  */

@@ -336,6 +336,33 @@ int iso_tree_get_ignore_hidden(IsoImage *image)
 }
 
 /**
+ * Set whether to skip or not special files. Default behavior is to not skip
+ * them. Note that, despite of this setting, special files won't never be added
+ * to an image unless RR extensions were enabled.
+ * 
+ * @param skip 
+ *      Bitmask to determine what kind of special files will be skipped:
+ *          bit0: ignore FIFOs
+ *          bit1: ignore Sockets
+ *          bit2: ignore char devices
+ *          bit3: ignore block devices
+ */
+void iso_tree_set_ignore_special(IsoImage *image, int skip)
+{
+    image->recOpts.ignore_special = skip & 0x0F;
+}
+
+/**
+ * Get current setting for ignore_special.
+ * 
+ * @see iso_tree_set_ignore_special
+ */
+int iso_tree_get_ignore_special(IsoImage *image)
+{
+    return image->recOpts.ignore_special;
+}
+
+/**
  * Set whether to stop or not when an error happens when adding recursively a 
  * directory to the iso tree. Default value is to skip file and continue.
  */
@@ -440,6 +467,32 @@ int check_hidden(IsoImage *image, const char *name)
     return (image->recOpts.ignore_hidden && name[0] == '.');
 }
 
+static
+int check_special(IsoImage *image, IsoFileSource *file)
+{
+    if (image->recOpts.ignore_special != 0) {
+        struct stat info;
+        int ret;
+        ret = iso_file_source_lstat(file, &info);
+        if (ret < 0) {
+            return 0; /* TODO what to do here */
+        }
+        switch(info.st_mode &  S_IFMT) {
+        case S_IFBLK:
+            return image->recOpts.ignore_special & 0x08 ? 1 : 0;
+        case S_IFCHR:
+            return image->recOpts.ignore_special & 0x04 ? 1 : 0;
+        case S_IFSOCK:
+            return image->recOpts.ignore_special & 0x02 ? 1 : 0;
+        case S_IFIFO:
+            return image->recOpts.ignore_special & 0x01 ? 1 : 0;
+        default:
+            return 0;
+        }
+    }
+    return 0;
+}
+
 /**
  * Recursively add a given directory to the image tree.
  * 
@@ -477,6 +530,9 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             action = 2;
         } else if (check_hidden(image, name)) {
             iso_msg_debug(image->messenger, "Skipping hidden file %s", path);
+            action = 2;
+        } else if (check_special(image, file)) {
+            iso_msg_debug(image->messenger, "Skipping special file %s", path);
             action = 2;
         } else {
             iso_msg_debug(image->messenger, "Adding file %s", path);

@@ -45,6 +45,16 @@ struct Iso_Image_Rec_Opts
      * always cause a stop
      */
     unsigned int stop_on_error : 1;
+    
+    /**
+     * Flags that determine what special files should be ignore. It is a
+     * bitmask:
+     * bit0: ignore FIFOs
+     * bit1: ignore Sockets
+     * bit2: ignore char devices
+     * bit3: ignore block devices
+     */
+    int ignore_special;
 
     /**
      * Files to exclude
