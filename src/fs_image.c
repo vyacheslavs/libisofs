@@ -871,6 +871,30 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             } else if (SUSP_SIG(sue, 'R', 'R')) {
                 /* TODO I've seen this RR on mkisofs images. what's this? */
                 continue;
+            } else if (SUSP_SIG(sue, 'S', 'P')) {
+                /* 
+                 * Ignore this, to prevent the hint message, if we are dealing
+                 * with root node (SP is only valid in "." of root node)
+                 */
+                if (parent != NULL) {
+                    /* notify and continue */
+                    iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                                  "SP entry found in a directory entry other "
+                                  "than '.' entry of root node");
+                }
+                continue;
+            } else if (SUSP_SIG(sue, 'E', 'R')) {
+                /* 
+                 * Ignore this, to prevent the hint message, if we are dealing
+                 * with root node (ER is only valid in "." of root node)
+                 */
+                if (parent != NULL) {
+                    /* notify and continue */
+                    iso_msg_sorry(fsdata->messenger, LIBISO_RR_ERROR, 
+                                  "ER entry found in a directory entry other "
+                                  "than '.' entry of root node");
+                }
+                continue;
             } else {
                 iso_msg_hint(fsdata->messenger, LIBISO_SUSP_UNHANLED, 
                     "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
