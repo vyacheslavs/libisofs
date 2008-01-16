@@ -92,7 +92,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
     if (iso->type == LIBISO_DIR) {
         IsoDir *dir = (IsoDir*) iso;
-        joliet->info.dir = calloc(1, sizeof(struct joliet_node));
+        joliet->info.dir = calloc(1, sizeof(struct joliet_dir_info));
         if (joliet->info.dir == NULL) {
             free(joliet);
             return ISO_MEM_ERROR;
