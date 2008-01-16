@@ -116,6 +116,7 @@ int main(int argc, char **argv)
         0, /* block */
         0, /* norock */
         0, /* nojoliet */
+        0, /* noiso1999 */
         0, /* preferjoliet */
         0, /* uid; */
         0, /* gid; */

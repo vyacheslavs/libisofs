@@ -42,6 +42,9 @@ int int_pow(int base, int power);
 int strconv(const char *input, const char *icharset, const char *ocharset,
             char **output);
 
+int strnconv(const char *str, const char *icharset, const char *ocharset,
+             size_t len, char **output);
+
 /**
  * Convert a given string from any input charset to ASCII
  * 

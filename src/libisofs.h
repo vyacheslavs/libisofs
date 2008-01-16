@@ -350,6 +350,7 @@ struct iso_read_opts
 
     unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
+    unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
 
     /** 
      * When both Joliet and RR extensions are present, the RR tree is used. 
@@ -381,6 +382,12 @@ struct iso_read_image_features
     
     /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
     unsigned int hasJoliet :1;
+    
+    /** 
+     * It will be set to 1 if the image is an ISO 9660:1999, i.e. it ha
+     * a version 2 Enhanced Volume Descriptor. 
+     */
+    unsigned int hasIso1999 :1;
     
     /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
     unsigned int hasElTorito :1;

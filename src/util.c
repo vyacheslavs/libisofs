@@ -86,6 +86,48 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     return ISO_SUCCESS;
 }
 
+int strnconv(const char *str, const char *icharset, const char *ocharset,
+             size_t len, char **output)
+{
+    size_t inbytes;
+    size_t outbytes;
+    size_t n;
+    iconv_t conv;
+    char *out;
+    char *src;
+    char *ret;
+
+    inbytes = len;
+    outbytes = (inbytes + 1) * MB_LEN_MAX;
+    out = alloca(outbytes);
+    if (out == NULL) {
+        return ISO_MEM_ERROR;
+    }
+
+    conv = iconv_open(ocharset, icharset);
+    if (conv == (iconv_t)(-1)) {
+        return ISO_CHARSET_CONV_ERROR;
+    }
+    src = (char *)str;
+    ret = (char *)out;
+
+    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
+    if (n == -1) {
+        /* error */
+        iconv_close(conv);
+        return ISO_CHARSET_CONV_ERROR;
+    }
+    *ret = '\0';
+    iconv_close(conv);
+
+    *output = malloc(ret - out + 1);
+    if (*output == NULL) {
+        return ISO_MEM_ERROR;
+    }
+    memcpy(*output, out, ret - out + 1);
+    return ISO_SUCCESS;
+}
+
 /**
  * Convert a str in a specified codeset to WCHAR_T. 
  * The result must be free() when no more needed
