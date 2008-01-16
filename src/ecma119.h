@@ -21,6 +21,7 @@
 typedef struct ecma119_image Ecma119Image;
 typedef struct ecma119_node Ecma119Node;
 typedef struct joliet_node JolietNode;
+typedef struct iso1999_node Iso1999Node;
 typedef struct Iso_File_Src IsoFileSrc;
 typedef struct Iso_Image_Writer IsoImageWriter;
 
@@ -35,6 +36,7 @@ struct ecma119_image
     unsigned int rockridge :1;
     unsigned int joliet :1;
     unsigned int eltorito :1;
+    unsigned int iso1999 :1;
 
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;
@@ -111,6 +113,15 @@ struct ecma119_image
     uint32_t joliet_path_table_size;
     uint32_t joliet_l_path_table_pos;
     uint32_t joliet_m_path_table_pos;
+    
+    /*
+     * ISO 9660:1999 related information
+     */
+    Iso1999Node *iso1999_root;
+    size_t iso1999_ndirs;
+    uint32_t iso1999_path_table_size;
+    uint32_t iso1999_l_path_table_pos;
+    uint32_t iso1999_m_path_table_pos;
     
     /*
      * El-Torito related information

@@ -10,6 +10,7 @@
 #include "libisofs.h"
 #include "ecma119.h"
 #include "joliet.h"
+#include "iso1999.h"
 #include "eltorito.h"
 #include "ecma119_tree.h"
 #include "error.h"
@@ -289,27 +290,6 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     if (info != NULL) {
         rrip_write_susp_fields(t, info, buf + len_dr);
     }
-}
-
-/**
- * Copy up to \p max characters from \p src to \p dest. If \p src has less than
- * \p max characters, we pad dest with " " characters.
- */
-static
-void strncpy_pad(char *dest, const char *src, size_t max)
-{
-    size_t len, i;
-    
-    if (src != NULL) {
-        len = MIN(strlen(src), max);
-    } else {
-        len = 0;
-    }
-    
-    for (i = 0; i < len; ++i)
-        dest[i] = src[i];
-    for (i = len; i < max; ++i) 
-        dest[i] = ' ';
 }
 
 /**
@@ -843,6 +823,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->iso_level = opts->level;
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
+    target->iso1999 = opts->iso1999;
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers 
                                  | opts->max_37_char_filenames;
@@ -912,6 +893,9 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     if (target->joliet) {
         nwriters++;
     }
+    if (target->iso1999) {
+        nwriters++;
+    }
 
     target->writers = malloc(nwriters * sizeof(void*));
     if (target->writers == NULL) {
@@ -937,6 +921,14 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     /* create writer for Joliet structure */
     if (target->joliet) {
         ret = joliet_writer_create(target);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
+    }
+    
+    /* create writer for ISO 9660:1999 structure */
+    if (target->iso1999) {
+        ret = iso1999_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
         }

@@ -1086,6 +1086,26 @@ char *strcopy(const char *buf, size_t len)
     return str;
 }
 
+/**
+ * Copy up to \p max characters from \p src to \p dest. If \p src has less than
+ * \p max characters, we pad dest with " " characters.
+ */
+void strncpy_pad(char *dest, const char *src, size_t max)
+{
+    size_t len, i;
+    
+    if (src != NULL) {
+        len = MIN(strlen(src), max);
+    } else {
+        len = 0;
+    }
+    
+    for (i = 0; i < len; ++i)
+        dest[i] = src[i];
+    for (i = len; i < max; ++i) 
+        dest[i] = ' ';
+}
+
 char *ucs2str(const char *buf, size_t len)
 {
     size_t outbytes, inbytes;

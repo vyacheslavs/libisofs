@@ -1,13 +1,12 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2007 Mario Danic
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-#include "joliet.h"
+#include "iso1999.h"
 #include "messages.h"
 #include "writer.h"
 #include "error.h"
@@ -19,52 +18,49 @@
 #include <string.h>
 
 static
-int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
+char *get_iso1999_name(Ecma119Image *t, const char *str)
 {
     int ret;
-    uint16_t *ucs_name;
-    uint16_t *jname = NULL;
+    char *name;
 
-    if (iso->name == NULL) {
-        /* it is not necessarily an error, it can be the root */
-        return ISO_SUCCESS;
+    if (str == NULL) {
+        /* not an error, can be root node */
+        return NULL;
     }
-
-    ret = str2ucs(t->input_charset, iso->name, &ucs_name);
-    if (ret < 0) {
-        iso_msg_debug(t->image->messenger, "Can't convert %s", iso->name);
-        return ret;
-    }
-
-    // TODO add support for relaxed constraints
-    if (iso->type == LIBISO_DIR) {
-        jname = iso_j_dir_id(ucs_name);
+    
+    if (!strcmp(t->input_charset, t->output_charset)) {
+        /* no conversion needed */
+        name = strdup(str);
     } else {
-        jname = iso_j_file_id(ucs_name);
+        ret = strconv(str, t->input_charset, t->output_charset, &name);
+        if (ret < 0) {
+            iso_msg_sorry(t->image->messenger, LIBISO_CHARSET_ERROR, 
+                "Charset conversion error. Can't convert %s from %s to %s",
+                str, t->input_charset, t->output_charset);
+    
+            /* use the original name, it's the best we can do */
+            name = strdup(str);
+        }
     }
-    free(ucs_name);
-    if (jname != NULL) {
-        *name = jname;
-        return ISO_SUCCESS;
-    } else {
-        /* 
-         * only possible if mem error, as check for empty names is done
-         * in public tree
-         */
-        return ISO_MEM_ERROR;
+    
+    /* ISO 9660:1999 7.5.1 */
+    if (strlen(name) > 207) {
+        name[207] = '\0';
     }
+    
+    return name;
 }
 
 static
-void joliet_node_free(JolietNode *node)
+void iso1999_node_free(Iso1999Node *node)
 {
     if (node == NULL) {
         return;
     }
-    if (node->type == JOLIET_DIR) {
+    if (node->type == ISO1999_DIR) {
         int i;
         for (i = 0; i < node->info.dir->nchildren; i++) {
-            joliet_node_free(node->info.dir->children[i]);
+            iso1999_node_free(node->info.dir->children[i]);
         }
         free(node->info.dir->children);
         free(node->info.dir);
@@ -75,35 +71,35 @@ void joliet_node_free(JolietNode *node)
 }
 
 /**
- * Create a low level Joliet node
+ * Create a low level ISO 9660:1999 node
  * @return
  *      1 success, 0 ignored, < 0 error
  */
 static
-int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
+int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
 {
     int ret;
-    JolietNode *joliet;
+    Iso1999Node *n;
 
-    joliet = calloc(1, sizeof(JolietNode));
-    if (joliet == NULL) {
+    n = calloc(1, sizeof(Iso1999Node));
+    if (n == NULL) {
         return ISO_MEM_ERROR;
     }
 
     if (iso->type == LIBISO_DIR) {
         IsoDir *dir = (IsoDir*) iso;
-        joliet->info.dir = calloc(1, sizeof(struct joliet_dir_info));
-        if (joliet->info.dir == NULL) {
-            free(joliet);
+        n->info.dir = calloc(1, sizeof(struct iso1999_dir_info));
+        if (n->info.dir == NULL) {
+            free(n);
             return ISO_MEM_ERROR;
         }
-        joliet->info.dir->children = calloc(sizeof(void*), dir->nchildren);
-        if (joliet->info.dir->children == NULL) {
-            free(joliet->info.dir);
-            free(joliet);
+        n->info.dir->children = calloc(sizeof(void*), dir->nchildren);
+        if (n->info.dir->children == NULL) {
+            free(n->info.dir);
+            free(n);
             return ISO_MEM_ERROR;
         }
-        joliet->type = JOLIET_DIR;
+        n->type = ISO1999_DIR;
     } else if (iso->type == LIBISO_FILE) {
         /* it's a file */
         off_t size;
@@ -115,77 +111,70 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
             iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED,
                          "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->name);
-            free(joliet);
+            free(n);
             return 0;
         }
 
         ret = iso_file_src_create(t, file, &src);
         if (ret < 0) {
-            free(joliet);
+            free(n);
             return ret;
         }
-        joliet->info.file = src;
-        joliet->type = JOLIET_FILE;
+        n->info.file = src;
+        n->type = ISO1999_FILE;
     } else if (iso->type == LIBISO_BOOT) {
         /* it's a el-torito boot catalog, that we write as a file */
         IsoFileSrc *src;
 
         ret = el_torito_catalog_file_src_create(t, &src);
         if (ret < 0) {
-            free(joliet);
+            free(n);
             return ret;
         }
-        joliet->info.file = src;
-        joliet->type = JOLIET_FILE;
+        n->info.file = src;
+        n->type = ISO1999_FILE;
     } else {
         /* should never happen */
-        free(joliet);
+        free(n);
         return ISO_ERROR;
     }
 
     /* take a ref to the IsoNode */
-    joliet->node = iso;
+    n->node = iso;
     iso_node_ref(iso);
 
-    *node = joliet;
+    *node = n;
     return ISO_SUCCESS;
 }
 
 /**
- * Create the low level Joliet tree from the high level ISO tree.
+ * Create the low level ISO 9660:1999 tree from the high level ISO tree.
  * 
  * @return
  *      1 success, 0 file ignored, < 0 error
  */
 static
-int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
+int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
 {
     int ret, max_path;
-    JolietNode *node = NULL;
-    uint16_t *jname = NULL;
+    Iso1999Node *node = NULL;
+    char *iso_name = NULL;
 
     if (t == NULL || iso == NULL || tree == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    if (iso->hidden & LIBISO_HIDE_ON_JOLIET) {
+    if (iso->hidden & LIBISO_HIDE_ON_1999) {
         /* file will be ignored */
         return 0;
     }
-    ret = get_joliet_name(t, iso, &jname);
-    if (ret < 0) {
-        return ret;
-    }
-    max_path = pathlen + 1 + (jname ? ucslen(jname) * 2 : 0);
-    if (!t->joliet_longer_paths && max_path > 240) {
-        /*
-         * Wow!! Joliet is even more restrictive than plain ISO-9660,
-         * that allows up to 255 bytes!!
-         */
+    iso_name = get_iso1999_name(t, iso->name);
+    max_path = pathlen + 1 + (iso_name ? strlen(iso_name): 0);
+    if (!t->allow_longer_paths && max_path > 255) {
         iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED,
-                     "File \"%s\" can't be added to Joliet tree, because "
-                     "its path length is larger than 240", iso->name);
-        free(jname);
+                     "File \"%s\" can't be added to ISO 9660:1999 tree, "
+                     "because its path length is larger than 255", iso->name);
+        free(iso_name);
         return 0;
     }
 
@@ -199,17 +188,17 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
             IsoDir *dir = (IsoDir*)iso;
             ret = create_node(t, iso, &node);
             if (ret < 0) {
-                free(jname);
+                free(iso_name);
                 return ret;
             }
             pos = dir->children;
             while (pos) {
                 int cret;
-                JolietNode *child;
+                Iso1999Node *child;
                 cret = create_tree(t, pos, &child, max_path);
                 if (cret < 0) {
                     /* error */
-                    joliet_node_free(node);
+                    iso1999_node_free(node);
                     ret = cret;
                     break;
                 } else if (cret == ISO_SUCCESS) {
@@ -235,9 +224,10 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        iso_msg_note(t->image->messenger, LIBISO_JOLIET_WRONG_FILE_TYPE, 
-                     "Can't add %s to Joliet tree. This kind of files can only"
-                     " be added to a Rock Ridget tree. Skipping.", iso->name);
+        iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED, 
+                     "Can't add %s to ISO 9660:1999 tree. This kind of files "
+                     "can only be added to a Rock Ridget tree. Skipping.", 
+                     iso->name);
         ret = 0;
         break;
     default:
@@ -245,10 +235,10 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         return ISO_ERROR;
     }
     if (ret <= 0) {
-        free(jname);
+        free(iso_name);
         return ret;
     }
-    node->name = jname;
+    node->name = iso_name;
     *tree = node;
     return ISO_SUCCESS;
 }
@@ -256,30 +246,39 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
 static int
 cmp_node(const void *f1, const void *f2)
 {
-    JolietNode *f = *((JolietNode**)f1);
-    JolietNode *g = *((JolietNode**)f2);
-    return ucscmp(f->name, g->name);
+    Iso1999Node *f = *((Iso1999Node**)f1);
+    Iso1999Node *g = *((Iso1999Node**)f2);
+
+    /**
+     * TODO strcmp do not does exactly what ISO 9660:1999, 9.3, as characters
+     * < 0x20 " " are allowed, so name len must be taken into accout
+     */
+    return strcmp(f->name, g->name);
 }
 
+/**
+ * Sort the entries inside an ISO 9660:1999 directory, according to 
+ * ISO 9660:1999, 9.3 
+ */
 static 
-void sort_tree(JolietNode *root)
+void sort_tree(Iso1999Node *root)
 {
     size_t i;
 
     qsort(root->info.dir->children, root->info.dir->nchildren, 
           sizeof(void*), cmp_node);
     for (i = 0; i < root->info.dir->nchildren; i++) {
-        JolietNode *child = root->info.dir->children[i];
-        if (child->type == JOLIET_DIR)
+        Iso1999Node *child = root->info.dir->children[i];
+        if (child->type == ISO1999_DIR)
             sort_tree(child);
     }
 }
 
 static
-int joliet_tree_create(Ecma119Image *t)
+int iso1999_tree_create(Ecma119Image *t)
 {
     int ret;
-    JolietNode *root;
+    Iso1999Node *root;
     
     if (t == NULL) {
         return ISO_NULL_POINTER;
@@ -294,13 +293,13 @@ int joliet_tree_create(Ecma119Image *t)
         return ret;
     }
     
-    /* the Joliet tree is stored in Ecma119Image target */
-    t->joliet_root = root;
+    /* the ISO 9660:1999 tree is stored in Ecma119Image target */
+    t->iso1999_root = root;
 
-    iso_msg_debug(t->image->messenger, "Sorting the Joliet tree...");
+    iso_msg_debug(t->image->messenger, "Sorting the ISO 9660:1999 tree...");
     sort_tree(root);
 
-    //iso_msg_debug(t->image->messenger, "Mangling Joliet names...");
+    //iso_msg_debug(t->image->messenger, "Mangling ISO 9660:1999 names...");
     // FIXME ret = mangle_tree(t, 1);
 
     return ISO_SUCCESS;
@@ -310,24 +309,20 @@ int joliet_tree_create(Ecma119Image *t)
  * Compute the size of a directory entry for a single node
  */
 static
-size_t calc_dirent_len(Ecma119Image *t, JolietNode *n)
+size_t calc_dirent_len(Ecma119Image *t, Iso1999Node *n)
 {
-    /* note than name len is always even, so we always need the pad byte */
-    int ret = n->name ? ucslen(n->name) * 2 + 34 : 34;
-    if (n->type == JOLIET_FILE && !t->omit_version_numbers) {
-        /* take into account version numbers */
-        ret += 4;
-    }
+    int ret = n->name ? strlen(n->name) + 33 : 34;
+    if (ret % 2)
+        ret++;
     return ret;
 }
 
 /**
- * Computes the total size of all directory entries of a single joliet dir.
- * This is like ECMA-119 6.8.1.1, but taking care that names are stored in
- * UCS.
+ * Computes the total size of all directory entries of a single dir, as
+ * stated in ISO 9660:1999, 6.8.1.3
  */
 static
-size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
+size_t calc_dir_size(Ecma119Image *t, Iso1999Node *dir)
 {
     size_t i, len;
 
@@ -336,7 +331,7 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
 
     for (i = 0; i < dir->info.dir->nchildren; ++i) {
         size_t remaining;
-        JolietNode *child = dir->info.dir->children[i];
+        Iso1999Node *child = dir->info.dir->children[i];
         size_t dirent_len = calc_dirent_len(t, child);
         remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
         if (dirent_len > remaining) {
@@ -350,7 +345,7 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
     /*
      * The size of a dir is always a multiple of block size, as we must add 
      * the size of the unused space after the last directory record 
-     * (ECMA-119, 6.8.1.3)
+     * (ISO 9660:1999, 6.8.1.3)
      */
     len = div_up(len, BLOCK_SIZE) * BLOCK_SIZE;
 
@@ -360,39 +355,40 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
 }
 
 static
-void calc_dir_pos(Ecma119Image *t, JolietNode *dir)
+void calc_dir_pos(Ecma119Image *t, Iso1999Node *dir)
 {
     size_t i, len;
 
-    t->joliet_ndirs++;
+    t->iso1999_ndirs++;
     dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir);
     t->curblock += div_up(len, BLOCK_SIZE);
     for (i = 0; i < dir->info.dir->nchildren; i++) {
-        JolietNode *child = dir->info.dir->children[i];
-        if (child->type == JOLIET_DIR) {
+        Iso1999Node *child = dir->info.dir->children[i];
+        if (child->type == ISO1999_DIR) {
             calc_dir_pos(t, child);
         }
     }
 }
 
 /**
- * Compute the length of the joliet path table, in bytes.
+ * Compute the length of the path table (ISO 9660:1999, 6.9), in bytes.
  */
 static
-uint32_t calc_path_table_size(JolietNode *dir)
+uint32_t calc_path_table_size(Iso1999Node *dir)
 {
     uint32_t size;
     size_t i;
 
     /* size of path table for this entry */
     size = 8;
-    size += dir->name ? ucslen(dir->name) * 2 : 2;
+    size += dir->name ? strlen(dir->name) : 2;
+    size += (size % 2);
 
     /* and recurse */
     for (i = 0; i < dir->info.dir->nchildren; i++) {
-        JolietNode *child = dir->info.dir->children[i];
-        if (child->type == JOLIET_DIR) {
+        Iso1999Node *child = dir->info.dir->children[i];
+        if (child->type == ISO1999_DIR) {
             size += calc_path_table_size(child);
         }
     }
@@ -400,7 +396,7 @@ uint32_t calc_path_table_size(JolietNode *dir)
 }
 
 static
-int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
+int iso1999_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
     uint32_t path_table_size;
@@ -413,36 +409,35 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* compute position of directories */
     iso_msg_debug(t->image->messenger, 
-                  "Computing position of Joliet dir structure");
-    t->joliet_ndirs = 0;
-    calc_dir_pos(t, t->joliet_root);
+                  "Computing position of ISO 9660:1999 dir structure");
+    t->iso1999_ndirs = 0;
+    calc_dir_pos(t, t->iso1999_root);
 
     /* compute length of pathlist */
-    iso_msg_debug(t->image->messenger, "Computing length of Joliet pathlist");
-    path_table_size = calc_path_table_size(t->joliet_root);
+    iso_msg_debug(t->image->messenger, 
+                  "Computing length of ISO 9660:1999 pathlist");
+    path_table_size = calc_path_table_size(t->iso1999_root);
 
     /* compute location for path tables */
-    t->joliet_l_path_table_pos = t->curblock;
+    t->iso1999_l_path_table_pos = t->curblock;
     t->curblock += div_up(path_table_size, BLOCK_SIZE);
-    t->joliet_m_path_table_pos = t->curblock;
+    t->iso1999_m_path_table_pos = t->curblock;
     t->curblock += div_up(path_table_size, BLOCK_SIZE);
-    t->joliet_path_table_size = path_table_size;
+    t->iso1999_path_table_size = path_table_size;
 
     return ISO_SUCCESS;
 }
 
 /**
- * Write a single directory record for Joliet. It is like (ECMA-119, 9.1),
- * but file identifier is stored in UCS.
+ * Write a single directory record (ISO 9660:1999, 9.1).
  * 
  * @param file_id
  *     if >= 0, we use it instead of the filename (for "." and ".." entries).
  * @param len_fi
- *     Computed length of the file identifier. Total size of the directory
- *     entry will be len + 34 (ECMA-119, 9.1.12), as padding is always needed
+ *     Computed length of the file identifier.
  */
 static
-void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
+void write_one_dir_record(Ecma119Image *t, Iso1999Node *node, int file_id,
                           uint8_t *buf, size_t len_fi)
 {
     uint32_t len;
@@ -457,19 +452,11 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
 
     memcpy(rec->file_id, name, len_fi);
 
-    if (node->type == JOLIET_FILE && !t->omit_version_numbers) {
-        len_dr += 4;
-        rec->file_id[len_fi++] = 0;
-        rec->file_id[len_fi++] = ';';
-        rec->file_id[len_fi++] = 0;
-        rec->file_id[len_fi++] = '1';
-    }
-
-    if (node->type == JOLIET_DIR) {
+    if (node->type == ISO1999_DIR) {
         /* use the cached length */
         len = node->info.dir->len;
         block = node->info.dir->block;
-    } else if (node->type == JOLIET_FILE) {
+    } else if (node->type == ISO1999_FILE) {
         len = iso_file_src_get_size(node->info.file);
         block = node->info.file->block;
     } else {
@@ -491,50 +478,27 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
     iso_datetime_7(rec->recording_time, t->now);
-    rec->flags[0] = (node->type == JOLIET_DIR) ? 2 : 0;
+    rec->flags[0] = (node->type == ISO1999_DIR) ? 2 : 0;
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
 }
 
 /**
- * Copy up to \p max characters from \p src to \p dest. If \p src has less than
- * \p max characters, we pad dest with " " characters.
+ * Write the enhanced volume descriptor (ISO/IEC 9660:1999, 8.5) 
  */
 static
-void ucsncpy_pad(uint16_t *dest, const uint16_t *src, size_t max)
-{
-    char *cdest, *csrc;
-    size_t len, i;
-    
-    cdest = (char*)dest;
-    csrc = (char*)src;
-    
-    if (src != NULL) {
-        len = MIN(ucslen(src) * 2, max);
-    } else {
-        len = 0;
-    }
-    
-    for (i = 0; i < len; ++i)
-        cdest[i] = csrc[i];
-    
-    for (i = len; i < max; i += 2) {
-        cdest[i] = '\0';
-        cdest[i + 1] = ' ';
-    }
-}
-
-static
-int joliet_writer_write_vol_desc(IsoImageWriter *writer)
+int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
 {
     IsoImage *image;
     Ecma119Image *t;
+    
+    /* The enhanced volume descriptor is like the sup vol desc */
     struct ecma119_sup_vol_desc vol;
 
-    uint16_t *vol_id = NULL, *pub_id = NULL, *data_id = NULL;
-    uint16_t *volset_id = NULL, *system_id = NULL, *application_id = NULL;
-    uint16_t *copyright_file_id = NULL, *abstract_file_id = NULL;
-    uint16_t *biblio_file_id = NULL;
+    char *vol_id = NULL, *pub_id = NULL, *data_id = NULL;
+    char *volset_id = NULL, *system_id = NULL, *application_id = NULL;
+    char *copyright_file_id = NULL, *abstract_file_id = NULL;
+    char *biblio_file_id = NULL;
 
     if (writer == NULL) {
         return ISO_MEM_ERROR;
@@ -543,49 +507,48 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     t = writer->target;
     image = t->image;
 
-    iso_msg_debug(image->messenger, "Write SVD for Joliet");
+    iso_msg_debug(image->messenger, "Write Enhanced Vol Desc (ISO 9660:1999)");
 
     memset(&vol, 0, sizeof(struct ecma119_sup_vol_desc));
 
-    str2ucs(t->input_charset, image->volume_id, &vol_id);
-    str2ucs(t->input_charset, image->publisher_id, &pub_id);
-    str2ucs(t->input_charset, image->data_preparer_id, &data_id);
-    str2ucs(t->input_charset, image->volset_id, &volset_id);
+    vol_id = get_iso1999_name(t, image->volume_id);
+    str2a_char(t->input_charset, image->publisher_id, &pub_id);
+    str2a_char(t->input_charset, image->data_preparer_id, &data_id);
+    volset_id = get_iso1999_name(t, image->volset_id);
 
-    str2ucs(t->input_charset, image->system_id, &system_id);
-    str2ucs(t->input_charset, image->application_id, &application_id);
-    str2ucs(t->input_charset, image->copyright_file_id, &copyright_file_id);
-    str2ucs(t->input_charset, image->abstract_file_id, &abstract_file_id);
-    str2ucs(t->input_charset, image->biblio_file_id, &biblio_file_id);
+    str2a_char(t->input_charset, image->system_id, &system_id);
+    str2a_char(t->input_charset, image->application_id, &application_id);
+    copyright_file_id = get_iso1999_name(t, image->copyright_file_id);
+    abstract_file_id = get_iso1999_name(t, image->abstract_file_id);
+    biblio_file_id = get_iso1999_name(t, image->biblio_file_id);
 
     vol.vol_desc_type[0] = 2;
     memcpy(vol.std_identifier, "CD001", 5);
-    vol.vol_desc_version[0] = 1;
-    ucsncpy_pad((uint16_t*)vol.volume_id, vol_id, 32);
     
-    /* make use of UCS-2 Level 3 */
-    memcpy(vol.esc_sequences, "%/E", 3);
+    /* descriptor version is 2 (ISO/IEC 9660:1999, 8.5.2) */
+    vol.vol_desc_version[0] = 2;
+    strncpy_pad((char*)vol.volume_id, vol_id, 32);
 
     iso_bb(vol.vol_space_size, t->vol_space_size, 4);
     iso_bb(vol.vol_set_size, 1, 2);
     iso_bb(vol.vol_seq_number, 1, 2);
     iso_bb(vol.block_size, BLOCK_SIZE, 2);
-    iso_bb(vol.path_table_size, t->joliet_path_table_size, 4);
-    iso_lsb(vol.l_path_table_pos, t->joliet_l_path_table_pos, 4);
-    iso_msb(vol.m_path_table_pos, t->joliet_m_path_table_pos, 4);
+    iso_bb(vol.path_table_size, t->iso1999_path_table_size, 4);
+    iso_lsb(vol.l_path_table_pos, t->iso1999_l_path_table_pos, 4);
+    iso_msb(vol.m_path_table_pos, t->iso1999_m_path_table_pos, 4);
 
-    write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1);
+    write_one_dir_record(t, t->iso1999_root, 0, vol.root_dir_record, 1);
 
-    ucsncpy_pad((uint16_t*)vol.vol_set_id, volset_id, 128);
-    ucsncpy_pad((uint16_t*)vol.publisher_id, pub_id, 128);
-    ucsncpy_pad((uint16_t*)vol.data_prep_id, data_id, 128);
+    strncpy_pad((char*)vol.vol_set_id, volset_id, 128);
+    strncpy_pad((char*)vol.publisher_id, pub_id, 128);
+    strncpy_pad((char*)vol.data_prep_id, data_id, 128);
     
-    ucsncpy_pad((uint16_t*)vol.system_id, system_id, 32);
+    strncpy_pad((char*)vol.system_id, system_id, 32);
 
-    ucsncpy_pad((uint16_t*)vol.application_id, application_id, 128);
-    ucsncpy_pad((uint16_t*)vol.copyright_file_id, copyright_file_id, 37);
-    ucsncpy_pad((uint16_t*)vol.abstract_file_id, abstract_file_id, 37);
-    ucsncpy_pad((uint16_t*)vol.bibliographic_file_id, biblio_file_id, 37);
+    strncpy_pad((char*)vol.application_id, application_id, 128);
+    strncpy_pad((char*)vol.copyright_file_id, copyright_file_id, 37);
+    strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
+    strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
     iso_datetime_17(vol.vol_creation_time, t->now);
     iso_datetime_17(vol.vol_modification_time, t->now);
@@ -607,7 +570,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 }
 
 static
-int write_one_dir(Ecma119Image *t, JolietNode *dir)
+int write_one_dir(Ecma119Image *t, Iso1999Node *dir)
 {
     int ret;
     uint8_t buffer[BLOCK_SIZE];
@@ -627,14 +590,11 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
     buf += 34;
 
     for (i = 0; i < dir->info.dir->nchildren; i++) {
-        JolietNode *child = dir->info.dir->children[i];
+        Iso1999Node *child = dir->info.dir->children[i];
 
         /* compute len of directory entry */
-        fi_len = ucslen(child->name) * 2;
-        len = fi_len + 34;
-        if (child->type == JOLIET_FILE && !t->omit_version_numbers) {
-            len += 4;
-        }
+        fi_len = strlen(child->name);
+        len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
 
         if ( (buf + len - buffer) > BLOCK_SIZE) {
             /* dir doesn't fit in current block */
@@ -656,7 +616,7 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
 }
 
 static
-int write_dirs(Ecma119Image *t, JolietNode *root)
+int write_dirs(Ecma119Image *t, Iso1999Node *root)
 {
     int ret;
     size_t i;
@@ -669,8 +629,8 @@ int write_dirs(Ecma119Image *t, JolietNode *root)
 
     /* recurse */
     for (i = 0; i < root->info.dir->nchildren; i++) {
-        JolietNode *child = root->info.dir->children[i];
-        if (child->type == JOLIET_DIR) {
+        Iso1999Node *child = root->info.dir->children[i];
+        if (child->type == ISO1999_DIR) {
             ret = write_dirs(t, child);
             if (ret < 0) {
                 return ret;
@@ -681,13 +641,13 @@ int write_dirs(Ecma119Image *t, JolietNode *root)
 }
 
 static
-int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
+int write_path_table(Ecma119Image *t, Iso1999Node **pathlist, int l_type)
 {
     size_t i, len;
     uint8_t buf[256]; /* 256 is just a convenient size larger enought */
     struct ecma119_path_table_record *rec;
     void (*write_int)(uint8_t*, uint32_t, int);
-    JolietNode *dir;
+    Iso1999Node *dir;
     uint32_t path_table_size;
     int parent = 0;
     int ret= ISO_SUCCESS;
@@ -695,7 +655,7 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
     path_table_size = 0;
     write_int = l_type ? iso_lsb : iso_msb;
 
-    for (i = 0; i < t->joliet_ndirs; i++) {
+    for (i = 0; i < t->iso1999_ndirs; i++) {
         dir = pathlist[i];
 
         /* find the index of the parent in the table */
@@ -706,7 +666,7 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
         /* write the Path Table Record (ECMA-119, 9.4) */
         memset(buf, 0, 256);
         rec = (struct ecma119_path_table_record*) buf;
-        rec->len_di[0] = dir->parent ? (uint8_t) ucslen(dir->name) * 2 : 1;
+        rec->len_di[0] = dir->parent ? (uint8_t) strlen(dir->name) : 1;
         rec->len_xa[0] = 0;
         write_int(rec->block, dir->info.dir->block, 4);
         write_int(rec->parent, parent + 1, 2);
@@ -738,23 +698,23 @@ int write_path_tables(Ecma119Image *t)
 {
     int ret;
     size_t i, j, cur;
-    JolietNode **pathlist;
+    Iso1999Node **pathlist;
 
-    iso_msg_debug(t->image->messenger, "Writing Joliet Path tables");
+    iso_msg_debug(t->image->messenger, "Writing ISO 9660:1999 Path tables");
 
     /* allocate temporal pathlist */
-    pathlist = malloc(sizeof(void*) * t->joliet_ndirs);
+    pathlist = malloc(sizeof(void*) * t->iso1999_ndirs);
     if (pathlist == NULL) {
         return ISO_MEM_ERROR;
     }
-    pathlist[0] = t->joliet_root;
+    pathlist[0] = t->iso1999_root;
     cur = 1;
 
-    for (i = 0; i < t->joliet_ndirs; i++) {
-        JolietNode *dir = pathlist[i];
+    for (i = 0; i < t->iso1999_ndirs; i++) {
+        Iso1999Node *dir = pathlist[i];
         for (j = 0; j < dir->info.dir->nchildren; j++) {
-            JolietNode *child = dir->info.dir->children[j];
-            if (child->type == JOLIET_DIR) {
+            Iso1999Node *child = dir->info.dir->children[j];
+            if (child->type == ISO1999_DIR) {
                 pathlist[cur++] = child;
             }
         }
@@ -775,7 +735,7 @@ int write_path_tables(Ecma119Image *t)
 }
 
 static
-int joliet_writer_write_data(IsoImageWriter *writer)
+int iso1999_writer_write_data(IsoImageWriter *writer)
 {
     int ret;
     Ecma119Image *t;
@@ -786,7 +746,7 @@ int joliet_writer_write_data(IsoImageWriter *writer)
     t = writer->target;
 
     /* first of all, we write the directory structure */
-    ret = write_dirs(t, t->joliet_root);
+    ret = write_dirs(t, t->iso1999_root);
     if (ret < 0) {
         return ret;
     }
@@ -798,15 +758,15 @@ int joliet_writer_write_data(IsoImageWriter *writer)
 }
 
 static
-int joliet_writer_free_data(IsoImageWriter *writer)
+int iso1999_writer_free_data(IsoImageWriter *writer)
 {
-    /* free the Joliet tree */
+    /* free the ISO 9660:1999 tree */
     Ecma119Image *t = writer->target;
-    joliet_node_free(t->joliet_root);
+    iso1999_node_free(t->iso1999_root);
     return ISO_SUCCESS;
 }
 
-int joliet_writer_create(Ecma119Image *target)
+int iso1999_writer_create(Ecma119Image *target)
 {
     int ret;
     IsoImageWriter *writer;
@@ -816,16 +776,16 @@ int joliet_writer_create(Ecma119Image *target)
         return ISO_MEM_ERROR;
     }
 
-    writer->compute_data_blocks = joliet_writer_compute_data_blocks;
-    writer->write_vol_desc = joliet_writer_write_vol_desc;
-    writer->write_data = joliet_writer_write_data;
-    writer->free_data = joliet_writer_free_data;
-    writer->data = NULL; //TODO store joliet tree here
+    writer->compute_data_blocks = iso1999_writer_compute_data_blocks;
+    writer->write_vol_desc = iso1999_writer_write_vol_desc;
+    writer->write_data = iso1999_writer_write_data;
+    writer->free_data = iso1999_writer_free_data;
+    writer->data = NULL;
     writer->target = target;
 
     iso_msg_debug(target->image->messenger, 
-                  "Creating low level Joliet tree...");
-    ret = joliet_tree_create(target);
+                  "Creating low level ISO 9660:1999 tree...");
+    ret = iso1999_tree_create(target);
     if (ret < 0) {
         return ret;
     }

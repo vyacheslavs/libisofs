@@ -231,6 +231,12 @@ int iso_eaccess(const char *path);
 char *strcopy(const char *buf, size_t len);
 
 /**
+ * Copy up to \p max characters from \p src to \p dest. If \p src has less than
+ * \p max characters, we pad dest with " " characters.
+ */
+void strncpy_pad(char *dest, const char *src, size_t max);
+
+/**
  * Convert a Joliet string with a length of \p len bytes to a new string
  * in local charset.
  */

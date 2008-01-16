@@ -49,6 +49,8 @@ src_libisofs_la_SOURCES = \
 	src/joliet.c \
 	src/eltorito.h \
 	src/eltorito.c \
+	src/iso1999.h \
+	src/iso1999.c \
 	src/data_source.c
 libinclude_HEADERS = \
 	src/libisofs.h

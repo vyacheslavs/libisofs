@@ -36,6 +36,7 @@ int main(int argc, char **argv)
         1, /* level */ 
         1, /* rockridge */
         0, /* joliet */
+        0, /* iso1999 */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
         0, /* allow_longer_paths */

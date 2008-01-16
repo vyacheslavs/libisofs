@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <err.h>
 
-const char * const optstring = "JRL:b:hV:";
+const char * const optstring = "JRIL:b:hV:";
 extern char *optarg;
 extern int optind;
 
@@ -31,6 +31,7 @@ void help()
         "Options:\n"
         "  -J        Add Joliet support\n"
         "  -R        Add Rock Ridge support\n"
+        "  -I        Add ISO 9660:1999 support\n"
         "  -V label  Volume Label\n"
         "  -L <num>  Set the ISO level (1 or 2)\n"
         "  -b file   Specifies a boot image to add to image\n"
@@ -53,6 +54,7 @@ int main(int argc, char **argv)
         1, /* level */ 
         0, /* rockridge */
         0, /* joliet */
+        0, /* iso1999 */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
         0, /* allow_longer_paths */
@@ -89,6 +91,9 @@ int main(int argc, char **argv)
             break;
         case 'R':
             opts.rockridge = 1;
+            break;
+        case 'I':
+            opts.iso1999 = 1;
             break;
         case 'L':
             opts.level = atoi(optarg);

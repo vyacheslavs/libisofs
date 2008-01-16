@@ -55,8 +55,12 @@ enum IsoNodeType {
  * \see iso_node_set_hidden
  */
 enum IsoHideNodeFlag {
+    /** Hide the node in the ECMA-119 / RR tree */
     LIBISO_HIDE_ON_RR = 1 << 0,
-    LIBISO_HIDE_ON_JOLIET = 1 << 1
+    /** Hide the node in the Joliet tree, if Joliet extension are enabled */
+    LIBISO_HIDE_ON_JOLIET = 1 << 1,
+    /** Hide the node in the ISO-9660:1999 tree, if that format is enabled */
+    LIBISO_HIDE_ON_1999 = 1 << 2
 };
 
 /**
@@ -99,6 +103,7 @@ typedef struct
     /** Which extensions to support. */
     unsigned int rockridge :1;
     unsigned int joliet :1;
+    unsigned int iso1999 :1;
 
     /* 
      * Relaxed constraints. Setting any of these to 1 break the specifications,
