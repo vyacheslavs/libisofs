@@ -32,7 +32,6 @@ struct joliet_dir_info {
 struct joliet_node
 {
 	uint16_t *name; /**< Name in UCS-2BE. */
-	//size_t dirent_len;
 
     JolietNode *parent;
 
@@ -41,8 +40,7 @@ struct joliet_node
 	enum joliet_node_type type;
 	union {
 	    IsoFileSrc *file;
-	    //TODO change with a pointer
-		struct joliet_dir_info dir;
+		struct joliet_dir_info *dir;
 	} info;
 };
 

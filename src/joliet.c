@@ -63,13 +63,14 @@ void joliet_node_free(JolietNode *node)
     }
     if (node->type == JOLIET_DIR) {
         int i;
-        for (i = 0; i < node->info.dir.nchildren; i++) {
-            joliet_node_free(node->info.dir.children[i]);
+        for (i = 0; i < node->info.dir->nchildren; i++) {
+            joliet_node_free(node->info.dir->children[i]);
         }
-        free(node->info.dir.children);
-        //free(node->info.dir);
+        free(node->info.dir->children);
+        free(node->info.dir);
     }
     iso_node_unref(node->node);
+    free(node->name);
     free(node);
 }
 
@@ -91,8 +92,14 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
     if (iso->type == LIBISO_DIR) {
         IsoDir *dir = (IsoDir*) iso;
-        joliet->info.dir.children = calloc(sizeof(void*), dir->nchildren);
-        if (joliet->info.dir.children == NULL) {
+        joliet->info.dir = calloc(1, sizeof(struct joliet_node));
+        if (joliet->info.dir == NULL) {
+            free(joliet);
+            return ISO_MEM_ERROR;
+        }
+        joliet->info.dir->children = calloc(sizeof(void*), dir->nchildren);
+        if (joliet->info.dir->children == NULL) {
+            free(joliet->info.dir);
             free(joliet);
             return ISO_MEM_ERROR;
         }
@@ -207,8 +214,8 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
                     break;
                 } else if (cret == ISO_SUCCESS) {
                     /* add child to this node */
-                    int nchildren = node->info.dir.nchildren++;
-                    node->info.dir.children[nchildren] = child;
+                    int nchildren = node->info.dir->nchildren++;
+                    node->info.dir->children[nchildren] = child;
                     child->parent = node;
                 }
                 pos = pos->next;
@@ -259,10 +266,10 @@ void sort_tree(JolietNode *root)
 {
     size_t i;
 
-    qsort(root->info.dir.children, root->info.dir.nchildren, 
+    qsort(root->info.dir->children, root->info.dir->nchildren, 
           sizeof(void*), cmp_node);
-    for (i = 0; i < root->info.dir.nchildren; i++) {
-        JolietNode *child = root->info.dir.children[i];
+    for (i = 0; i < root->info.dir->nchildren; i++) {
+        JolietNode *child = root->info.dir->children[i];
         if (child->type == JOLIET_DIR)
             sort_tree(child);
     }
@@ -327,9 +334,9 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
     /* size of "." and ".." entries */
     len = 34 + 34;
 
-    for (i = 0; i < dir->info.dir.nchildren; ++i) {
+    for (i = 0; i < dir->info.dir->nchildren; ++i) {
         size_t remaining;
-        JolietNode *child = dir->info.dir.children[i];
+        JolietNode *child = dir->info.dir->children[i];
         size_t dirent_len = calc_dirent_len(t, child);
         remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
         if (dirent_len > remaining) {
@@ -348,7 +355,7 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
     len = div_up(len, BLOCK_SIZE) * BLOCK_SIZE;
 
     /* cache the len */
-    dir->info.dir.len = len;
+    dir->info.dir->len = len;
     return len;
 }
 
@@ -358,11 +365,11 @@ void calc_dir_pos(Ecma119Image *t, JolietNode *dir)
     size_t i, len;
 
     t->joliet_ndirs++;
-    dir->info.dir.block = t->curblock;
+    dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir);
     t->curblock += div_up(len, BLOCK_SIZE);
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        JolietNode *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        JolietNode *child = dir->info.dir->children[i];
         if (child->type == JOLIET_DIR) {
             calc_dir_pos(t, child);
         }
@@ -383,8 +390,8 @@ uint32_t calc_path_table_size(JolietNode *dir)
     size += dir->name ? ucslen(dir->name) * 2 : 2;
 
     /* and recurse */
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        JolietNode *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        JolietNode *child = dir->info.dir->children[i];
         if (child->type == JOLIET_DIR) {
             size += calc_path_table_size(child);
         }
@@ -460,8 +467,8 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
 
     if (node->type == JOLIET_DIR) {
         /* use the cached length */
-        len = node->info.dir.len;
-        block = node->info.dir.block;
+        len = node->info.dir->len;
+        block = node->info.dir->block;
     } else if (node->type == JOLIET_FILE) {
         len = iso_file_src_get_size(node->info.file);
         block = node->info.file->block;
@@ -620,8 +627,8 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
     write_one_dir_record(t, dir, 1, buf, 1);
     buf += 34;
 
-    for (i = 0; i < dir->info.dir.nchildren; i++) {
-        JolietNode *child = dir->info.dir.children[i];
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        JolietNode *child = dir->info.dir->children[i];
 
         /* compute len of directory entry */
         fi_len = ucslen(child->name) * 2;
@@ -662,8 +669,8 @@ int write_dirs(Ecma119Image *t, JolietNode *root)
     }
 
     /* recurse */
-    for (i = 0; i < root->info.dir.nchildren; i++) {
-        JolietNode *child = root->info.dir.children[i];
+    for (i = 0; i < root->info.dir->nchildren; i++) {
+        JolietNode *child = root->info.dir->children[i];
         if (child->type == JOLIET_DIR) {
             ret = write_dirs(t, child);
             if (ret < 0) {
@@ -702,7 +709,7 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
         rec = (struct ecma119_path_table_record*) buf;
         rec->len_di[0] = dir->parent ? (uint8_t) ucslen(dir->name) * 2 : 1;
         rec->len_xa[0] = 0;
-        write_int(rec->block, dir->info.dir.block, 4);
+        write_int(rec->block, dir->info.dir->block, 4);
         write_int(rec->parent, parent + 1, 2);
         if (dir->parent) {
             memcpy(rec->dir_id, dir->name, rec->len_di[0]);
@@ -746,8 +753,8 @@ int write_path_tables(Ecma119Image *t)
 
     for (i = 0; i < t->joliet_ndirs; i++) {
         JolietNode *dir = pathlist[i];
-        for (j = 0; j < dir->info.dir.nchildren; j++) {
-            JolietNode *child = dir->info.dir.children[j];
+        for (j = 0; j < dir->info.dir->nchildren; j++) {
+            JolietNode *child = dir->info.dir->children[j];
             if (child->type == JOLIET_DIR) {
                 pathlist[cur++] = child;
             }
