@@ -1,7 +1,8 @@
 
 /* libiso_msgs
    Message handling facility of libiso.
-   Copyright (C) 2006 Thomas Schmitt <scdbackup@gmx.net>, provided under GPL
+   Copyright (C) 2006 - 2008 Thomas Schmitt <scdbackup@gmx.net>,
+   provided under GPL version 2
 */
 
 #include <stdio.h>
@@ -39,7 +40,7 @@ static int libiso_msgs_item_new(struct libiso_msgs_item **item,
  if(ret==0)
    o->timestamp= tv.tv_sec+0.000001*tv.tv_usec;
  o->process_id= getpid();
- o->driveno= -1;
+ o->origin= -1;
  o->severity= LIBISO_MSGS_SEV_ALL;
  o->priority= LIBISO_MSGS_PRIO_ZERO;
  o->error_code= 0;
@@ -108,12 +109,12 @@ int libiso_msgs_item_get_msg(struct libiso_msgs_item *item,
 
 
 int libiso_msgs_item_get_origin(struct libiso_msgs_item *item,
-                   double *timestamp, pid_t *process_id, int *driveno,
+                   double *timestamp, pid_t *process_id, int *origin,
                    int flag)
 {
  *timestamp= item->timestamp;
  *process_id= item->process_id;
- *driveno= item->driveno;
+ *origin= item->origin;
  return(1);
 }
 
@@ -137,6 +138,7 @@ int libiso_msgs_new(struct libiso_msgs **m, int flag)
  (*m)= o= (struct libiso_msgs *) malloc(sizeof(struct libiso_msgs));
  if(o==NULL)
    return(-1);
+ o->refcount= 1;
  o->oldest= NULL;
  o->youngest= NULL;
  o->count= 0;
@@ -148,43 +150,6 @@ int libiso_msgs_new(struct libiso_msgs **m, int flag)
  pthread_mutex_init(&(o->lock_mutex),NULL);
 #endif
 
- return(1);
-}
-
-
-int libiso_msgs_destroy(struct libiso_msgs **m, int flag)
-{
- struct libiso_msgs *o;
- struct libiso_msgs_item *item, *next_item;
-
- o= *m;
- if(o==NULL)
-   return(0);
-
-#ifndef LIBISO_MSGS_SINGLE_THREADED
- if(pthread_mutex_destroy(&(o->lock_mutex))!=0) {
-   pthread_mutex_unlock(&(o->lock_mutex));
-   pthread_mutex_destroy(&(o->lock_mutex));
- }
-#endif
-
- for(item= o->oldest; item!=NULL; item= next_item) {
-   next_item= item->next;
-   libiso_msgs_item_destroy(&item,0);
- }
- free((char *) o);
- *m= NULL;
- return(1);
-}
-
-
-int libiso_msgs_set_severities(struct libiso_msgs *m, int queue_severity,
-                          int print_severity, const char *print_id, int flag)
-{
- m->queue_severity= queue_severity;
- m->print_severity= print_severity;
- strncpy(m->print_id,print_id,80);
- m->print_id[80]= 0;
  return(1);
 }
 
@@ -215,6 +180,65 @@ static int libiso_msgs_unlock(struct libiso_msgs *m, int flag)
    return(0);
 #endif
 
+ return(1);
+}
+
+
+int libiso_msgs_destroy(struct libiso_msgs **m, int flag)
+{
+ struct libiso_msgs *o;
+ struct libiso_msgs_item *item, *next_item;
+
+ o= *m;
+ if(o==NULL)
+   return(0);
+ if(o->refcount > 1) {
+   if(libiso_msgs_lock(*m,0)<=0)
+     return(-1);
+   o->refcount--;
+   libiso_msgs_unlock(*m,0);
+   *m= NULL;
+   return(1);
+ }
+
+#ifndef LIBISO_MSGS_SINGLE_THREADED
+ if(pthread_mutex_destroy(&(o->lock_mutex))!=0) {
+   pthread_mutex_unlock(&(o->lock_mutex));
+   pthread_mutex_destroy(&(o->lock_mutex));
+ }
+#endif
+
+ for(item= o->oldest; item!=NULL; item= next_item) {
+   next_item= item->next;
+   libiso_msgs_item_destroy(&item,0);
+ }
+ free((char *) o);
+ *m= NULL;
+ return(1);
+}
+
+
+int libiso_msgs_refer(struct libiso_msgs **pt, struct libiso_msgs *m, int flag)
+{
+ if(libiso_msgs_lock(m,0)<=0)
+   return(0);
+ m->refcount++;
+ *pt= m;
+ libiso_msgs_unlock(m,0);
+ return(1);
+}
+
+
+int libiso_msgs_set_severities(struct libiso_msgs *m, int queue_severity,
+                               int print_severity, char *print_id, int flag)
+{
+ if(libiso_msgs_lock(m,0)<=0)
+   return(0);
+ m->queue_severity= queue_severity;
+ m->print_severity= print_severity;
+ strncpy(m->print_id,print_id,80);
+ m->print_id[80]= 0;
+ libiso_msgs_unlock(m,0);
  return(1);
 }
 
@@ -287,7 +311,7 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
 }
 
 
-int libiso_msgs_submit(struct libiso_msgs *m, int driveno, int error_code,
+int libiso_msgs_submit(struct libiso_msgs *m, int origin, int error_code,
                        int severity, int priority, char *msg_text,
                        int os_errno, int flag)
 {
@@ -325,7 +349,7 @@ int libiso_msgs_submit(struct libiso_msgs *m, int driveno, int error_code,
  ret= libiso_msgs_item_new(&item,m->youngest,0);
  if(ret<=0)
    goto failed;
- item->driveno= driveno;
+ item->origin= origin;
  item->error_code= error_code;
  item->severity= severity;
  item->priority= priority;

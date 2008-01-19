@@ -384,7 +384,7 @@ struct iso_read_image_features
     unsigned int hasJoliet :1;
     
     /** 
-     * It will be set to 1 if the image is an ISO 9660:1999, i.e. it ha
+     * It will be set to 1 if the image is an ISO 9660:1999, i.e. it has
      * a version 2 Enhanced Volume Descriptor. 
      */
     unsigned int hasIso1999 :1;
