@@ -401,6 +401,317 @@ struct iso_read_image_features
     uint32_t size; 
 };
 
+typedef struct iso_file_source IsoFileSource;
+typedef struct iso_filesystem IsoFilesystem;
+typedef struct IsoFileSource_Iface IsoFileSourceIface;
+
+/**
+ * IsoFilesystem implementation to deal with ISO images, and to offer a way to
+ * access specific information of the image, such as several volume attributes, 
+ * extensions being used, El-Torito artifacts...
+ */
+typedef IsoFilesystem IsoImageFilesystem;
+
+/**
+ * See IsoFilesystem->get_id() for info about this.
+ */
+extern unsigned int iso_fs_global_id;
+
+/**
+ * An IsoFilesystem is a handler for a source of files, or a "filesystem". 
+ * That is defined as a set of files that are organized in a hierarchical 
+ * structure. 
+ * 
+ * A filesystem allows libisofs to access files from several sources in
+ * an homogeneous way, thus abstracting the underlying operations needed to
+ * access and read file contents. Note that this doesn't need to be tied
+ * to the disc filesystem used in the partition being accessed. For example,
+ * we have an IsoFilesystem implementation to access any mounted filesystem,
+ * using standard Linux functions. It is also legal, of course, to implement
+ * an IsoFilesystem to deal with a specific filesystem over raw partitions.
+ * That is what we do, for example, to access an ISO Image.
+ * 
+ * Each file inside an IsoFilesystem is represented as an IsoFileSource object,
+ * that defines POSIX-like interface for accessing files.
+ */
+struct iso_filesystem
+{
+    /**
+     * Type of filesystem. 
+     * "file" -> local filesystem
+     * "iso " -> iso image filesystem
+     */
+    char type[4];
+
+    /**
+     * Get the root of a filesystem.
+     * 
+     * @return
+     *    1 on success, < 0 on error
+     */
+    int (*get_root)(IsoFilesystem *fs, IsoFileSource **root);
+
+    /**
+     * Retrieve a file from its absolute path inside the filesystem.
+     * 
+     * @return
+     *     1 success, < 0 error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*get_by_path)(IsoFilesystem *fs, const char *path,
+                       IsoFileSource **file);
+
+    /**
+     * Get filesystem identifier. 
+     * 
+     * If the filesystem is able to generate correct values of the st_dev
+     * and st_ino fields for the struct stat of each file, this should
+     * return an unique number, greater than 0. 
+     * 
+     * To get a identifier for your filesystem implementation you should 
+     * use iso_fs_global_id, incrementing it by one each time.
+     * 
+     * Otherwise, if you can't ensure values in the struct stat are valid,
+     * this should return 0.
+     */
+    unsigned int (*get_id)(IsoFilesystem *fs);
+
+    /**
+     * Opens the filesystem for several read operations. Calling this funcion
+     * is not needed at all, each time that the underlying system resource 
+     * needs to be accessed, it is openned propertly. 
+     * However, if you plan to execute several operations on the filesystem, 
+     * it is a good idea to open it previously, to prevent several open/close 
+     * operations to occur. 
+     * 
+     * @return 1 on success, < 0 on error
+     */
+    int (*open)(IsoFilesystem *fs);
+
+    /**
+     * Close the filesystem, thus freeing all system resources. You should 
+     * call this function if you have previously open() it.
+     * Note that you can open()/close() a filesystem several times.
+     * 
+     * @return 1 on success, < 0 on error
+     */
+    int (*close)(IsoFilesystem *fs);
+    
+    /**
+     * Free implementation specific data. Should never be called by user.
+     * Use iso_filesystem_unref() instead.
+     */
+    void (*free)(IsoFilesystem *fs);
+
+    /* internal usage, do never access them directly */
+    unsigned int refcount;
+    void *data;
+};
+
+/**
+ * Interface definition for an IsoFileSource. Defines the POSIX-like function
+ * to access files and abstract underlying source.
+ */
+struct IsoFileSource_Iface
+{
+    /**
+     * Get the path, relative to the filesystem this file source belongs to.
+     * 
+     * @return
+     *     the path of the FileSource inside the filesystem, it should be 
+     *     freed when no more needed.
+     */
+    char* (*get_path)(IsoFileSource *src);
+
+    /**
+     * Get the name of the file, with the dir component of the path. 
+     * 
+     * @return
+     *     the name of the file, it should be freed when no more needed.
+     */
+    char* (*get_name)(IsoFileSource *src);
+
+    /**
+     * Get information about the file. It is equivalent to lstat(2).
+     * 
+     * @return
+     *    1 success, < 0 error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*lstat)(IsoFileSource *src, struct stat *info);
+
+    /**
+     * Get information about the file. If the file is a symlink, the info
+     * returned refers to the destination. It is equivalent to stat(2).
+     * 
+     * @return
+     *    1 success, < 0 error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*stat)(IsoFileSource *src, struct stat *info);
+
+    /**
+     * Check if the process has access to read file contents. Note that this
+     * is not necessarily related with (l)stat functions. For example, in a
+     * filesystem implementation to deal with an ISO image, if the user has
+     * read access to the image it will be able to read all files inside it,
+     * despite of the particular permission of each file in the RR tree, that
+     * are what the above functions return.
+     * 
+     * @return
+     *     1 if process has read access, < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*access)(IsoFileSource *src);
+
+    /**
+     * Opens the source.
+     * @return 1 on success, < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ALREADY_OPENNED
+     *         ISO_FILE_ACCESS_DENIED
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     */
+    int (*open)(IsoFileSource *src);
+
+    /**
+     * Close a previuously openned file
+     * @return 1 on success, < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     *         ISO_FILE_NOT_OPENNED
+     */
+    int (*close)(IsoFileSource *src);
+
+    /**
+     * Attempts to read up to count bytes from the given source into
+     * the buffer starting at buf.
+     * 
+     * The file src must be open() before calling this, and close() when no 
+     * more needed. Not valid for dirs. On symlinks it reads the destination
+     * file.
+     * 
+     * @return 
+     *     number of bytes read, 0 if EOF, < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     *         ISO_FILE_NOT_OPENNED
+     *         ISO_WRONG_ARG_VALUE -> if count == 0
+     *         ISO_FILE_IS_DIR
+     *         ISO_MEM_ERROR
+     *         ISO_INTERRUPTED
+     */
+    int (*read)(IsoFileSource *src, void *buf, size_t count);
+
+    /**
+     * Read a directory. 
+     * 
+     * Each call to this function will return a new children, until we reach
+     * the end of file (i.e, no more children), in that case it returns 0.
+     * 
+     * The dir must be open() before calling this, and close() when no more
+     * needed. Only valid for dirs. 
+     * 
+     * Note that "." and ".." children MUST NOT BE returned.
+     * 
+     * @param child
+     *     pointer to be filled with the given child. Undefined on error or OEF
+     * @return 
+     *     1 on success, 0 if EOF (no more children), < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_IS_NOT_DIR
+     *         ISO_MEM_ERROR
+     */
+    int (*readdir)(IsoFileSource *src, IsoFileSource **child);
+
+    /**
+     * Read the destination of a symlink. You don't need to open the file
+     * to call this.
+     * 
+     * @param buf 
+     *     allocated buffer of at least bufsiz bytes. 
+     *     The dest. will be copied there, and it will be NULL-terminated
+     * @param bufsiz
+     *     characters to be copied. Destination link will be truncated if
+     *     it is larger than given size. This include the \0 character.
+     * @return 
+     *     1 on success, < 0 on error
+     *      Error codes:
+     *         ISO_FILE_ERROR
+     *         ISO_NULL_POINTER
+     *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
+     *         ISO_FILE_IS_NOT_SYMLINK
+     *         ISO_MEM_ERROR
+     *         ISO_FILE_BAD_PATH
+     *         ISO_FILE_DOESNT_EXIST
+     * 
+     */
+    int (*readlink)(IsoFileSource *src, char *buf, size_t bufsiz);
+
+    /**
+     * Get the filesystem for this source. No extra ref is added, so you
+     * musn't unref the IsoFilesystem.
+     * 
+     * @return
+     *     The filesystem, NULL on error
+     */
+    IsoFilesystem* (*get_filesystem)(IsoFileSource *src);
+
+    /**
+     * Free implementation specific data. Should never be called by user.
+     * Use iso_file_source_unref() instead.
+     */
+    void (*free)(IsoFileSource *src);
+
+    /*
+     * TODO #00004 Add a get_mime_type() function.
+     * This can be useful for GUI apps, to choose the icon of the file
+     */
+};
+
+/**
+ * An IsoFile Source is a POSIX abstraction of a file.
+ */
+struct iso_file_source
+{
+    const IsoFileSourceIface *class;
+    int refcount;
+    void *data;
+};
+
 /**
  * Initialize libisofs. You must call this before any usage of the library.
  * @return 1 on success, < 0 on error 
@@ -1387,5 +1698,273 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code,
  * @return the handle. Do only use with compatible
  */
 void *iso_get_messenger();
+
+/**
+ * Take a ref to the given IsoFileSource.
+ */
+void iso_file_source_ref(IsoFileSource *src);
+
+/**
+ * Drop your ref to the given IsoFileSource, eventually freeing the associated
+ * system resources.
+ */
+void iso_file_source_unref(IsoFileSource *src);
+
+/* 
+ * this are just helpers to invoque methods in class
+ */
+
+/**
+ * Get the path, relative to the filesystem this file source
+ * belongs to.
+ * 
+ * @return
+ *     the path of the FileSource inside the filesystem, it should be 
+ *     freed when no more needed.
+ */
+char* iso_file_source_get_path(IsoFileSource *src);
+
+/**
+ * Get the name of the file, with the dir component of the path. 
+ * 
+ * @return
+ *     the name of the file, it should be freed when no more needed.
+ */
+char* iso_file_source_get_name(IsoFileSource *src);
+
+/**
+ * Get information about the file.
+ * @return
+ *    1 success, < 0 error
+ *      Error codes:
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_lstat(IsoFileSource *src, struct stat *info);
+
+/**
+ * Check if the process has access to read file contents. Note that this
+ * is not necessarily related with (l)stat functions. For example, in a
+ * filesystem implementation to deal with an ISO image, if the user has
+ * read access to the image it will be able to read all files inside it,
+ * despite of the particular permission of each file in the RR tree, that
+ * are what the above functions return.
+ * 
+ * @return
+ *     1 if process has read access, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_access(IsoFileSource *src);
+
+/**
+ * Get information about the file. If the file is a symlink, the info
+ * returned refers to the destination.
+ * 
+ * @return
+ *    1 success, < 0 error
+ *      Error codes:
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_stat(IsoFileSource *src, struct stat *info);
+
+/**
+ * Opens the source.
+ * @return 1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ALREADY_OPENNED
+ *         ISO_FILE_ACCESS_DENIED
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ */
+int iso_file_source_open(IsoFileSource *src);
+
+/**
+ * Close a previuously openned file
+ * @return 1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ */
+int iso_file_source_close(IsoFileSource *src);
+
+/**
+ * Attempts to read up to count bytes from the given source into
+ * the buffer starting at buf.
+ * 
+ * The file src must be open() before calling this, and close() when no 
+ * more needed. Not valid for dirs. On symlinks it reads the destination
+ * file.
+ * 
+ * @return 
+ *     number of bytes read, 0 if EOF, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ *         ISO_WRONG_ARG_VALUE -> if count == 0
+ *         ISO_FILE_IS_DIR
+ *         ISO_MEM_ERROR
+ *         ISO_INTERRUPTED
+ */
+int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
+
+/**
+ * Read a directory. 
+ * 
+ * Each call to this function will return a new children, until we reach
+ * the end of file (i.e, no more children), in that case it returns 0.
+ * 
+ * The dir must be open() before calling this, and close() when no more
+ * needed. Only valid for dirs. 
+ * 
+ * Note that "." and ".." children MUST NOT BE returned.
+ * 
+ * @param child
+ *     pointer to be filled with the given child. Undefined on error or OEF
+ * @return 
+ *     1 on success, 0 if EOF (no more children), < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_IS_NOT_DIR
+ *         ISO_MEM_ERROR
+ */
+int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
+
+/**
+ * Read the destination of a symlink. You don't need to open the file
+ * to call this.
+ * 
+ * @param buf 
+ *     allocated buffer of at least bufsiz bytes. 
+ *     The dest. will be copied there, and it will be NULL-terminated
+ * @param bufsiz
+ *     characters to be copied. Destination link will be truncated if
+ *     it is larger than given size. This include the \0 character.
+ * @return 
+ *     1 on success, < 0 on error
+ *      Error codes:
+ *         ISO_FILE_ERROR
+ *         ISO_NULL_POINTER
+ *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
+ *         ISO_FILE_IS_NOT_SYMLINK
+ *         ISO_MEM_ERROR
+ *         ISO_FILE_BAD_PATH
+ *         ISO_FILE_DOESNT_EXIST
+ * 
+ */
+int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
+
+/**
+ * Get the filesystem for this source. No extra ref is added, so you
+ * musn't unref the IsoFilesystem.
+ * 
+ * @return
+ *     The filesystem, NULL on error
+ */
+IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src);
+
+/**
+ * Take a ref to the given IsoFilesystem
+ */
+void iso_filesystem_ref(IsoFilesystem *fs);
+
+/**
+ * Drop your ref to the given IsoFilesystem, evetually freeing associated 
+ * resources.
+ */
+void iso_filesystem_unref(IsoFilesystem *fs);
+
+/**
+ * Create a new IsoFilesystem to access a existent ISO image.
+ * 
+ * @param src
+ *      Data source to access data.
+ * @param opts
+ *      Image read options
+ * @param msgid
+ *      TODO
+ * @param fs
+ *      Will be filled with a pointer to the filesystem that can be used
+ *      to access image contents.
+ * @param
+ *      1 on success, < 0 on error
+ */
+int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
+                             int msgid, IsoImageFilesystem **fs);
+
+/**
+ * Get the volset identifier for an existent image. The returned string belong
+ * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the volume identifier for an existent image. The returned string belong
+ * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_volume_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the publisher identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_publisher_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the data preparer identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_data_preparer_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the system identifier for an existent image. The returned string belong
+ * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_system_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the application identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_application_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the copyright file identifier for an existent image. The returned string
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_copyright_file_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the abstract file identifier for an existent image. The returned string
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
+
+/**
+ * Get the biblio file identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
+const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 
 #endif /*LIBISO_LIBISOFS_H_*/

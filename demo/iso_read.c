@@ -11,7 +11,6 @@
 #include <limits.h>
 
 #include "libisofs.h"
-#include "fs_image.h"
 
 static void
 print_permissions(mode_t mode)
