@@ -1068,7 +1068,6 @@ time_t iso_datetime_read_17(const uint8_t *buf)
  */
 int iso_eaccess(const char *path)
 {
-    // TODO replace non-standard eaccess with our own implementation
     if (eaccess(path, R_OK) != 0) {
         int err;
 
