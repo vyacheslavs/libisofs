@@ -11,7 +11,7 @@
  * IsoDataSource to read image data.
  */
 
-#include "fs_image.h"
+#include "libisofs.h"
 #include "error.h"
 #include "ecma119.h"
 #include "messages.h"

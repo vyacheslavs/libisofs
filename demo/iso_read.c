@@ -1,7 +1,5 @@
 /*
  * Little program to output the contents of an iso image.
- * Note that this is not an API example, but a little program for test
- * purposes.
  */
 
 

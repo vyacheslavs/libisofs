@@ -22,7 +22,6 @@ src_libisofs_la_SOURCES = \
 	src/fsource.h \
 	src/fsource.c \
 	src/fs_local.c \
-	src/fs_image.h \
 	src/fs_image.c \
 	src/messages.h \
 	src/messages.c \
