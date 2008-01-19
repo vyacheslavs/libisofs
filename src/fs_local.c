@@ -593,6 +593,20 @@ unsigned int lfs_get_id(IsoFilesystem *fs)
 }
 
 static
+int lfs_fs_open(IsoFilesystem *fs)
+{
+    /* open() operation is not needed */
+    return ISO_SUCCESS;
+}
+
+static
+int lfs_fs_close(IsoFilesystem *fs)
+{
+    /* close() operation is not needed */
+    return ISO_SUCCESS;
+}
+
+static
 void lfs_fs_free(IsoFilesystem *fs)
 {
     lfs = NULL;
@@ -620,6 +634,8 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
         lfs->get_root = lfs_get_root;
         lfs->get_by_path = lfs_get_by_path;
         lfs->get_id = lfs_get_id;
+        lfs->open = lfs_fs_open;
+        lfs->close = lfs_fs_close;
         lfs->free = lfs_fs_free;
     }
     *fs = lfs;

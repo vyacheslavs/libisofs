@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     printf("\nDIRECTORY TREE\n");
     printf("==============\n");
     
-    result = fs->fs.get_root((IsoFilesystem*)fs, &root);
+    result = fs->get_root(fs, &root);
     if (result < 0) {
         printf ("Can't get root %d\n", result);
         return 1;

@@ -291,7 +291,7 @@ int read_dir(ImageFileSourceData *data)
     }
 
     fs = data->fs;
-    fsdata = fs->fs.data;
+    fsdata = fs->data;
 
     block = data->block;
     ret = fsdata->src->read_block(fsdata->src, block, buffer);
@@ -529,7 +529,7 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
                 /* EOF */
                 break;
             }
-            fsdata = data->fs->fs.data;
+            fsdata = data->fs->data;
             block = data->block + (data->data.offset / BLOCK_SIZE);
             ret = fsdata->src->read_block(fsdata->src, block, 
                                           data->data.content);
@@ -655,7 +655,7 @@ IsoFilesystem* ifs_get_filesystem(IsoFileSource *src)
     }
 
     data = src->data;
-    return (IsoFilesystem*) data->fs;
+    return data->fs;
 }
 
 static
@@ -674,7 +674,7 @@ void ifs_free(IsoFileSource *src)
     if (S_ISLNK(data->info.st_mode)) {
         free(data->data.content);
     }
-    iso_filesystem_unref((IsoFilesystem*)data->fs);
+    iso_filesystem_unref(data->fs);
     if (data->parent != NULL) {
         iso_file_source_unref(data->parent);
     }
@@ -759,11 +759,11 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     
     uint32_t relocated_dir = 0;
     
-    if (fs == NULL || fs->fs.data == NULL || record == NULL || src == NULL) {
+    if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    fsdata = (_ImageFsData*)fs->fs.data;
+    fsdata = (_ImageFsData*)fs->data;
     
     memset(&atts, 0, sizeof(struct stat));
     
@@ -1134,7 +1134,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     
     /* fill data */
     ifsdata->fs = fs;
-    iso_filesystem_ref((IsoFilesystem*)fs);
+    iso_filesystem_ref(fs);
     if (parent != NULL) {
         ifsdata->parent = parent;
         iso_file_source_ref(parent);
@@ -1317,11 +1317,11 @@ int ifs_fs_open(IsoImageFilesystem *fs)
 {
     _ImageFsData *data;
 
-    if (fs == NULL || fs->fs.data == NULL) {
+    if (fs == NULL || fs->data == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    data = (_ImageFsData*)fs->fs.data;
+    data = (_ImageFsData*)fs->data;
 
     if (data->open_count == 0) {
         /* we need to actually open the data source */
@@ -1339,11 +1339,11 @@ int ifs_fs_close(IsoImageFilesystem *fs)
 {
     _ImageFsData *data;
 
-    if (fs == NULL || fs->fs.data == NULL) {
+    if (fs == NULL || fs->data == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    data = (_ImageFsData*)fs->fs.data;
+    data = (_ImageFsData*)fs->data;
 
     if (--data->open_count == 0) {
         /* we need to actually close the data source */
@@ -1663,15 +1663,14 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         goto fs_cleanup;
     }
 
+    ifs->data = data;
+    ifs->refcount = 1;
+    ifs->get_root = ifs_get_root;
+    ifs->get_by_path = ifs_get_by_path;
+    ifs->get_id = ifs_get_id;
     ifs->open = ifs_fs_open;
     ifs->close = ifs_fs_close;
-
-    ifs->fs.data = data;
-    ifs->fs.refcount = 1;
-    ifs->fs.get_root = ifs_get_root;
-    ifs->fs.get_by_path = ifs_get_by_path;
-    ifs->fs.free = ifs_fs_free;
-    ifs->fs.get_id = ifs_get_id;
+    ifs->free = ifs_fs_free;
 
     /* read Volume Descriptors and ensure it is a valid image */
 
@@ -1829,7 +1828,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     return ISO_SUCCESS;
 
     fs_cleanup: ;
-    ifs_fs_free((IsoFilesystem*)ifs);
+    ifs_fs_free(ifs);
     free(ifs);
     return ret;
 }
@@ -1863,7 +1862,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFREG:
         {
             /* source is a regular file */
-            _ImageFsData *fsdata = data->fs->fs.data;
+            _ImageFsData *fsdata = data->fs->data;
             
             if (fsdata->eltorito && data->block == fsdata->catblock) {
                 
@@ -2050,11 +2049,11 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
     IsoFileSource *ifsrc = NULL;
     ImageFileSourceData *ifsdata = NULL;
     
-    if (fs == NULL || fs->fs.data == NULL || src == NULL) {
+    if (fs == NULL || fs->data == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    fsdata = (_ImageFsData*)fs->fs.data;
+    fsdata = (_ImageFsData*)fs->data;
     
     memset(&atts, 0, sizeof(struct stat));
     atts.st_mode = S_IFREG;
@@ -2088,7 +2087,7 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
     
     /* fill data */
     ifsdata->fs = fs;
-    iso_filesystem_ref((IsoFilesystem*)fs);
+    iso_filesystem_ref(fs);
     ifsdata->parent = NULL;
     ifsdata->info = atts;
     ifsdata->name = NULL;
@@ -2129,10 +2128,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     if (ret < 0) {
         return ret;
     }
-    data = fs->fs.data;
+    data = fs->data;
     
     /* get root from filesystem */
-    ret = fs->fs.get_root((IsoFilesystem*)fs, &newroot);
+    ret = fs->get_root(fs, &newroot);
     if (ret < 0) {
         return ret;
     }
@@ -2151,7 +2150,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         goto import_revert;
     }
     
-    image->fs = (IsoFilesystem*)fs;
+    image->fs = fs;
 
     /* create new root, and set root attributes from source */
     ret = iso_node_new_root(&image->root);
@@ -2280,62 +2279,62 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     
     iso_file_source_unref(newroot);
     fs->close(fs);
-    iso_filesystem_unref((IsoFilesystem*)fs);
+    iso_filesystem_unref(fs);
     
     return ret;
 }
 
 const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->volset_id;
 }
 
 const char *iso_image_fs_get_volume_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->volume_id;
 }
 
 const char *iso_image_fs_get_publisher_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->publisher_id;
 }
 
 const char *iso_image_fs_get_data_preparer_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->data_preparer_id;
 }
 
 const char *iso_image_fs_get_system_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->system_id;
 }
 
 const char *iso_image_fs_get_application_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->application_id;
 }
 
 const char *iso_image_fs_get_copyright_file_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->copyright_file_id;
 }
 
 const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs)
 {
     _ImageFsData *data;
-    data = (_ImageFsData*) fs->fs.data;
+    data = (_ImageFsData*) fs->data;
     return data->abstract_file_id;
 }
 
 const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs)
 {
-    _ImageFsData *data = (_ImageFsData*) fs->fs.data;
+    _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->biblio_file_id;
 }

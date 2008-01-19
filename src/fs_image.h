@@ -12,36 +12,14 @@
 #include "libisofs.h"
 #include "fsource.h"
 
-struct libiso_msgs;
-typedef struct Iso_Image_Filesystem IsoImageFilesystem;
-
 /**
- * Extends IsoFilesystem interface, to offer a way to access specific 
- * information of the image, such as several volume attributes, extensions
- * being used, El-Torito artifacts...
+ * IsoFilesystem implementation to deal with ISO images, and to offer a way to
+ * access specific information of the image, such as several volume attributes, 
+ * extensions being used, El-Torito artifacts...
  */
-struct Iso_Image_Filesystem
-{
-    IsoFilesystem fs;
 
-    /*
-     * TODO both open and close have meaning to other filesystems, in fact
-     * they seem useful for any kind of Filesystems, with the exception of
-     * the local filesystem. Thus, we should consider adding them to
-     * IsoFilesystem interface
-     */
-
-    /**
-     * Opens the filesystem for several read operations. Calling this funcion
-     * is not needed at all, each time that the underlying IsoDataSource need
-     * to be read, it is openned propertly. However, if you plan to execute
-     * several operations on the image, it is a good idea to open it 
-     * previously, to prevent several open/close operations. 
-     */
-    int (*open)(IsoImageFilesystem *fs);
-
-    int (*close)(IsoImageFilesystem *fs);
-};
+struct libiso_msgs;
+typedef IsoFilesystem IsoImageFilesystem;
 
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              int msgid, IsoImageFilesystem **fs);

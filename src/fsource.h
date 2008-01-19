@@ -32,10 +32,28 @@ typedef struct Iso_Filesystem IsoFilesystem;
  */
 extern unsigned int iso_fs_global_id;
 
+/**
+ * An IsoFilesystem is a handler for a source of files, or a "filesystem". 
+ * That is defined as a set of files that are organized in a hierarchical 
+ * structure. 
+ * 
+ * A filesystem allows libisofs to access files from several sources in
+ * an homogeneous way, thus abstracting the underlying operations needed to
+ * access and read file contents. Note that this doesn't need to be tied
+ * to the disc filesystem used in the partition being accessed. For example,
+ * we have an IsoFilesystem implementation to access any mounted filesystem,
+ * using standard Linux functions. It is also legal, of course, to implement
+ * an IsoFilesystem to deal with a specific filesystem over raw partitions.
+ * That is what we do, for example, to access an ISO Image.
+ * 
+ * Each file inside an IsoFilesystem is represented as an IsoFileSource object,
+ * that defines POSIX-like interface for accessing files.
+ */
 struct Iso_Filesystem
 {
 
     /**
+     * Get the root of a filesystem.
      * 
      * @return
      *    1 on success, < 0 on error
@@ -43,6 +61,7 @@ struct Iso_Filesystem
     int (*get_root)(IsoFilesystem *fs, IsoFileSource **root);
 
     /**
+     * Retrieve a file from its absolute path inside the filesystem.
      * 
      * @return
      *     1 success, < 0 error
@@ -72,10 +91,34 @@ struct Iso_Filesystem
      */
     unsigned int (*get_id)(IsoFilesystem *fs);
 
+    /**
+     * Opens the filesystem for several read operations. Calling this funcion
+     * is not needed at all, each time that the underlying system resource 
+     * needs to be accessed, it is openned propertly. 
+     * However, if you plan to execute several operations on the filesystem, 
+     * it is a good idea to open it previously, to prevent several open/close 
+     * operations to occur. 
+     * 
+     * @return 1 on success, < 0 on error
+     */
+    int (*open)(IsoFilesystem *fs);
+
+    /**
+     * Close the filesystem, thus freeing all system resources. You should 
+     * call this function if you have previously open() it.
+     * Note that you can open()/close() a filesystem several times.
+     * 
+     * @return 1 on success, < 0 on error
+     */
+    int (*close)(IsoFilesystem *fs);
+    
+    /**
+     * Free implementation specific data. Should never be called by user.
+     * Use iso_filesystem_unref() instead.
+     */
     void (*free)(IsoFilesystem *fs);
 
-    /* TODO each file will take a ref to IsoFilesystem, so maybe a 64bits
-     * integer is a better choose for this */
+    /* internal usage, do never access them directly */
     unsigned int refcount;
     void *data;
 };
