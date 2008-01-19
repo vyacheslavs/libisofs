@@ -137,7 +137,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
      * the size of the unused space after the last directory record 
      * (ECMA-119, 6.8.1.3)
      */
-    len = div_up(len, BLOCK_SIZE) * BLOCK_SIZE;
+    len = ROUND_UP(len, BLOCK_SIZE);
 
     /* cache the len */
     dir->info.dir->len = len;
@@ -153,9 +153,9 @@ void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
     t->ndirs++;
     dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir, &ce_len);
-    t->curblock += div_up(len, BLOCK_SIZE);
+    t->curblock += DIV_UP(len, BLOCK_SIZE);
     if (t->rockridge) {
-        t->curblock += div_up(ce_len, BLOCK_SIZE);
+        t->curblock += DIV_UP(ce_len, BLOCK_SIZE);
     }
     for (i = 0; i < dir->info.dir->nchildren; i++) {
         Ecma119Node *child = dir->info.dir->children[i];
@@ -212,9 +212,9 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* compute location for path tables */
     target->l_path_table_pos = target->curblock;
-    target->curblock += div_up(path_table_size, BLOCK_SIZE);
+    target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     target->m_path_table_pos = target->curblock;
-    target->curblock += div_up(path_table_size, BLOCK_SIZE);
+    target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     target->path_table_size = path_table_size;
 
     return ISO_SUCCESS;
@@ -392,7 +392,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     memset(&info, 0, sizeof(struct susp_info));
     if (t->rockridge) {
         /* initialize the ce_block, it might be needed */
-        info.ce_block = dir->info.dir->block + div_up(dir->info.dir->len, 
+        info.ce_block = dir->info.dir->block + DIV_UP(dir->info.dir->len, 
                                                       BLOCK_SIZE);
     }
 

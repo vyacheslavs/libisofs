@@ -352,7 +352,7 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
      * the size of the unused space after the last directory record 
      * (ECMA-119, 6.8.1.3)
      */
-    len = div_up(len, BLOCK_SIZE) * BLOCK_SIZE;
+    len = ROUND_UP(len, BLOCK_SIZE);
 
     /* cache the len */
     dir->info.dir->len = len;
@@ -367,7 +367,7 @@ void calc_dir_pos(Ecma119Image *t, JolietNode *dir)
     t->joliet_ndirs++;
     dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir);
-    t->curblock += div_up(len, BLOCK_SIZE);
+    t->curblock += DIV_UP(len, BLOCK_SIZE);
     for (i = 0; i < dir->info.dir->nchildren; i++) {
         JolietNode *child = dir->info.dir->children[i];
         if (child->type == JOLIET_DIR) {
@@ -422,9 +422,9 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* compute location for path tables */
     t->joliet_l_path_table_pos = t->curblock;
-    t->curblock += div_up(path_table_size, BLOCK_SIZE);
+    t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     t->joliet_m_path_table_pos = t->curblock;
-    t->curblock += div_up(path_table_size, BLOCK_SIZE);
+    t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     t->joliet_path_table_size = path_table_size;
 
     return ISO_SUCCESS;

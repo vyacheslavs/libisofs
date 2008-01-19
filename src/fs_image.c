@@ -1110,7 +1110,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     /* Fill last entries */
     atts.st_dev = fsdata->id;
     atts.st_blksize = BLOCK_SIZE;
-    atts.st_blocks = div_up(atts.st_size, BLOCK_SIZE);
+    atts.st_blocks = DIV_UP(atts.st_size, BLOCK_SIZE);
     
     //TODO more sanity checks!!
     if (S_ISLNK(atts.st_mode) && (linkdest == NULL)) {
@@ -2076,7 +2076,7 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
     /* Fill last entries */
     atts.st_dev = fsdata->id;
     atts.st_blksize = BLOCK_SIZE;
-    atts.st_blocks = div_up(atts.st_size, BLOCK_SIZE);
+    atts.st_blocks = DIV_UP(atts.st_size, BLOCK_SIZE);
     
     /* ok, we can now create the file source */
     ifsdata = calloc(1, sizeof(ImageFileSourceData));

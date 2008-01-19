@@ -80,7 +80,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
             int nblocks;
 
             /* A CE has found, there is another continuation area */
-            nblocks = div_up(iter->ce_off + iter->ce_len, BLOCK_SIZE);
+            nblocks = DIV_UP(iter->ce_off + iter->ce_len, BLOCK_SIZE);
             iter->buffer = realloc(iter->buffer, nblocks * BLOCK_SIZE);
 
             /* read all blocks needed to cache the full CE */

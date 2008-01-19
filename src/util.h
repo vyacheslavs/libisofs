@@ -20,8 +20,8 @@
 #   define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-int div_up(unsigned int n, unsigned int div);
-int round_up(unsigned int n, unsigned int mul);
+#define DIV_UP(n,div) ((n + div - 1) / div)
+#define ROUND_UP(n,mul) (DIV_UP(n, mul) * mul)
 
 int int_pow(int base, int power);
 

@@ -176,7 +176,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     for (i = 0; i < size; ++i) {
         IsoFileSrc *file = filelist[i];
         file->block = t->curblock;
-        t->curblock += div_up(iso_file_src_get_size(file), BLOCK_SIZE);
+        t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }
 
     /* the list is only needed by this writer, store locally */
@@ -260,10 +260,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
         /*
          * TODO WARNING
-         * when we allow files greater than 4GB, current div_up implementation
+         * when we allow files greater than 4GB, current DIV_UP implementation
          * can overflow!!
          */
-        uint32_t nblocks = div_up(iso_file_src_get_size(file), BLOCK_SIZE);
+        uint32_t nblocks = DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
 
         res = filesrc_open(file);
         if (res < 0) {

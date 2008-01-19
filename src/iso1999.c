@@ -347,7 +347,7 @@ size_t calc_dir_size(Ecma119Image *t, Iso1999Node *dir)
      * the size of the unused space after the last directory record 
      * (ISO 9660:1999, 6.8.1.3)
      */
-    len = div_up(len, BLOCK_SIZE) * BLOCK_SIZE;
+    len = ROUND_UP(len, BLOCK_SIZE);
 
     /* cache the len */
     dir->info.dir->len = len;
@@ -362,7 +362,7 @@ void calc_dir_pos(Ecma119Image *t, Iso1999Node *dir)
     t->iso1999_ndirs++;
     dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir);
-    t->curblock += div_up(len, BLOCK_SIZE);
+    t->curblock += DIV_UP(len, BLOCK_SIZE);
     for (i = 0; i < dir->info.dir->nchildren; i++) {
         Iso1999Node *child = dir->info.dir->children[i];
         if (child->type == ISO1999_DIR) {
@@ -419,9 +419,9 @@ int iso1999_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* compute location for path tables */
     t->iso1999_l_path_table_pos = t->curblock;
-    t->curblock += div_up(path_table_size, BLOCK_SIZE);
+    t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     t->iso1999_m_path_table_pos = t->curblock;
-    t->curblock += div_up(path_table_size, BLOCK_SIZE);
+    t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     t->iso1999_path_table_size = path_table_size;
 
     return ISO_SUCCESS;
