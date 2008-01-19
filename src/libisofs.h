@@ -93,11 +93,13 @@ enum iso_replace_mode {
      */
 };
 
+typedef struct ecma119_write_opts Ecma119WriteOpts;
+
 /**
  * Holds the options for the image generation.
  */
-typedef struct
-{
+struct ecma119_write_opts {
+
     int level; /**< ISO level to write at. */
 
     /** Which extensions to support. */
@@ -252,9 +254,9 @@ typedef struct
      * buffer.
      */
     size_t fifo_size;
-} Ecma119WriteOpts;
+};
 
-typedef struct Iso_Data_Source IsoDataSource;
+typedef struct iso_data_source IsoDataSource;
 
 /**
  * Data source used by libisofs for reading an existing image.
@@ -268,7 +270,7 @@ typedef struct Iso_Data_Source IsoDataSource;
  * it with regular .iso images, and also with block devices that represent a 
  * drive.
  */
-struct Iso_Data_Source {
+struct iso_data_source {
     
     /** 
      * Reference count for the data source. Should be 1 when a new source

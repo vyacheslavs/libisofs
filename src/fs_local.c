@@ -629,6 +629,7 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
         }
 
         /* fill struct */
+        strncpy(lfs->type, "file", 4);
         lfs->refcount = 1;
         lfs->data = NULL; /* we don't need private data */
         lfs->get_root = lfs_get_root;

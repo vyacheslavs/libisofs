@@ -24,22 +24,58 @@ typedef IsoFilesystem IsoImageFilesystem;
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              int msgid, IsoImageFilesystem **fs);
 
+/**
+ * Get the volset identifier for an existent image. The returned string belong
+ * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the volume identifier for an existent image. The returned string belong
+ * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_volume_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the publisher identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_publisher_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the data preparer identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_data_preparer_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the system identifier for an existent image. The returned string belong
+ * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_system_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the application identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_application_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the copyright file identifier for an existent image. The returned string
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_copyright_file_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the abstract file identifier for an existent image. The returned string
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
 
+/**
+ * Get the biblio file identifier for an existent image. The returned string 
+ * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ */
 const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 
 #endif /*LIBISO_FS_IMAGE_H_*/

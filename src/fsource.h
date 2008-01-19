@@ -26,6 +26,7 @@
 
 typedef struct Iso_File_Source IsoFileSource;
 typedef struct Iso_Filesystem IsoFilesystem;
+typedef struct IsoFileSource_Iface IsoFileSourceIface;
 
 /**
  * See IsoFilesystem->get_id() for info about this.
@@ -51,6 +52,12 @@ extern unsigned int iso_fs_global_id;
  */
 struct Iso_Filesystem
 {
+    /**
+     * Type of filesystem. 
+     * "file" -> local filesystem
+     * "iso " -> iso image filesystem
+     */
+    char type[4];
 
     /**
      * Get the root of a filesystem.
@@ -123,7 +130,7 @@ struct Iso_Filesystem
     void *data;
 };
 
-typedef struct IsoFileSource_Iface
+struct IsoFileSource_Iface
 {
 
     /**
@@ -306,7 +313,7 @@ typedef struct IsoFileSource_Iface
      * TODO #00004 Add a get_mime_type() function.
      * This can be useful for GUI apps, to choose the icon of the file
      */
-} IsoFileSourceIface;
+};
 
 struct Iso_File_Source
 {
@@ -492,7 +499,15 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  */
 IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src);
 
+/**
+ * Take a ref to the given IsoFilesystem
+ */
 void iso_filesystem_ref(IsoFilesystem *fs);
+
+/**
+ * Drop your ref to the given IsoFilesystem, evetually freeing associated 
+ * resources.
+ */
 void iso_filesystem_unref(IsoFilesystem *fs);
 
 /**

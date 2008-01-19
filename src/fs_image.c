@@ -1663,6 +1663,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         goto fs_cleanup;
     }
 
+    strncpy(ifs->type, "iso ", 4);
     ifs->data = data;
     ifs->refcount = 1;
     ifs->get_root = ifs_get_root;

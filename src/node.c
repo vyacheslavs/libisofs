@@ -530,7 +530,7 @@ int iso_dir_iter_remove(IsoDirIter *iter)
 }
 
 /**
- * Get the destination of a node (in UTF-8).
+ * Get the destination of a node.
  * The returned string belongs to the node and should not be modified nor
  * freed. Use strdup if you really need your own copy.
  */
