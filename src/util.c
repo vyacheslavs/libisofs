@@ -173,8 +173,6 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
              * different than icharset.
              * We can't do anything better than replace by "_" and continue.
              */
-            /* TODO we need a way to report this */
-            /* printf("String %s is not encoded in %s\n", str, codeset); */
             inbytes--;
             src++;
 

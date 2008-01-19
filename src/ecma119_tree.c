@@ -107,7 +107,7 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
     ecma->node = iso;
     iso_node_ref(iso);
 
-    // TODO better handling of this, add support for harlinks
+    /* TODO #00009 : add true support for harlinks and inode numbers */
     ecma->nlink = 1;
     ecma->ino = ++img->ino;
 

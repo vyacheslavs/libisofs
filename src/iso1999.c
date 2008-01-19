@@ -250,7 +250,8 @@ cmp_node(const void *f1, const void *f2)
     Iso1999Node *g = *((Iso1999Node**)f2);
 
     /**
-     * TODO strcmp do not does exactly what ISO 9660:1999, 9.3, as characters
+     * TODO #00027 Follow ISO 9660:1999 specs when sorting files
+     * strcmp do not does exactly what ISO 9660:1999, 9.3, as characters
      * < 0x20 " " are allowed, so name len must be taken into accout
      */
     return strcmp(f->name, g->name);
@@ -299,8 +300,11 @@ int iso1999_tree_create(Ecma119Image *t)
     iso_msg_debug(t->image->id, "Sorting the ISO 9660:1999 tree...");
     sort_tree(root);
 
-    //iso_msg_debug(t->image->id, "Mangling ISO 9660:1999 names...");
-    // FIXME ret = mangle_tree(t, 1);
+    /* 
+     * FIXME #00001 : Mangle ISO 9660:1999 names
+     * iso_msg_debug(t->image->id, "Mangling ISO 9660:1999 names...");
+     * FIXME ret = mangle_tree(t, 1);
+     */
 
     return ISO_SUCCESS;
 }

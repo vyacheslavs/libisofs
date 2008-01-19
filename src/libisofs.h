@@ -361,8 +361,8 @@ struct iso_read_opts
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
     mode_t mode; /**< Default mode when no RR (only permissions) */
-    //TODO differ file and dir mode
-    //option to convert names to lower case?
+    /* TODO #00023 : let different default file and dir mode for iso reading */
+    /* TODO #00024 : option to convert names to lower case for iso reading */
     
     /**
      * Input charset for RR file names. NULL to use default locale charset.
@@ -446,7 +446,8 @@ int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
  * @param image
  *     The image context to which old image will be imported. Note that all
  *     files added to image, and image attributes, will be replaced with the
- *     contents of the old image. TODO support for merging old image files
+ *     contents of the old image. 
+ *     TODO #00025 support for merging old image files
  * @param src
  *     Data Source from which old image will be read. A extra reference is
  *     added, so you still need to iso_data_source_unref() yours.
@@ -636,7 +637,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
                              const char *catalog_path,
                              ElToritoBootImage **boot);
 
-//TODO add support for "hidden" bootable images.
+/* TODO #00026 : add support for "hidden" bootable images. */
 
 /**
  * Get El-Torito boot image of an ISO image, if any.
@@ -1099,7 +1100,7 @@ off_t iso_file_get_size(IsoFile *file);
 int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
 
 /*
- TODO #00007 expose Strem and thi function:
+ TODO #00007 expose Stream and this function:
  int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
  */
 

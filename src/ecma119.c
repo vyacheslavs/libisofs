@@ -30,7 +30,8 @@
 #include <langinfo.h>
 
 /*
- * TODO image with more than 65535 directories have path_table related problems
+ * TODO #00011 : guard against bad path table usage with more than 65535 dirs
+ * image with more than 65535 directories have path_table related problems
  * due to 16 bits parent id. Note that this problem only affects to folders
  * that are parent of another folder.
  */

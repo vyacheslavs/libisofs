@@ -56,7 +56,7 @@ void iso_node_unref(IsoNode *node)
                 free(link->dest);
             }
         default:
-            /* TODO #00002 handle deletion of each kind of node */
+            /* other kind of nodes does not need to delete anything here */
             break;
         }
     

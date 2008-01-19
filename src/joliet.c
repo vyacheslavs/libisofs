@@ -36,7 +36,7 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
         return ret;
     }
 
-    // TODO add support for relaxed constraints
+    /* TODO #00022 : support relaxed constraints in joliet filenames */
     if (iso->type == LIBISO_DIR) {
         jname = iso_j_dir_id(ucs_name);
     } else {
@@ -300,8 +300,11 @@ int joliet_tree_create(Ecma119Image *t)
     iso_msg_debug(t->image->id, "Sorting the Joliet tree...");
     sort_tree(root);
 
-    //iso_msg_debug(t->image->id, "Mangling Joliet names...");
-    // FIXME ret = mangle_tree(t, 1);
+    /* 
+     * FIXME #00002 : Mangle Joliet names
+     * iso_msg_debug(t->image->id, "Mangling Joliet names...");
+     * FIXME ret = mangle_tree(t, 1);
+     */
 
     return ISO_SUCCESS;
 }

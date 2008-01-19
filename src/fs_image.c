@@ -253,7 +253,7 @@ int ifs_stat(IsoFileSource *src, struct stat *info)
     data = (ImageFileSourceData*)src->data;
     
     if (S_ISLNK(data->info.st_mode)) {
-        /* TODO follow symlinks not supported yet */ 
+        /* TODO #00012 : support follow symlinks on imafe filesystem */ 
         return ISO_FILE_BAD_PATH;
     }
     *info = data->info;
@@ -801,7 +801,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         return ISO_UNSUPPORTED_ECMA119;
     }
 
-    //TODO check for other flags?
+    /* TODO #00013 : check for unsupported flags when reading a dir record */ 
     
     /*
      * The idea is to read all the RR entries (if we want to do that and RR
@@ -1112,7 +1112,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     atts.st_blksize = BLOCK_SIZE;
     atts.st_blocks = DIV_UP(atts.st_size, BLOCK_SIZE);
     
-    //TODO more sanity checks!!
+    /* TODO #00014 : more sanity checks to ensure dir record info is valid */
     if (S_ISLNK(atts.st_mode) && (linkdest == NULL)) {
         iso_msg_sorry(fsdata->msgid, LIBISO_RR_ERROR, 
                       "Link without destination.");
@@ -1407,7 +1407,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
     record = (struct ecma119_dir_record *)buffer;
     
     /*
-     * TODO 
+     * TODO #00015 : take care of CD-ROM XA discs when reading SP entry
      * SUSP specification claims that for CD-ROM XA the SP entry
      * is not at position BP 1, but at BP 15. Is that used?
      * In that case, we need to set info->len_skp to 15!!
@@ -1454,11 +1454,13 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
      * Ok, now search for ER entry.
      * Just notice that the attributes for root dir are read elsewhere.
      * 
-     * TODO if several ER are present, we need to identify the position of
-     *      what refers to RR, and then look for corresponding ES entry in
-     *      each directory record. I have not implemented this (it's not used,
-     *      no?), but if we finally need it, it can be easily implemented in
-     *      the iterator, transparently for the rest of the code.
+     * TODO #00016 : handle non RR ER entries 
+     * 
+     * if several ER are present, we need to identify the position of
+     * what refers to RR, and then look for corresponding ES entry in
+     * each directory record. I have not implemented this (it's not used,
+     * no?), but if we finally need it, it can be easily implemented in
+     * the iterator, transparently for the rest of the code.
      */
     while ((ret = susp_iter_next(iter, &sue)) > 0) {
         
@@ -1494,7 +1496,6 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                 iso_msg_debug(data->msgid, 
                               "Suitable Rock Ridge ER found. Version 1.12.");
                 data->rr_version = RR_EXT_112;
-                //TODO check also version?
             } else {
                 iso_msg_warn(data->msgid, LIBISO_SUSP_MULTIPLE_ER, 
                     "Not Rock Ridge ER found.\n"
@@ -1556,8 +1557,8 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     data->pvd_root_block = iso_read_bb(rootdr->block, 4, NULL);
 
     /*
-     * TODO
-     * PVM has other things that could be interesting, but that don't have a 
+     * TODO #00017 : take advantage of other atts of PVD
+     * PVD has other things that could be interesting, but that don't have a 
      * member in IsoImage, such as creation date. In a multisession disc, we 
      * could keep the creation date and update the modification date, for 
      * example.
@@ -1612,7 +1613,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     data->load_size = iso_read_lsb(entry->sec_count, 2);
     data->imgblock = iso_read_lsb(entry->block, 4);
 
-    //TODO check if there are more entries?
+    /* TODO #00018 : check if there are more entries in the boot catalog */
 
     return ISO_SUCCESS;
 }
@@ -1732,12 +1733,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     data->joliet = 1;
                     root = (struct ecma119_dir_record*)sup->root_dir_record;
                     data->svd_root_block = iso_read_bb(root->block, 4, NULL);
-
-                    //TODO maybe we can set the IsoImage attribs from this
-                    //descriptor
-                    //TODO a joliet tree can also have RR extensions. What 
-                    //about this?
-                    
+                    /* TODO #00019 : set IsoImage attribs from Joliet SVD? */
+                    /* TODO #00020 : handle RR info in Joliet tree */
                 } else if (sup->vol_desc_version[0] == 2) {
                     /*
                      * It is an Enhanced Volume Descriptor, image is an 
@@ -1747,8 +1744,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     data->iso1999 = 1;
                     root = (struct ecma119_dir_record*)sup->root_dir_record;
                     data->evd_root_block = iso_read_bb(root->block, 4, NULL);
-                    //TODO an ISO 9660:1999 tree can also have RR extensions. 
-                    // What about this?
+                    /* TODO #00021 : handle RR info in ISO 9660:1999 tree */
                 } else {
                     iso_msg_hint(data->msgid, LIBISO_UNSUPPORTED_VD,
                         "Unsupported Sup. Vol. Desc found.");

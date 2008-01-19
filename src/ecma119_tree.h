@@ -62,7 +62,7 @@ struct ecma119_node
 
     IsoNode *node; /*< reference to the iso node */
 
-    // TODO add true support for this
+    /* TODO #00009 : add true support for harlinks and inode numbers */
     ino_t ino;
     nlink_t nlink;
 

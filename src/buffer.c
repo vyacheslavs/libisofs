@@ -9,7 +9,7 @@
 /*
  * Synchronized ring buffer, works with a writer thread and a read thread.
  * 
- * TODO things to optimize
+ * TODO #00010 : optimize ring buffer
  *  - write/read at the end of buffer requires a second mutex_lock, even if
  *    there's enought space/data at the beginning
  *  - pre-buffer for writes < BLOCK_SIZE

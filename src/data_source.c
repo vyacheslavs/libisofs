@@ -111,7 +111,7 @@ static int ds_read_block(IsoDataSource *src, uint32_t lba, uint8_t *buffer)
         return ISO_FILE_SEEK_ERROR;
     }
 
-    // TODO guard against partial reads.
+    /* TODO #00008 : guard against partial reads. */
     if (read(data->fd, buffer, 2048) != 2048) {
         return ISO_FILE_READ_ERROR;
     }
