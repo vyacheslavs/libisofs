@@ -12,11 +12,31 @@
 
 #include "libisofs.h"
 #include "messages.h"
-#include "image.h"
+#include "error.h"
+
+int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 
 #define MAX_MSG_LEN     4096
 
-void iso_msg_debug(IsoMessenger *msgr, const char *fmt, ...)
+struct libiso_msgs *libiso_msgr = NULL;
+
+int iso_init()
+{
+    if (libiso_msgr == NULL) {
+        if (libiso_msgs_new(&libiso_msgr, 0) <= 0)
+            return ISO_ERROR;
+    }
+    libiso_msgs_set_severities(libiso_msgr, LIBISO_MSGS_SEV_NEVER,
+                   LIBISO_MSGS_SEV_FATAL, "libisofs: ", 0);
+    return 1;
+}
+
+void iso_finish()
+{
+    libiso_msgs_destroy(&libiso_msgr, 0);
+}
+
+void iso_msg_debug(int imgid, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -25,11 +45,11 @@ void iso_msg_debug(IsoMessenger *msgr, const char *fmt, ...)
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
-    libiso_msgs_submit(msgr, -1, 0x00000002, LIBISO_MSGS_SEV_DEBUG, 
+    libiso_msgs_submit(libiso_msgr, imgid, 0x00000002, LIBISO_MSGS_SEV_DEBUG,
                        LIBISO_MSGS_PRIO_ZERO, msg, 0, 0);
 }
 
-void iso_msg_note(IsoMessenger *msgr, int error_code, const char *fmt, ...)
+void iso_msg_note(int imgid, int error_code, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -38,11 +58,11 @@ void iso_msg_note(IsoMessenger *msgr, int error_code, const char *fmt, ...)
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
-    libiso_msgs_submit(msgr, -1, error_code, LIBISO_MSGS_SEV_NOTE, 
+    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_NOTE, 
                        LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
 }
 
-void iso_msg_hint(IsoMessenger *msgr, int error_code, const char *fmt, ...)
+void iso_msg_hint(int imgid, int error_code, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -51,11 +71,11 @@ void iso_msg_hint(IsoMessenger *msgr, int error_code, const char *fmt, ...)
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
-    libiso_msgs_submit(msgr, -1, error_code, LIBISO_MSGS_SEV_HINT, 
+    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_HINT, 
                        LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
 }
 
-void iso_msg_warn(IsoMessenger *msgr, int error_code, const char *fmt, ...)
+void iso_msg_warn(int imgid, int error_code, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -64,11 +84,11 @@ void iso_msg_warn(IsoMessenger *msgr, int error_code, const char *fmt, ...)
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
-    libiso_msgs_submit(msgr, -1, error_code, LIBISO_MSGS_SEV_WARNING,
+    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_WARNING,
                        LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
 }
 
-void iso_msg_sorry(IsoMessenger *msgr, int error_code, const char *fmt, ...)
+void iso_msg_sorry(int imgid, int error_code, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -77,11 +97,11 @@ void iso_msg_sorry(IsoMessenger *msgr, int error_code, const char *fmt, ...)
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
-    libiso_msgs_submit(msgr, -1, error_code, LIBISO_MSGS_SEV_SORRY,
+    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_SORRY,
                        LIBISO_MSGS_PRIO_HIGH, msg, 0, 0);
 }
 
-void iso_msg_fatal(IsoMessenger *msgr, int error_code, const char *fmt, ...)
+void iso_msg_fatal(int imgid, int error_code, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -90,7 +110,7 @@ void iso_msg_fatal(IsoMessenger *msgr, int error_code, const char *fmt, ...)
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
-    libiso_msgs_submit(msgr, -1, error_code, LIBISO_MSGS_SEV_FATAL,
+    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_FATAL,
                        LIBISO_MSGS_PRIO_HIGH, msg, 0, 0);
 }
 
@@ -107,8 +127,8 @@ void iso_msg_fatal(IsoMessenger *msgr, int error_code, const char *fmt, ...)
  * @param print_id       A text prefix to be printed before the message.
  * @return               >0 for success, <=0 for error
  */
-int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
-                                  char *print_severity, char *print_id)
+int iso_set_msgs_severities(char *queue_severity, char *print_severity, 
+                            char *print_id)
 {
     int ret, queue_sevno, print_sevno;
 
@@ -118,14 +138,12 @@ int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
     ret = libiso_msgs__text_to_sev(print_severity, &print_sevno, 0);
     if (ret <= 0)
         return 0;
-    ret = libiso_msgs_set_severities(img->messenger, queue_sevno, print_sevno,
+    ret = libiso_msgs_set_severities(libiso_msgr, queue_sevno, print_sevno,
                                      print_id, 0);
     if (ret <= 0)
         return 0;
     return 1;
 }
-
-#define ISO_MSGS_MESSAGE_LEN 4096
 
 /** 
  * Obtain the oldest pending libisofs message from the queue which has at
@@ -143,21 +161,17 @@ int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
  *                   should provide at least 80 bytes.
  * @return 1 if a matching item was found, 0 if not, <0 for severe errors
  */
-int iso_image_obtain_msgs(IsoImage *img, char *minimum_severity,
-                          int *error_code, char msg_text[], int *os_errno,
-                          char severity[])
+int iso_obtain_msgs(char *minimum_severity, int *error_code, 
+                    char msg_text[], int *os_errno, char severity[])
 {
     int ret, minimum_sevno, sevno, priority;
     char *textpt, *sev_name;
     struct libiso_msgs_item *item= NULL;
 
-    if (img == NULL)
-        return 0;
-
     ret = libiso_msgs__text_to_sev(minimum_severity, &minimum_sevno, 0);
     if (ret <= 0)
         return 0;
-    ret = libiso_msgs_obtain(img->messenger, &item, minimum_sevno, 
+    ret = libiso_msgs_obtain(libiso_msgr, &item, minimum_sevno, 
                              LIBISO_MSGS_PRIO_ZERO, 0);
     if (ret <= 0)
         goto ex;
@@ -179,12 +193,19 @@ int iso_image_obtain_msgs(IsoImage *img, char *minimum_severity,
 
     ret = 1;
     ex: ;
-    libiso_msgs_destroy_item(img->messenger, &item, 0);
+    libiso_msgs_destroy_item(libiso_msgr, &item, 0);
     return ret;
 }
 
-void *iso_image_get_messenger(IsoImage *img)
+/**
+ * Return the messenger object handle used by libisofs. This handle
+ * may be used by related libraries to  their own compatible
+ * messenger objects and thus to direct their messages to the libisofs
+ * message queue. See also: libburn, API function burn_set_messenger().
+ * 
+ * @return the handle. Do only use with compatible
+ */
+void *iso_get_messenger()
 {
-    return img->messenger;
+    return libiso_msgr;
 }
-

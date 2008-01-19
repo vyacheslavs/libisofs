@@ -76,6 +76,9 @@ int main(int argc, char **argv)
     if (!fd) {
         err(1, "error opening output file");
     }
+
+    iso_init();
+    iso_set_msgs_severities("NEVER", "ALL", "");
     
     /* create the data source to accesss previous image */
     result = iso_data_source_new_from_file(argv[3], &src);
@@ -90,7 +93,6 @@ int main(int argc, char **argv)
         printf ("Error creating image\n");
         return 1;
     }
-    iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
     iso_tree_set_follow_symlinks(image, 0);
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_stop_on_error(image, 0);
@@ -128,5 +130,6 @@ int main(int argc, char **argv)
     free(burn_src);
     
     iso_image_unref(image);
+    iso_finish();
 	return 0;
 }

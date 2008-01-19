@@ -31,6 +31,7 @@ int main(int argc, char **argv)
         1, /* level */ 
         1, /* rockridge */
         0, /* joliet */
+        0, /* iso1999 */
         0, /* omit_version_numbers */
         0, /* allow_deep_paths */
         0, /* allow_longer_paths */
@@ -58,6 +59,7 @@ int main(int argc, char **argv)
         0, /* block */
         0, /* norock */
         0, /* nojoliet */
+        0, /* noiso1999 */
         0, /* preferjoliet */
         0, /* uid; */
         0, /* gid; */
@@ -74,6 +76,9 @@ int main(int argc, char **argv)
     if (!fd) {
         err(1, "error opening output file");
     }
+
+    iso_init();
+    iso_set_msgs_severities("NEVER", "ALL", "");
     
     /* create the data source to accesss previous image */
     result = iso_data_source_new_from_file(argv[1], &src);
@@ -88,7 +93,6 @@ int main(int argc, char **argv)
         printf ("Error creating image\n");
         return 1;
     }
-    iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
     iso_tree_set_follow_symlinks(image, 0);
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_stop_on_error(image, 0);
@@ -123,5 +127,6 @@ int main(int argc, char **argv)
     free(burn_src);
     
     iso_image_unref(image);
+    iso_finish();
 	return 0;
 }

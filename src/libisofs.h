@@ -400,6 +400,17 @@ struct iso_read_image_features
 };
 
 /**
+ * Initialize libisofs. You must call this before any usage of the library.
+ * @return 1 on success, < 0 on error 
+ */
+int iso_init();
+
+/**
+ * Finalize libisofs.
+ */
+void iso_finish();
+
+/**
  * Create a new image, empty.
  * 
  * The image will be owned by you and should be unref() when no more needed.
@@ -1330,11 +1341,10 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
 #define ISO_MSGS_MESSAGE_LEN 4096
 
 /** 
- * Control queueing and stderr printing of messages from a given IsoImage.
+ * Control queueing and stderr printing of messages from libisofs.
  * Severity may be one of "NEVER", "FATAL", "SORRY", "WARNING", "HINT",
  * "NOTE", "UPDATE", "DEBUG", "ALL".
  * 
- * @param image          The image
  * @param queue_severity Gives the minimum limit for messages to be queued.
  *                       Default: "NEVER". If you queue messages then you
  *                       must consume them by iso_msgs_obtain().
@@ -1343,10 +1353,11 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
  * @param print_id       A text prefix to be printed before the message.
  * @return               >0 for success, <=0 for error
  */
-int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
-                                  char *print_severity, char *print_id);
+int iso_set_msgs_severities(char *queue_severity, char *print_severity, 
+                            char *print_id);
+
 /** 
- * Obtain the oldest pending message from a IsoImage message queue which has at
+ * Obtain the oldest pending libisofs message from the queue which has at
  * least the given minimum_severity. This message and any older message of
  * lower severity will get discarded from the queue and is then lost forever.
  * 
@@ -1354,7 +1365,6 @@ int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
  * "NOTE", "UPDATE", "DEBUG", "ALL". To call with minimum_severity "NEVER"
  * will discard the whole queue.
  * 
- * @param image      The image whose messages we want to obtain
  * @param error_code Will become a unique error code as listed in messages.h
  * @param msg_text   Must provide at least ISO_MSGS_MESSAGE_LEN bytes.
  * @param os_errno   Will become the eventual errno related to the message
@@ -1362,18 +1372,17 @@ int iso_image_set_msgs_severities(IsoImage *img, char *queue_severity,
  *                   should provide at least 80 bytes.
  * @return 1 if a matching item was found, 0 if not, <0 for severe errors
  */
-int iso_image_obtain_msgs(IsoImage *image, char *minimum_severity,
-                          int *error_code, char msg_text[], int *os_errno,
-                          char severity[]);
+int iso_obtain_msgs(char *minimum_severity, int *error_code, 
+                    char msg_text[], int *os_errno, char severity[]);
 
 /**
- * Return the messenger object handle used by the given image. This handle
+ * Return the messenger object handle used by libisofs. This handle
  * may be used by related libraries to  their own compatible
  * messenger objects and thus to direct their messages to the libisofs
  * message queue. See also: libburn, API function burn_set_messenger().
  * 
  * @return the handle. Do only use with compatible
  */
-void *iso_image_get_messenger(IsoImage *image);
+void *iso_get_messenger();
 
 #endif /*LIBISO_LIBISOFS_H_*/

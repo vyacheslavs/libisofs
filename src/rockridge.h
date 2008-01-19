@@ -27,7 +27,6 @@
 #define LIBISO_ROCKRIDGE_H
 
 #include "ecma119.h"
-#include "messages.h"
 
 #define SUSP_SIG(entry, a, b) ((entry->sig[0] == a) && (entry->sig[1] == b))
 
@@ -202,7 +201,7 @@ typedef struct susp_iterator SuspIterator;
 
 SuspIterator *
 susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record, 
-              uint8_t len_skp, IsoMessenger *msgr);
+              uint8_t len_skp, int msgid);
 
 /**
  * Get the next SUSP System User Entry using given iterator.

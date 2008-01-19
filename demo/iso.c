@@ -126,13 +126,19 @@ int main(int argc, char **argv)
     if (!fd) {
         err(1, "error opening output file");
     }
+
+    result = iso_init();
+    if (result < 0) {
+        printf ("Can't initialize libisofs\n");
+        return 1;
+    }
+    iso_set_msgs_severities("NEVER", "ALL", "");
     
     result = iso_image_new(volid, &image);
     if (result < 0) {
         printf ("Error creating image\n");
         return 1;
     }
-    iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
     iso_tree_set_follow_symlinks(image, 0);
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_ignore_special(image, 0);
@@ -171,5 +177,6 @@ int main(int argc, char **argv)
     free(burn_src);
     
     iso_image_unref(image);
+    iso_finish();
 	return 0;
 }

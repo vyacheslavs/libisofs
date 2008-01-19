@@ -44,8 +44,7 @@ struct Iso_Image_Filesystem
 };
 
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
-                             struct libiso_msgs *messenger,
-                             IsoImageFilesystem **fs);
+                             int msgid, IsoImageFilesystem **fs);
 
 const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs);
 

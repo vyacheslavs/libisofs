@@ -32,7 +32,7 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
 
     ret = str2ucs(t->input_charset, iso->name, &ucs_name);
     if (ret < 0) {
-        iso_msg_debug(t->image->messenger, "Can't convert %s", iso->name);
+        iso_msg_debug(t->image->id, "Can't convert %s", iso->name);
         return ret;
     }
 
@@ -112,7 +112,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
-            iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED,
+            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
                          "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->name);
             free(joliet);
@@ -182,7 +182,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
          * Wow!! Joliet is even more restrictive than plain ISO-9660,
          * that allows up to 255 bytes!!
          */
-        iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED,
+        iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
                      "File \"%s\" can't be added to Joliet tree, because "
                      "its path length is larger than 240", iso->name);
         free(jname);
@@ -227,7 +227,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
             ret = create_node(t, iso, &node);
         } else {
             /* log and ignore */
-            iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED, 
+            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED, 
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
             ret = 0;
@@ -235,7 +235,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        iso_msg_note(t->image->messenger, LIBISO_JOLIET_WRONG_FILE_TYPE, 
+        iso_msg_note(t->image->id, LIBISO_JOLIET_WRONG_FILE_TYPE, 
                      "Can't add %s to Joliet tree. This kind of files can only"
                      " be added to a Rock Ridget tree. Skipping.", iso->name);
         ret = 0;
@@ -297,10 +297,10 @@ int joliet_tree_create(Ecma119Image *t)
     /* the Joliet tree is stored in Ecma119Image target */
     t->joliet_root = root;
 
-    iso_msg_debug(t->image->messenger, "Sorting the Joliet tree...");
+    iso_msg_debug(t->image->id, "Sorting the Joliet tree...");
     sort_tree(root);
 
-    //iso_msg_debug(t->image->messenger, "Mangling Joliet names...");
+    //iso_msg_debug(t->image->id, "Mangling Joliet names...");
     // FIXME ret = mangle_tree(t, 1);
 
     return ISO_SUCCESS;
@@ -412,13 +412,12 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
 
     /* compute position of directories */
-    iso_msg_debug(t->image->messenger, 
-                  "Computing position of Joliet dir structure");
+    iso_msg_debug(t->image->id, "Computing position of Joliet dir structure");
     t->joliet_ndirs = 0;
     calc_dir_pos(t, t->joliet_root);
 
     /* compute length of pathlist */
-    iso_msg_debug(t->image->messenger, "Computing length of Joliet pathlist");
+    iso_msg_debug(t->image->id, "Computing length of Joliet pathlist");
     path_table_size = calc_path_table_size(t->joliet_root);
 
     /* compute location for path tables */
@@ -543,7 +542,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     t = writer->target;
     image = t->image;
 
-    iso_msg_debug(image->messenger, "Write SVD for Joliet");
+    iso_msg_debug(image->id, "Write SVD for Joliet");
 
     memset(&vol, 0, sizeof(struct ecma119_sup_vol_desc));
 
@@ -740,7 +739,7 @@ int write_path_tables(Ecma119Image *t)
     size_t i, j, cur;
     JolietNode **pathlist;
 
-    iso_msg_debug(t->image->messenger, "Writing Joliet Path tables");
+    iso_msg_debug(t->image->id, "Writing Joliet Path tables");
 
     /* allocate temporal pathlist */
     pathlist = malloc(sizeof(void*) * t->joliet_ndirs);
@@ -820,11 +819,10 @@ int joliet_writer_create(Ecma119Image *target)
     writer->write_vol_desc = joliet_writer_write_vol_desc;
     writer->write_data = joliet_writer_write_data;
     writer->free_data = joliet_writer_free_data;
-    writer->data = NULL; //TODO store joliet tree here
+    writer->data = NULL;
     writer->target = target;
 
-    iso_msg_debug(target->image->messenger, 
-                  "Creating low level Joliet tree...");
+    iso_msg_debug(target->image->id, "Creating low level Joliet tree...");
     ret = joliet_tree_create(target);
     if (ret < 0) {
         return ret;

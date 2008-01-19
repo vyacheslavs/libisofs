@@ -16,6 +16,7 @@
 #include "util.h"
 #include "rockridge.h"
 #include "error.h"
+#include "messages.h"
 
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -27,7 +28,7 @@ struct susp_iterator
     int pos;
     int size;
     IsoDataSource *src;
-    IsoMessenger *msgr;
+    int msgid;
 
     /* block and offset for next continuation area */
     uint32_t ce_block;
@@ -41,7 +42,7 @@ struct susp_iterator
 
 SuspIterator*
 susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
-              uint8_t len_skp, IsoMessenger *msgr)
+              uint8_t len_skp, int msgid)
 {
     int pad = (record->len_fi[0] + 1) % 2;
     struct susp_iterator *iter = malloc(sizeof(struct susp_iterator));
@@ -53,7 +54,7 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
     iter->pos = len_skp; /* 0 in most cases */
     iter->size = record->len_dr[0] - record->len_fi[0] - 33 - pad;
     iter->src = src;
-    iter->msgr = msgr;
+    iter->msgid = msgid;
 
     iter->ce_len = 0;
     iter->buffer = NULL;
@@ -103,7 +104,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
 
     if (entry->len_sue[0] == 0) {
         /* a wrong image with this lead us to a infinity loop */
-        iso_msg_sorry(iter->msgr, LIBISO_RR_ERROR,
+        iso_msg_sorry(iter->msgid, LIBISO_RR_ERROR,
                       "Damaged RR/SUSP information.");
         return ISO_WRONG_RR;
     }
@@ -113,7 +114,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
     if (SUSP_SIG(entry, 'C', 'E')) {
         /* Continuation entry */
         if (iter->ce_len) {
-            iso_msg_sorry(iter->msgr, LIBISO_RR_ERROR, "More than one CE "
+            iso_msg_sorry(iter->msgid, LIBISO_RR_ERROR, "More than one CE "
                 "System user entry has found in a single System Use field or "
                 "continuation area. This breaks SUSP standard and it's not "
                 "supported. Ignoring last CE. Maybe the image is damaged.");

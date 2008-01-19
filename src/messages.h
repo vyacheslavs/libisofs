@@ -15,6 +15,12 @@
 
 #include "libiso_msgs.h"
 
+/**
+ * Take and increment this variable to get a valid identifier for message
+ * origin.
+ */
+extern int iso_message_id;
+
 /** File cannot be added to image (ignored) */
 #define LIBISO_FILE_IGNORED         0x00030100
 /** File cannot be writing to image (ignored) */
@@ -79,16 +85,16 @@
 
 typedef struct libiso_msgs IsoMessenger;
 
-void iso_msg_debug(IsoMessenger *msgr, const char *fmt, ...);
+void iso_msg_debug(int imgid, const char *fmt, ...);
 
-void iso_msg_note(IsoMessenger *msgr, int error_code, const char *fmt, ...);
+void iso_msg_note(int imgid, int error_code, const char *fmt, ...);
 
-void iso_msg_hint(IsoMessenger *msgr, int error_code, const char *fmt, ...);
+void iso_msg_hint(int imgid, int error_code, const char *fmt, ...);
 
-void iso_msg_warn(IsoMessenger *msgr, int error_code, const char *fmt, ...);
+void iso_msg_warn(int imgid, int error_code, const char *fmt, ...);
 
-void iso_msg_sorry(IsoMessenger *msgr, int error_code, const char *fmt, ...);
+void iso_msg_sorry(int imgid, int error_code, const char *fmt, ...);
 
-void iso_msg_fatal(IsoMessenger *msgr, int error_code, const char *fmt, ...);
+void iso_msg_fatal(int imgid, int error_code, const char *fmt, ...);
 
 #endif /*MESSAGES_H_*/

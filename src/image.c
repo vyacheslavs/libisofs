@@ -57,27 +57,16 @@ int iso_image_new(const char *name, IsoImage **image)
         return ISO_MEM_ERROR;
     }
 
-    /* create message messenger */
-    res = libiso_msgs_new(&img->messenger, 0);
-    if (res <= 0) {
-        iso_node_builder_unref(img->builder);
-        iso_filesystem_unref(img->fs);
-        free(img);
-        return ISO_MEM_ERROR;
-    }
-    libiso_msgs_set_severities(img->messenger, LIBISO_MSGS_SEV_NEVER, 
-                               LIBISO_MSGS_SEV_FATAL, name, 0);
-
     /* fill image fields */
     res = iso_node_new_root(&img->root);
     if (res < 0) {
-        libiso_msgs_destroy(&img->messenger, 0);
         iso_node_builder_unref(img->builder);
         iso_filesystem_unref(img->fs);
         free(img);
         return res;
     }
     img->refcount = 1;
+    img->id = iso_message_id++;
 
     if (name != NULL) {
         img->volset_id = strdup(name);
@@ -105,7 +94,6 @@ void iso_image_unref(IsoImage *image)
     if (--image->refcount == 0) {
         /* we need to free the image */
         iso_node_unref((IsoNode*)image->root);
-        libiso_msgs_destroy(&image->messenger, 0);
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);
         el_torito_boot_catalog_free(image->bootcat);

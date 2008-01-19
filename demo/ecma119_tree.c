@@ -94,12 +94,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    iso_init();
+    iso_set_msgs_severities("NEVER", "ALL", "");
     result = iso_image_new("volume_id", &image);
     if (result < 0) {
         printf ("Error creating image\n");
         return 1;
     }
-    iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
 
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[1]);
     if (result < 0) {
@@ -130,5 +131,6 @@ int main(int argc, char **argv)
     free(ecma119->input_charset);
     free(ecma119);
     iso_image_unref(image);
+    iso_finish();
     return 0;
 }

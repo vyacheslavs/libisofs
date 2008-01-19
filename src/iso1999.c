@@ -34,7 +34,7 @@ char *get_iso1999_name(Ecma119Image *t, const char *str)
     } else {
         ret = strconv(str, t->input_charset, t->output_charset, &name);
         if (ret < 0) {
-            iso_msg_sorry(t->image->messenger, LIBISO_CHARSET_ERROR, 
+            iso_msg_sorry(t->image->id, LIBISO_CHARSET_ERROR, 
                 "Charset conversion error. Can't convert %s from %s to %s",
                 str, t->input_charset, t->output_charset);
     
@@ -108,7 +108,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
 
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
-            iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED,
+            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
                          "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->name);
             free(n);
@@ -171,7 +171,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
     iso_name = get_iso1999_name(t, iso->name);
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name): 0);
     if (!t->allow_longer_paths && max_path > 255) {
-        iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED,
+        iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
                      "File \"%s\" can't be added to ISO 9660:1999 tree, "
                      "because its path length is larger than 255", iso->name);
         free(iso_name);
@@ -216,7 +216,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
             ret = create_node(t, iso, &node);
         } else {
             /* log and ignore */
-            iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED, 
+            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED, 
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
             ret = 0;
@@ -224,7 +224,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        iso_msg_note(t->image->messenger, LIBISO_FILE_IGNORED, 
+        iso_msg_note(t->image->id, LIBISO_FILE_IGNORED, 
                      "Can't add %s to ISO 9660:1999 tree. This kind of files "
                      "can only be added to a Rock Ridget tree. Skipping.", 
                      iso->name);
@@ -296,10 +296,10 @@ int iso1999_tree_create(Ecma119Image *t)
     /* the ISO 9660:1999 tree is stored in Ecma119Image target */
     t->iso1999_root = root;
 
-    iso_msg_debug(t->image->messenger, "Sorting the ISO 9660:1999 tree...");
+    iso_msg_debug(t->image->id, "Sorting the ISO 9660:1999 tree...");
     sort_tree(root);
 
-    //iso_msg_debug(t->image->messenger, "Mangling ISO 9660:1999 names...");
+    //iso_msg_debug(t->image->id, "Mangling ISO 9660:1999 names...");
     // FIXME ret = mangle_tree(t, 1);
 
     return ISO_SUCCESS;
@@ -408,14 +408,13 @@ int iso1999_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
 
     /* compute position of directories */
-    iso_msg_debug(t->image->messenger, 
+    iso_msg_debug(t->image->id, 
                   "Computing position of ISO 9660:1999 dir structure");
     t->iso1999_ndirs = 0;
     calc_dir_pos(t, t->iso1999_root);
 
     /* compute length of pathlist */
-    iso_msg_debug(t->image->messenger, 
-                  "Computing length of ISO 9660:1999 pathlist");
+    iso_msg_debug(t->image->id, "Computing length of ISO 9660:1999 pathlist");
     path_table_size = calc_path_table_size(t->iso1999_root);
 
     /* compute location for path tables */
@@ -507,7 +506,7 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
     t = writer->target;
     image = t->image;
 
-    iso_msg_debug(image->messenger, "Write Enhanced Vol Desc (ISO 9660:1999)");
+    iso_msg_debug(image->id, "Write Enhanced Vol Desc (ISO 9660:1999)");
 
     memset(&vol, 0, sizeof(struct ecma119_sup_vol_desc));
 
@@ -700,7 +699,7 @@ int write_path_tables(Ecma119Image *t)
     size_t i, j, cur;
     Iso1999Node **pathlist;
 
-    iso_msg_debug(t->image->messenger, "Writing ISO 9660:1999 Path tables");
+    iso_msg_debug(t->image->id, "Writing ISO 9660:1999 Path tables");
 
     /* allocate temporal pathlist */
     pathlist = malloc(sizeof(void*) * t->iso1999_ndirs);
@@ -783,7 +782,7 @@ int iso1999_writer_create(Ecma119Image *target)
     writer->data = NULL;
     writer->target = target;
 
-    iso_msg_debug(target->image->messenger, 
+    iso_msg_debug(target->image->id, 
                   "Creating low level ISO 9660:1999 tree...");
     ret = iso1999_tree_create(target);
     if (ret < 0) {

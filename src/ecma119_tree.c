@@ -35,7 +35,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 
     ret = str2ascii(img->input_charset, iso->name, &ascii_name);
     if (ret < 0) {
-        iso_msg_debug(img->image->messenger, "Can't convert %s", iso->name);
+        iso_msg_debug(img->image->id, "Can't convert %s", iso->name);
         return ret;
     }
 
@@ -163,7 +163,7 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 
     size = iso_stream_get_size(iso->stream);
     if (size > (off_t)0xffffffff) {
-        iso_msg_note(img->image->messenger, LIBISO_FILE_IGNORED,
+        iso_msg_note(img->image->id, LIBISO_FILE_IGNORED,
                      "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->node.name);
         return 0;
@@ -298,13 +298,13 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
     if (!image->rockridge) {
         if ((iso->type == LIBISO_DIR && depth > 8) && !image->allow_deep_paths) {
-            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED,
+            iso_msg_note(image->image->id, LIBISO_FILE_IGNORED,
                          "File \"%s\" can't be added, because directory depth "
                          "is greater than  8.", iso->name);
             free(iso_name);
             return 0;
         } else if (max_path > 255 && !image->allow_longer_paths) {
-            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED,
+            iso_msg_note(image->image->id, LIBISO_FILE_IGNORED,
                          "File \"%s\" can't be added, because path length "
                          "is greater than 255 characters", iso->name);
             free(iso_name);
@@ -321,7 +321,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_symlink(image, (IsoSymlink*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
-            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED, 
+            iso_msg_note(image->image->id, LIBISO_FILE_IGNORED, 
                 "File \"%s\" ignored. Symlinks need RockRidge extensions.", 
                 iso->name);
             ret = 0;
@@ -332,7 +332,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_special(image, (IsoSpecial*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
-            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED, 
+            iso_msg_note(image->image->id, LIBISO_FILE_IGNORED, 
                 "File \"%s\" ignored. Special files need RockRidge extensions.", 
                 iso->name);
             ret = 0;
@@ -343,7 +343,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_boot_cat(image, (IsoBoot*)iso, &node);
         } else {
             /* log and ignore */
-            iso_msg_note(image->image->messenger, LIBISO_FILE_IGNORED, 
+            iso_msg_note(image->image->id, LIBISO_FILE_IGNORED, 
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
             ret = 0;
@@ -571,7 +571,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                         ret = ISO_MEM_ERROR;
                         goto mangle_cleanup;
                     }
-                    iso_msg_debug(img->image->messenger, 
+                    iso_msg_debug(img->image->id, 
                                   "\"%s\" renamed to \"%s\"",
                                   children[k]->iso_name, new);
 
@@ -822,10 +822,10 @@ int ecma119_tree_create(Ecma119Image *img)
     }
     img->root = root;
 
-    iso_msg_debug(img->image->messenger, "Sorting the low level tree...");
+    iso_msg_debug(img->image->id, "Sorting the low level tree...");
     sort_tree(root);
 
-    iso_msg_debug(img->image->messenger, "Mangling names...");
+    iso_msg_debug(img->image->id, "Mangling names...");
     ret = mangle_tree(img, 1);
     if (ret < 0) {
         return ret;

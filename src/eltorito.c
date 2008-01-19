@@ -208,7 +208,7 @@ int create_image(IsoImage *image, const char *image_path,
             boot_media_type = 3; /* 2.88 meg diskette */
             break;
         default:
-            iso_msg_sorry(image->messenger, LIBISO_EL_TORITO_WRONG_IMG, 
+            iso_msg_sorry(image->id, LIBISO_EL_TORITO_WRONG_IMG, 
                           "Invalid image size %d Kb. Must be one of 1.2, 1.44"
                           "or 2.88 Mb", iso_stream_get_size(stream) / 1024);
             return ISO_BOOT_IMAGE_NOT_VALID;
@@ -227,21 +227,21 @@ int create_image(IsoImage *image, const char *image_path,
         /* read the MBR on disc and get the type of the partition */
         ret = iso_stream_open(stream);
         if (ret < 0) {
-            iso_msg_sorry(image->messenger, LIBISO_EL_TORITO_WRONG_IMG, 
+            iso_msg_sorry(image->id, LIBISO_EL_TORITO_WRONG_IMG, 
                           "Can't open image file.");
             return ret;
         }
         ret = iso_stream_read(stream, &mbr, sizeof(mbr));
         iso_stream_close(stream);
         if (ret != sizeof(mbr)) {
-            iso_msg_sorry(image->messenger, LIBISO_EL_TORITO_WRONG_IMG, 
+            iso_msg_sorry(image->id, LIBISO_EL_TORITO_WRONG_IMG, 
                           "Can't read MBR from image file.");
             return ret < 0 ? ret : ISO_FILE_READ_ERROR;
         }
         
         /* check valid MBR signature */
         if ( mbr.sign1 != 0x55 || mbr.sign2 != 0xAA ) {
-            iso_msg_sorry(image->messenger, LIBISO_EL_TORITO_WRONG_IMG, 
+            iso_msg_sorry(image->id, LIBISO_EL_TORITO_WRONG_IMG, 
                           "Invalid MBR. Wrong signature.");
             return ISO_BOOT_IMAGE_NOT_VALID;
         }
@@ -252,7 +252,7 @@ int create_image(IsoImage *image, const char *image_path,
             if (mbr.partition[i].type != 0) {
                 /* it's an used partition */
                 if (used_partition != -1) {
-                    iso_msg_sorry(image->messenger, LIBISO_EL_TORITO_WRONG_IMG, 
+                    iso_msg_sorry(image->id, LIBISO_EL_TORITO_WRONG_IMG, 
                                   "Invalid MBR. At least 2 partitions: %d and " 
                                   "%d, are being used\n", used_partition, i);
                     return ISO_BOOT_IMAGE_NOT_VALID;
@@ -746,7 +746,7 @@ int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
     t = writer->target;
     cat = t->catalog;
 
-    iso_msg_debug(t->image->messenger, "Write El-Torito boot record");
+    iso_msg_debug(t->image->id, "Write El-Torito boot record");
 
     memset(&vol, 0, sizeof(struct ecma119_boot_rec_vol_desc));
     vol.vol_desc_type[0] = 0;
@@ -769,7 +769,7 @@ void patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
     size_t offset;
     
     if (imgsize < 64) {
-        iso_msg_warn(t->image->messenger, LIBISO_ISOLINUX_CANT_PATCH, 
+        iso_msg_warn(t->image->id, LIBISO_ISOLINUX_CANT_PATCH, 
             "Isolinux image too small. We won't patch it.");
         return;
     }
@@ -787,7 +787,7 @@ void patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
     }
     if (offset != imgsize) {
         /* file length not multiple of 4 */
-        iso_msg_warn(t->image->messenger, LIBISO_ISOLINUX_CANT_PATCH, 
+        iso_msg_warn(t->image->id, LIBISO_ISOLINUX_CANT_PATCH, 
             "Unexpected isolinux image length. Patch might not work.");
     }
     

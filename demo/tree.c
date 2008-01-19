@@ -4,6 +4,7 @@
 
 #include "libisofs.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -35,7 +36,7 @@ print_dir(IsoDir *dir, int level)
 	int i;
 	IsoDirIter *iter;
 	IsoNode *node;
-	char sp[level * 2 + 1];
+	char *sp = alloca(level * 2 + 1);
 	
 	for (i = 0; i < level * 2; i += 2) {
 		sp[i] = '|';
@@ -80,14 +81,15 @@ int main(int argc, char **argv)
 		printf ("You need to specify a valid path\n");
 		return 1;
 	}
-	
+
+    iso_init();
+    iso_set_msgs_severities("NEVER", "ALL", "");
     
     result = iso_image_new("volume_id", &image);
     if (result < 0) {
         printf ("Error creating image\n");
         return 1;
     }
-	iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
 	
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[1]);
     if (result < 0) {

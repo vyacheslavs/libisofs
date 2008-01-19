@@ -10,7 +10,6 @@
 #include <string.h>
 #include <limits.h>
 
-#include "messages.h"
 #include "libisofs.h"
 #include "fs_image.h"
 
@@ -111,7 +110,6 @@ int main(int argc, char **argv)
     IsoImageFilesystem *fs;
     IsoDataSource *src;
     IsoFileSource *root;
-    struct libiso_msgs *messenger;
     struct iso_read_opts opts = {
         0, /* block */
         0, /* norock */
@@ -129,13 +127,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    result = libiso_msgs_new(&messenger, 0);
-    if (result <= 0) {
-        printf ("Can't create messenger\n");
-        return 1;
-    }
-    libiso_msgs_set_severities(messenger, LIBISO_MSGS_SEV_NEVER, 
-                               LIBISO_MSGS_SEV_ALL, "", 0);
+    iso_init();
+    iso_set_msgs_severities("NEVER", "ALL", "");
     
     result = iso_data_source_new_from_file(argv[1], &src);
     if (result < 0) {
@@ -143,7 +136,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    result = iso_image_filesystem_new(src, &opts, messenger, &fs);
+    result = iso_image_filesystem_new(src, &opts, 1, &fs);
     if (result < 0) {
         printf ("Error creating filesystem\n");
         return 1;
@@ -176,6 +169,6 @@ int main(int argc, char **argv)
     fs->close(fs);
     iso_filesystem_unref((IsoFilesystem*)fs);
     iso_data_source_unref(src);
-    libiso_msgs_destroy(&messenger, 0);
+    iso_finish();
     return 0;
 }

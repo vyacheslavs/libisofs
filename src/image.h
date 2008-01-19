@@ -108,8 +108,8 @@ struct Iso_Image
     /* el-torito boot catalog */
     struct el_torito_boot_catalog *bootcat;
 
-    /* message messenger for the image */
-    struct libiso_msgs *messenger;
+    /* image identifier, for message origin identifier */
+    int id;
 
     /**
      * Default filesystem to use when adding files to the image tree.

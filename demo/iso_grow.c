@@ -64,6 +64,7 @@ int main(int argc, char **argv)
         0, /* block */
         0, /* norock */
         0, /* nojoliet */
+        0, /* noiso1999 */
         0, /* preferjoliet */
         0, /* uid; */
         0, /* gid; */
@@ -75,6 +76,9 @@ int main(int argc, char **argv)
         usage(argv);
         return 1;
     }
+
+    iso_init();
+    iso_set_msgs_severities("NEVER", "ALL", "");
     
     /* create the image context */
     result = iso_image_new("volume_id", &image);
@@ -82,7 +86,6 @@ int main(int argc, char **argv)
         printf ("Error creating image\n");
         return 1;
     }
-    iso_image_set_msgs_severities(image, "NEVER", "ALL", "");
     iso_tree_set_follow_symlinks(image, 0);
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_stop_on_error(image, 0);
@@ -214,6 +217,7 @@ int main(int argc, char **argv)
 exit_cleanup:;
     burn_drive_release(drives[0].drive, 0);
     burn_finish();
+    iso_finish();
     
     exit(ret);
 }
