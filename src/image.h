@@ -68,23 +68,19 @@ struct Iso_Image_Rec_Opts
      */
     enum iso_replace_mode replace;
 
+    /* TODO
+    enum iso_replace_mode (*confirm_replace)(IsoFileSource *src, IsoNode *node);
+    */
+    
     /**
      * When this is not NULL, it is a pointer to a function that will
-     * be called just before a file will be added, or when an error occurs.
-     * You can overwrite some of the above options by returning suitable 
-     * values.
+     * be called just before a file will be added. You can control where
+     * the file will be in fact added or ignored.
      * 
-     * @param action
-     *      1 file will be added
-     *      2 file will be skipped
-     *      < 0 error adding file (return 3 to stop, 1 to continue)
-     * @param flag
-     *      0 no problem
-     *      1 file with same name already exists
      * @return
-     *      1 add/continue, 2 skip, 3 stop
+     *      1 add, 0 ignore, < 0 cancel
      */
-    int (*report)(IsoFileSource *src, int action, int flag);
+    int (*report)(IsoFileSource *src);
 };
 
 struct Iso_Image

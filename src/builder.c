@@ -10,7 +10,6 @@
 #include "error.h"
 #include "node.h"
 #include "fsource.h"
-#include "image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -96,10 +95,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         return ISO_NULL_POINTER;
     }
 
-    name = iso_file_source_get_name(src);
-
     /* get info about source */
-    if (image->recOpts.follow_symlinks) {
+    if (iso_tree_get_follow_symlinks(image)) {
         result = iso_file_source_stat(src, &info);
     } else {
         result = iso_file_source_lstat(src, &info);
@@ -108,7 +105,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         return result;
     }
 
+    name = iso_file_source_get_name(src);
     new = NULL;
+
     switch (info.st_mode & S_IFMT) {
     case S_IFREG:
         {

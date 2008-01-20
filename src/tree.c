@@ -468,16 +468,10 @@ int check_hidden(IsoImage *image, const char *name)
 }
 
 static
-int check_special(IsoImage *image, IsoFileSource *file)
+int check_special(IsoImage *image, mode_t mode)
 {
     if (image->recOpts.ignore_special != 0) {
-        struct stat info;
-        int ret;
-        ret = iso_file_source_lstat(file, &info);
-        if (ret < 0) {
-            return 0; /* TODO what to do here */
-        }
-        switch(info.st_mode &  S_IFMT) {
+        switch(mode &  S_IFMT) {
         case S_IFBLK:
             return image->recOpts.ignore_special & 0x08 ? 1 : 0;
         case S_IFCHR:
@@ -501,140 +495,120 @@ int check_special(IsoImage *image, IsoFileSource *file)
  */
 int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 {
-    int result;
-    int action; /* 1 add, 2 skip, 3 stop, < 0 error */
+    int ret;
     IsoNodeBuilder *builder;
     IsoFileSource *file;
     IsoNode **pos;
+    struct stat info;
+    char *name, *path;
+    IsoNode *new;
+    enum iso_replace_mode replace;
 
-    result = iso_file_source_open(dir);
-    if (result < 0) {
+    ret = iso_file_source_open(dir);
+    if (ret < 0) {
         char *path = iso_file_source_get_path(dir);
         iso_msg_debug(image->id, "Can't open dir %s", path);
         free(path);
-        return result;
+        return ret;
     }
 
     builder = image->builder;
-    action = 1;
-    while ( (result = iso_file_source_readdir(dir, &file)) == 1) {
-        int flag;
-        char *name, *path;
-        IsoNode *new;
+    
+    /* iterate over all directory children */
+    while (1) {
+        int skip = 0;
 
-        name = iso_file_source_get_name(file);
-        path = iso_file_source_get_path(file);
-
-        if (check_excludes(image, path)) {
-            iso_msg_debug(image->id, "Skipping excluded file %s", path);
-            action = 2;
-        } else if (check_hidden(image, name)) {
-            iso_msg_debug(image->id, "Skipping hidden file %s", path);
-            action = 2;
-        } else if (check_special(image, file)) {
-            iso_msg_debug(image->id, "Skipping special file %s", path);
-            action = 2;
-        } else {
-            iso_msg_debug(image->id, "Adding file %s", path);
-            action = 1;
-        }
-        free(path);
-
-        /* find place where to insert */
-        flag = 0;
-        if (iso_dir_exists(parent, name, &pos)) {
-            flag = 1;
-            if (action == 1 && image->recOpts.replace == ISO_REPLACE_NEVER) {
-                action = 2;
+        ret = iso_file_source_readdir(dir, &file);
+        if (ret <= 0) {
+            if (ret < 0) {
+                /* error reading dir */
+                iso_msg_sorry(image->id, LIBISO_CANT_READ_FILE, 
+                              "Error reading dir");
             }
-        }
-
-        /* name no more needed */
-        free(name);
-
-        /* ask user if callback has been set */
-        if (image->recOpts.report) {
-            action = image->recOpts.report(file, action, flag);
-        }
-
-        if (action == 2) {
-            /* skip file */
-            iso_file_source_unref(file);
-            continue;
-        } else if (action == 3) {
-            /* stop */
-            iso_file_source_unref(file);
             break;
         }
 
-        /* ok, file will be added */
-        result = builder->create_node(builder, image, file, &new);
-        if (result < 0) {
-            char *path = iso_file_source_get_path(file);
+        path = iso_file_source_get_path(file);
+        name = strrchr(path, '/') + 1;
+
+        if (image->recOpts.follow_symlinks) {
+            ret = iso_file_source_stat(file, &info);
+        } else {
+            ret = iso_file_source_lstat(file, &info);
+        }
+        if (ret < 0) {
+            goto dir_rec_continue;
+        }
+
+        if (check_excludes(image, path)) {
+            iso_msg_debug(image->id, "Skipping excluded file %s", path);
+            skip = 1;
+        } else if (check_hidden(image, name)) {
+            iso_msg_debug(image->id, "Skipping hidden file %s", path);
+            skip = 1;
+        } else if (check_special(image, info.st_mode)) {
+            iso_msg_debug(image->id, "Skipping special file %s", path);
+            skip = 1;
+        }
+
+        if (skip) {
+            goto dir_rec_continue;
+        }
+
+        replace = image->recOpts.replace;
+
+        /* find place where to insert */
+        ret = iso_dir_exists(parent, name, &pos);
+        /* TODO
+         * if (ret && replace == ISO_REPLACE_ASK) {
+         *    replace = /....
+         * }
+         */
+        
+        /* chek if we must insert or not */
+        /* TODO check for other replace behavior */
+        if (ret && (replace == ISO_REPLACE_NEVER)) { 
+            /* skip file */
+            goto dir_rec_continue;
+        }
+        
+        /* if we are here we must insert. Give user a chance for cancel */
+        if (image->recOpts.report) {
+            int r = image->recOpts.report(file);
+            if (r <= 0) {
+                ret = (r < 0 ? ISO_ABORT : ISO_SUCCESS);
+                goto dir_rec_continue;
+            }
+        }
+        ret = builder->create_node(builder, image, file, &new);
+        if (ret < 0) {
             iso_msg_note(image->id, LIBISO_FILE_IGNORED, 
-                         "Error %d when adding file %s", result, path);
-            free(path);
-
-            if (image->recOpts.report) {
-                action = image->recOpts.report(file, result, flag);
-            } else {
-                action = image->recOpts.stop_on_error ? 3 : 1;
-            }
-
-            /* free file */
-            iso_file_source_unref(file);
-
-            if (action == 3) {
-                result = 1; /* prevent error to be passing up */
-                break;
-            } else {
-                /* TODO check that action is 1!!! */
-                continue;
-            }
+                         "Error %d when adding file %s", ret, path);
+            goto dir_rec_continue;
+        } else {
+            iso_msg_debug(image->id, "Adding file %s", path);
         }
 
         /* ok, node has correctly created, we need to add it */
-        iso_dir_insert(parent, new, pos, flag ? ISO_REPLACE_ALWAYS :
-                                         ISO_REPLACE_NEVER);
+        iso_dir_insert(parent, new, pos, replace);
 
         /* finally, if the node is a directory we need to recurse */
-        if (new->type == LIBISO_DIR) {
-            result = iso_add_dir_src_rec(image, (IsoDir*)new, file);
-            iso_file_source_unref(file);
-            if (result < 0) {
-                /* error */
-                if (image->recOpts.stop_on_error) {
-                    action = 3; /* stop */
-                    result = 1; /* prevent error to be passing up */
-                    break;
-                }
-            } else if (result == 0) {
-                /* stop */
-                action = 3;
-                break;
-            }
-        } else {
-            iso_file_source_unref(file);
+        if (new->type == LIBISO_DIR && S_ISDIR(info.st_mode)) {
+            ret = iso_add_dir_src_rec(image, (IsoDir*)new, file);
         }
-    }
 
-    if (result < 0) {
-        /* error reading dir, should never occur */
-        iso_msg_sorry(image->id, LIBISO_CANT_READ_FILE, "Error reading dir");
-        action = result;
-    }
+dir_rec_continue:;
+        free(path);
+        iso_file_source_unref(file);
+        
+        /* TODO check for error severity to decide what to do */
+        if (ret == ISO_ABORT || (ret < 0 && image->recOpts.stop_on_error)) {
+            break;
+        }
+    } /* while */
 
-    result = iso_file_source_close(dir);
-    if (result < 0) {
-        return result;
-    }
-    if (action < 0) {
-        return action; /* error */
-    } else if (action == 3) {
-        return 0; /* stop */
-    } else {
-        return 1; /* continue */
-    }
+    iso_file_source_close(dir);
+    return ret;
 }
 
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir)

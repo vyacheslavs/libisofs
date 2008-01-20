@@ -21,6 +21,9 @@
 #define ISO_INTERRUPTED                 -5
 #define ISO_WRONG_ARG_VALUE             -6
 
+/* canceled by user */
+#define ISO_ABORT                       -7
+
 #define ISO_WRITE_ERROR                 -10
 #define ISO_THREAD_ERROR                -11
 

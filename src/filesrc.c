@@ -272,8 +272,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * 0's to image
              */
             char *name = iso_stream_get_name(file->stream);
-            iso_msg_sorry(t->image->id, LIBISO_FILE_CANT_WRITE, 
-                "File \"%s\" can't be opened. Filling with 0s.", name);
+            iso_msg_sorry(t->image->id, LIBISO_FILE_CANT_WRITE, "File \"%s\" "
+                "can't be opened (error %d). Filling with 0s.", name, res);
             free(name);
             memset(buffer, 0, BLOCK_SIZE);
             for (b = 0; b < nblocks; ++b) {
