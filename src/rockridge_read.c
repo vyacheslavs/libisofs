@@ -297,7 +297,7 @@ int read_rr_NM(struct susp_sys_user_entry *nm, char **name, int *cont)
         *name = strcopy((char*)nm->data.NM.name, nm->len_sue[0] - 5);
     }
     if (*name == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* and set cond according to the value of CONTINUE flag */
@@ -355,7 +355,7 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont)
             size_t size = strlen(*dest);
             *dest = realloc(*dest, strlen(*dest) + len + 2);
             if (*dest == NULL) {
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             /* it is a new compoenent, add the '/' */
             if ((*dest)[size-1] != '/') {
@@ -367,7 +367,7 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont)
             /* the component continues */
             *dest = realloc(*dest, strlen(*dest) + len + 1);
             if (*dest == NULL) {
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             /* we don't have to add the '/' */
             strncat(*dest, comp, len);
@@ -375,7 +375,7 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont)
             *dest = strcopy(comp, len);
         }
         if (*dest == NULL) {
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         /* do the component continue or not? */
         *cont = (flags & 0x01) ? 2 : 1;

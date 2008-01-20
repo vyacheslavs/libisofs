@@ -39,14 +39,14 @@ int iso_image_new(const char *name, IsoImage **image)
 
     img = calloc(1, sizeof(IsoImage));
     if (img == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* local filesystem will be used by default */
     res = iso_local_filesystem_new(&(img->fs));
     if (res < 0) {
         free(img);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* use basic builder as default */
@@ -54,7 +54,7 @@ int iso_image_new(const char *name, IsoImage **image)
     if (res < 0) {
         iso_filesystem_unref(img->fs);
         free(img);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* fill image fields */

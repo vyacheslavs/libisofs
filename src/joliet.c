@@ -51,7 +51,7 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
          * only possible if mem error, as check for empty names is done
          * in public tree
          */
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 }
 
@@ -87,7 +87,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
     joliet = calloc(1, sizeof(JolietNode));
     if (joliet == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     if (iso->type == LIBISO_DIR) {
@@ -95,13 +95,13 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
         joliet->info.dir = calloc(1, sizeof(struct joliet_dir_info));
         if (joliet->info.dir == NULL) {
             free(joliet);
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         joliet->info.dir->children = calloc(sizeof(void*), dir->nchildren);
         if (joliet->info.dir->children == NULL) {
             free(joliet->info.dir);
             free(joliet);
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         joliet->type = JOLIET_DIR;
     } else if (iso->type == LIBISO_FILE) {
@@ -140,7 +140,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
     } else {
         /* should never happen */
         free(joliet);
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
 
     /* take a ref to the IsoNode */
@@ -242,7 +242,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         break;
     default:
         /* should never happen */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
     if (ret <= 0) {
         free(jname);
@@ -289,7 +289,7 @@ int joliet_tree_create(Ecma119Image *t)
     if (ret <= 0) {
         if (ret == 0) {
             /* unexpected error, root ignored!! This can't happen */
-            ret = ISO_ERROR;
+            ret = ISO_ASSERT_FAILURE;
         }
         return ret;
     }
@@ -409,7 +409,7 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
     uint32_t path_table_size;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -539,7 +539,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     uint16_t *biblio_file_id = NULL;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -747,7 +747,7 @@ int write_path_tables(Ecma119Image *t)
     /* allocate temporal pathlist */
     pathlist = malloc(sizeof(void*) * t->joliet_ndirs);
     if (pathlist == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     pathlist[0] = t->joliet_root;
     cur = 1;
@@ -815,7 +815,7 @@ int joliet_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = joliet_writer_compute_data_blocks;

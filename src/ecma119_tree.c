@@ -89,7 +89,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
          * only possible if mem error, as check for empty names is done
          * in public tree
          */
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 }
 
@@ -100,7 +100,7 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 
     ecma = calloc(1, sizeof(Ecma119Node));
     if (ecma == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* take a ref to the IsoNode */
@@ -128,13 +128,13 @@ int create_dir(Ecma119Image *img, IsoDir *iso, Ecma119Node **node)
 
     children = calloc(1, sizeof(void*) * iso->nchildren);
     if (children == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     dir_info = calloc(1, sizeof(struct ecma119_dir_info));
     if (dir_info == NULL) {
         free(children);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     ret = create_ecma119_node(img, (IsoNode*)iso, node);
@@ -379,7 +379,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         break;
     default:
         /* should never happen */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
     if (ret <= 0) {
         free(iso_name);
@@ -568,7 +568,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                 if (ok) {
                     char *new = strdup(tmp);
                     if (new == NULL) {
-                        ret = ISO_MEM_ERROR;
+                        ret = ISO_OUT_OF_MEM;
                         goto mangle_cleanup;
                     }
                     iso_msg_debug(img->image->id, 
@@ -677,7 +677,7 @@ int create_placeholder(Ecma119Node *parent, Ecma119Node *real,
 
     ret = calloc(1, sizeof(Ecma119Node));
     if (ret == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* 
@@ -688,7 +688,7 @@ int create_placeholder(Ecma119Node *parent, Ecma119Node *real,
     ret->iso_name = strdup(real->iso_name);
     if (ret->iso_name == NULL) {
         free(ret);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* take a ref to the IsoNode */
@@ -742,7 +742,7 @@ int reparent(Ecma119Node *child, Ecma119Node *parent)
 
     /* just for debug, this should never happen... */
     if (i == child->parent->info.dir->nchildren) {
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
 
     /* keep track of the real parent */
@@ -816,7 +816,7 @@ int ecma119_tree_create(Ecma119Image *img)
     if (ret <= 0) {
         if (ret == 0) {
             /* unexpected error, root ignored!! This can't happen */
-            ret = ISO_ERROR;
+            ret = ISO_ASSERT_FAILURE;
         }
         return ret;
     }

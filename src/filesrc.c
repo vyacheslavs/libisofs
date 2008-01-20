@@ -63,7 +63,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
     fsrc = malloc(sizeof(IsoFileSrc));
     if (fsrc == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* fill key and other atts */
@@ -149,7 +149,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     int (*inc_item)(void *);
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -164,7 +164,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     /* store the filesrcs in a array */
     filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files, inc_item, &size);
     if (filelist == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* sort files by weight, if needed */
@@ -247,7 +247,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     char buffer[BLOCK_SIZE];
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -344,7 +344,7 @@ int iso_file_src_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = filesrc_writer_compute_data_blocks;

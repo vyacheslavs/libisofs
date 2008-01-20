@@ -145,6 +145,11 @@ struct libiso_msgs_item;
 */
 #define LIBISO_MSGS_SEV_SORRY                                        0x60000000
 
+/** error messages indicating that the operation has failed, but you can
+    still continue using the library and even retry the operation
+*/
+#define LIBISO_MSGS_SEV_ERROR                                        0x6A000000
+
 /** An error message which puts the whole operation of the program in question
 */
 #define LIBISO_MSGS_SEV_FATAL                                        0x70000000
@@ -167,7 +172,7 @@ struct libiso_msgs_item;
 #define LIBISO_MSGS_PRIO_LOW                                         0x10000000 
 #define LIBISO_MSGS_PRIO_MEDIUM                                      0x20000000
 #define LIBISO_MSGS_PRIO_HIGH                                        0x30000000
-#define LIBISO_MSGS_PRIO_TOP                                         0x7ffffffe
+#define LIBISO_MSGS_PRIO_TOP                                         0x70000000
 
 /* Do not use this priority for submitting */
 #define LIBISO_MSGS_PRIO_NEVER                                       0x7fffffff

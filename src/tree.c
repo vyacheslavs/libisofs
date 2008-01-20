@@ -70,7 +70,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
 
     node = calloc(1, sizeof(IsoDir));
     if (node == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     node->node.refcount = 1;
@@ -78,7 +78,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     node->node.name = strdup(name);
     if (node->node.name == NULL) {
         free(node);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* permissions from parent */
@@ -123,7 +123,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
  *     Possible errors:
  *         ISO_NULL_POINTER, if parent, name or dest are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  */
 int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
                              const char *dest, IsoSymlink **link)
@@ -158,7 +158,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
 
     node = calloc(1, sizeof(IsoSymlink));
     if (node == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     node->node.refcount = 1;
@@ -166,14 +166,14 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     node->node.name = strdup(name);
     if (node->node.name == NULL) {
         free(node);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     node->dest = strdup(dest);
     if (node->dest == NULL) {
         free(node->node.name);
         free(node);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* permissions from parent */
@@ -231,7 +231,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  *     Possible errors:
  *         ISO_NULL_POINTER, if parent, name or dest are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  * 
  */
 int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
@@ -264,7 +264,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
 
     node = calloc(1, sizeof(IsoSpecial));
     if (node == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     node->node.refcount = 1;
@@ -272,7 +272,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     node->node.name = strdup(name);
     if (node->node.name == NULL) {
         free(node);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     node->node.mode = mode;
@@ -576,7 +576,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         if (image->recOpts.report) {
             int r = image->recOpts.report(file);
             if (r <= 0) {
-                ret = (r < 0 ? ISO_ABORT : ISO_SUCCESS);
+                ret = (r < 0 ? ISO_CANCELED : ISO_SUCCESS);
                 goto dir_rec_continue;
             }
         }
@@ -602,7 +602,7 @@ dir_rec_continue:;
         iso_file_source_unref(file);
         
         /* TODO check for error severity to decide what to do */
-        if (ret == ISO_ABORT || (ret < 0 && image->recOpts.stop_on_error)) {
+        if (ret == ISO_CANCELED || (ret < 0 && image->recOpts.stop_on_error)) {
             break;
         }
     } /* while */

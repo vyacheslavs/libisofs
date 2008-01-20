@@ -24,7 +24,7 @@ int iso_init()
 {
     if (libiso_msgr == NULL) {
         if (libiso_msgs_new(&libiso_msgr, 0) <= 0)
-            return ISO_ERROR;
+            return ISO_FATAL_ERROR;
     }
     libiso_msgs_set_severities(libiso_msgr, LIBISO_MSGS_SEV_NEVER,
                    LIBISO_MSGS_SEV_FATAL, "libisofs: ", 0);

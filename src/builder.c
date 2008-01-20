@@ -58,7 +58,7 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
         /* the stream has taken our ref to src, so we need to add one */
         iso_file_source_ref(src);
         iso_stream_unref(stream);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* fill node fields */
@@ -125,7 +125,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             if (file == NULL) {
                 free(name);
                 iso_stream_unref(stream);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             file->msblock = 0;
             file->sort_weight = 0;
@@ -140,7 +140,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             new = calloc(1, sizeof(IsoDir));
             if (new == NULL) {
                 free(name);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             new->type = LIBISO_DIR;
         }
@@ -159,7 +159,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             link = malloc(sizeof(IsoSymlink));
             if (link == NULL) {
                 free(name);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             link->dest = strdup(dest);
             link->node.type = LIBISO_SYMLINK;
@@ -176,7 +176,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             special = malloc(sizeof(IsoSpecial));
             if (special == NULL) {
                 free(name);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
@@ -220,7 +220,7 @@ int iso_node_basic_builder_new(IsoNodeBuilder **builder)
 
     b = malloc(sizeof(IsoNodeBuilder));
     if (b == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     b->refcount = 1;

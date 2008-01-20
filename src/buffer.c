@@ -84,14 +84,14 @@ int iso_ring_buffer_new(size_t size, IsoRingBuffer **rbuf)
 
     buffer = malloc(sizeof(IsoRingBuffer));
     if (buffer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     buffer->cap = (size > 32 ? size : 32) * BLOCK_SIZE;
     buffer->buf = malloc(buffer->cap);
     if (buffer->buf == NULL) {
         free(buffer);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     buffer->size = 0;

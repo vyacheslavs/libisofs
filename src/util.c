@@ -49,7 +49,7 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     outbytes = (inbytes + 1) * MB_LEN_MAX;
     out = alloca(outbytes);
     if (out == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     conv = iconv_open(ocharset, icharset);
@@ -70,7 +70,7 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
 
     *output = malloc(ret - out + 1);
     if (*output == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     memcpy(*output, out, ret - out + 1);
     return ISO_SUCCESS;
@@ -91,7 +91,7 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
     outbytes = (inbytes + 1) * MB_LEN_MAX;
     out = alloca(outbytes);
     if (out == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     conv = iconv_open(ocharset, icharset);
@@ -112,7 +112,7 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
 
     *output = malloc(ret - out + 1);
     if (*output == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     memcpy(*output, out, ret - out + 1);
     return ISO_SUCCESS;
@@ -151,7 +151,7 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
     /* we are sure that numchars <= inbytes */
     wstr = malloc(outbytes);
     if (wstr == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     ret = (char *)wstr;
     src = (char *)input;
@@ -225,7 +225,7 @@ int str2ascii(const char *icharset, const char *input, char **output)
 
     ret_ = malloc(numchars + 1);
     if (ret_ == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     outbytes = numchars;
     ret = ret_;
@@ -337,7 +337,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
 
     ret_ = malloc((numchars+1) * sizeof(uint16_t));
     if (ret_ == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     outbytes = numchars * sizeof(uint16_t);
     ret = ret_;
@@ -847,7 +847,7 @@ int str2d_char(const char *icharset, const char *input, char **output)
     size_t len, i;
 
     if (output == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /** allow NULL input */
@@ -881,7 +881,7 @@ int str2a_char(const char *icharset, const char *input, char **output)
     size_t len, i;
 
     if (output == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /** allow NULL input */
@@ -1086,7 +1086,7 @@ int iso_eaccess(const char *path)
             break;
         case EFAULT:
         case ENOMEM:
-            err = ISO_MEM_ERROR;
+            err = ISO_OUT_OF_MEM;
             break;
         default:
             err = ISO_FILE_ERROR;

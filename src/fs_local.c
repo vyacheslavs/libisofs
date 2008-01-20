@@ -105,7 +105,7 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
             break;
         case EFAULT:
         case ENOMEM:
-            err = ISO_MEM_ERROR;
+            err = ISO_OUT_OF_MEM;
             break;
         default:
             err = ISO_FILE_ERROR;
@@ -147,7 +147,7 @@ int lfs_stat(IsoFileSource *src, struct stat *info)
             break;
         case EFAULT:
         case ENOMEM:
-            err = ISO_MEM_ERROR;
+            err = ISO_OUT_OF_MEM;
             break;
         default:
             err = ISO_FILE_ERROR;
@@ -221,7 +221,7 @@ int lfs_open(IsoFileSource *src)
             break;
         case EFAULT:
         case ENOMEM:
-            err = ISO_MEM_ERROR;
+            err = ISO_OUT_OF_MEM;
             break;
         default:
             err = ISO_FILE_ERROR;
@@ -286,7 +286,7 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
                     ret = ISO_INTERRUPTED;
                     break;
                 case EFAULT:
-                    ret = ISO_MEM_ERROR;
+                    ret = ISO_OUT_OF_MEM;
                     break;
                 case EIO:
                     ret = ISO_FILE_READ_ERROR;
@@ -385,7 +385,7 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
             return ISO_FILE_IS_NOT_SYMLINK;
         case EFAULT:
         case ENOMEM:
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         default:
             return ISO_FILE_ERROR;
         }
@@ -454,7 +454,7 @@ int iso_file_source_new_lfs(IsoFileSource *parent, const char *name,
 
     if (lfs == NULL) {
         /* this should never happen */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
 
     /* allocate memory */
@@ -532,7 +532,7 @@ int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
             break;
         case EFAULT:
         case ENOMEM:
-            err = ISO_MEM_ERROR;
+            err = ISO_OUT_OF_MEM;
             break;
         default:
             err = ISO_FILE_ERROR;
@@ -555,7 +555,7 @@ int lfs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
     ptr = strdup(path);
     if (ptr == NULL) {
         iso_file_source_unref(src);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     component = strtok_r(ptr, "/", &brk_info);

@@ -24,7 +24,7 @@ int susp_append(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
     susp->susp_fields = realloc(susp->susp_fields, sizeof(void*)
                                 * susp->n_susp_fields);
     if (susp->susp_fields == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     susp->susp_fields[susp->n_susp_fields - 1] = data;
     susp->suf_len += data[2];
@@ -38,7 +38,7 @@ int susp_append_ce(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
     susp->ce_susp_fields = realloc(susp->ce_susp_fields, sizeof(void*)
                                    * susp->n_ce_susp_fields);
     if (susp->ce_susp_fields == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     susp->ce_susp_fields[susp->n_ce_susp_fields - 1] = data;
     susp->ce_len += data[2];
@@ -90,7 +90,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     uint8_t *PX = malloc(44);
     if (PX == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     PX[0] = 'P';
@@ -115,7 +115,7 @@ int rrip_add_TF(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     uint8_t *TF = malloc(5 + 3 * 7);
     if (TF == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     TF[0] = 'T';
@@ -146,12 +146,12 @@ int rrip_add_PL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 
     if (n->type != ECMA119_DIR || n->info.dir->real_parent == NULL) {
         /* should never occur */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
 
     PL = malloc(12);
     if (PL == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     PL[0] = 'P';
@@ -178,7 +178,7 @@ int rrip_add_RE(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     uint8_t *RE = malloc(4);
     if (RE == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     RE[0] = 'R';
@@ -204,12 +204,12 @@ int rrip_add_PN(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     node = (IsoSpecial*)n->node;
     if (node->node.type != LIBISO_SPECIAL) {
         /* should never occur */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
 
     PN = malloc(20);
     if (PN == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     PN[0] = 'P';
@@ -233,11 +233,11 @@ int rrip_add_CL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     uint8_t *CL;
     if (n->type != ECMA119_PLACEHOLDER) {
         /* should never occur */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
     CL = malloc(12);
     if (CL == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     CL[0] = 'C';
@@ -295,7 +295,7 @@ int rrip_add_NM(Ecma119Image *t, struct susp_info *susp, char *name, int size,
 {
     uint8_t *NM = malloc(size + 5);
     if (NM == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     NM[0] = 'N';
@@ -334,7 +334,7 @@ int rrip_SL_append_comp(size_t *n, uint8_t ***comps, char *s, int size, char fl)
 {
     uint8_t *comp = malloc(size + 2);
     if (comp == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     (*n)++;
@@ -343,7 +343,7 @@ int rrip_SL_append_comp(size_t *n, uint8_t ***comps, char *s, int size, char fl)
     *comps = realloc(*comps, (*n) * sizeof(void*));
     if (*comps == NULL) {
         free(comp);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     (*comps)[(*n) - 1] = comp;
 
@@ -385,7 +385,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
             total_comp_len -= comp[i][1] + 2;
             SL = malloc(total_comp_len + 5);
             if (SL == NULL) {
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
 
             SL[0] = 'S';
@@ -404,7 +404,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
              * debug purposes
              */
             if (ce == 0) {
-                return ISO_ERROR; /* unexpected */
+                return ISO_ASSERT_FAILURE;
             }
             ret = susp_append_ce(t, susp, SL);
             if (ret < 0) {
@@ -417,7 +417,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 
     SL = malloc(total_comp_len + 5);
     if (SL == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     SL[0] = 'S';
@@ -453,7 +453,7 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
 {
     unsigned char *ER = malloc(182);
     if (ER == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     ER[0] = 'E';
@@ -484,7 +484,7 @@ int susp_add_CE(Ecma119Image *t, size_t ce_len, struct susp_info *susp)
 {
     uint8_t *CE = malloc(28);
     if (CE == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     CE[0] = 'C';
@@ -508,7 +508,7 @@ int susp_add_SP(Ecma119Image *t, struct susp_info *susp)
 {
     unsigned char *SP = malloc(7);
     if (SP == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     SP[0] = 'S';

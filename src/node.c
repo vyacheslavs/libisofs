@@ -108,7 +108,7 @@ int iso_node_set_name(IsoNode *node, const char *name)
 
     new = strdup(name);
     if (new == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     free(node->name);
     node->name = new;
@@ -251,7 +251,10 @@ time_t iso_node_get_ctime(const IsoNode *node)
 
 void iso_node_set_hidden(IsoNode *node, int hide_attrs)
 {
-    node->hidden = hide_attrs;
+    /* you can't hide root node */
+    if ((IsoNode*)node->parent != node) {
+        node->hidden = hide_attrs;
+    }
 }
 
 /**
@@ -551,7 +554,7 @@ int iso_symlink_set_dest(IsoSymlink *link, const char *dest)
     }
     d = strdup(dest);
     if (d == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     free(link->dest);
     link->dest = d;
@@ -724,7 +727,7 @@ int iso_node_new_root(IsoDir **root)
 
     dir = calloc(1, sizeof(IsoDir));
     if (dir == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     dir->node.refcount = 1;
     dir->node.type = LIBISO_DIR;

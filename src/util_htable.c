@@ -73,7 +73,7 @@ int iso_htable_add(IsoHTable *table, void *key, void *data)
     
     new = iso_hnode_new(key, data);
     if (new == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     hash = table->hash(key) % table->cap;
@@ -113,7 +113,7 @@ int iso_htable_put(IsoHTable *table, void *key, void *data)
     
     new = iso_hnode_new(key, data);
     if (new == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     table->size++;
@@ -318,17 +318,17 @@ int iso_htable_create(size_t size, hash_funtion_t hash,
     IsoHTable *t;
     
     if (table == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     t = malloc(sizeof(IsoHTable));
     if (t == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     t->table = calloc(size, sizeof(void*));
     if (t->table == NULL) {
         free(t);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     t->cap = size;
     t->size = 0;

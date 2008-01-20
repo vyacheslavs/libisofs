@@ -83,7 +83,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
 
     n = calloc(1, sizeof(Iso1999Node));
     if (n == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     if (iso->type == LIBISO_DIR) {
@@ -91,13 +91,13 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
         n->info.dir = calloc(1, sizeof(struct iso1999_dir_info));
         if (n->info.dir == NULL) {
             free(n);
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         n->info.dir->children = calloc(sizeof(void*), dir->nchildren);
         if (n->info.dir->children == NULL) {
             free(n->info.dir);
             free(n);
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         n->type = ISO1999_DIR;
     } else if (iso->type == LIBISO_FILE) {
@@ -136,7 +136,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
     } else {
         /* should never happen */
         free(n);
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
 
     /* take a ref to the IsoNode */
@@ -232,7 +232,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
         break;
     default:
         /* should never happen */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
     if (ret <= 0) {
         free(iso_name);
@@ -289,7 +289,7 @@ int iso1999_tree_create(Ecma119Image *t)
     if (ret <= 0) {
         if (ret == 0) {
             /* unexpected error, root ignored!! This can't happen */
-            ret = ISO_ERROR;
+            ret = ISO_ASSERT_FAILURE;
         }
         return ret;
     }
@@ -406,7 +406,7 @@ int iso1999_writer_compute_data_blocks(IsoImageWriter *writer)
     uint32_t path_table_size;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -504,7 +504,7 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
     char *biblio_file_id = NULL;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -708,7 +708,7 @@ int write_path_tables(Ecma119Image *t)
     /* allocate temporal pathlist */
     pathlist = malloc(sizeof(void*) * t->iso1999_ndirs);
     if (pathlist == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     pathlist[0] = t->iso1999_root;
     cur = 1;
@@ -776,7 +776,7 @@ int iso1999_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = iso1999_writer_compute_data_blocks;

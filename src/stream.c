@@ -163,12 +163,12 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
 
     str = malloc(sizeof(IsoStream));
     if (str == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     data = malloc(sizeof(FSrcStreamData));
     if (str == NULL) {
         free(str);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* take the ref to IsoFileSource */
@@ -335,12 +335,12 @@ int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream)
 
     str = malloc(sizeof(IsoStream));
     if (str == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     data = malloc(sizeof(MemStreamData));
     if (str == NULL) {
         free(str);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* fill data */

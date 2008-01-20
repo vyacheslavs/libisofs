@@ -253,7 +253,7 @@ int ifs_stat(IsoFileSource *src, struct stat *info)
     data = (ImageFileSourceData*)src->data;
     
     if (S_ISLNK(data->info.st_mode)) {
-        /* TODO #00012 : support follow symlinks on imafe filesystem */ 
+        /* TODO #00012 : support follow symlinks on image filesystem */ 
         return ISO_FILE_BAD_PATH;
     }
     *info = data->info;
@@ -364,7 +364,7 @@ int read_dir(ImageFileSourceData *data)
             node = malloc(sizeof(struct child_list));
             if (node == NULL) {
                 iso_file_source_unref(child);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             /*
              * Note that we insert in reverse order. This leads to faster
@@ -429,7 +429,7 @@ int ifs_open(IsoFileSource *src)
         }
         data->data.content = malloc(BLOCK_SIZE);
         if (data->data.content == NULL) {
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         data->data.offset = 0;
         data->opened = 1;
@@ -492,7 +492,7 @@ int ifs_close(IsoFileSource *src)
  *         ISO_NULL_POINTER
  *         ISO_FILE_NOT_OPENNED
  *         ISO_FILE_IS_DIR
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_INTERRUPTED
  */
 static
@@ -607,7 +607,7 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
  *         ISO_NULL_POINTER
  *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
  *         ISO_FILE_IS_NOT_SYMLINK
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
  * 
@@ -818,7 +818,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         iter = susp_iter_new(fsdata->src, record, fsdata->len_skp, 
                              fsdata->msgid);
         if (iter == NULL) {
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         
         while ((ret = susp_iter_next(iter, &sue)) > 0) {
@@ -1123,12 +1123,12 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     /* ok, we can now create the file source */
     ifsdata = calloc(1, sizeof(ImageFileSourceData));
     if (ifsdata == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto ifs_cleanup;
     }
     ifsrc = calloc(1, sizeof(IsoFileSource));
     if (ifsrc == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto ifs_cleanup;
     }
     
@@ -1268,7 +1268,7 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
     ptr = strdup(path);
     if (ptr == NULL) {
         iso_file_source_unref(src);
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto get_path_exit;
     }
     
@@ -1415,7 +1415,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
     iter = susp_iter_new(data->src, record, data->len_skp, data->msgid);
     if (iter == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     /* first entry must be an SP system use entry */
@@ -1597,7 +1597,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         iso_msg_hint(data->msgid, LIBISO_EL_TORITO_UNHANLED, 
                      "Unsupported El-Torito platform. Only 80x86 is "
                      "supported. El-Torito info will be ignored.");
-        return ISO_WRONG_EL_TORITO;
+        return ISO_UNSUPPORTED_EL_TORITO;
     }
     
     /* ok, once we are here we assume it is a valid catalog */
@@ -1633,13 +1633,13 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
 
     data = calloc(1, sizeof(_ImageFsData));
     if (data == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     ifs = calloc(1, sizeof(IsoImageFilesystem));
     if (ifs == NULL) {
         free(data);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* get our ref to IsoDataSource */
@@ -1659,7 +1659,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     setlocale(LC_CTYPE, "");
     data->local_charset = strdup(nl_langinfo(CODESET));
     if (data->local_charset == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto fs_cleanup;
     }
 
@@ -1819,7 +1819,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         }
     }
     if (data->input_charset == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto fs_cleanup;
     }
     
@@ -1879,7 +1879,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                  * a regular file */
                 new = calloc(1, sizeof(IsoBoot));
                 if (new == NULL) {
-                    result = ISO_MEM_ERROR;
+                    result = ISO_OUT_OF_MEM;
                     free(name);
                     return result;
                 }
@@ -1904,7 +1904,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 if (file == NULL) {
                     free(name);
                     iso_stream_unref(stream);
-                    return ISO_MEM_ERROR;
+                    return ISO_OUT_OF_MEM;
                 }
     
                 /* the msblock is taken from the image */
@@ -1941,7 +1941,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             new = calloc(1, sizeof(IsoDir));
             if (new == NULL) {
                 free(name);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             new->type = LIBISO_DIR;
             new->refcount = 0;
@@ -1961,7 +1961,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             link = malloc(sizeof(IsoSymlink));
             if (link == NULL) {
                 free(name);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             link->dest = strdup(dest);
             link->node.type = LIBISO_SYMLINK;
@@ -1979,7 +1979,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             special = malloc(sizeof(IsoSpecial));
             if (special == NULL) {
                 free(name);
-                return ISO_MEM_ERROR;
+                return ISO_OUT_OF_MEM;
             }
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
@@ -2023,7 +2023,7 @@ int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
 
     b = malloc(sizeof(IsoNodeBuilder));
     if (b == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     b->refcount = 1;
@@ -2077,12 +2077,12 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
     /* ok, we can now create the file source */
     ifsdata = calloc(1, sizeof(ImageFileSourceData));
     if (ifsdata == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto boot_fs_cleanup;
     }
     ifsrc = calloc(1, sizeof(IsoFileSource));
     if (ifsrc == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto boot_fs_cleanup;
     }
     
@@ -2178,7 +2178,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         
         boot_image = calloc(1, sizeof(ElToritoBootImage));
         if (boot_image == NULL) {
-            ret = ISO_MEM_ERROR;
+            ret = ISO_OUT_OF_MEM;
             goto import_revert;
         }
         boot_image->bootable = data->bootable;
@@ -2189,7 +2189,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         
         catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
         if (catalog == NULL) {
-            ret = ISO_MEM_ERROR;
+            ret = ISO_OUT_OF_MEM;
             goto import_revert;
         }
         catalog->image = boot_image;
@@ -2225,7 +2225,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         if (image->bootcat->node == NULL) {
             IsoNode *node = calloc(1, sizeof(IsoBoot));
             if (node == NULL) {
-                ret = ISO_MEM_ERROR;
+                ret = ISO_OUT_OF_MEM;
                 goto import_revert;
             }
             node->mode = S_IFREG;

@@ -49,7 +49,7 @@ int iso_rbtree_new(int (*compare)(const void*, const void*), IsoRBTree **tree)
     }
     *tree = calloc(1, sizeof(IsoRBTree));
     if (*tree == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     (*tree)->compare = compare;
     return ISO_SUCCESS;
@@ -154,7 +154,7 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
         /* Empty tree case */
         tree->root = iso_rbnode_new(data);
         if (tree->root == NULL) {
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         new = data;
         added = 1;
@@ -177,7 +177,7 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
                 /* Insert new node at the bottom */
                 p->ch[dir] = q = iso_rbnode_new(data);
                 if (q == NULL) {
-                    return ISO_MEM_ERROR;
+                    return ISO_OUT_OF_MEM;
                 }
                 added = 1;
             } else if (is_red(q->ch[0]) && is_red(q->ch[1])) {

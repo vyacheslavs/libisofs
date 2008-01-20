@@ -197,7 +197,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     uint32_t path_table_size;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     target = writer->target;
@@ -307,7 +307,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     char *abstract_file_id, *biblio_file_id;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     t = writer->target;
@@ -555,7 +555,7 @@ int write_path_tables(Ecma119Image *t)
     /* allocate temporal pathlist */
     pathlist = malloc(sizeof(void*) * t->ndirs);
     if (pathlist == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     pathlist[0] = t->root;
     cur = 1;
@@ -625,7 +625,7 @@ int ecma119_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = ecma119_writer_compute_data_blocks;
@@ -656,7 +656,7 @@ int pad_writer_compute_data_blocks(IsoImageWriter *writer)
     Ecma119Image *target;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     target = writer->target;
@@ -682,7 +682,7 @@ int pad_writer_write_data(IsoImageWriter *writer)
     size_t i;
 
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     t = writer->target;
     
@@ -715,7 +715,7 @@ int pad_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = pad_writer_compute_data_blocks;
@@ -806,7 +806,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     /* 1. Allocate target and copy opts there */
     target = calloc(1, sizeof(Ecma119Image));
     if (target == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* create the tree for file caching */
@@ -859,7 +859,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     if (target->input_charset == NULL) {
         iso_image_unref(src);
         free(target);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     if (opts->output_charset != NULL) {
@@ -870,7 +870,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     if (target->output_charset == NULL) {
         iso_image_unref(src);
         free(target);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* 
@@ -900,7 +900,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     if (target->writers == NULL) {
         iso_image_unref(src);
         free(target);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* create writer for ECMA-119 structure */
@@ -1130,7 +1130,7 @@ int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
 
     source = calloc(1, sizeof(struct burn_source));
     if (source == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     ret = ecma119_image_new(image, opts, &target);
@@ -1157,7 +1157,7 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
     ret = iso_ring_buffer_write(target->buffer, buf, count);
     if (ret == 0) {
         /* reader cancelled */
-        return ISO_WRITE_ERROR;
+        return ISO_CANCELED;
     }
 
     /* total size is 0 when writing the overwrite buffer */

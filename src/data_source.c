@@ -164,13 +164,13 @@ int iso_data_source_new_from_file(const char *path, IsoDataSource **src)
 
     data = malloc(sizeof(struct file_data_src));
     if (data == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     ds = malloc(sizeof(IsoDataSource));
     if (ds == NULL) {
         free(data);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* fill data fields */
@@ -178,7 +178,7 @@ int iso_data_source_new_from_file(const char *path, IsoDataSource **src)
     if (data->path == NULL) {
         free(data);
         free(ds);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     data->fd = -1;

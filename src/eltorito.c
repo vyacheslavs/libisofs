@@ -128,7 +128,7 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
 
     node = calloc(1, sizeof(IsoBoot));
     if (node == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     node->node.refcount = 1;
@@ -136,7 +136,7 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     node->node.name = strdup(name);
     if (node->node.name == NULL) {
         free(node);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* atributes from parent */
@@ -181,7 +181,7 @@ int create_image(IsoImage *image, const char *image_path,
         return ret;
     }
     if (ret == 0) {
-        return ISO_FILE_DOESNT_EXIST;
+        return ISO_NODE_DOESNT_EXIST;
     }
         
     if (imgfile->type != LIBISO_FILE) {
@@ -274,7 +274,7 @@ int create_image(IsoImage *image, const char *image_path,
     
     boot = calloc(1, sizeof(struct el_torito_boot_image));
     if (boot == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     boot->image = (IsoFile*)imgfile;
     iso_node_ref(imgfile); /* get our ref */
@@ -313,7 +313,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
         char *catdir = NULL, *catname = NULL;
         catdir = strdup(catalog_path);
         if (catdir == NULL) {
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         
         /* get both the dir and the name */ 
@@ -331,7 +331,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
             ret = iso_tree_path_to_node(image, catdir, &p);
             if (ret <= 0) {
                 free(catdir);
-                return ret < 0 ? ret : ISO_FILE_DOESNT_EXIST;
+                return ret < 0 ? ret : ISO_NODE_DOESNT_EXIST;
             }
             if (p->type != LIBISO_DIR) {
                 free(catdir);
@@ -356,7 +356,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     /* creates the catalog with the given image */
     catalog = malloc(sizeof(struct el_torito_boot_catalog));
     if (catalog == NULL) {
-        ret = ISO_MEM_ERROR;
+        ret = ISO_OUT_OF_MEM;
         goto boot_image_cleanup;
     }
     catalog->image = boot_image;
@@ -657,12 +657,12 @@ int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
 
     str = malloc(sizeof(IsoStream));
     if (str == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     data = malloc(sizeof(struct catalog_stream));
     if (str == NULL) {
         free(str);
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     /* fill data */
@@ -684,7 +684,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
     IsoStream *stream;
     
     if (target == NULL || src == NULL || target->catalog == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
     
     if (target->cat != NULL) {
@@ -695,7 +695,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
     
     file = malloc(sizeof(IsoFileSrc));
     if (file == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     ret = catalog_stream_new(target, &stream);
@@ -825,7 +825,7 @@ int eltorito_writer_write_data(IsoImageWriter *writer)
         size = (size_t) iso_stream_get_size(original);
         buf = malloc(size);
         if (buf == NULL) {
-            return ISO_MEM_ERROR;
+            return ISO_OUT_OF_MEM;
         }
         ret = iso_stream_open(original);
         if (ret < 0) {
@@ -868,7 +868,7 @@ int eltorito_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_MEM_ERROR;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = eltorito_writer_compute_data_blocks;
