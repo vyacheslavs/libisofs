@@ -2198,9 +2198,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
     /* recursively add image */
     ret = iso_add_dir_src_rec(image, image->root, newroot);
-    
+
     /* error during recursive image addition? */
-    if (ret <= 0) {
+    if (ret < 0) {
         iso_node_builder_unref(image->builder);
         goto import_revert;
     }
@@ -2252,7 +2252,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_image_set_copyright_file_id(image, data->copyright_file_id);
     iso_image_set_abstract_file_id(image, data->abstract_file_id);
     iso_image_set_biblio_file_id(image, data->biblio_file_id);
-            
+
     if (features != NULL) {
         features->hasJoliet = data->joliet;
         features->hasRR = data->rr_version != 0;
