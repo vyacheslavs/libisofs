@@ -986,7 +986,7 @@ void iso_datetime_7(unsigned char *buf, time_t t)
 #ifdef HAVE_TM_GMTOFF
     tzoffset = tm.tm_gmtoff / 60 / 15;
 #else
-    tzoffset = timezone / 60 / 15;
+    tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
 #endif
     if (tzoffset > 52)
         tzoffset -= 101;
@@ -1021,7 +1021,7 @@ void iso_datetime_17(unsigned char *buf, time_t t)
 #ifdef HAVE_TM_GMTOFF
         tzoffset = tm.tm_gmtoff / 60 / 15;
 #else
-        tzoffset = timezone / 60 / 15;
+        tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
 #endif
         if (tzoffset > 52)
             tzoffset -= 101;
@@ -1055,7 +1055,7 @@ time_t iso_datetime_read_17(const uint8_t *buf)
     tm.tm_year -= 1900;
     tm.tm_mon -= 1;
 
-    return timegm(&tm) - buf[16] * 60 * 15;
+    return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
 
 /**
