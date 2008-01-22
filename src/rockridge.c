@@ -266,7 +266,7 @@ char *get_rr_fname(Ecma119Image *t, const char *str)
     ret = strconv(str, t->input_charset, t->output_charset, &name);
     if (ret < 0) {
         /* TODO we should check for possible cancelation */
-        iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, 
+        iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, ret,
                   "Charset conversion error. Can't convert %s from %s to %s",
                   str, t->input_charset, t->output_charset);
 

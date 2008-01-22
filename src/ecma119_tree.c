@@ -35,7 +35,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 
     ret = str2ascii(img->input_charset, iso->name, &ascii_name);
     if (ret < 0) {
-        iso_msg_submit(img->image->id, ret, "Can't convert %s", iso->name);
+        iso_msg_submit(img->image->id, ret, 0, "Can't convert %s", iso->name);
         return ret;
     }
 
@@ -163,7 +163,7 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 
     size = iso_stream_get_size(iso->stream);
     if (size > (off_t)0xffffffff) {
-        return iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG,
+        return iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
                               "File \"%s\" can't be added to image because "
                               "is greater than 4GB", iso->node.name);
     }
@@ -298,12 +298,12 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     if (!image->rockridge) {
         if ((iso->type == LIBISO_DIR && depth > 8) && !image->allow_deep_paths) {
             free(iso_name);
-            return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG,
+            return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                          "File \"%s\" can't be added, because directory depth "
                          "is greater than  8.", iso->name);
         } else if (max_path > 255 && !image->allow_longer_paths) {
             free(iso_name);
-            return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG,
+            return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                          "File \"%s\" can't be added, because path length "
                          "is greater than 255 characters", iso->name);
         }
@@ -318,7 +318,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_symlink(image, (IsoSymlink*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
-            ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 
+            ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
                 "File \"%s\" ignored. Symlinks need RockRidge extensions.", 
                 iso->name);
         }
@@ -328,7 +328,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_special(image, (IsoSpecial*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
-            ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 
+            ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
                 "File \"%s\" ignored. Special files need RockRidge extensions.", 
                 iso->name);
         }
@@ -338,7 +338,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_boot_cat(image, (IsoBoot*)iso, &node);
         } else {
             /* log and ignore */
-            ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 
+            ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
         }

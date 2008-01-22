@@ -39,7 +39,7 @@ int get_iso1999_name(Ecma119Image *t, const char *str, char **fname)
     } else {
         ret = strconv(str, t->input_charset, t->output_charset, &name);
         if (ret < 0) {
-            ret = iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, 
+            ret = iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, ret,
                 "Charset conversion error. Can't convert %s from %s to %s",
                 str, t->input_charset, t->output_charset);
             if (ret < 0) {
@@ -119,7 +119,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
             free(n);
-            return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG,
+            return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
                          "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->name);
             return 0;
@@ -186,7 +186,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name): 0);
     if (!t->allow_longer_paths && max_path > 255) {
         free(iso_name);
-        return iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG,
+        return iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                      "File \"%s\" can't be added to ISO 9660:1999 tree, "
                      "because its path length is larger than 255", iso->name);
     }
@@ -229,14 +229,14 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
             ret = create_node(t, iso, &node);
         } else {
             /* log and ignore */
-            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 
+            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
         }
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 
+        ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
                      "Can't add %s to ISO 9660:1999 tree. This kind of files "
                      "can only be added to a Rock Ridget tree. Skipping.", 
                      iso->name);
