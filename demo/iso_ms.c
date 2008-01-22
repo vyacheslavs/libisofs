@@ -122,7 +122,7 @@ int main(int argc, char **argv)
         return 1;
     }
     
-    while (burn_src->read(burn_src, buf, 2048) == 2048) {
+    while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         fwrite(buf, 1, 2048, fd);
     }
     fclose(fd);

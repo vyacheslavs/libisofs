@@ -253,6 +253,13 @@ void iso_ring_buffer_writer_close(IsoRingBuffer *buf, int error)
 void iso_ring_buffer_reader_close(IsoRingBuffer *buf, int error)
 {
     pthread_mutex_lock(&buf->mutex);
+    
+    if (buf->rend) {
+        /* reader already closed */
+        pthread_mutex_unlock(&buf->mutex);
+        return;
+    }
+
     buf->rend = error ? 2 : 1;
 
     /* ensure no writer is waiting */

@@ -1103,6 +1103,22 @@ static void bs_free_data(struct burn_source *bs)
     ecma119_image_free(target);
 }
 
+int bs_cancel(struct burn_source *bs)
+{
+    Ecma119Image *target = (Ecma119Image*)bs->data;
+    
+    iso_msg_debug(target->image->id, "Reader thread being cancelled");
+
+    /* forces writer to stop if it is still running */
+    iso_ring_buffer_reader_close(target->buffer, ISO_CANCELED);
+
+    /* wait until writer thread finishes */
+    pthread_join(target->wthread, NULL);
+
+    iso_msg_debug(target->image->id, "Writer thread joined");
+    return ISO_SUCCESS;
+}
+
 static
 int bs_set_size(struct burn_source *bs, off_t size)
 {
@@ -1140,10 +1156,13 @@ int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
     }
 
     source->refcount = 1;
-    source->read = bs_read;
+    source->version = 1;
+    source->read = NULL;
     source->get_size = bs_get_size;
     source->set_size = bs_set_size;
     source->free_data = bs_free_data;
+    source->read_xt = bs_read;
+    source->cancel = bs_cancel;
     source->data = target;
 
     *burn_src = source;
