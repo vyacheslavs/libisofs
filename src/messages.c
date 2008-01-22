@@ -19,7 +19,7 @@ int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 /**
  * Threshold for aborting.
  */
-int abort_threshold = LIBISO_MSGS_SEV_HINT;
+int abort_threshold = LIBISO_MSGS_SEV_ERROR;
 
 #define MAX_MSG_LEN     4096
 
@@ -39,6 +39,20 @@ int iso_init()
 void iso_finish()
 {
     libiso_msgs_destroy(&libiso_msgr, 0);
+}
+
+int iso_set_abort_severity(char *severity)
+{
+    int ret, sevno;
+
+    ret = libiso_msgs__text_to_sev(severity, &sevno, 0);
+    if (ret <= 0)
+        return ISO_WRONG_ARG_VALUE;
+    if (sevno > LIBISO_MSGS_SEV_ERROR || sevno < LIBISO_MSGS_SEV_NOTE) 
+        return ISO_WRONG_ARG_VALUE;
+    ret = abort_threshold;
+    abort_threshold = sevno;
+    return ret;
 }
 
 void iso_msg_debug(int imgid, const char *fmt, ...)

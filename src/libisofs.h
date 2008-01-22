@@ -1695,6 +1695,19 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code,
 const char *iso_error_to_msg(int errcode);
 
 /**
+ * Set the minimum error severity that causes a libisofs operation to 
+ * be aborted as soon as possible.
+ * 
+ * @param severity
+ *      one of "FAILURE", "SORRY", "WARNING", "HINT", "NOTE".  Severities
+ *      greater than SORRY always cause program to abort. Severities under
+ *      NOTE won't never cause function abort.
+ * @return 
+ *      Previous abort priority on success, < 0 on error. 
+ */
+int iso_set_abort_severity(char *severity);
+
+/**
  * Return the messenger object handle used by libisofs. This handle
  * may be used by related libraries to  their own compatible
  * messenger objects and thus to direct their messages to the libisofs
