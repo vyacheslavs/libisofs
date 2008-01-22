@@ -172,7 +172,7 @@ struct libiso_msgs_item;
 #define LIBISO_MSGS_PRIO_LOW                                         0x10000000 
 #define LIBISO_MSGS_PRIO_MEDIUM                                      0x20000000
 #define LIBISO_MSGS_PRIO_HIGH                                        0x30000000
-#define LIBISO_MSGS_PRIO_TOP                                         0x70000000
+#define LIBISO_MSGS_PRIO_TOP                                         0x7ffffffe
 
 /* Do not use this priority for submitting */
 #define LIBISO_MSGS_PRIO_NEVER                                       0x7fffffff
