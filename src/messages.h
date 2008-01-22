@@ -32,11 +32,16 @@ void iso_msg_debug(int imgid, const char *fmt, ...);
 const char *iso_error_to_msg(int errcode);
 
 /**
- * TODO add caused by!!
  * 
+ * @param errcode
+ *      The error code.
+ * @param causedby
+ *      Error that was caused the errcode. If this error is a FATAL error,
+ *      < 0 will be returned in any case. Use 0 if there is no previous 
+ *      cause for the error.
  * @return
  *      1 on success, < 0 if function must abort asap.
  */
-int iso_msg_submit(int imgid, int errcode, const char *fmt, ...);
+int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...);
 
 #endif /*MESSAGES_H_*/

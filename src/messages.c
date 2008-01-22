@@ -19,7 +19,7 @@ int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 /**
  * Threshold for aborting.
  */
-int abort_threshold = LIBISO_MSGS_SEV_ERROR;
+int abort_threshold = LIBISO_MSGS_SEV_HINT;
 
 #define MAX_MSG_LEN     4096
 
@@ -60,7 +60,7 @@ const char *iso_error_to_msg(int errcode)
     return "TODO";
 }
 
-int iso_msg_submit(int imgid, int errcode, const char *fmt, ...)
+int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
@@ -80,7 +80,13 @@ int iso_msg_submit(int imgid, int errcode, const char *fmt, ...)
 
     libiso_msgs_submit(libiso_msgr, imgid, errcode, ISO_ERR_SEV(errcode),
                        ISO_ERR_PRIO(errcode), msg, 0, 0);
-    
+    if (causedby != 0) {
+        iso_msg_debug(imgid, " > Caused by: %s", iso_error_to_msg(causedby));
+        if (ISO_ERR_SEV(causedby) == LIBISO_MSGS_SEV_FATAL) {
+            return ISO_CANCELED;
+        }
+    }
+
     if (ISO_ERR_SEV(errcode) >= abort_threshold) {
         return ISO_CANCELED;
     } else {

@@ -713,7 +713,7 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
         if (ret == 1) {
             return name;
         } else {
-            ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET, 
+            ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET, ret,
                 "Charset conversion error. Can't convert %s from %s to %s",
                 str, fsdata->input_charset, fsdata->local_charset);
             if (ret < 0) {
@@ -776,7 +776,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
     /* check for unsupported multiextend */
     if (record->flags[0] & 0x80) {
-        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119,
+        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
                       "Unsupported image. This image makes use of Multi-Extend"
                       " features, that are not supported at this time. If you "
                       "need support for that, please request us this feature.");
@@ -785,7 +785,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
     /* check for unsupported interleaved mode */
     if (record->file_unit_size[0] || record->interleave_gap_size[0]) {
-        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119,
+        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
               "Unsupported image. This image has at least one file recorded "
               "in interleaved mode. We don't support this mode, as we think "
               "it's not used. If you're reading this, then we're wrong :) "
@@ -798,7 +798,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
      * if we don't support them, it is easy to ignore them.
      */
     if (record->len_xa[0]) {
-        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119,
+        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
               "Unsupported image. This image has at least one file with "
               "Extended Attributes, that are not supported");
         return ISO_UNSUPPORTED_ECMA119;
@@ -834,20 +834,20 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_PX(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
                                          "Invalid PX entry");
                 }
             } else if (SUSP_SIG(sue, 'T', 'F')) {
                 ret = read_rr_TF(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
                                  "Invalid TF entry");
                 }
             } else if (SUSP_SIG(sue, 'N', 'M')) {
                 if (name != NULL && namecont == 0) {
                     /* ups, RR standard violation */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 0,
                                  "New NM entry found without previous"
                                  "CONTINUE flag. Ignored");
                     continue;
@@ -855,13 +855,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_NM(sue, &name, &namecont);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
                                  "Invalid NM entry");
                 }
             } else if (SUSP_SIG(sue, 'S', 'L')) {
                 if (linkdest != NULL && linkdestcont == 0) {
                     /* ups, RR standard violation */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 0,
                                  "New SL entry found without previous"
                                  "CONTINUE flag. Ignored");
                     continue;
@@ -869,7 +869,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_SL(sue, &linkdest, &linkdestcont);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
                                  "Invalid SL entry");
                 }
             } else if (SUSP_SIG(sue, 'R', 'E')) {
@@ -890,7 +890,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                  */
                 relocated_dir = iso_read_bb(sue->data.CL.child_loc, 4, NULL);
                 if (relocated_dir == 0) {
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                                   "Invalid SL entry, no child location");
                     break;
                 }
@@ -898,12 +898,12 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_PN(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 
-                                  "Invalid PN entry");
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
+                                         "Invalid PN entry");
                 }
             } else if (SUSP_SIG(sue, 'S', 'F')) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_RR, 
-                              "Sparse files not supported.");
+                ret = iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_RR, 0,
+                                     "Sparse files not supported.");
                 break;
             } else if (SUSP_SIG(sue, 'R', 'R')) {
                 /* TODO I've seen this RR on mkisofs images. what's this? */
@@ -915,7 +915,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                  */
                 if (parent != NULL) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                                   "SP entry found in a directory entry other "
                                   "than '.' entry of root node");
                 }
@@ -927,13 +927,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                  */
                 if (parent != NULL) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                                   "ER entry found in a directory entry other "
                                   "than '.' entry of root node");
                 }
                 continue;
             } else {
-                ret = iso_msg_submit(fsdata->msgid, ISO_SUSP_UNHANDLED, 
+                ret = iso_msg_submit(fsdata->msgid, ISO_SUSP_UNHANDLED, 0,
                     "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
             }
         }
@@ -946,16 +946,17 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             /* error was already submitted above */
             iso_msg_debug(fsdata->msgid, "Error parsing RR entries");
         } else if (!relocated_dir && atts.st_mode == (mode_t) 0 ) {
-            ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, "Mandatory Rock "
-               "Ridge PX entry is not present or it contains invalid values.");
+            ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0, "Mandatory "
+                                 "Rock Ridge PX entry is not present or it "
+                                 "contains invalid values.");
         } else {
             /* ensure both name and link dest are finished */
             if (namecont != 0) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 
+                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                               "Incomplete RR name, last NM entry continues");
             }
             if (linkdestcont != 0) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 
+                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                     "Incomplete link destination, last SL entry continues");
             }
         }
@@ -974,8 +975,9 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             if (ret < 0) {
                 /* its just a hint message */
                 ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
-                    "Charset conversion error. Can't convert %s from %s to %s",
-                    name, fsdata->input_charset, fsdata->local_charset);
+                                 ret, "Charset conversion error. Can't "
+                                 "convert %s from %s to %s", name, 
+                                 fsdata->input_charset, fsdata->local_charset);
                 free(newname);
                 if (ret < 0) {
                     free(name);
@@ -995,8 +997,9 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                           fsdata->local_charset, &newlinkdest);
             if (ret < 0) {
                 ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
-                    "Charset conversion error. Can't convert %s from %s to %s",
-                    linkdest, fsdata->input_charset, fsdata->local_charset);
+                                 ret, "Charset conversion error. Can't "
+                                 "convert %s from %s to %s", name, 
+                                 fsdata->input_charset, fsdata->local_charset);
                 free(newlinkdest);
                 if (ret < 0) {
                     free(name);
@@ -1029,14 +1032,14 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         if (record->len_fi[0] == 1 && record->file_id[0] == 0) {
             /* "." entry, we can call this for root node, so... */
             if (!(atts.st_mode & S_IFDIR)) {
-                return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 
+                return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                               "Wrong ISO file name. \".\" not dir");
             }
         } else {
 
             name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
             if (name == NULL) {
-                return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119,
+                return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                               "Can't retrieve file name");
             }
             
@@ -1119,7 +1122,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     
     /* TODO #00014 : more sanity checks to ensure dir record info is valid */
     if (S_ISLNK(atts.st_mode) && (linkdest == NULL)) {
-        ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 
+        ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                              "Link without destination.");
         free(name);
         return ret;
@@ -1443,7 +1446,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
         || sue->data.SP.ef[0] != 0xEF) {
 
         susp_iter_free(iter);
-        return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_SUSP, 
+        return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_SUSP, 0,
                               "SUSP SP system use entry seems to be wrong. "
                               "Ignoring Rock Ridge Extensions.");
     }
@@ -1479,7 +1482,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
         if (SUSP_SIG(sue, 'E', 'R')) {
                
             if (data->rr_version) {
-                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 
+                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
                     "More than one ER has found. This is not supported. "
                     "It will be ignored, but can cause problems. "
                     "Please notify us about this.");
@@ -1508,7 +1511,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                               "Suitable Rock Ridge ER found. Version 1.12.");
                 data->rr_version = RR_EXT_112;
             } else {
-                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 
+                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
                     "Not Rock Ridge ER found.\n"
                     "That will be ignored, but can cause problems in "
                     "image reading. Please notify us about this");
@@ -1604,14 +1607,14 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     if ( (ve->header_id[0] != 1) || (ve->key_byte1[0] != 0x55) 
          || (ve->key_byte2[0] != 0xAA) ) {
             
-        return iso_msg_submit(data->msgid, ISO_WRONG_EL_TORITO, 
+        return iso_msg_submit(data->msgid, ISO_WRONG_EL_TORITO, 0,
                       "Wrong or damaged El-Torito Catalog. El-Torito info "
                       "will be ignored.");
     }
     
     /* check for a valid platform */
     if (ve->platform_id[0] != 0) {
-        return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 
+        return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 0,
                      "Unsupported El-Torito platform. Only 80x86 is "
                      "supported. El-Torito info will be ignored.");
     }
@@ -1721,7 +1724,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     || strncmp((char*)vol->boot_sys_id, 
                                "EL TORITO SPECIFICATION", 23)) {
 
-                    ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 
+                    ret = iso_msg_submit(data->msgid, 
+                          ISO_UNSUPPORTED_EL_TORITO, 0, 
                           "Unsupported Boot Vol. Desc. Only El-Torito "
                           "Specification, Version 1.0 Volume "
                           "Descriptors are supported. Ignoring boot info");
@@ -1768,7 +1772,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     data->evd_root_block = iso_read_bb(root->block, 4, NULL);
                     /* TODO #00021 : handle RR info in ISO 9660:1999 tree */
                 } else {
-                    ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD,
+                    ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD, 0,
                         "Unsupported Sup. Vol. Desc found.");
                     if (ret < 0) {
                         goto fs_cleanup;
@@ -1783,7 +1787,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
              */
             break;
         default:
-            ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD,
+            ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD, 0,
                          "Ignoring Volume descriptor %x.", buffer[0]);
             if (ret < 0) {
                 goto fs_cleanup;
@@ -1896,7 +1900,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             if (fsdata->eltorito && data->block == fsdata->catblock) {
                 
                 if (image->bootcat->node != NULL) {
-                    ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 
+                    ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
                                  "More than one catalog node has been found. "
                                  "We can continue, but that could lead to "
                                  "problems");
@@ -1955,7 +1959,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 if (fsdata->eltorito && data->block == fsdata->imgblock) {
                     /* it is boot image node */
                     if (image->bootcat->image->image != NULL) {
-                        ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 
+                        ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
                                 "More than one image node has been found.");
                         if (ret < 0) {
                             free(name);

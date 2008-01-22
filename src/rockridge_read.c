@@ -104,7 +104,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
 
     if (entry->len_sue[0] == 0) {
         /* a wrong image with this lead us to a infinity loop */
-        iso_msg_submit(iter->msgid, ISO_WRONG_RR,
+        iso_msg_submit(iter->msgid, ISO_WRONG_RR, 0,
                       "Damaged RR/SUSP information.");
         return ISO_WRONG_RR;
     }
@@ -115,7 +115,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
         /* Continuation entry */
         if (iter->ce_len) {
             int ret;
-            ret = iso_msg_submit(iter->msgid, ISO_UNSUPPORTED_SUSP, 
+            ret = iso_msg_submit(iter->msgid, ISO_UNSUPPORTED_SUSP, 0,
                 "More than one CE System user entry has found in a single "
                 "System Use field or continuation area. This breaks SUSP "
                 "standard and it's not supported. Ignoring last CE. Maybe "

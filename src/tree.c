@@ -522,7 +522,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         if (ret <= 0) {
             if (ret < 0) {
                 /* error reading dir */
-                ret = iso_msg_submit(image->id, ret, "Error reading dir");
+                ret = iso_msg_submit(image->id, ret, ret, "Error reading dir");
             }
             break;
         }
@@ -581,8 +581,8 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         }
         ret = builder->create_node(builder, image, file, &new);
         if (ret < 0) {
-            ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, 
-                         "Error %d when adding file %s", ret, path);
+            ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret,
+                         "Error when adding file %s", path);
             goto dir_rec_continue;
         } else {
             iso_msg_debug(image->id, "Adding file %s", path);
