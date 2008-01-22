@@ -791,8 +791,8 @@ void *write_function(void *arg)
     pthread_exit(NULL);
 
     write_error: ;
-    iso_msg_fatal(target->image->id, LIBISO_WRITE_ERROR,
-                  "Image write error, code %d", res);
+    iso_msg_submit(target->image->id, ISO_WRITE_ERROR,
+                  "Image write error: %s", iso_error_to_msg(res));
     iso_ring_buffer_writer_close(target->buffer, 1);
     pthread_exit(NULL);
 }
@@ -1038,7 +1038,7 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     ret = pthread_create(&(target->wthread), &(target->th_attr),
                          write_function, (void *) target);
     if (ret != 0) {
-        iso_msg_fatal(target->image->id, LIBISO_THREAD_ERROR,
+        iso_msg_submit(target->image->id, ISO_THREAD_ERROR,
                       "Cannot create writer thread");
         ret = ISO_THREAD_ERROR;
         goto target_cleanup;
@@ -1069,7 +1069,7 @@ static int bs_read(struct burn_source *bs, unsigned char *buf, int size)
         return size;
     } else if (ret < 0) {
         /* error */
-        iso_msg_fatal(t->image->id, LIBISO_READ_ERROR, "Error reading buffer");
+        iso_msg_submit(t->image->id, ISO_BUF_READ_ERROR, NULL);
         return -1;
     } else {
         /* EOF */

@@ -76,10 +76,16 @@
 #define ISO_INTERRUPTED                 0xF030FFF9
 
 /** Invalid parameter value (ERROR,HIGH, -8) */
-#define ISO_WRONG_ARG_VALUE             0xF030FFF8
+#define ISO_WRONG_ARG_VALUE             0xEA30FFF8
 
 /** Can't create a needed thread (FATAL,HIGH, -9) */
 #define ISO_THREAD_ERROR                0xF030FFF7
+
+/** Write error (ERROR,HIGH, -10) */
+#define ISO_WRITE_ERROR                 0xEA30FFF6
+
+/** Buffer read error (ERROR,HIGH, -11) */
+#define ISO_BUF_READ_ERROR              0xEA30FFF5
 
 /** Trying to add to a dir a node already added to a dir (ERROR,HIGH, -64) */
 #define ISO_NODE_ALREADY_ADDED          0xEA30FFC0
@@ -135,8 +141,26 @@
 /** Can't seek to specified location (ERROR,HIGH, -138) */
 #define ISO_FILE_SEEK_ERROR             0xEA30FF76
 
-/* will be a NOTE message */
-/* #define ISO_FILE_TOO_BIG                -139 */
+/** File not supported in ECMA-119 tree and thus ignored (HINT,MEDIUM, -139) */
+#define ISO_FILE_IGNORED                0xC020FF75
+
+/* A file is bigger than supported by used standard  (HINT,MEDIUM, -140) */
+#define ISO_FILE_TOO_BIG                0xC020FF74
+
+/* File read error during image creations (SORRY,HIGH, -141) */
+#define ISO_FILE_CANT_WRITE             0xE030FF73
+
+/* Can't convert filename to requested charset (HINT,MEDIUM, -142) */
+#define ISO_FILENAME_WRONG_CHARSET      0xC020FF74
+
+/* File can't be added to the tree (WARNING,MEDIUM, -143) */
+#define ISO_FILE_CANT_ADD               0xD020FF73
+
+/** 
+ * File path break specification constraints and will be ignored 
+ * (HINT,MEDIUM, -141) 
+ */
+#define ISO_FILE_IMGPATH_WRONG          0xC020FF73
 
 /** Charset conversion error (ERROR,HIGH, -256) */
 #define ISO_CHARSET_CONV_ERROR          0xEA30FF00
@@ -168,9 +192,30 @@
 #define ISO_UNSUPPORTED_ECMA119         0xEA30FEBC
 
 /** Wrong or damaged El-Torito catalog (SORRY,HIGH, -325) */
-#define ISO_WRONG_EL_TORITO             0xEA30FEBB
+#define ISO_WRONG_EL_TORITO             0xE030FEBB
 
 /** Unsupported El-Torito feature (SORRY,HIGH, -326) */
-#define ISO_UNSUPPORTED_EL_TORITO       0xEA30FEBA
+#define ISO_UNSUPPORTED_EL_TORITO       0xE030FEBA
+
+/** Can't patch an isolinux boot image (SORRY,HIGH, -327) */
+#define ISO_ISOLINUX_CANT_PATCH         0xE030FEB9
+
+/** Unsupported SUSP feature (SORRY,HIGH, -328) */
+#define ISO_UNSUPPORTED_SUSP            0xE030FEB8
+
+/** Error on a RR entry that can be ignored (WARNING,MEDIUM, -329) */
+#define ISO_WRONG_RR_WARN               0xD020FEB7
+
+/** Error on a RR entry that can be ignored (HINT,MEDIUM, -330) */
+#define ISO_SUSP_UNHANDLED              0xC020FEB6
+
+/** Multiple ER SUSP entries found (WARNING,MEDIUM, -331) */
+#define ISO_SUSP_MULTIPLE_ER            0xD020FEB5
+
+/** Unsupported volume descriptor found (HINT,MEDIUM, -332) */
+#define ISO_UNSUPPORTED_VD              0xC020FEB4
+
+/** El-Torito related warning (WARNING,MEDIUM, -333) */
+#define ISO_EL_TORITO_WARN              0xD020FEB3
 
 #endif /*LIBISO_ERROR_H_*/

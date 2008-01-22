@@ -16,6 +16,11 @@
 
 int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 
+/**
+ * Threshold for aborting.
+ */
+int abort_threshold = LIBISO_MSGS_SEV_ERROR;
+
 #define MAX_MSG_LEN     4096
 
 struct libiso_msgs *libiso_msgr = NULL;
@@ -49,69 +54,38 @@ void iso_msg_debug(int imgid, const char *fmt, ...)
                        LIBISO_MSGS_PRIO_ZERO, msg, 0, 0);
 }
 
-void iso_msg_note(int imgid, int error_code, const char *fmt, ...)
+const char *iso_error_to_msg(int errcode)
 {
-    char msg[MAX_MSG_LEN];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
-    va_end(ap);
-
-    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_NOTE, 
-                       LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
+    /* TODO not implemented yet!!! */
+    return "TODO";
 }
 
-void iso_msg_hint(int imgid, int error_code, const char *fmt, ...)
+int iso_msg_submit(int imgid, int errcode, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
     va_list ap;
+    
+    /* when called with ISO_CANCELED, we don't need to submit any message */
+    if (errcode == ISO_CANCELED && fmt == NULL) {
+        return ISO_CANCELED;
+    }
 
-    va_start(ap, fmt);
-    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
-    va_end(ap);
+    if (fmt) {
+        va_start(ap, fmt);
+        vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
+        va_end(ap);
+    } else {
+        strncpy(msg, iso_error_to_msg(errcode), MAX_MSG_LEN);
+    }
 
-    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_HINT, 
-                       LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
-}
-
-void iso_msg_warn(int imgid, int error_code, const char *fmt, ...)
-{
-    char msg[MAX_MSG_LEN];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
-    va_end(ap);
-
-    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_WARNING,
-                       LIBISO_MSGS_PRIO_MEDIUM, msg, 0, 0);
-}
-
-void iso_msg_sorry(int imgid, int error_code, const char *fmt, ...)
-{
-    char msg[MAX_MSG_LEN];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
-    va_end(ap);
-
-    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_SORRY,
-                       LIBISO_MSGS_PRIO_HIGH, msg, 0, 0);
-}
-
-void iso_msg_fatal(int imgid, int error_code, const char *fmt, ...)
-{
-    char msg[MAX_MSG_LEN];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
-    va_end(ap);
-
-    libiso_msgs_submit(libiso_msgr, imgid, error_code, LIBISO_MSGS_SEV_FATAL,
-                       LIBISO_MSGS_PRIO_HIGH, msg, 0, 0);
+    libiso_msgs_submit(libiso_msgr, imgid, errcode, ISO_ERR_SEV(errcode),
+                       ISO_ERR_PRIO(errcode), msg, 0, 0);
+    
+    if (ISO_ERR_SEV(errcode) >= abort_threshold) {
+        return ISO_CANCELED;
+    } else {
+        return 0;
+    }
 }
 
 /** 

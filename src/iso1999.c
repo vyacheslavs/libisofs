@@ -18,14 +18,19 @@
 #include <string.h>
 
 static
-char *get_iso1999_name(Ecma119Image *t, const char *str)
+int get_iso1999_name(Ecma119Image *t, const char *str, char **fname)
 {
     int ret;
     char *name;
 
+    if (fname == NULL) {
+        return ISO_ASSERT_FAILURE;
+    }
+
     if (str == NULL) {
         /* not an error, can be root node */
-        return NULL;
+        *fname = NULL;
+        return ISO_SUCCESS;
     }
     
     if (!strcmp(t->input_charset, t->output_charset)) {
@@ -34,10 +39,13 @@ char *get_iso1999_name(Ecma119Image *t, const char *str)
     } else {
         ret = strconv(str, t->input_charset, t->output_charset, &name);
         if (ret < 0) {
-            iso_msg_sorry(t->image->id, LIBISO_CHARSET_ERROR, 
+            ret = iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, 
                 "Charset conversion error. Can't convert %s from %s to %s",
                 str, t->input_charset, t->output_charset);
-    
+            if (ret < 0) {
+                return ret; /* aborted */
+            }
+
             /* use the original name, it's the best we can do */
             name = strdup(str);
         }
@@ -48,7 +56,9 @@ char *get_iso1999_name(Ecma119Image *t, const char *str)
         name[207] = '\0';
     }
     
-    return name;
+    *fname = name;
+    
+    return ISO_SUCCESS;
 }
 
 static
@@ -108,10 +118,10 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
 
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
-            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
+            free(n);
+            return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG,
                          "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->name);
-            free(n);
             return 0;
         }
 
@@ -168,14 +178,17 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
         /* file will be ignored */
         return 0;
     }
-    iso_name = get_iso1999_name(t, iso->name);
+    ret = get_iso1999_name(t, iso->name, &iso_name);
+    if (ret < 0) {
+        return ret;
+    }
+
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name): 0);
     if (!t->allow_longer_paths && max_path > 255) {
-        iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
+        free(iso_name);
+        return iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG,
                      "File \"%s\" can't be added to ISO 9660:1999 tree, "
                      "because its path length is larger than 255", iso->name);
-        free(iso_name);
-        return 0;
     }
 
     switch (iso->type) {
@@ -216,19 +229,17 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
             ret = create_node(t, iso, &node);
         } else {
             /* log and ignore */
-            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED, 
+            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
-            ret = 0;
         }
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        iso_msg_note(t->image->id, LIBISO_FILE_IGNORED, 
+        ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 
                      "Can't add %s to ISO 9660:1999 tree. This kind of files "
                      "can only be added to a Rock Ridget tree. Skipping.", 
                      iso->name);
-        ret = 0;
         break;
     default:
         /* should never happen */
@@ -514,16 +525,16 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
 
     memset(&vol, 0, sizeof(struct ecma119_sup_vol_desc));
 
-    vol_id = get_iso1999_name(t, image->volume_id);
+    get_iso1999_name(t, image->volume_id, &vol_id);
     str2a_char(t->input_charset, image->publisher_id, &pub_id);
     str2a_char(t->input_charset, image->data_preparer_id, &data_id);
-    volset_id = get_iso1999_name(t, image->volset_id);
+    get_iso1999_name(t, image->volset_id, &volset_id);
 
     str2a_char(t->input_charset, image->system_id, &system_id);
     str2a_char(t->input_charset, image->application_id, &application_id);
-    copyright_file_id = get_iso1999_name(t, image->copyright_file_id);
-    abstract_file_id = get_iso1999_name(t, image->abstract_file_id);
-    biblio_file_id = get_iso1999_name(t, image->biblio_file_id);
+    get_iso1999_name(t, image->copyright_file_id, &copyright_file_id);
+    get_iso1999_name(t, image->abstract_file_id, &abstract_file_id);
+    get_iso1999_name(t, image->biblio_file_id, &biblio_file_id);
 
     vol.vol_desc_type[0] = 2;
     memcpy(vol.std_identifier, "CD001", 5);

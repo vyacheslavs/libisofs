@@ -83,18 +83,22 @@ extern int iso_message_id;
 /** Unsupported file type for Joliet tree */
 #define LIBISO_JOLIET_WRONG_FILE_TYPE	0x00030301
 
-typedef struct libiso_msgs IsoMessenger;
-
+/**
+ * Submit a debug message.
+ */
 void iso_msg_debug(int imgid, const char *fmt, ...);
 
-void iso_msg_note(int imgid, int error_code, const char *fmt, ...);
+/**
+ * Get a textual description of an error.
+ */
+const char *iso_error_to_msg(int errcode);
 
-void iso_msg_hint(int imgid, int error_code, const char *fmt, ...);
-
-void iso_msg_warn(int imgid, int error_code, const char *fmt, ...);
-
-void iso_msg_sorry(int imgid, int error_code, const char *fmt, ...);
-
-void iso_msg_fatal(int imgid, int error_code, const char *fmt, ...);
+/**
+ * TODO add caused by!!
+ * 
+ * @return
+ *      1 on success, < 0 if function must abort asap.
+ */
+int iso_msg_submit(int imgid, int errcode, const char *fmt, ...);
 
 #endif /*MESSAGES_H_*/

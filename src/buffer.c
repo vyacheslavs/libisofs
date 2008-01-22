@@ -114,6 +114,9 @@ int iso_ring_buffer_new(size_t size, IsoRingBuffer **rbuf)
 
 void iso_ring_buffer_free(IsoRingBuffer *buf)
 {
+    if (buf == NULL) {
+        return;
+    }
     free(buf->buf);
     pthread_mutex_destroy(&buf->mutex);
     pthread_cond_destroy(&buf->empty);

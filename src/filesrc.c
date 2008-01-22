@@ -272,9 +272,12 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * 0's to image
              */
             char *name = iso_stream_get_name(file->stream);
-            iso_msg_sorry(t->image->id, LIBISO_FILE_CANT_WRITE, "File \"%s\" "
-                "can't be opened (error %d). Filling with 0s.", name, res);
+            res = iso_msg_submit(t->image->id, res, "File \"%s\" can't be " 
+                          "opened (error %d). Filling with 0s.", name, res);
             free(name);
+            if (res < 0) {
+                return res; /* aborted due to error severity */
+            }
             memset(buffer, 0, BLOCK_SIZE);
             for (b = 0; b < nblocks; ++b) {
                 res = iso_write(t, buffer, BLOCK_SIZE);
@@ -302,17 +305,21 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             char *name = iso_stream_get_name(file->stream);
             if (res < 0) {
                 /* error */
-                iso_msg_sorry(t->image->id, LIBISO_FILE_CANT_WRITE,
-                              "Read error in file %s.", name);
+                res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 
+                               "Read error in file %s.", name);
             } else {
                 /* eof */
-                iso_msg_sorry(t->image->id, LIBISO_FILE_CANT_WRITE,
+                res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE,
                               "Premature end of file %s.", name);
             }
             free(name);
 
+            if (res < 0) {
+                return res; /* aborted due error severity */
+            }
+            
             /* fill with 0s */
-            iso_msg_sorry(t->image->id, LIBISO_FILE_CANT_WRITE, 
+            iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 
                           "Filling with 0");
             memset(buffer, 0, BLOCK_SIZE);
             while (b++ < nblocks) {

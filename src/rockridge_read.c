@@ -104,7 +104,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
 
     if (entry->len_sue[0] == 0) {
         /* a wrong image with this lead us to a infinity loop */
-        iso_msg_sorry(iter->msgid, LIBISO_RR_ERROR,
+        iso_msg_submit(iter->msgid, ISO_WRONG_RR,
                       "Damaged RR/SUSP information.");
         return ISO_WRONG_RR;
     }
@@ -114,10 +114,15 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
     if (SUSP_SIG(entry, 'C', 'E')) {
         /* Continuation entry */
         if (iter->ce_len) {
-            iso_msg_sorry(iter->msgid, LIBISO_RR_ERROR, "More than one CE "
-                "System user entry has found in a single System Use field or "
-                "continuation area. This breaks SUSP standard and it's not "
-                "supported. Ignoring last CE. Maybe the image is damaged.");
+            int ret;
+            ret = iso_msg_submit(iter->msgid, ISO_UNSUPPORTED_SUSP, 
+                "More than one CE System user entry has found in a single "
+                "System Use field or continuation area. This breaks SUSP "
+                "standard and it's not supported. Ignoring last CE. Maybe "
+                "the image is damaged.");
+            if (ret < 0) {
+                return ret;
+            }
         } else {
             iter->ce_block = iso_read_bb(entry->data.CE.block, 4, NULL);
             iter->ce_off = iso_read_bb(entry->data.CE.offset, 4, NULL);

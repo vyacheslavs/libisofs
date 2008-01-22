@@ -112,11 +112,10 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
-            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
+            free(joliet);
+            return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG,
                          "File \"%s\" can't be added to image because is "
                          "greater than 4GB", iso->name);
-            free(joliet);
-            return 0;
         }
 
         ret = iso_file_src_create(t, file, &src);
@@ -178,15 +177,14 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
     }
     max_path = pathlen + 1 + (jname ? ucslen(jname) * 2 : 0);
     if (!t->joliet_longer_paths && max_path > 240) {
+        free(jname);
         /*
          * Wow!! Joliet is even more restrictive than plain ISO-9660,
          * that allows up to 255 bytes!!
          */
-        iso_msg_note(t->image->id, LIBISO_FILE_IGNORED,
+        return iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG,
                      "File \"%s\" can't be added to Joliet tree, because "
                      "its path length is larger than 240", iso->name);
-        free(jname);
-        return 0;
     }
 
     switch (iso->type) {
@@ -227,18 +225,16 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
             ret = create_node(t, iso, &node);
         } else {
             /* log and ignore */
-            iso_msg_note(t->image->id, LIBISO_FILE_IGNORED, 
+            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 
                 "El-Torito catalog found on a image without El-Torito.", 
                 iso->name);
-            ret = 0;
         }
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        iso_msg_note(t->image->id, LIBISO_JOLIET_WRONG_FILE_TYPE, 
+        ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 
                      "Can't add %s to Joliet tree. This kind of files can only"
                      " be added to a Rock Ridget tree. Skipping.", iso->name);
-        ret = 0;
         break;
     default:
         /* should never happen */

@@ -522,8 +522,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         if (ret <= 0) {
             if (ret < 0) {
                 /* error reading dir */
-                iso_msg_sorry(image->id, LIBISO_CANT_READ_FILE, 
-                              "Error reading dir");
+                ret = iso_msg_submit(image->id, ret, "Error reading dir");
             }
             break;
         }
@@ -582,7 +581,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         }
         ret = builder->create_node(builder, image, file, &new);
         if (ret < 0) {
-            iso_msg_note(image->id, LIBISO_FILE_IGNORED, 
+            ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, 
                          "Error %d when adding file %s", ret, path);
             goto dir_rec_continue;
         } else {
