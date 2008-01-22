@@ -234,7 +234,7 @@ int create_image(IsoImage *image, const char *image_path,
         ret = iso_stream_read(stream, &mbr, sizeof(mbr));
         iso_stream_close(stream);
         if (ret != sizeof(mbr)) {
-            iso_msg_submit(image->id, LIBISO_EL_TORITO_WRONG_IMG, 
+            iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 
                           "Can't read MBR from image file.");
             return ret < 0 ? ret : ISO_FILE_READ_ERROR;
         }
@@ -789,7 +789,7 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
     }
     if (offset != imgsize) {
         /* file length not multiple of 4 */
-        return iso_msg_submit(t->image->id, LIBISO_ISOLINUX_CANT_PATCH, 
+        return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 
             "Unexpected isolinux image length. Patch might not work.");
     }
     
