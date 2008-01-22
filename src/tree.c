@@ -491,7 +491,7 @@ int check_special(IsoImage *image, mode_t mode)
  * Recursively add a given directory to the image tree.
  * 
  * @return
- *      1 continue, 0 stop, < 0 error
+ *      1 continue, < 0 error (ISO_CANCELED stop)
  */
 int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 {
@@ -607,7 +607,7 @@ dir_rec_continue:;
     } /* while */
 
     iso_file_source_close(dir);
-    return ret;
+    return ret < 0 ? ret : ISO_SUCCESS;
 }
 
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir)

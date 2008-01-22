@@ -34,7 +34,6 @@
  *        = 0x1 -> LOW
  *        = 0x2 -> MEDIUM
  *        = 0x3 -> HIGH
- *        = 0x7 -> TOP
  * bits 19-16 -> Reserved for future usage (maybe message ranges)
  * bits 15-0  -> Error code
  */
@@ -52,8 +51,8 @@
  */
 #define ISO_NONE                        0
 
-/** Operation canceled (ERROR,TOP, -1) */
-#define ISO_CANCELED                    0xEA70FFFF
+/** Operation canceled (ERROR,HIGH, -1) */
+#define ISO_CANCELED                    0xEA30FFFF
 
 /** Unknown or unexpected fatal error (FATAL,HIGH, -2) */
 #define ISO_FATAL_ERROR                 0xF030FFFE
