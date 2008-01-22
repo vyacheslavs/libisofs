@@ -27,11 +27,6 @@ extern int iso_message_id;
 void iso_msg_debug(int imgid, const char *fmt, ...);
 
 /**
- * Get a textual description of an error.
- */
-const char *iso_error_to_msg(int errcode);
-
-/**
  * 
  * @param errcode
  *      The error code.

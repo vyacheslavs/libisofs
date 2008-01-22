@@ -1690,6 +1690,11 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code,
                     char msg_text[], int *os_errno, char severity[]);
 
 /**
+ * Get a textual description of a libisofs error.
+ */
+const char *iso_error_to_msg(int errcode);
+
+/**
  * Return the messenger object handle used by libisofs. This handle
  * may be used by related libraries to  their own compatible
  * messenger objects and thus to direct their messages to the libisofs

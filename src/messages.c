@@ -56,8 +56,110 @@ void iso_msg_debug(int imgid, const char *fmt, ...)
 
 const char *iso_error_to_msg(int errcode)
 {
-    /* TODO not implemented yet!!! */
-    return "TODO";
+    switch(errcode) {
+    case ISO_CANCELED: 
+        return "Operation canceled";
+    case ISO_FATAL_ERROR: 
+        return "Unknown or unexpected fatal error";
+    case ISO_ERROR: 
+        return "Unknown or unexpected error";
+    case ISO_ASSERT_FAILURE: 
+        return "Internal programming error. Please report this bug";
+    case ISO_NULL_POINTER: 
+        return "NULL pointer as value for an arg. that doesn't allow NULL";
+    case ISO_OUT_OF_MEM: 
+        return "Memory allocation error";
+    case ISO_INTERRUPTED: 
+        return "Interrupted by a signal";
+    case ISO_WRONG_ARG_VALUE: 
+        return "Invalid parameter value";
+    case ISO_THREAD_ERROR: 
+        return "Can't create a needed thread";
+    case ISO_WRITE_ERROR: 
+        return "Write error";
+    case ISO_BUF_READ_ERROR: 
+        return "Buffer read error";
+    case ISO_NODE_ALREADY_ADDED: 
+        return "Trying to add to a dir a node already added to a dir";
+    case ISO_NODE_NAME_NOT_UNIQUE: 
+        return "Node with same name already exists";
+    case ISO_NODE_NOT_ADDED_TO_DIR: 
+        return "Trying to remove a node that was not added to dir";
+    case ISO_NODE_DOESNT_EXIST: 
+        return "A requested node does not exists";
+    case ISO_IMAGE_ALREADY_BOOTABLE: 
+        return "Try to set the boot image of an already bootable image";
+    case ISO_BOOT_IMAGE_NOT_VALID: 
+        return "Trying to use an invalid file as boot image";
+    case ISO_FILE_ERROR: 
+        return "Error on file operation";
+    case ISO_FILE_ALREADY_OPENNED: 
+        return "Trying to open an already openned file";
+    case ISO_FILE_ACCESS_DENIED: 
+        return "Access to file is not allowed";
+    case ISO_FILE_BAD_PATH: 
+        return "Incorrect path to file";
+    case ISO_FILE_DOESNT_EXIST: 
+        return "The file does not exists in the filesystem";
+    case ISO_FILE_NOT_OPENNED: 
+        return "Trying to read or close a file not openned";
+    case ISO_FILE_IS_DIR: 
+        return "Directory used where no dir is expected";
+    case ISO_FILE_READ_ERROR: 
+        return "Read error";
+    case ISO_FILE_IS_NOT_DIR: 
+        return "Not dir used where a dir is expected";
+    case ISO_FILE_IS_NOT_SYMLINK: 
+        return "Not symlink used where a symlink is expected";
+    case ISO_FILE_SEEK_ERROR: 
+        return "Can't seek to specified location";
+    case ISO_FILE_IGNORED: 
+        return "File not supported in ECMA-119 tree and thus ignored";
+    case ISO_FILE_TOO_BIG: 
+        return "A file is bigger than supported by used standard";
+    case ISO_FILE_CANT_WRITE: 
+        return "File read error during image creations";
+    case ISO_FILENAME_WRONG_CHARSET: 
+        return "Can't convert filename to requested charset";
+    case ISO_FILE_CANT_ADD: 
+        return "File can't be added to the tree";
+    case ISO_FILE_IMGPATH_WRONG: 
+        return "File path break specification constraints and will be ignored";
+    case ISO_CHARSET_CONV_ERROR: 
+        return "Charset conversion error";
+    case ISO_MANGLE_TOO_MUCH_FILES: 
+        return "Too much files to mangle, can't guarantee unique file names";
+    case ISO_WRONG_PVD: 
+        return "Wrong or damaged Primary Volume Descriptor";
+    case ISO_WRONG_RR: 
+        return "Wrong or damaged RR entry";
+    case ISO_UNSUPPORTED_RR: 
+        return "Unsupported RR feature";
+    case ISO_WRONG_ECMA119: 
+        return "Wrong or damaged ECMA-119";
+    case ISO_UNSUPPORTED_ECMA119: 
+        return "Unsupported ECMA-119 feature";
+    case ISO_WRONG_EL_TORITO: 
+        return "Wrong or damaged El-Torito catalog";
+    case ISO_UNSUPPORTED_EL_TORITO: 
+        return "Unsupported El-Torito feature";
+    case ISO_ISOLINUX_CANT_PATCH: 
+        return "Can't patch isolinux boot image";
+    case ISO_UNSUPPORTED_SUSP: 
+        return "Unsupported SUSP feature";
+    case ISO_WRONG_RR_WARN: 
+        return "Error on a RR entry that can be ignored";
+    case ISO_SUSP_UNHANDLED: 
+        return "Error on a RR entry that can be ignored";
+    case ISO_SUSP_MULTIPLE_ER: 
+        return "Multiple ER SUSP entries found";
+    case ISO_UNSUPPORTED_VD: 
+        return "Unsupported volume descriptor found";
+    case ISO_EL_TORITO_WARN: 
+        return "El-Torito related warning";
+    default:
+        return "Unknown error";
+    }
 }
 
 int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
