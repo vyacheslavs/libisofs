@@ -149,7 +149,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     int (*inc_item)(void *);
 
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
 
     t = writer->target;
@@ -247,7 +247,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     char buffer[BLOCK_SIZE];
 
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
 
     t = writer->target;
@@ -272,8 +272,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * 0's to image
              */
             char *name = iso_stream_get_name(file->stream);
-            res = iso_msg_submit(t->image->id, res, res, "File \"%s\" can't be" 
-                          " opened (error %d). Filling with 0s.", name, res);
+            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res, 
+                      "File \"%s\" can't be opened. Filling with 0s.", name);
             free(name);
             if (res < 0) {
                 return res; /* aborted due to error severity */
@@ -351,7 +351,7 @@ int iso_file_src_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
 
     writer->compute_data_blocks = filesrc_writer_compute_data_blocks;

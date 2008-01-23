@@ -197,7 +197,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     uint32_t path_table_size;
 
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
 
     target = writer->target;
@@ -307,7 +307,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     char *abstract_file_id, *biblio_file_id;
 
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
 
     t = writer->target;
@@ -595,7 +595,7 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
     Ecma119Image *t;
 
     if (writer == NULL) {
-        return ISO_NULL_POINTER;
+        return ISO_ASSERT_FAILURE;
     }
     t = writer->target;
 
@@ -656,7 +656,7 @@ int pad_writer_compute_data_blocks(IsoImageWriter *writer)
     Ecma119Image *target;
 
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
 
     target = writer->target;
@@ -682,7 +682,7 @@ int pad_writer_write_data(IsoImageWriter *writer)
     size_t i;
 
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        return ISO_ASSERT_FAILURE;
     }
     t = writer->target;
     
