@@ -150,28 +150,96 @@ static void test_iso_bb()
 static void test_iso_datetime_7()
 {
     uint8_t buf[7];
-    time_t t, t2;
+    time_t t1, t2, tr;
+    char *tz;
     struct tm tp;
-    
+
+    tz = getenv("TZ");
+
+    setenv("TZ", "", 1);
+    tzset();
+
     strptime("01-03-1976 13:27:45", "%d-%m-%Y %T", &tp);
-    t = mktime(&tp);
+    t1 = mktime(&tp); /* t1 in GMT */
+
+    strptime("01-07-2007 13:27:45", "%d-%m-%Y %T", &tp);
+    t2 = mktime(&tp); /* t1 in GMT (summer time) */
+
+    setenv("TZ", "Europe/Madrid", 1);
+    tzset();
     
-    iso_datetime_7(buf, t);
-    CU_ASSERT_EQUAL( buf[0], 76 ); /* year since 1900 */
-    CU_ASSERT_EQUAL( buf[1], 3 ); /* month */
-    CU_ASSERT_EQUAL( buf[2], 1 ); /* day */
-    CU_ASSERT_EQUAL( buf[3], 13 ); /* hour */
-    CU_ASSERT_EQUAL( buf[4], 27 ); /* minute */
-    CU_ASSERT_EQUAL( buf[5], 45 ); /* second */
-    /* the offset depends on current timezone and it's not easy to test */
-    //CU_ASSERT_EQUAL( buf[6], 4 ); /* 15 min offset */
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 14); /* hour (GMT+1) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 4); /* GMT+1 hour for CET */
     
     /* check that reading returns the same time */
-    t2 = iso_datetime_read_7(buf);
-    CU_ASSERT_EQUAL(t2, t);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
     
-    //TODO check with differnt timezones for reading and writting
+    iso_datetime_7(buf, t2);
+    CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 7); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 15); /* hour (GMT+2, summer time) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 8); /* GMT+2 hour for CEST */
     
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    /* change timeset */
+
+    setenv("TZ", "America/New_York", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 8); /* hour */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], -5*4); /* GMT-5 for EST */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+
+    setenv("TZ", "Asia/Hong_Kong", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 21); /* hour */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 8*4); /* GMT+8 */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    
+    /* read from another timestamp */
+    setenv("TZ", "Europe/Madrid", 1);
+    tzset();
+    
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+
+    if (tz)
+        setenv("TZ", tz, 1);
+    else
+        unsetenv("TZ");
+    tzset();
 }
 
 static void test_iso_1_dirid()
