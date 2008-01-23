@@ -303,7 +303,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
  */
 void iso_tree_set_follow_symlinks(IsoImage *image, int follow)
 {
-    image->recOpts.follow_symlinks = follow ? 1 : 0;
+    image->follow_symlinks = follow ? 1 : 0;
 }
 
 /**
@@ -313,7 +313,7 @@ void iso_tree_set_follow_symlinks(IsoImage *image, int follow)
  */
 int iso_tree_get_follow_symlinks(IsoImage *image)
 {
-    return image->recOpts.follow_symlinks;
+    return image->follow_symlinks;
 }
 
 /**
@@ -322,7 +322,7 @@ int iso_tree_get_follow_symlinks(IsoImage *image)
  */
 void iso_tree_set_ignore_hidden(IsoImage *image, int skip)
 {
-    image->recOpts.ignore_hidden = skip ? 1 : 0;
+    image->ignore_hidden = skip ? 1 : 0;
 }
 
 /**
@@ -332,7 +332,7 @@ void iso_tree_set_ignore_hidden(IsoImage *image, int skip)
  */
 int iso_tree_get_ignore_hidden(IsoImage *image)
 {
-    return image->recOpts.ignore_hidden;
+    return image->ignore_hidden;
 }
 
 /**
@@ -349,7 +349,7 @@ int iso_tree_get_ignore_hidden(IsoImage *image)
  */
 void iso_tree_set_ignore_special(IsoImage *image, int skip)
 {
-    image->recOpts.ignore_special = skip & 0x0F;
+    image->ignore_special = skip & 0x0F;
 }
 
 /**
@@ -359,7 +359,7 @@ void iso_tree_set_ignore_special(IsoImage *image, int skip)
  */
 int iso_tree_get_ignore_special(IsoImage *image)
 {
-    return image->recOpts.ignore_special;
+    return image->ignore_special;
 }
 
 /**
@@ -378,7 +378,7 @@ int iso_tree_get_ignore_special(IsoImage *image)
 void iso_tree_set_report_callback(IsoImage *image, 
                                  int (*report)(IsoFileSource *src))
 {
-    image->recOpts.report = report;
+    image->report = report;
 }
 
 static
@@ -448,10 +448,10 @@ static
 int check_excludes(IsoImage *image, const char *path)
 {
     char **exclude;
-    if (image->recOpts.excludes == NULL) {
+    if (image->excludes == NULL) {
         return 0;
     }
-    exclude = image->recOpts.excludes;
+    exclude = image->excludes;
     while (*exclude) {
         if (strcmp(*exclude, path) == 0) {
             return 1;
@@ -464,22 +464,22 @@ int check_excludes(IsoImage *image, const char *path)
 static
 int check_hidden(IsoImage *image, const char *name)
 {
-    return (image->recOpts.ignore_hidden && name[0] == '.');
+    return (image->ignore_hidden && name[0] == '.');
 }
 
 static
 int check_special(IsoImage *image, mode_t mode)
 {
-    if (image->recOpts.ignore_special != 0) {
+    if (image->ignore_special != 0) {
         switch(mode &  S_IFMT) {
         case S_IFBLK:
-            return image->recOpts.ignore_special & 0x08 ? 1 : 0;
+            return image->ignore_special & 0x08 ? 1 : 0;
         case S_IFCHR:
-            return image->recOpts.ignore_special & 0x04 ? 1 : 0;
+            return image->ignore_special & 0x04 ? 1 : 0;
         case S_IFSOCK:
-            return image->recOpts.ignore_special & 0x02 ? 1 : 0;
+            return image->ignore_special & 0x02 ? 1 : 0;
         case S_IFIFO:
-            return image->recOpts.ignore_special & 0x01 ? 1 : 0;
+            return image->ignore_special & 0x01 ? 1 : 0;
         default:
             return 0;
         }
@@ -532,7 +532,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         path = iso_file_source_get_path(file);
         name = strrchr(path, '/') + 1;
 
-        if (image->recOpts.follow_symlinks) {
+        if (image->follow_symlinks) {
             ret = iso_file_source_stat(file, &info);
         } else {
             ret = iso_file_source_lstat(file, &info);
@@ -556,7 +556,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             goto dir_rec_continue;
         }
 
-        replace = image->recOpts.replace;
+        replace = image->replace;
 
         /* find place where to insert */
         ret = iso_dir_exists(parent, name, &pos);
@@ -574,8 +574,8 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         }
         
         /* if we are here we must insert. Give user a chance for cancel */
-        if (image->recOpts.report) {
-            int r = image->recOpts.report(file);
+        if (image->report) {
+            int r = image->report(file);
             if (r <= 0) {
                 ret = (r < 0 ? ISO_CANCELED : ISO_SUCCESS);
                 goto dir_rec_continue;

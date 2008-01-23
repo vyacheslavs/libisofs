@@ -22,13 +22,39 @@
  * [The stuff we have in init belongs really to image!]
  */
 
-typedef struct Iso_Image_Rec_Opts IsoImageRecOpts;
-
-/**
- * Options for recursive directory addition
- */
-struct Iso_Image_Rec_Opts
+struct Iso_Image
 {
+
+    int refcount;
+
+    IsoDir *root;
+
+    char *volset_id;
+
+    char *volume_id; /**< Volume identifier. */
+    char *publisher_id; /**< Volume publisher. */
+    char *data_preparer_id; /**< Volume data preparer. */
+    char *system_id; /**< Volume system identifier. */
+    char *application_id; /**< Volume application id */
+    char *copyright_file_id;
+    char *abstract_file_id;
+    char *biblio_file_id;
+    
+    /* el-torito boot catalog */
+    struct el_torito_boot_catalog *bootcat;
+
+    /* image identifier, for message origin identifier */
+    int id;
+
+    /**
+     * Default filesystem to use when adding files to the image tree.
+     */
+    IsoFilesystem *fs;
+
+    /*
+     * Default builder to use when adding files to the image tree.
+     */
+    IsoNodeBuilder *builder;
 
     /**
      * Whether to follow symlinks or just add them as symlinks
@@ -75,46 +101,6 @@ struct Iso_Image_Rec_Opts
      *      1 add, 0 ignore, < 0 cancel
      */
     int (*report)(IsoFileSource *src);
-};
-
-struct Iso_Image
-{
-
-    int refcount;
-
-    IsoDir *root;
-
-    char *volset_id;
-
-    char *volume_id; /**< Volume identifier. */
-    char *publisher_id; /**< Volume publisher. */
-    char *data_preparer_id; /**< Volume data preparer. */
-    char *system_id; /**< Volume system identifier. */
-    char *application_id; /**< Volume application id */
-    char *copyright_file_id;
-    char *abstract_file_id;
-    char *biblio_file_id;
-    
-    /* el-torito boot catalog */
-    struct el_torito_boot_catalog *bootcat;
-
-    /* image identifier, for message origin identifier */
-    int id;
-
-    /**
-     * Default filesystem to use when adding files to the image tree.
-     */
-    IsoFilesystem *fs;
-
-    /*
-     * Default builder to use when adding files to the image tree.
-     */
-    IsoNodeBuilder *builder;
-
-    /**
-     * Options for recursive directory addition
-     */
-    IsoImageRecOpts recOpts;
 };
 
 #endif /*LIBISO_IMAGE_H_*/
