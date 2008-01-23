@@ -39,6 +39,14 @@ void help()
     );
 }
 
+int callback(IsoFileSource *src)
+{
+    char *path = iso_file_source_get_path(src);
+    printf("CALLBACK: %s\n", path);
+    free(path);
+    return 1;
+}
+
 int main(int argc, char **argv)
 {
     int result;
@@ -145,6 +153,7 @@ int main(int argc, char **argv)
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_ignore_special(image, 0);
     iso_set_abort_severity("SORRY");
+    iso_tree_set_report_callback(image, callback);
     
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[optind]);
     if (result < 0) {

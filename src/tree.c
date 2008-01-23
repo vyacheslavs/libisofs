@@ -362,6 +362,25 @@ int iso_tree_get_ignore_special(IsoImage *image)
     return image->recOpts.ignore_special;
 }
 
+/**
+ * Set a callback function that libisofs will call for each file that is
+ * added to the given image by a recursive addition function. This includes
+ * image import.
+ *  
+ * @param report
+ *      pointer to a function that will be called just before a file will be 
+ *      added to the image. You can control whether the file will be in fact 
+ *      added or ignored.
+ *      This function should return 1 to add the file, 0 to ignore it and 
+ *      continue, < 0 to abort the process
+ *      NULL is allowed if you don't want any callback.
+ */
+void iso_tree_set_report_callback(IsoImage *image, 
+                                 int (*report)(IsoFileSource *src))
+{
+    image->recOpts.report = report;
+}
+
 static
 int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
                               IsoFileSource *src, IsoNodeBuilder *builder,
