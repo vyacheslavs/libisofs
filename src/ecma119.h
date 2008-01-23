@@ -58,11 +58,13 @@ struct ecma119_image
     unsigned int replace_gid :1;
     unsigned int replace_file_mode :1;
     unsigned int replace_dir_mode :1;
+    unsigned int replace_timestamps :1;
 
     uid_t uid;
     gid_t gid;
     mode_t file_mode;
     mode_t dir_mode;
+    time_t timestamp;
 
     /**
      *  if sort files or not. Sorting is based of the weight of each file 

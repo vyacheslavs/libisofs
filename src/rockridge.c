@@ -113,6 +113,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 static
 int rrip_add_TF(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
+    IsoNode *iso;
     uint8_t *TF = malloc(5 + 3 * 7);
     if (TF == NULL) {
         return ISO_OUT_OF_MEM;
@@ -123,9 +124,11 @@ int rrip_add_TF(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     TF[2] = 5 + 3 * 7;
     TF[3] = 1;
     TF[4] = (1 << 1) | (1 << 2) | (1 << 3);
-    iso_datetime_7(&TF[5], n->node->mtime);
-    iso_datetime_7(&TF[12], n->node->atime);
-    iso_datetime_7(&TF[19], n->node->ctime);
+    
+    iso = n->node;
+    iso_datetime_7(&TF[5], t->replace_timestamps ? t->timestamp : iso->mtime);
+    iso_datetime_7(&TF[12], t->replace_timestamps ? t->timestamp : iso->atime);
+    iso_datetime_7(&TF[19], t->replace_timestamps ? t->timestamp : iso->ctime);
     return susp_append(t, susp, TF);
 }
 

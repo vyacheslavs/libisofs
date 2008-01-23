@@ -848,7 +848,11 @@ int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
     target->now = time(NULL);
     target->ms_block = opts->ms_block;
     target->appendable = opts->appendable;
-    
+
+    target->replace_timestamps = opts->replace_timestamps ? 1 : 0;
+    target->timestamp = opts->replace_timestamps == 2 ? 
+                        opts->timestamp : target->now;
+
     /* el-torito? */
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
     target->catalog = src->bootcat;

@@ -185,6 +185,14 @@ struct ecma119_write_opts {
     gid_t gid; /** gid to use when replace_gid == 2. */
 
     /**
+     * 0 to use IsoNode timestamps, 1 to use recording time, 2 to use
+     * values from timestamp field. This has only meaning if RR extensions
+     * are enabled.
+     */
+    unsigned int replace_timestamps :2;
+    time_t timestamp;
+
+    /**
      * Charset for the RR filenames that will be created.
      * NULL to use default charset, the locale one.
      */
