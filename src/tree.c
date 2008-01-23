@@ -362,25 +362,6 @@ int iso_tree_get_ignore_special(IsoImage *image)
     return image->recOpts.ignore_special;
 }
 
-/**
- * Set whether to stop or not when an error happens when adding recursively a 
- * directory to the iso tree. Default value is to skip file and continue.
- */
-void iso_tree_set_stop_on_error(IsoImage *image, int stop)
-{
-    image->recOpts.stop_on_error = stop ? 1 : 0;
-}
-
-/**
- * Get current setting for stop_on_error.
- * 
- * @see iso_tree_set_stop_on_error
- */
-int iso_tree_get_stop_on_error(IsoImage *image)
-{
-    return image->recOpts.stop_on_error;
-}
-
 static
 int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
                               IsoFileSource *src, IsoNodeBuilder *builder,
@@ -507,7 +488,9 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
     ret = iso_file_source_open(dir);
     if (ret < 0) {
         char *path = iso_file_source_get_path(dir);
-        iso_msg_debug(image->id, "Can't open dir %s", path);
+        /* instead of the probable error, we throw a warning */
+        ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret, 
+                             "Can't open dir %s", path);
         free(path);
         return ret;
     }
@@ -600,9 +583,12 @@ dir_rec_continue:;
         free(path);
         iso_file_source_unref(file);
         
-        /* TODO check for error severity to decide what to do */
-        if (ret == ISO_CANCELED || (ret < 0 && image->recOpts.stop_on_error)) {
-            break;
+        /* check for error severity to decide what to do */
+        if (ret < 0) {
+            ret = iso_msg_submit(image->id, ret, 0, NULL);
+            if (ret < 0) {
+                break;
+            }
         }
     } /* while */
 

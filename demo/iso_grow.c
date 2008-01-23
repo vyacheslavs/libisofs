@@ -90,7 +90,6 @@ int main(int argc, char **argv)
     }
     iso_tree_set_follow_symlinks(image, 0);
     iso_tree_set_ignore_hidden(image, 0);
-    iso_tree_set_stop_on_error(image, 0);
 
     if (!burn_initialize()) {
         err(1, "Can't init libburn");

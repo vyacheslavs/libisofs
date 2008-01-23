@@ -41,12 +41,6 @@ struct Iso_Image_Rec_Opts
     unsigned int ignore_hidden : 1;
 
     /**
-     * Whether to stop on an error. Some errors, such as memory errors,
-     * always cause a stop
-     */
-    unsigned int stop_on_error : 1;
-    
-    /**
      * Flags that determine what special files should be ignore. It is a
      * bitmask:
      * bit0: ignore FIFOs

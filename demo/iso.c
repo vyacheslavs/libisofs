@@ -144,7 +144,6 @@ int main(int argc, char **argv)
     iso_tree_set_follow_symlinks(image, 0);
     iso_tree_set_ignore_hidden(image, 0);
     iso_tree_set_ignore_special(image, 0);
-    iso_tree_set_stop_on_error(image, 0);
     iso_set_abort_severity("SORRY");
     
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[optind]);

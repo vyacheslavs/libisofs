@@ -252,6 +252,8 @@ int libiso_msgs__text_to_sev(char *severity_name, int *severity,
    *severity= LIBISO_MSGS_SEV_ABORT;
  else if(strncmp(severity_name,"FATAL",5)==0)
    *severity= LIBISO_MSGS_SEV_FATAL;
+ else if(strncmp(severity_name,"ERROR",5)==0)
+   *severity= LIBISO_MSGS_SEV_ERROR;
  else if(strncmp(severity_name,"SORRY",5)==0)
    *severity= LIBISO_MSGS_SEV_SORRY;
  else if(strncmp(severity_name,"WARNING",7)==0)
@@ -289,6 +291,8 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
    *severity_name= "ABORT";
  else if(severity>=LIBISO_MSGS_SEV_FATAL)
    *severity_name= "FATAL";
+ else if(severity>=LIBISO_MSGS_SEV_ERROR)
+   *severity_name= "ERROR";
  else if(severity>=LIBISO_MSGS_SEV_SORRY)
    *severity_name= "SORRY";
  else if(severity>=LIBISO_MSGS_SEV_WARNING)

@@ -1541,19 +1541,6 @@ void iso_tree_set_ignore_special(IsoImage *image, int skip);
 int iso_tree_get_ignore_special(IsoImage *image);
 
 /**
- * Set whether to stop or not when an error happens when adding recursively a 
- * directory to the iso tree. Default value is to skip file and continue.
- */
-void iso_tree_set_stop_on_error(IsoImage *image, int stop);
-
-/**
- * Get current setting for stop_on_error.
- * 
- * @see iso_tree_set_stop_on_error
- */
-int iso_tree_get_stop_on_error(IsoImage *image);
-
-/**
  * Add a new node to the image tree, from an existing file. 
  * 
  * TODO comment Builder and Filesystem related issues when exposing both
