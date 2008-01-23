@@ -1,0 +1,46 @@
+
+- Review  error severities
+- Improves to public tree
+	-> Expose node extended info. Always compile it.
+	   (little memory cost)
+	-> Review builder / tree / node relation
+	-> Add low level functions to create nodes. 
+	-> Optimize storage of children in node?
+	-> Inode object?
+
+>>>>>>>>>> RELEASE CANDIDATE >>>>>>>>>>>>>>>>>
+
+- Intensive bug fix
+- xorriso must work with libisofs version
+
+>>>>>>>>>> RELEASE (0.6.0? 1.0.0?) >>>>>>>>>>>>>
+
+- No stable API yet.
+- Release will be branched and maintained for bug fixes
+
+>>>>> NEXT DEVELOPMENT CICLE
+
+- Expose Builder and Streams
+- Implement filters: compression, encryption...
+- Update Java bindings
+
+>>>>>>>>>>> RELEASE (0.6.1? 1.0.1?) >>>>>>>>>>>>> 
+
+- API not stable yet, but from here changes must be minimized.
+- Release will be branched and maintained for bug fixes
+
+>>>>> NEXT DEVELOPMENT CICLE
+
+- UDF
+- HFS
+
+>>>>>>>>>
+
+????
+
+>>>>>>>>>> RELEASE (1.0.0? 2.0.0?) >>>>>>>>>>>>>>>>>
+
+- From here API stability guaranted. We must preserve both source and binary
+compatibility at least until 2.0.0 (3.0.0)
+
+
