@@ -152,8 +152,8 @@
 /* Can't convert filename to requested charset (HINT,MEDIUM, -142) */
 #define ISO_FILENAME_WRONG_CHARSET      0xC020FF72
 
-/* File can't be added to the tree (WARNING,MEDIUM, -143) */
-#define ISO_FILE_CANT_ADD               0xD020FF71
+/* File can't be added to the tree (SORRY,HIGH, -143) */
+#define ISO_FILE_CANT_ADD               0xE030FF71
 
 /** 
  * File path break specification constraints and will be ignored 

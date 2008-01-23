@@ -488,7 +488,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
     ret = iso_file_source_open(dir);
     if (ret < 0) {
         char *path = iso_file_source_get_path(dir);
-        /* instead of the probable error, we throw a warning */
+        /* instead of the probable error, we throw a sorry event */
         ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret, 
                              "Can't open dir %s", path);
         free(path);
