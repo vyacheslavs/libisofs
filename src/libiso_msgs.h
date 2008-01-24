@@ -1,6 +1,6 @@
 
-/* libiso_msgs
-   Message handling facility of libiso.
+/* libiso_msgs   (generated from libdax_msgs : Xov Xan 24 11:24:13 CET 2008)
+   Message handling facility of libisofs.
    Copyright (C) 2006-2008 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2
 */
@@ -72,7 +72,7 @@ struct libiso_msgs {
 
                           /* Architectural aspects */
 /* 
-  libiso_msgs is designed to serve in libraries which want to offer their
+  libdax_msgs is designed to serve in libraries which want to offer their
   applications a way to control the output of library messages. It shall be
   incorporated by an owner, i.e. a software entity which encloses the code
   of the .c file.
@@ -140,19 +140,46 @@ struct libiso_msgs_item;
 */
 #define LIBISO_MSGS_SEV_WARNING                                      0x50000000
 
-/** Non-fatal error messages indicating that parts of the action failed
-    but processing will/should go on
+
+/** Non-fatal error messages indicating that important parts of an action
+    failed but processing may go on if one accepts deviations from the
+    desired result.
+
+    E.g.: One of several libisofs input files cannot be found.
+          A speed setting cannot be made.
+
+    After SORRY a function should try to go on if that makes any sense
+    and if no threshold prescribes abort on SORRY. The function should
+    nevertheless indicate some failure in its return value. 
+    It should - but it does not have to.
 */
 #define LIBISO_MSGS_SEV_SORRY                                        0x60000000
 
-/** error messages indicating that the operation has failed, but you can
-    still continue using the library and even retry the operation
+
+/** Non-fatal error indicating that a complete action failed and that
+    only a thorough new setup of preconditions will give hope for success.
+
+    E.g.: No media is inserted in the output drive.
+          No write mode can be found for inserted media.
+          All libisofs input files are inaccessible.
+
+    After FAILURE a function should end very soon with a return value
+    indicating failure.
 */
-#define LIBISO_MSGS_SEV_ERROR                                        0x6A000000
+#define LIBISO_MSGS_SEV_FAILURE                                      0x68000000
+
 
 /** An error message which puts the whole operation of the program in question
+
+    E.g.: Not enough memory for essential temporary objects.
+          Irregular errors from resources.
+          Programming errors (soft assert).
+
+    After FATAL a function should end very soon with a return value
+    indicating severe failure.
 */
 #define LIBISO_MSGS_SEV_FATAL                                        0x70000000
+
 
 /** A message from an abort handler which will finally finish libburn
 */
@@ -471,47 +498,6 @@ Range "scdbackup"          :  0x00020000 to 0x0002ffff
 
 ------------------------------------------------------------------------------
 Range "vreixo"              :  0x00030000 to 0x0003ffff
-
- Image creation:
- 0x00030100 (NOTE,MEDIUM)   = File cannot be added to image (ignored) 
- 0x00030101 (NOTE,MEDIUM)   = File cannot be writing to image (ignored) 
- 0x00030102 (FATAL,HIGH)    = Write error
- 0x00030103 (FATAL,HIGH)    = Read error
- 0x00030110 (FATAL,HIGH)    = Cannot create writer thread
-
- 0x00030500 (SORRY,HIGH)    = Charset conversion error
-
- General:
- 0x00031001 (SORRY,HIGH)    = Cannot read file (ignored)
- 0x00031002 (FATAL,HIGH)    = Cannot read file (operation canceled)
- 0x00031003 (FATAL,HIGH)    = File doesnt exist
- 0x00031004 (FATAL,HIGH)    = Read access denied
-
- Image reading:
- 0x00031000 (FATAL,HIGH)    = Unsupported ISO-9660 image
- 0x00031001 (HINT,MEDIUM)   = Unsupported Vol Desc that will be ignored
- 0x00031002 (FATAL,HIGH)    = Damaged ISO-9660 image
- 0x00031003 (SORRY,HIGH)    = Cannot read previous image file
- 
- Rock-Ridge:
- 0x00030101 (HINT,MEDIUM)   = Unsupported SUSP entry that will be ignored
- 0x00030102 (SORRY,HIGH)    = Wrong/damaged SUSP entry
- 0x00030103 (WARNING,MEDIUM)= Multiple SUSP ER entries where found
- 0x00030111 (SORRY,HIGH)    = Unsupported RR feature
- 0x00030112 (SORRY,HIGH)    = Error in a Rock Ridge entry
- 0x00030113 (WARNING,MEDIUM)= Wrong/Damaged Rock Ridge
- 
- El-Torito:
- 0x00030201 (HINT,MEDIUM)   = Unsupported Boot Vol Desc that will be ignored
- 0x00030202 (SORRY,HIGH)    = Wrong El-Torito catalog
- 0x00030203 (HINT,MEDIUM)   = Unsupported El-Torito feature
- 0x00030204 (SORRY,HIGH)    = Invalid file to be an El-Torito image
- 0x00030205 (WARNING,MEDIUM)= Cannot properly patch isolinux image
- 0x00030206 (WARNING,MEDIUM)= Copying El-Torito from a previous image without
-                              enought info about it
- 
- Joliet:
- 0x00030301 (NOTE,MEDIUM)   = Unsupported file type for Joliet tree
 
 
 ------------------------------------------------------------------------------

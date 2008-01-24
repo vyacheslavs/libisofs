@@ -25,7 +25,7 @@
  *        = 0x40 -> HINT
  *        = 0x50 -> WARNING
  *        = 0x60 -> SORRY
- *        = 0x6A -> ERROR
+ *        = 0x68 -> FAILURE
  *        = 0x70 -> FATAL
  *        = 0x71 -> ABORT
  * bits 23-20 -> Encoded priority (Use ISO_ERR_PRIO to translate an error code
@@ -51,22 +51,22 @@
  */
 #define ISO_NONE                        0
 
-/** Operation canceled (ERROR,HIGH, -1) */
-#define ISO_CANCELED                    0xEA30FFFF
+/** Operation canceled (FAILURE,HIGH, -1) */
+#define ISO_CANCELED                    0xE830FFFF
 
 /** Unknown or unexpected fatal error (FATAL,HIGH, -2) */
 #define ISO_FATAL_ERROR                 0xF030FFFE
 
-/** Unknown or unexpected error (ERROR,HIGH, -3) */
-#define ISO_ERROR                       0xEA30FFFD
+/** Unknown or unexpected error (FAILURE,HIGH, -3) */
+#define ISO_ERROR                       0xE830FFFD
 
 /** Internal programming error. Please report this bug (FATAL,HIGH, -4) */
 #define ISO_ASSERT_FAILURE              0xF030FFFC
 
 /** 
- * NULL pointer as value for an arg. that doesn't allow NULL (ERROR,HIGH, -5)
+ * NULL pointer as value for an arg. that doesn't allow NULL (FAILURE,HIGH, -5)
  */
-#define ISO_NULL_POINTER                0xEA30FFFB
+#define ISO_NULL_POINTER                0xE830FFFB
 
 /** Memory allocation error (FATAL,HIGH, -6) */
 #define ISO_OUT_OF_MEM                  0xF030FFFA
@@ -74,71 +74,73 @@
 /** Interrupted by a signal (FATAL,HIGH, -7) */
 #define ISO_INTERRUPTED                 0xF030FFF9
 
-/** Invalid parameter value (ERROR,HIGH, -8) */
-#define ISO_WRONG_ARG_VALUE             0xEA30FFF8
+/** Invalid parameter value (FAILURE,HIGH, -8) */
+#define ISO_WRONG_ARG_VALUE             0xE830FFF8
 
 /** Can't create a needed thread (FATAL,HIGH, -9) */
 #define ISO_THREAD_ERROR                0xF030FFF7
 
-/** Write error (ERROR,HIGH, -10) */
-#define ISO_WRITE_ERROR                 0xEA30FFF6
+/** Write error (FAILURE,HIGH, -10) */
+#define ISO_WRITE_ERROR                 0xE830FFF6
 
-/** Buffer read error (ERROR,HIGH, -11) */
-#define ISO_BUF_READ_ERROR              0xEA30FFF5
+/** Buffer read error (FAILURE,HIGH, -11) */
+#define ISO_BUF_READ_ERROR              0xE830FFF5
 
-/** Trying to add to a dir a node already added to a dir (ERROR,HIGH, -64) */
-#define ISO_NODE_ALREADY_ADDED          0xEA30FFC0
+/** Trying to add to a dir a node already added to a dir (FAILURE,HIGH, -64) */
+#define ISO_NODE_ALREADY_ADDED          0xE830FFC0
 
-/** Node with same name already exists (ERROR,HIGH, -65) */
-#define ISO_NODE_NAME_NOT_UNIQUE        0xEA30FFBF
+/** Node with same name already exists (FAILURE,HIGH, -65) */
+#define ISO_NODE_NAME_NOT_UNIQUE        0xE830FFBF
 
-/** Trying to remove a node that was not added to dir (ERROR,HIGH, -65) */
-#define ISO_NODE_NOT_ADDED_TO_DIR       0xEA30FFBE
+/** Trying to remove a node that was not added to dir (FAILURE,HIGH, -65) */
+#define ISO_NODE_NOT_ADDED_TO_DIR       0xE830FFBE
 
-/** A requested node does not exists  (ERROR,HIGH, -66) */
-#define ISO_NODE_DOESNT_EXIST           0xEA30FFBD
-
-/** Try to set the boot image of an already bootable image (ERROR,HIGH, -67) */
-#define ISO_IMAGE_ALREADY_BOOTABLE      0xEA30FFBC
-
-/** Trying to use an invalid file as boot image (ERROR,HIGH, -68) */
-#define ISO_BOOT_IMAGE_NOT_VALID        0xEA30FFBB
+/** A requested node does not exists  (FAILURE,HIGH, -66) */
+#define ISO_NODE_DOESNT_EXIST           0xE830FFBD
 
 /** 
- * Error on file operation (ERROR,HIGH, -128) 
+ * Try to set the boot image of an already bootable image (FAILURE,HIGH, -67)
+ */
+#define ISO_IMAGE_ALREADY_BOOTABLE      0xE830FFBC
+
+/** Trying to use an invalid file as boot image (FAILURE,HIGH, -68) */
+#define ISO_BOOT_IMAGE_NOT_VALID        0xE830FFBB
+
+/** 
+ * Error on file operation (FAILURE,HIGH, -128) 
  * (take a look at more specified error codes below)
  */
-#define ISO_FILE_ERROR                  0xEA30FF80
+#define ISO_FILE_ERROR                  0xE830FF80
 
-/** Trying to open an already openned file (ERROR,HIGH, -129) */
-#define ISO_FILE_ALREADY_OPENNED        0xEA30FF7F
+/** Trying to open an already openned file (FAILURE,HIGH, -129) */
+#define ISO_FILE_ALREADY_OPENNED        0xE830FF7F
 
-/** Access to file is not allowed (ERROR,HIGH, -130) */
-#define ISO_FILE_ACCESS_DENIED          0xEA30FF7E
+/** Access to file is not allowed (FAILURE,HIGH, -130) */
+#define ISO_FILE_ACCESS_DENIED          0xE830FF7E
 
-/** Incorrect path to file (ERROR,HIGH, -131) */
-#define ISO_FILE_BAD_PATH               0xEA30FF7D
+/** Incorrect path to file (FAILURE,HIGH, -131) */
+#define ISO_FILE_BAD_PATH               0xE830FF7D
 
-/** The file does not exists in the filesystem (ERROR,HIGH, -132) */
-#define ISO_FILE_DOESNT_EXIST           0xEA30FF7C
+/** The file does not exists in the filesystem (FAILURE,HIGH, -132) */
+#define ISO_FILE_DOESNT_EXIST           0xE830FF7C
 
-/** Trying to read or close a file not openned (ERROR,HIGH, -133) */
-#define ISO_FILE_NOT_OPENNED            0xEA30FF7B
+/** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
+#define ISO_FILE_NOT_OPENNED            0xE830FF7B
 
-/** Directory used where no dir is expected (ERROR,HIGH, -134) */
-#define ISO_FILE_IS_DIR                 0xEA30FF7A
+/** Directory used where no dir is expected (FAILURE,HIGH, -134) */
+#define ISO_FILE_IS_DIR                 0xE830FF7A
 
-/** Read error (ERROR,HIGH, -135) */
-#define ISO_FILE_READ_ERROR             0xEA30FF79
+/** Read error (FAILURE,HIGH, -135) */
+#define ISO_FILE_READ_ERROR             0xE830FF79
 
-/** Not dir used where a dir is expected (ERROR,HIGH, -136) */
-#define ISO_FILE_IS_NOT_DIR             0xEA30FF78
+/** Not dir used where a dir is expected (FAILURE,HIGH, -136) */
+#define ISO_FILE_IS_NOT_DIR             0xE830FF78
 
-/** Not symlink used where a symlink is expected (ERROR,HIGH, -137) */
-#define ISO_FILE_IS_NOT_SYMLINK         0xEA30FF77
+/** Not symlink used where a symlink is expected (FAILURE,HIGH, -137) */
+#define ISO_FILE_IS_NOT_SYMLINK         0xE830FF77
 
-/** Can't seek to specified location (ERROR,HIGH, -138) */
-#define ISO_FILE_SEEK_ERROR             0xEA30FF76
+/** Can't seek to specified location (FAILURE,HIGH, -138) */
+#define ISO_FILE_SEEK_ERROR             0xE830FF76
 
 /** File not supported in ECMA-119 tree and thus ignored (HINT,MEDIUM, -139) */
 #define ISO_FILE_IGNORED                0xC020FF75
@@ -161,22 +163,22 @@
  */
 #define ISO_FILE_IMGPATH_WRONG          0xC020FF73
 
-/** Charset conversion error (ERROR,HIGH, -256) */
-#define ISO_CHARSET_CONV_ERROR          0xEA30FF00
+/** Charset conversion error (FAILURE,HIGH, -256) */
+#define ISO_CHARSET_CONV_ERROR          0xE830FF00
 
 /** 
  * Too much files to mangle, i.e. we cannot guarantee unique file names 
- * (ERROR,HIGH, -257) 
+ * (FAILURE,HIGH, -257) 
  */
-#define ISO_MANGLE_TOO_MUCH_FILES       0xEA30FEFF
+#define ISO_MANGLE_TOO_MUCH_FILES       0xE830FEFF
 
 /* image related errors */
 
 /** 
- * Wrong or damaged Primary Volume Descriptor (ERROR,HIGH, -320)
+ * Wrong or damaged Primary Volume Descriptor (FAILURE,HIGH, -320)
  * This could mean that the file is not a valid ISO image. 
  */
-#define ISO_WRONG_PVD                   0xEA30FEC0
+#define ISO_WRONG_PVD                   0xE830FEC0
 
 /** Wrong or damaged RR entry (SORRY,HIGH, -321) */
 #define ISO_WRONG_RR                    0xE030FEBF
@@ -184,11 +186,11 @@
 /** Unsupported RR feature (SORRY,HIGH, -322) */
 #define ISO_UNSUPPORTED_RR              0xE030FEBE
 
-/** Wrong or damaged ECMA-119 (ERROR,HIGH, -323) */
-#define ISO_WRONG_ECMA119               0xEA30FEBD
+/** Wrong or damaged ECMA-119 (FAILURE,HIGH, -323) */
+#define ISO_WRONG_ECMA119               0xE830FEBD
 
-/** Unsupported ECMA-119 feature (ERROR,HIGH, -324) */
-#define ISO_UNSUPPORTED_ECMA119         0xEA30FEBC
+/** Unsupported ECMA-119 feature (FAILURE,HIGH, -324) */
+#define ISO_UNSUPPORTED_ECMA119         0xE830FEBC
 
 /** Wrong or damaged El-Torito catalog (SORRY,HIGH, -325) */
 #define ISO_WRONG_EL_TORITO             0xE030FEBB

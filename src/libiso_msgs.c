@@ -1,6 +1,6 @@
 
-/* libiso_msgs
-   Message handling facility of libiso.
+/* libiso_msgs   (generated from libdax_msgs : Xov Xan 24 11:24:13 CET 2008)
+   Message handling facility of libisofs.
    Copyright (C) 2006 - 2008 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2
 */
@@ -252,8 +252,8 @@ int libiso_msgs__text_to_sev(char *severity_name, int *severity,
    *severity= LIBISO_MSGS_SEV_ABORT;
  else if(strncmp(severity_name,"FATAL",5)==0)
    *severity= LIBISO_MSGS_SEV_FATAL;
- else if(strncmp(severity_name,"ERROR",5)==0)
-   *severity= LIBISO_MSGS_SEV_ERROR;
+ else if(strncmp(severity_name,"FAILURE",7)==0)
+   *severity= LIBISO_MSGS_SEV_FAILURE;
  else if(strncmp(severity_name,"SORRY",5)==0)
    *severity= LIBISO_MSGS_SEV_SORRY;
  else if(strncmp(severity_name,"WARNING",7)==0)
@@ -280,8 +280,7 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
                              int flag)
 {
  if(flag&1) {
-   *severity_name= 
-         "NEVER\nABORT\nFATAL\nSORRY\nWARNING\nHINT\nNOTE\nUPDATE\nDEBUG\nALL";
+   *severity_name= "NEVER\nABORT\nFATAL\nFAILURE\nSORRY\nWARNING\nHINT\nNOTE\nUPDATE\nDEBUG\nALL";
    return(1);
  }
  *severity_name= "";
@@ -291,8 +290,8 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
    *severity_name= "ABORT";
  else if(severity>=LIBISO_MSGS_SEV_FATAL)
    *severity_name= "FATAL";
- else if(severity>=LIBISO_MSGS_SEV_ERROR)
-   *severity_name= "ERROR";
+ else if(severity>=LIBISO_MSGS_SEV_FAILURE)
+   *severity_name= "FAILURE";
  else if(severity>=LIBISO_MSGS_SEV_SORRY)
    *severity_name= "SORRY";
  else if(severity>=LIBISO_MSGS_SEV_WARNING)
