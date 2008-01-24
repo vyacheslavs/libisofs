@@ -165,6 +165,7 @@ static void test_iso_datetime_7()
     strptime("01-07-2007 13:27:45", "%d-%m-%Y %T", &tp);
     t2 = mktime(&tp); /* t1 in GMT (summer time) */
 
+    /* ----------------- European Timezones ----------------------*/
     setenv("TZ", "Europe/Madrid", 1);
     tzset();
     
@@ -193,9 +194,37 @@ static void test_iso_datetime_7()
     /* check that reading returns the same time */
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
-    
-    /* change timeset */
 
+    setenv("TZ", "Europe/London", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 13); /* hour (GMT+0) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 0); /* GMT+0 */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    
+    iso_datetime_7(buf, t2);
+    CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 7); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 14); /* hour (GMT+1, summer time) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 4); /* GMT+1 */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+
+    /* ----------------- American Timezones ----------------------*/
     setenv("TZ", "America/New_York", 1);
     tzset();
     
@@ -212,6 +241,7 @@ static void test_iso_datetime_7()
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
 
+    /* ----------------- Asia Timezones ----------------------*/
     setenv("TZ", "Asia/Hong_Kong", 1);
     tzset();
     
@@ -234,6 +264,253 @@ static void test_iso_datetime_7()
     
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
+
+    /* ----------------- Africa Timezones ----------------------*/
+
+    /* Africa country without Daylight saving time */
+    setenv("TZ", "Africa/Luanda", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 14); /* hour (GMT+1) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 4); /* GMT+1 hour */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    
+    iso_datetime_7(buf, t2);
+    CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 7); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 14); /* hour (GMT+1, no summer time) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 4); /* GMT+1 hour */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+
+    /* ----------------- Australia Timezones ----------------------*/
+    
+    /* this is GMT+9:30 (note that in South summer is winter in North) */
+    setenv("TZ", "Australia/Broken_Hill", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 23); /* hour GMT+9+1 (summer time!!) */
+    CU_ASSERT_EQUAL(buf[4], 57); /* minute + 30 */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 42); /* GMT+9:30 hour + 1 (summer time) */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    
+    iso_datetime_7(buf, t2);
+    CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 7); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 22); /* hour (GMT+9) */
+    CU_ASSERT_EQUAL(buf[4], 57); /* minute +30 */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 38); /* GMT+9:30 */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+
+    /* ----------------- Pacific Timezones ----------------------*/
+    
+    /* this is GMT+13, the max supported */
+    setenv("TZ", "Pacific/Tongatapu", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 2); /* day */
+    CU_ASSERT_EQUAL(buf[3], 2); /* hour (GMT+13) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], 52); /* GMT+13 hour */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+
+    /* this is GMT-11, I can't found a -12 timezone */
+    setenv("TZ", "Pacific/Pago_Pago", 1);
+    tzset();
+    
+    iso_datetime_7(buf, t1);
+    CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
+    CU_ASSERT_EQUAL(buf[1], 3); /* month */
+    CU_ASSERT_EQUAL(buf[2], 1); /* day */
+    CU_ASSERT_EQUAL(buf[3], 2); /* hour (GMT-11) */
+    CU_ASSERT_EQUAL(buf[4], 27); /* minute */
+    CU_ASSERT_EQUAL(buf[5], 45); /* second */
+    CU_ASSERT_EQUAL((int8_t)buf[6], -44); /* GMT-11 hour */
+    
+    /* check that reading returns the same time */
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+
+    /* --- and now test from several zones, just for write/read compatibilty */
+    /*
+    setenv("TZ", "Pacific/Kiritimati", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    */
+    
+    setenv("TZ", "America/Argentina/La_Rioja", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "America/Argentina/La_Rioja", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "America/Caracas", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Asia/Bangkok", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Asia/Tehran", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Pacific/Pitcairn", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Antarctica/McMurdo", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "EET", 1); /* Eastern European Time */
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Europe/Moscow", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Asia/Novosibirsk", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Asia/Vladivostok", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Asia/Anadyr", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Atlantic/Canary", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "Indian/Mauritius", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "America/Los_Angeles", 1);
+    tzset();
+    iso_datetime_7(buf, t1);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
 
     if (tz)
         setenv("TZ", tz, 1);

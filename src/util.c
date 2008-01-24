@@ -976,6 +976,8 @@ void iso_datetime_7(unsigned char *buf, time_t t)
         tzsetup = 1;
     }
 
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_isdst = -1;
     localtime_r(&t, &tm);
 
     buf[0] = tm.tm_year;
@@ -987,6 +989,8 @@ void iso_datetime_7(unsigned char *buf, time_t t)
 #ifdef HAVE_TM_GMTOFF
     tzoffset = tm.tm_gmtoff / 60 / 15;
 #else
+    if (tm.tm_isdst < 0)
+        tm.tm_isdst = 0;
     tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
 #endif
     if (tzoffset > 52)
