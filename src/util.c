@@ -9,6 +9,7 @@
 
 #include "util.h"
 #include "error.h"
+#include "../version.h"
 
 #include <stdlib.h>
 #include <wchar.h>
@@ -1171,4 +1172,11 @@ char *ucs2str(const char *buf, size_t len)
     for (len = strlen(out) - 1; out[len] == ' ' && len > 0; --len)
         out[len] = '\0';
     return strdup(out);
+}
+
+void iso_lib_version(int *major, int *minor, int *micro)
+{
+    *major = LIBISOFS_MAJOR_VERSION;
+    *minor = LIBISOFS_MINOR_VERSION;
+    *micro = LIBISOFS_MICRO_VERSION;
 }

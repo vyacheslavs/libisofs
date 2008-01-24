@@ -746,6 +746,11 @@ void iso_finish();
 int iso_image_new(const char *name, IsoImage **image);
 
 /**
+ * Get version of the libisofs library.
+ */
+void iso_lib_version(int *major, int *minor, int *micro);
+
+/**
  * Create a burn_source to actually write the image. That burn_source can be 
  * used with libburn as a data source for a track.
  * 
