@@ -319,7 +319,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
         *size = buf->cap;
     }
     if (free_bytes) {
-        *free_bytes = buf->size;
+        *free_bytes = buf->cap - buf->size;
     }
 
     ret = (buf->rend + 1) + (buf->wend ? 4 : 0);
