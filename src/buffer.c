@@ -322,7 +322,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
         *free_bytes = buf->cap - buf->size;
     }
 
-    ret = (buf->rend + 1) + (buf->wend ? 4 : 0);
+    ret = (buf->rend ? 4 : 0) + (buf->wend + 1);
     
     pthread_mutex_unlock(&buf->mutex);
     return ret;
