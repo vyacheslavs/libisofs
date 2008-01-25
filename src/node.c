@@ -739,3 +739,119 @@ int iso_node_new_root(IsoDir **root)
     *root = dir;
     return ISO_SUCCESS;
 }
+
+int iso_node_new_dir(char *name, IsoDir **dir)
+{
+    IsoDir *new;
+    
+    if (dir == NULL || name == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    new = calloc(1, sizeof(IsoDir));
+    if (new == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    new->node.refcount = 1;
+    new->node.type = LIBISO_DIR;
+    new->node.name = name;
+    new->node.mode = S_IFDIR;
+    *dir = new;
+    return ISO_SUCCESS;
+}
+
+int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
+{
+    IsoFile *new;
+    
+    if (file == NULL || name == NULL || stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    new = calloc(1, sizeof(IsoFile));
+    if (new == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    new->node.refcount = 1;
+    new->node.type = LIBISO_FILE;
+    new->node.name = name;
+    new->node.mode = S_IFREG;
+    new->stream = stream;
+
+    *file = new;
+    return ISO_SUCCESS;
+}
+
+int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link)
+{
+    IsoSymlink *new;
+    
+    if (link == NULL || name == NULL || dest == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
+    /* check if destination is valid */
+    if (!iso_node_is_valid_link_dest(dest)) {
+        /* guard against null or empty dest */
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    new = calloc(1, sizeof(IsoSymlink));
+    if (new == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    new->node.refcount = 1;
+    new->node.type = LIBISO_SYMLINK;
+    new->node.name = name;
+    new->dest = dest;
+    new->node.mode = S_IFLNK;
+    *link = new;
+    return ISO_SUCCESS;
+}
+
+int iso_node_new_special(char *name, mode_t mode, dev_t dev, 
+                         IsoSpecial **special)
+{
+    IsoSpecial *new;
+    
+    if (special == NULL || name == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (S_ISLNK(mode) || S_ISREG(mode) || S_ISDIR(mode)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
+    /* check if the name is valid */
+    if (!iso_node_is_valid_name(name)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    new = calloc(1, sizeof(IsoSpecial));
+    if (new == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    new->node.refcount = 1;
+    new->node.type = LIBISO_SPECIAL;
+    new->node.name = name;
+
+    new->node.mode = mode;
+    new->dev = dev;
+
+    *special = new;
+    return ISO_SUCCESS;
+}

@@ -160,6 +160,88 @@ struct Iso_Dir_Iter
 int iso_node_new_root(IsoDir **root);
 
 /**
+ * Create a new IsoDir. Attributes, uid/gid, timestamps, etc are set to 
+ * default (0) values. You must set them.
+ * 
+ * @param name
+ *      Name for the node. It is not strdup() so you shouldn't use this 
+ *      reference when this function returns successfully. NULL is not 
+ *      allowed.
+ * @param dir
+ *      
+ * @return
+ *      1 on success, < 0 on error.
+ */
+int iso_node_new_dir(char *name, IsoDir **dir);
+
+/**
+ * Create a new file node. Attributes, uid/gid, timestamps, etc are set to 
+ * default (0) values. You must set them.
+ * 
+ * @param name
+ *      Name for the node. It is not strdup() so you shouldn't use this 
+ *      reference when this function returns successfully. NULL is not 
+ *      allowed.
+ * @param stream
+ *      Source for file contents. The reference is taken by the node,
+ *      you must call iso_stream_ref() if you need your own ref.
+ * @return
+ *      1 on success, < 0 on error.
+ */
+int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file);
+
+/**
+ * Creates a new IsoSymlink node. Attributes, uid/gid, timestamps, etc are set
+ * to default (0) values. You must set them.
+ * 
+ * @param name
+ *      name for the new symlink. It is not strdup() so you shouldn't use this 
+ *      reference when this function returns successfully. NULL is not 
+ *      allowed.
+ * @param dest
+ *      destination of the link. It is not strdup() so you shouldn't use this 
+ *      reference when this function returns successfully. NULL is not 
+ *      allowed.
+ * @param link
+ *      place where to store a pointer to the newly created link.
+ * @return
+ *     1 on success, < 0 otherwise
+ */
+int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link);
+
+/**
+ * Create a new special file node. As far as libisofs concerns,
+ * an special file is a block device, a character device, a FIFO (named pipe)
+ * or a socket. You can choose the specific kind of file you want to add
+ * by setting mode propertly (see man 2 stat).
+ * 
+ * Note that special files are only written to image when Rock Ridge 
+ * extensions are enabled. Moreover, a special file is just a directory entry
+ * in the image tree, no data is written beyond that.
+ * 
+ * Owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ * 
+ * @param name
+ *      name for the new special file. It is not strdup() so you shouldn't use 
+ *      this reference when this function returns successfully. NULL is not 
+ *      allowed.
+ * @param mode
+ *      file type and permissions for the new node. Note that you can't
+ *      specify any kind of file here, only special types are allowed. i.e,
+ *      S_IFSOCK, S_IFBLK, S_IFCHR and S_IFIFO are valid types; S_IFLNK, 
+ *      S_IFREG and S_IFDIR aren't.
+ * @param dev
+ *      device ID, equivalent to the st_rdev field in man 2 stat.
+ * @param special
+ *      place where to store a pointer to the newly created special file.
+ * @return
+ *     1 on success, < 0 otherwise
+ */
+int iso_node_new_special(char *name, mode_t mode, dev_t dev, 
+                         IsoSpecial **special);
+
+/**
  * Check if a given name is valid for an iso node.
  * 
  * @return
