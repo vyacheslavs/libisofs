@@ -182,6 +182,11 @@ uint16_t *ucsdup(const uint16_t *str);
 int ucscmp(const uint16_t *s1, const uint16_t *s2);
 
 /**
+ * Like strcpy, but for Joliet strings.
+ */
+uint16_t *ucscpy(uint16_t *dest, const uint16_t *src);
+
+/**
  * Like strncpy, but for Joliet strings.
  * @param n
  *      Maximum number of characters to copy (2 bytes per char).

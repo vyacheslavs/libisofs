@@ -16,6 +16,7 @@
 #include "eltorito.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 static
@@ -272,6 +273,251 @@ void sort_tree(JolietNode *root)
 }
 
 static
+int cmp_node_name(const void *f1, const void *f2)
+{
+    JolietNode *f = *((JolietNode**)f1);
+    JolietNode *g = *((JolietNode**)f2);
+    return ucscmp(f->name, g->name);
+}
+
+static
+int joliet_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
+                                int number, uint16_t *ext)
+{
+    int ret, pos;
+    uint16_t *ucsnumber;
+    char fmt[16];
+    char *nstr = alloca(digits + 1);
+    
+    sprintf(fmt, "%%0%dd", digits);
+    sprintf(nstr, fmt, number);
+    
+    ret = str2ucs("ASCII", nstr, &ucsnumber);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    /* copy name */
+    pos = ucslen(src);
+    ucsncpy(dest, src, pos);
+    
+    /* copy number */
+    ucsncpy(dest + pos, ucsnumber, digits);
+    pos += digits;
+    
+    if (ext[0] != (uint16_t)0) {
+        size_t extlen = ucslen(ext);
+        dest[pos++] = (uint16_t)0x2E00; /* '.' in big endian UCS */
+        ucsncpy(dest + pos, ext, extlen);
+        pos += extlen;
+    }
+    dest[pos] = (uint16_t)0;
+    free(ucsnumber);
+    return ISO_SUCCESS;
+}
+
+static
+int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
+{
+    int ret;
+    int i, nchildren;
+    JolietNode **children;
+    IsoHTable *table;
+    int need_sort = 0;
+
+    nchildren = dir->info.dir->nchildren;
+    children = dir->info.dir->children;
+    
+    /* a hash table will temporary hold the names, for fast searching */
+    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash, 
+                            (compare_function_t)ucscmp, &table);
+    if (ret < 0) {
+        return ret;
+    }
+    for (i = 0; i < nchildren; ++i) {
+        uint16_t *name = children[i]->name;
+        ret = iso_htable_add(table, name, name);
+        if (ret < 0) {
+            goto mangle_cleanup;
+        }
+    }
+
+    for (i = 0; i < nchildren; ++i) {
+        uint16_t *name, *ext;
+        uint16_t full_name[66];
+        int max; /* computed max len for name, without extension */
+        int j = i;
+        int digits = 1; /* characters to change per name */
+
+        /* first, find all child with same name */
+        while (j + 1 < nchildren && 
+                !cmp_node_name(children + i, children + j + 1)) {
+            ++j;
+        }
+        if (j == i) {
+            /* name is unique */
+            continue;
+        }
+
+        /*
+         * A max of 7 characters is good enought, it allows handling up to 
+         * 9,999,999 files with same name.
+         */
+        while (digits < 8) {
+            int ok, k;
+            uint16_t *dot;
+            int change = 0; /* number to be written */
+
+            /* copy name to buffer */
+            ucscpy(full_name, children[i]->name);
+
+            /* compute name and extension */
+            dot = ucsrchr(full_name, '.');
+            if (dot != NULL && children[i]->type != JOLIET_DIR) {
+
+                /* 
+                 * File (not dir) with extension
+                 */
+                int extlen;
+                full_name[dot - full_name] = 0;
+                name = full_name;
+                ext = dot + 1;
+
+                extlen = ucslen(ext);
+                max = 65 - extlen - 1 - digits;
+                if (max <= 0) {
+                    /* this can happen if extension is too long */
+                    if (extlen + max > 3) {
+                        /* 
+                         * reduce extension len, to give name an extra char
+                         * note that max is negative or 0 
+                         */
+                        extlen = extlen + max - 1;
+                        ext[extlen] = 0;
+                        max = 66 - extlen - 1 - digits;
+                    } else {
+                        /* 
+                         * error, we don't support extensions < 3
+                         * This can't happen with current limit of digits. 
+                         */
+                        ret = ISO_ERROR;
+                        goto mangle_cleanup;
+                    }
+                }
+                /* ok, reduce name by digits */
+                if (name + max < dot) {
+                    name[max] = 0;
+                }
+            } else {
+                /* Directory, or file without extension */
+                if (children[i]->type == JOLIET_DIR) {
+                    max = 65 - digits;
+                    dot = NULL; /* dots have no meaning in dirs */
+                } else {
+                    max = 65 - digits;
+                }
+                name = full_name;
+                if (max < ucslen(name)) {
+                    name[max] = 0;
+                }
+                /* let ext be an empty string */
+                ext = name + ucslen(name);
+            }
+
+            ok = 1;
+            /* change name of each file */
+            for (k = i; k <= j; ++k) {
+                uint16_t tmp[66];
+                while (1) {
+                    ret = joliet_create_mangled_name(tmp, name, digits,
+                                                     change, ext);
+                    if (ret < 0) {
+                        goto mangle_cleanup;
+                    }
+                    ++change;
+                    if (change > int_pow(10, digits)) {
+                        ok = 0;
+                        break;
+                    }
+                    if (!iso_htable_get(table, tmp, NULL)) {
+                        /* the name is unique, so it can be used */
+                        break;
+                    }
+                }
+                if (ok) {
+                    uint16_t *new = ucsdup(tmp);
+                    if (new == NULL) {
+                        ret = ISO_OUT_OF_MEM;
+                        goto mangle_cleanup;
+                    }
+
+                    iso_htable_remove_ptr(table, children[k]->name, NULL);
+                    free(children[k]->name);
+                    children[k]->name = new;
+                    iso_htable_add(table, new, new);
+
+                    /* 
+                     * if we change a name we need to sort again children
+                     * at the end
+                     */
+                    need_sort = 1;
+                } else {
+                    /* we need to increment digits */
+                    break;
+                }
+            }
+            if (ok) {
+                break;
+            } else {
+                ++digits;
+            }
+        }
+        if (digits == 8) {
+            ret = ISO_MANGLE_TOO_MUCH_FILES;
+            goto mangle_cleanup;
+        }
+        i = j;
+    }
+
+    /*
+     * If needed, sort again the files inside dir
+     */
+    if (need_sort) {
+        qsort(children, nchildren, sizeof(void*), cmp_node_name);
+    }
+
+    ret = ISO_SUCCESS;
+    
+mangle_cleanup : ;
+    iso_htable_destroy(table, NULL);
+    return ret;
+}
+
+static
+int mangle_tree(Ecma119Image *t, JolietNode *dir)
+{
+    int ret;
+    size_t i;
+
+    ret = mangle_single_dir(t, dir);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* recurse */
+    for (i = 0; i < dir->info.dir->nchildren; ++i) {
+        if (dir->info.dir->children[i]->type == JOLIET_DIR) {
+            ret = mangle_tree(t, dir->info.dir->children[i]);
+            if (ret < 0) {
+                /* error */
+                return ret;
+            }
+        }
+    }
+    return ISO_SUCCESS;
+}
+
+static
 int joliet_tree_create(Ecma119Image *t)
 {
     int ret;
@@ -296,11 +542,11 @@ int joliet_tree_create(Ecma119Image *t)
     iso_msg_debug(t->image->id, "Sorting the Joliet tree...");
     sort_tree(root);
 
-    /* 
-     * FIXME #00002 : Mangle Joliet names
-     * iso_msg_debug(t->image->id, "Mangling Joliet names...");
-     * FIXME ret = mangle_tree(t, 1);
-     */
+    iso_msg_debug(t->image->id, "Mangling Joliet names...");
+    ret = mangle_tree(t, t->joliet_root);
+    if (ret < 0) {
+        return ret;
+    }
 
     return ISO_SUCCESS;
 }

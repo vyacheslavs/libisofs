@@ -37,5 +37,5 @@ FIXME
 =====
 
 #00001 (iso1999.c) -> Mangle ISO 9660:1999 names
-#00002 (joliet.c) -> Mangle Joliet names
+OK #00002 (joliet.c) -> Mangle Joliet names
 

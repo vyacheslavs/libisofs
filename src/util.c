@@ -834,6 +834,13 @@ int ucscmp(const uint16_t *s1, const uint16_t *s2)
     return 0;
 }
 
+uint16_t *ucscpy(uint16_t *dest, const uint16_t *src)
+{
+    size_t n = ucslen(src) + 1;
+    memcpy(dest, src, n*2);
+    return dest;
+}
+
 uint16_t *ucsncpy(uint16_t *dest, const uint16_t *src, size_t n)
 {
     n = MIN(n, ucslen(src) + 1);
