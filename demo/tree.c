@@ -102,5 +102,6 @@ int main(int argc, char **argv)
 	printf("\n\n");
 	
     iso_image_unref(image);
-	return 0;
+    iso_finish();
+    return 0;
 }
