@@ -156,6 +156,7 @@ void mfs_free(IsoFileSource *src)
 }
 
 IsoFileSourceIface mfs_class = {
+    0,
     mfs_get_path,
     mfs_get_name,
     mfs_lstat,
