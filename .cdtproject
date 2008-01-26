@@ -48,7 +48,7 @@
 </profile>
 </item>
 <item id="org.eclipse.cdt.core.pathentry">
-<pathentry kind="src" path="src"/>
+<pathentry kind="src" path="libisofs"/>
 <pathentry kind="src" path="test"/>
 <pathentry kind="src" path="demo"/>
 <pathentry kind="out" path=""/>

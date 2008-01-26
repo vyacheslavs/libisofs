@@ -1,58 +1,58 @@
 pkgconfigdir=$(libdir)/pkgconfig
 libincludedir=$(includedir)/libisofs
 
-lib_LTLIBRARIES = src/libisofs.la
+lib_LTLIBRARIES = libisofs/libisofs.la
 
 ## ========================================================================= ##
 
 # Build libraries
 
-src_libisofs_la_LDFLAGS = \
+libisofs_libisofs_la_LDFLAGS = \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
-src_libisofs_la_SOURCES = \
-	src/builder.h \
-	src/builder.c \
-	src/error.h \
-	src/node.h \
-	src/node.c \
-	src/tree.h \
-	src/tree.c \
-	src/image.h \
-	src/image.c \
-	src/fsource.h \
-	src/fsource.c \
-	src/fs_local.c \
-	src/fs_image.c \
-	src/messages.h \
-	src/messages.c \
-	src/libiso_msgs.h \
-	src/libiso_msgs.c \
-	src/stream.h \
-	src/stream.c \
-	src/util.h \
-	src/util.c \
-	src/util_rbtree.c \
-	src/util_htable.c \
-	src/filesrc.h \
-	src/filesrc.c \
-	src/ecma119.h \
-	src/ecma119.c \
-	src/ecma119_tree.h \
-	src/ecma119_tree.c \
-	src/writer.h \
-	src/buffer.c \
-	src/rockridge.h \
-	src/rockridge.c \
-	src/rockridge_read.c \
-	src/joliet.h \
-	src/joliet.c \
-	src/eltorito.h \
-	src/eltorito.c \
-	src/iso1999.h \
-	src/iso1999.c \
-	src/data_source.c
+libisofs_libisofs_la_SOURCES = \
+	libisofs/builder.h \
+	libisofs/builder.c \
+	libisofs/error.h \
+	libisofs/node.h \
+	libisofs/node.c \
+	libisofs/tree.h \
+	libisofs/tree.c \
+	libisofs/image.h \
+	libisofs/image.c \
+	libisofs/fsource.h \
+	libisofs/fsource.c \
+	libisofs/fs_local.c \
+	libisofs/fs_image.c \
+	libisofs/messages.h \
+	libisofs/messages.c \
+	libisofs/libiso_msgs.h \
+	libisofs/libiso_msgs.c \
+	libisofs/stream.h \
+	libisofs/stream.c \
+	libisofs/util.h \
+	libisofs/util.c \
+	libisofs/util_rbtree.c \
+	libisofs/util_htable.c \
+	libisofs/filesrc.h \
+	libisofs/filesrc.c \
+	libisofs/ecma119.h \
+	libisofs/ecma119.c \
+	libisofs/ecma119_tree.h \
+	libisofs/ecma119_tree.c \
+	libisofs/writer.h \
+	libisofs/buffer.c \
+	libisofs/rockridge.h \
+	libisofs/rockridge.c \
+	libisofs/rockridge_read.c \
+	libisofs/joliet.h \
+	libisofs/joliet.c \
+	libisofs/eltorito.h \
+	libisofs/eltorito.c \
+	libisofs/iso1999.h \
+	libisofs/iso1999.c \
+	libisofs/data_source.c
 libinclude_HEADERS = \
-	src/libisofs.h
+	libisofs/libisofs.h
 
 ## ========================================================================= ##
 
@@ -70,48 +70,48 @@ noinst_PROGRAMS = \
 	demo/isoms \
 	demo/isogrow
 
-demo_lsl_CPPFLAGS = -Isrc
-demo_lsl_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_lsl_CPPFLAGS = -Ilibisofs
+demo_lsl_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_lsl_SOURCES = demo/lsl.c
 
-demo_cat_CPPFLAGS = -Isrc
-demo_cat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_cat_CPPFLAGS = -Ilibisofs
+demo_cat_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_cat_SOURCES = demo/cat.c
 
-demo_catbuffer_CPPFLAGS = -Isrc
-demo_catbuffer_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_catbuffer_CPPFLAGS = -Ilibisofs
+demo_catbuffer_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_catbuffer_SOURCES = demo/cat_buffer.c
 
-demo_tree_CPPFLAGS = -Isrc
-demo_tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_tree_CPPFLAGS = -Ilibisofs
+demo_tree_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_tree_SOURCES = demo/tree.c
 
-demo_ecma119tree_CPPFLAGS = -Isrc
-demo_ecma119tree_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_ecma119tree_CPPFLAGS = -Ilibisofs
+demo_ecma119tree_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_ecma119tree_SOURCES = demo/ecma119_tree.c
 
-demo_iso_CPPFLAGS = -Isrc
-demo_iso_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_iso_CPPFLAGS = -Ilibisofs
+demo_iso_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_iso_SOURCES = demo/iso.c
 
-demo_isoread_CPPFLAGS = -Isrc
-demo_isoread_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_isoread_CPPFLAGS = -Ilibisofs
+demo_isoread_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_isoread_SOURCES = demo/iso_read.c
 
-demo_isocat_CPPFLAGS = -Isrc
-demo_isocat_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_isocat_CPPFLAGS = -Ilibisofs
+demo_isocat_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_isocat_SOURCES = demo/iso_cat.c
 
-demo_isomodify_CPPFLAGS = -Isrc
-demo_isomodify_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_isomodify_CPPFLAGS = -Ilibisofs
+demo_isomodify_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_isomodify_SOURCES = demo/iso_modify.c
 
-demo_isoms_CPPFLAGS = -Isrc
-demo_isoms_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_isoms_CPPFLAGS = -Ilibisofs
+demo_isoms_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_isoms_SOURCES = demo/iso_ms.c
 
-demo_isogrow_CPPFLAGS = -Isrc -Ilibburn
-demo_isogrow_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS) -lburn
+demo_isogrow_CPPFLAGS = -Ilibisofs -Ilibburn
+demo_isogrow_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS) -lburn
 demo_isogrow_SOURCES = demo/iso_grow.c
 
 
@@ -120,8 +120,8 @@ demo_isogrow_SOURCES = demo/iso_grow.c
 check_PROGRAMS = \
 	test/test
 	
-test_test_CPPFLAGS = -Isrc
-test_test_LDADD = $(src_libisofs_la_OBJECTS) $(THREAD_LIBS) -lcunit
+test_test_CPPFLAGS = -Ilibisofs
+test_test_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS) -lcunit
 test_test_LDFLAGS = -L.. -lm
 	
 test_test_SOURCES = \
