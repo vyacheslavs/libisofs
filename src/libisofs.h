@@ -171,6 +171,12 @@ struct iso_data_source {
  */
 struct iso_read_image_features
 {
+    /** 
+     * Will be filled with the size (in 2048 byte block) of the image, as 
+     * reported in the PVM. 
+     */
+    uint32_t size; 
+    
     /** It will be set to 1 if RR extensions are present, to 0 if not. */
     unsigned int hasRR :1;
     
@@ -185,12 +191,6 @@ struct iso_read_image_features
     
     /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
     unsigned int hasElTorito :1;
-    
-    /** 
-     * Will be filled with the size (in 2048 byte block) of the image, as 
-     * reported in the PVM. 
-     */
-    uint32_t size; 
 };
 
 typedef struct iso_file_source IsoFileSource;
@@ -946,14 +946,15 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  * @param opts
  *     Options for image import
  * @param features
- *     Will be filled with the features of the old image. You can pass NULL
- *     if you're not interested on them.
+ *     If not NULL, a new  struct iso_read_image_features will be allocated
+ *     and filled with the features of the old image. It should be freed when
+ *     no more needed. You can pass NULL if you're not interested on them.
  * @return
  *     1 on success, < 0 on error
  */
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      IsoReadOpts *opts, 
-                     struct iso_read_image_features *features);
+                     struct iso_read_image_features **features);
 
 /**
  * Increments the reference counting of the given image.

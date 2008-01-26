@@ -2202,7 +2202,7 @@ boot_fs_cleanup: ;
 
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts, 
-                     struct iso_read_image_features *features)
+                     struct iso_read_image_features **features)
 {
     int ret;
     IsoImageFilesystem *fs;
@@ -2346,11 +2346,16 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_image_set_biblio_file_id(image, data->biblio_file_id);
 
     if (features != NULL) {
-        features->hasJoliet = data->joliet;
-        features->hasRR = data->rr_version != 0;
-        features->hasIso1999 = data->iso1999;
-        features->hasElTorito = data->eltorito;
-        features->size = data->nblocks;
+        *features = malloc(sizeof(struct iso_read_image_features));
+        if (*features == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto import_cleanup;
+        }
+        (*features)->hasJoliet = data->joliet;
+        (*features)->hasRR = data->rr_version != 0;
+        (*features)->hasIso1999 = data->iso1999;
+        (*features)->hasElTorito = data->eltorito;
+        (*features)->size = data->nblocks;
     }
     
     ret = ISO_SUCCESS;

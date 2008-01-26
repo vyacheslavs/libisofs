@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     unsigned char buf[32 * 2048];
     IsoWriteOpts *opts;
     int ret = 0;
-    struct iso_read_image_features features;
+    struct iso_read_image_features *features;
     uint32_t ms_block;
     IsoReadOpts *ropts;
 	
@@ -124,10 +124,12 @@ int main(int argc, char **argv)
     }
     
     /* round up to 32kb aligment = 16 block */
-    ms_block = ((features.size + 15) / 16 ) * 16;
+    ms_block = ((features->size + 15) / 16 ) * 16;
     iso_write_opts_set_ms_block(opts, ms_block);
     iso_write_opts_set_appendable(opts, 1);
     iso_write_opts_set_overwrite_buf(opts, buf);
+    
+    free(features);
 
     result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
