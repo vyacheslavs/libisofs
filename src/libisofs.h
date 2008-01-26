@@ -94,6 +94,7 @@ enum iso_replace_mode {
 };
 
 typedef struct iso_write_opts IsoWriteOpts;
+typedef struct iso_read_opts IsoReadOpts;
 typedef struct iso_data_source IsoDataSource;
 
 /**
@@ -161,56 +162,6 @@ struct iso_data_source {
 
     /** Source specific data */
     void *data;
-};
-
-/**
- * Options for image reading.
- * There are four kind of options:
- * - Related to multisession support.
- *   In most cases, an image begins at LBA 0 of the data source. However,
- *   in multisession discs, the later image begins in the last session on
- *   disc. The block option can be used to specify the start of that last
- *   session.
- * - Related to the tree that will be read.
- *   As default, when Rock Ridge extensions are present in the image, that
- *   will be used to get the tree. If RR extensions are not present, libisofs
- *   will use the Joliet extensions if available. Finally, the plain ISO-9660
- *   tree is used if neither RR nor Joliet extensions are available. With
- *   norock, nojoliet, and preferjoliet options, you can change this
- *   default behavior.
- * - Related to default POSIX attributes.
- *   When Rock Ridege extensions are not used, libisofs can't figure out what
- *   are the the permissions, uid or gid for the files. You should supply
- *   default values for that.
- */
-struct iso_read_opts
-{
-    /** 
-     * Block where the image begins, usually 0, can be different on a 
-     * multisession disc.
-     */
-    uint32_t block; 
-
-    unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
-    unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
-    unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
-
-    /** 
-     * When both Joliet and RR extensions are present, the RR tree is used. 
-     * If you prefer using Joliet, set this to 1. 
-     */
-    unsigned int preferjoliet : 1; 
-    
-    uid_t uid; /**< Default uid when no RR */
-    gid_t gid; /**< Default uid when no RR */
-    mode_t mode; /**< Default mode when no RR (only permissions) */
-    /* TODO #00023 : let different default file and dir mode for iso reading */
-    /* TODO #00024 : option to convert names to lower case for iso reading */
-    
-    /**
-     * Input charset for RR file names. NULL to use default locale charset.
-     */
-    char *input_charset;
 };
 
 /**
@@ -904,6 +855,84 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src);
 
 /**
+ * Creates an IsoReadOpts for reading an existent image. You should set the 
+ * options desired with the correspondent setters. Note that you may want to
+ * set the start block value.
+ * 
+ * Options by default are determined by the selected profile.
+ * 
+ * @param profile
+ *     Default profile for image reading. For now the following values are
+ *     defined:
+ *     ---> 0 [STANDARD]
+ *         Suitable for most situations. All extension are read. When both
+ *         Joliet and RR extension are present, RR is used. 
+ * @return
+ *      1 success, < 0 error
+ */
+int iso_read_opts_new(IsoReadOpts **opts, int profile);
+
+/**
+ * Free an IsoReadOpts previously allocated with iso_read_opts_new().
+ */
+void iso_read_opts_free(IsoReadOpts *opts);
+
+/** 
+ * Set the block where the image begins. It is usually 0, but may be different 
+ * on a multisession disc.
+ */
+int iso_read_opts_set_start_block(IsoReadOpts *opts, uint32_t block);
+
+/**
+ * Do not read Rock Ridge extensions. 
+ * In most cases you don't want to use this. It could be useful if RR info
+ * is damaged, or if you want to use the Joliet tree.
+ */
+int iso_read_opts_set_no_rockridge(IsoReadOpts *opts, int norr);
+
+/**
+ * Do not read Joliet extensions.
+ */
+int iso_read_opts_set_no_joliet(IsoReadOpts *opts, int nojoliet);
+
+/**
+ * Do not read ISO 9660:1999 enhanced tree
+ */
+int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
+
+/**
+ * Whether to prefer Joliet over RR. libisofs usually prefers RR over
+ * Joliet, as it give us much more info about files. So, if both extensions
+ * are present, RR is used. You can set this if you prefer Joliet, but
+ * note that this is not very recommended. This doesn't mean than RR 
+ * extensions are not read: if no Joliet is present, libisofs will read
+ * RR tree.
+ */
+int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet);
+
+/**
+ * Set default uid for files when RR extensions are not present.
+ */
+int iso_read_opts_set_default_uid(IsoReadOpts *opts, uid_t uid);
+
+/**
+ * Set default gid for files when RR extensions are not present.
+ */
+int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid);
+
+/**
+ * Set default permissions for files when RR extensions are not present.
+ */
+int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t perm);
+
+/**
+ * Set the input charset of the file names on the image. NULL to use locale
+ * charset. You have to specify a charset if the image filenames are encoded
+ * in a charset different that the local one.
+ */
+int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
+
+/**
  * Import a previous session or image, for growing or modify.
  * 
  * @param image
@@ -923,7 +952,7 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
  *     1 on success, < 0 on error
  */
 int iso_image_import(IsoImage *image, IsoDataSource *src,
-                     struct iso_read_opts *opts, 
+                     IsoReadOpts *opts, 
                      struct iso_read_image_features *features);
 
 /**
@@ -2081,7 +2110,7 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  * @param
  *      1 on success, < 0 on error
  */
-int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
+int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts,
                              int msgid, IsoImageFilesystem **fs);
 
 /**

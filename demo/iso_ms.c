@@ -28,18 +28,8 @@ int main(int argc, char **argv)
     unsigned char buf[2048];
     FILE *fd;
     IsoWriteOpts *opts;
+    IsoReadOpts *ropts;
     uint32_t ms_block;
-    struct iso_read_opts ropts = {
-        0, /* block */
-        0, /* norock */
-        0, /* nojoliet */
-        0, /* noiso1999 */
-        0, /* preferjoliet */
-        0, /* uid; */
-        0, /* gid; */
-        0, /* mode */
-        "UTF-8" /* input_charset */
-    };
 	
     if (argc < 6) {
         usage(argv);
@@ -71,8 +61,14 @@ int main(int argc, char **argv)
     iso_tree_set_ignore_hidden(image, 0);
     
     /* import previous image */
-    ropts.block = atoi(argv[1]);
-    result = iso_image_import(image, src, &ropts, NULL);
+    result = iso_read_opts_new(&ropts, 0);
+    if (result < 0) {
+        fprintf(stderr, "Error creating read options\n");
+        return 1;
+    }
+    iso_read_opts_set_start_block(ropts, atoi(argv[1]));
+    result = iso_image_import(image, src, ropts, NULL);
+    iso_read_opts_free(ropts);
     iso_data_source_unref(src);
     if (result < 0) {
         printf ("Error importing previous session %d\n", result);

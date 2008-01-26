@@ -34,17 +34,7 @@ int main(int argc, char **argv)
     int ret = 0;
     struct iso_read_image_features features;
     uint32_t ms_block;
-    struct iso_read_opts ropts = {
-        0, /* block */
-        0, /* norock */
-        0, /* nojoliet */
-        0, /* noiso1999 */
-        0, /* preferjoliet */
-        0, /* uid; */
-        0, /* gid; */
-        0, /* mode */
-        "UTF-8" /* input_charset */
-    };
+    IsoReadOpts *ropts;
 	
     if (argc < 3) {
         usage(argv);
@@ -106,14 +96,19 @@ int main(int argc, char **argv)
     }
     
     /* import previous image */
-    ropts.block = 0; /* image always start on first block */
-    result = iso_image_import(image, src, &ropts, &features);
+    ret = iso_read_opts_new(&ropts, 0);
+    if (ret < 0) {
+        fprintf(stderr, "Error creating read options\n");
+        return 1;
+    }
+    result = iso_image_import(image, src, ropts, &features);
     iso_data_source_unref(src);
     if (result < 0) {
         printf ("Error importing previous session %d\n", result);
         return 1;
     }
-    
+    iso_read_opts_free(ropts);
+
     /* add new dir */
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[2]);
     if (result < 0) {

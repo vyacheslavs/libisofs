@@ -24,17 +24,7 @@ int main(int argc, char **argv)
     IsoFileSource *file;
     struct stat info;
     IsoDataSource *src;
-    struct iso_read_opts opts = {
-        0, /* block */
-        0, /* norock */
-        0, /* nojoliet */
-        0, /* noiso1999 */
-        0, /* preferjoliet */
-        0, /* uid; */
-        0, /* gid; */
-        0, /* mode */
-        "UTF-8" /* input_charset */
-    };
+    IsoReadOpts *opts;
 
     if (argc != 3) {
         fprintf(stderr, "Usage: isocat /path/to/image /path/to/file\n");
@@ -53,11 +43,17 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    res = iso_image_filesystem_new(src, &opts, 1, &fs);
+    res = iso_read_opts_new(&opts, 0);
+    if (res < 0) {
+        fprintf(stderr, "Error creating read options\n");
+        return 1;
+    }
+    res = iso_image_filesystem_new(src, opts, 1, &fs);
     if (res < 0) {
         fprintf(stderr, "Error creating filesystem\n");
         return 1;
     }
+    iso_read_opts_free(opts);
 
     res = fs->get_by_path(fs, argv[2], &file);
     if (res < 0) {

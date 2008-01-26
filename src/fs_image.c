@@ -27,6 +27,56 @@
 #include <limits.h>
 
 
+/**
+ * Options for image reading.
+ * There are four kind of options:
+ * - Related to multisession support.
+ *   In most cases, an image begins at LBA 0 of the data source. However,
+ *   in multisession discs, the later image begins in the last session on
+ *   disc. The block option can be used to specify the start of that last
+ *   session.
+ * - Related to the tree that will be read.
+ *   As default, when Rock Ridge extensions are present in the image, that
+ *   will be used to get the tree. If RR extensions are not present, libisofs
+ *   will use the Joliet extensions if available. Finally, the plain ISO-9660
+ *   tree is used if neither RR nor Joliet extensions are available. With
+ *   norock, nojoliet, and preferjoliet options, you can change this
+ *   default behavior.
+ * - Related to default POSIX attributes.
+ *   When Rock Ridege extensions are not used, libisofs can't figure out what
+ *   are the the permissions, uid or gid for the files. You should supply
+ *   default values for that.
+ */
+struct iso_read_opts
+{
+    /** 
+     * Block where the image begins, usually 0, can be different on a 
+     * multisession disc.
+     */
+    uint32_t block;
+
+    unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
+    unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
+    unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
+
+    /** 
+     * When both Joliet and RR extensions are present, the RR tree is used. 
+     * If you prefer using Joliet, set this to 1. 
+     */
+    unsigned int preferjoliet : 1; 
+    
+    uid_t uid; /**< Default uid when no RR */
+    gid_t gid; /**< Default uid when no RR */
+    mode_t mode; /**< Default mode when no RR (only permissions) */
+    /* TODO #00023 : let different default file and dir mode for iso reading */
+    /* TODO #00024 : option to convert names to lower case for iso reading */
+    
+    /**
+     * Input charset for RR file names. NULL to use default locale charset.
+     */
+    char *input_charset;
+};
+
 static int ifs_fs_open(IsoImageFilesystem *fs);
 static int ifs_fs_close(IsoImageFilesystem *fs);
 static int iso_file_source_new_ifs(IsoImageFilesystem *fs, 
@@ -2380,4 +2430,116 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs)
 {
     _ImageFsData *data = (_ImageFsData*) fs->data;
     return data->biblio_file_id;
+}
+
+int iso_read_opts_new(IsoReadOpts **opts, int profile)
+{
+    IsoReadOpts *ropts;
+    
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (profile != 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
+    ropts = calloc(1, sizeof(IsoReadOpts));
+    if (ropts == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    
+    ropts->mode = 0555;
+    *opts = ropts;
+    return ISO_SUCCESS;
+}
+
+void iso_read_opts_free(IsoReadOpts *opts)
+{
+    if (opts == NULL) {
+        return;
+    }
+    
+    free(opts->input_charset);
+    free(opts);
+}
+
+int iso_read_opts_set_start_block(IsoReadOpts *opts, uint32_t block)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->block = block;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_no_rockridge(IsoReadOpts *opts, int norr)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->norock = norr ? 1 :0;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_no_joliet(IsoReadOpts *opts, int nojoliet)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->nojoliet = nojoliet ? 1 :0;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->noiso1999 = noiso1999 ? 1 :0;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->preferjoliet = preferjoliet ? 1 :0;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_default_uid(IsoReadOpts *opts, uid_t uid)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->uid = uid;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->gid = gid;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t perm)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->mode = perm;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->input_charset = charset ? strdup(charset) : NULL;
+    return ISO_SUCCESS;
 }

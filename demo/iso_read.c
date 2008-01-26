@@ -107,17 +107,7 @@ int main(int argc, char **argv)
     IsoImageFilesystem *fs;
     IsoDataSource *src;
     IsoFileSource *root;
-    struct iso_read_opts opts = {
-        0, /* block */
-        0, /* norock */
-        0, /* nojoliet */
-        0, /* noiso1999 */
-        0, /* preferjoliet */
-        0, /* uid; */
-        0, /* gid; */
-        0444, /* mode */
-        NULL /* input_charset */
-    };
+    IsoReadOpts *ropts;
 
     if (argc != 2) {
         printf ("You need to specify a valid path\n");
@@ -133,7 +123,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    result = iso_image_filesystem_new(src, &opts, 1, &fs);
+    result = iso_read_opts_new(&ropts, 0);
+    if (result < 0) {
+        fprintf(stderr, "Error creating read options\n");
+        return 1;
+    }
+    result = iso_image_filesystem_new(src, ropts, 1, &fs);
+    iso_read_opts_free(ropts);
     if (result < 0) {
         printf ("Error creating filesystem\n");
         return 1;
