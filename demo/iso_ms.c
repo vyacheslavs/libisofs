@@ -27,36 +27,8 @@ int main(int argc, char **argv)
     struct burn_source *burn_src;
     unsigned char buf[2048];
     FILE *fd;
-    Ecma119WriteOpts opts = {
-        1, /* level */ 
-        1, /* rockridge */
-        0, /* joliet */
-        0, /* iso1999 */
-        0, /* omit_version_numbers */
-        0, /* allow_deep_paths */
-        0, /* allow_longer_paths */
-        0, /* max_37_char_filenames */
-        0, /* no_force_dots */
-        0, /* allow_lowercase */
-        0, /* allow_full_ascii */
-        0, /* joliet_longer_paths */
-        1, /* sort files */
-        0, /* replace_dir_mode */
-        0, /* replace_file_mode */
-        0, /* replace_uid */
-        0, /* replace_gid */
-        0, /* dir_mode */
-        0, /* file_mode */
-        0, /* uid */
-        0, /* gid */
-        0, /* replace_timestamps */
-        0, /* timestamp */
-        NULL, /* output charset */
-        0, /* appendable */
-        0, /* ms_block */
-        NULL, /* overwrite */
-        1024 /* fifo_size */
-    };
+    IsoWriteOpts *opts;
+    uint32_t ms_block;
     struct iso_read_opts ropts = {
         0, /* block */
         0, /* norock */
@@ -115,13 +87,23 @@ int main(int argc, char **argv)
     }
     
     /* generate a multisession image with new contents */
-    opts.ms_block = atoi(argv[2]);
-    opts.appendable = 1;
-    result = iso_image_create_burn_source(image, &opts, &burn_src);
+    result = iso_write_opts_new(&opts, 1);
+    if (result < 0) {
+        printf("Cant create write opts, error %d\n", result);
+        return 1;
+    }
+    
+    /* round up to 32kb aligment = 16 block */
+    ms_block =  atoi(argv[2]);
+    iso_write_opts_set_ms_block(opts, ms_block);
+    iso_write_opts_set_appendable(opts, 1);
+
+    result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
         printf ("Cant create image, error %d\n", result);
         return 1;
     }
+    iso_write_opts_free(opts);
     
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         fwrite(buf, 1, 2048, fd);

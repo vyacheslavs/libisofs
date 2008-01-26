@@ -93,177 +93,7 @@ enum iso_replace_mode {
      */
 };
 
-typedef struct ecma119_write_opts Ecma119WriteOpts;
-
-/**
- * Holds the options for the image generation.
- */
-struct ecma119_write_opts {
-
-    int level; /**< ISO level to write at. */
-
-    /** Which extensions to support. */
-    unsigned int rockridge :1;
-    unsigned int joliet :1;
-    unsigned int iso1999 :1;
-
-    /* 
-     * Relaxed constraints. Setting any of these to 1 break the specifications,
-     * but it is supposed to work on most moderns systems. Use with caution. 
-     */
-    
-    /**
-     * Omit the version number (";1") at the end of the ISO-9660 identifiers.
-     * Version numbers are usually not used.
-     */
-    unsigned int omit_version_numbers :1;
-
-    /**
-     * Allow ISO-9660 directory hierarchy to be deeper than 8 levels. 
-     */
-    unsigned int allow_deep_paths :1;
-
-    /**
-     * Allow path in the ISO-9660 tree to have more than 255 characters.
-     */
-    unsigned int allow_longer_paths :1;
-
-    /**
-     * Allow a single file or directory hierarchy to have up to 37 characters.
-     * This is larger than the 31 characters allowed by ISO level 2, and the
-     * extra space is taken from the version number, so this also forces
-     * omit_version_numbers.
-     */
-    unsigned int max_37_char_filenames :1;
-
-    /**
-     * ISO-9660 forces filenames to have a ".", that separates file name from
-     * extension. libisofs adds it if original filename doesn't has one. Set 
-     * this to 1 to prevent this behavior
-     */
-    unsigned int no_force_dots :1;
-    
-    /**
-     * Allow lowercase characters in ISO-9660 filenames. By default, only 
-     * uppercase characters, numbers and a few other characters are allowed. 
-     */
-    unsigned int allow_lowercase :1;
-    
-    /**
-     * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
-     * that "/" and "\0" characters are never allowed, even in RR names.
-     */
-    unsigned int allow_full_ascii :1;
-    
-    /**
-     * Allow paths in the Joliet tree to have more than 240 characters.
-     */
-    unsigned int joliet_longer_paths :1;
-
-    /**< If files should be sorted based on their weight. */
-    unsigned int sort_files :1;
-
-    /**
-     * The following options set the default values for files and directory
-     * permissions, gid and uid. All these take one of three values: 0, 1 or 2.
-     * If 0, the corresponding attribute will be kept as setted in the IsoNode.
-     * Unless you have changed it, it corresponds to the value on disc, so it
-     * is suitable for backup purposes. If set to 1, the corresponding attrib.
-     * will be changed by a default suitable value. Finally, if you set it to 
-     * 2, the attrib. will be changed with the value specified in the options
-     * below. Note that for mode attributes, only the permissions are set, the
-     * file type remains unchanged.
-     */
-    unsigned int replace_dir_mode :2;
-    unsigned int replace_file_mode :2;
-    unsigned int replace_uid :2;
-    unsigned int replace_gid :2;
-
-    mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
-    mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
-    uid_t uid; /** uid to use when replace_uid == 2. */
-    gid_t gid; /** gid to use when replace_gid == 2. */
-
-    /**
-     * 0 to use IsoNode timestamps, 1 to use recording time, 2 to use
-     * values from timestamp field. This has only meaning if RR extensions
-     * are enabled.
-     */
-    unsigned int replace_timestamps :2;
-    time_t timestamp;
-
-    /**
-     * Charset for the RR filenames that will be created.
-     * NULL to use default charset, the locale one.
-     */
-    char *output_charset;
-
-    /**
-     * This flags control the type of the image to create. Libisofs support
-     * two kind of images: stand-alone and appendable. 
-     * 
-     * A stand-alone image is an image that is valid alone, and that can be
-     * mounted by its own. This is the kind of image you will want to create
-     * in most cases. A stand-alone image can be burned in an empty CD or DVD,
-     * or write to an .iso file for future burning or distribution.
-     * 
-     * On the other side, an appendable image is not self contained, it refers
-     * to serveral files that are stored outside the image. Its usage is for
-     * multisession discs, where you add data in a new session, while the 
-     * previous session data can still be accessed. In those cases, the old 
-     * data is not written again. Instead, the new image refers to it, and thus
-     * it's only valid when appended to the original. Note that in those cases
-     * the image will be written after the original, and thus you will want
-     * to use a ms_block greater than 0. 
-     * 
-     * Note that if you haven't import a previous image (by means of 
-     * iso_image_import()), the image will always be a stand-alone image, as
-     * there is no previous data to refer to.
-     */
-    unsigned int appendable : 1;
-    
-    /**
-     * Start block of the image. It is supposed to be the lba where the first
-     * block of the image will be written on disc. All references inside the
-     * ISO image will take this into account, thus providing a mountable image.
-     * 
-     * For appendable images, that are written to a new session, you should 
-     * pass here the lba of the next writable address on disc.
-     * 
-     * In stand alone images this is usually 0. However, you may want to 
-     * provide a different ms_block if you don't plan to burn the image in the
-     * first session on disc, such as in some CD-Extra disc whether the data
-     * image is written in a new session after some audio tracks. 
-     */
-    uint32_t ms_block;
-
-    /**
-     * When not NULL, it should point to a buffer of at least 64KiB, where 
-     * libisofs will write the contents that should be written at the beginning
-     * of a overwriteable media, to grow the image. The growing of an image is
-     * a way, used by first time in growisofs by Andy Polyakov, to allow the
-     * appending of new data to non-multisession media, such as DVD+RW, in the
-     * same way you append a new session to a multisession disc, i.e., without
-     * need to write again the contents of the previous image.   
-     * 
-     * Note that if you want this kind of image growing, you will also need to
-     * set appendable to "1" and provide a valid ms_block after the previous
-     * image.
-     * 
-     * You should initialize the buffer either with 0s, or with the contents of 
-     * the first blocks of the image you're growing. In most cases, 0 is good 
-     * enought.
-     */
-    uint8_t *overwrite;
-    
-    /**
-     * Size, in number of blocks, of the FIFO buffer used between the writer
-     * thread and the burn_source. You have to provide at least a 32 blocks
-     * buffer.
-     */
-    size_t fifo_size;
-};
-
+typedef struct iso_write_opts IsoWriteOpts;
 typedef struct iso_data_source IsoDataSource;
 
 /**
@@ -751,6 +581,304 @@ int iso_image_new(const char *name, IsoImage **image);
 void iso_lib_version(int *major, int *minor, int *micro);
 
 /**
+ * Creates an IsoWriteOpts for writing an image. You should set the options
+ * desired with the correspondent setters.
+ * 
+ * Options by default are determined by the selected profile. Fifo size is set
+ * by default to 2 MB.
+ * 
+ * @param profile
+ *     Default profile for image creation. For now the following values are
+ *     defined:
+ *     ---> 0 [BASIC] 
+ *        No extensions are enabled, and ISO level is set to 1. Only suitable
+ *        for usage for very old and limited systems (like MS-DOS), or by a
+ *        start point from which to set your custom options.
+ *     ---> 1 [BACKUP]
+ *        POSIX compatibility for backup. Simple settings, ISO level is set to
+ *        2 and RR extensions are enabled. Useful for backup purposes.
+ *     ---> 2 [DISTRIBUTION]
+ *        Setting for information distribution. Both RR and Joliet are enabled
+ *        to maximize compatibility with most systems. Permissions are set to
+ *        default values, and timestamps to the time of recording.
+ * @return
+ *      1 success, < 0 error
+ */
+int iso_write_opts_new(IsoWriteOpts **opts, int profile);
+
+/**
+ * Free an IsoWriteOpts previously allocated with iso_write_opts_new().
+ */
+void iso_write_opts_free(IsoWriteOpts *opts);
+
+/**
+ * Set the ISO-9960 level to write at. 
+ * 
+ * @param level
+ *      -> 1 for higher compatibility with old systems. With this level 
+ *      filenames are restricted to 8.3 characters.
+ *      -> 2 to allow up to 31 filename characters.
+ * @return
+ *      1 success, < 0 error
+ */
+int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level);
+
+/**
+ * Whether to use or not Rock Ridge extensions. 
+ * 
+ * This are standard extensions to ECMA-119, intended to add POSIX filesystem
+ * features to ECMA-119 images. Thus, usage of this flag is highly recommended
+ * for images used on GNU/Linux systems. With the usage of RR extension, the 
+ * resulting image will have long filenames (up to 255 characters), deeper 
+ * directory structure, POSIX permissions and owner info on files and 
+ * directories, support for symbolic links or special files... All that 
+ * attributes can be modified/setted with the appropiate function. 
+ * 
+ * @param enable
+ *      1 to enable RR extension, 0 to not add them
+ * @return
+ *      1 success, < 0 error
+ */
+int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable);
+
+/**
+ * Whether to add the non-standard Joliet extension to the image. 
+ * 
+ * This extensions are heavily used in Microsoft Windows systems, so if you 
+ * plan to use your disc on such a system you should add this extension. 
+ * Usage of Joliet supplies longer filesystem length (up to 64 unicode 
+ * characters), and deeper directory structure.
+ * 
+ * @param enable
+ *      1 to enable Joliet extension, 0 to not add them
+ * @return
+ *      1 success, < 0 error
+ */
+int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
+
+/**
+ * Whether to use newer ISO-9660:1999 version.
+ * 
+ * This is the second version of ISO-9660. It allows longer filenames and has
+ * less restrictions than old ISO-9660. However, nobody is using it so there
+ * are no much reasons to enable this. 
+ */
+int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
+
+/**
+ * Omit the version number (";1") at the end of the ISO-9660 identifiers.
+ * This breaks ECMA-119 specification, but version numbers are usually not 
+ * used, so it should work on most systems. Use with caution. 
+ */
+int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit);
+
+/**
+ * Allow ISO-9660 directory hierarchy to be deeper than 8 levels. 
+ * This breaks ECMA-119 specification. Use with caution. 
+ */
+int iso_write_opts_set_allow_deep_paths(IsoWriteOpts *opts, int allow);
+
+/**
+ * Allow path in the ISO-9660 tree to have more than 255 characters.
+ * This breaks ECMA-119 specification. Use with caution. 
+ */
+int iso_write_opts_set_allow_longer_paths(IsoWriteOpts *opts, int allow);
+
+/**
+ * Allow a single file or directory hierarchy to have up to 37 characters.
+ * This is larger than the 31 characters allowed by ISO level 2, and the
+ * extra space is taken from the version number, so this also forces
+ * omit_version_numbers.
+ * This breaks ECMA-119 specification and could lead to buffer overflow
+ * problems on old systems. Use with caution.
+ */
+int iso_write_opts_set_max_37_char_filenames(IsoWriteOpts *opts, int allow);
+
+/**
+ * ISO-9660 forces filenames to have a ".", that separates file name from
+ * extension. libisofs adds it if original filename doesn't has one. Set 
+ * this to 1 to prevent this behavior.
+ * This breaks ECMA-119 specification. Use with caution. 
+ */
+int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no);
+
+/**
+ * Allow lowercase characters in ISO-9660 filenames. By default, only 
+ * uppercase characters, numbers and a few other characters are allowed. 
+ * This breaks ECMA-119 specification. Use with caution. 
+ */
+int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
+
+/**
+ * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
+ * that "/" and "\0" characters are never allowed, even in RR names.
+ * This breaks ECMA-119 specification. Use with caution. 
+ */
+int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow);
+
+/**
+ * Allow paths in the Joliet tree to have more than 240 characters.
+ * This breaks Joliet specification. Use with caution. 
+ */
+int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
+
+/**
+ * Whether to sort files based on their weight.
+ * 
+ * @see iso_node_set_sort_weight
+ */
+int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
+
+/**
+ * Whether to set default values for files and directory permissions, gid and 
+ * uid. All these take one of three values: 0, 1 or 2.
+ * 
+ * If 0, the corresponding attribute will be kept as setted in the IsoNode.
+ * Unless you have changed it, it corresponds to the value on disc, so it
+ * is suitable for backup purposes. If set to 1, the corresponding attrib.
+ * will be changed by a default suitable value. Finally, if you set it to 
+ * 2, the attrib. will be changed with the value specified by the functioins
+ * below. Note that for mode attributes, only the permissions are set, the
+ * file type remains unchanged.
+ * 
+ * @see iso_write_opts_set_default_dir_mode
+ * @see iso_write_opts_set_default_file_mode
+ * @see iso_write_opts_set_default_uid
+ * @see iso_write_opts_set_default_gid
+ */
+int iso_write_opts_set_replace_mode(IsoWriteOpts *opts, int dir_mode,
+                                    int file_mode, int uid, int gid);
+
+/**
+ * Set the mode to use on dirs when you set the replace_mode of dirs to 2.
+ * 
+ * @see iso_write_opts_set_replace_mode
+ */
+int iso_write_opts_set_default_dir_mode(IsoWriteOpts *opts, mode_t dir_mode);
+
+/**
+ * Set the mode to use on files when you set the replace_mode of files to 2.
+ * 
+ * @see iso_write_opts_set_replace_mode
+ */
+int iso_write_opts_set_default_file_mode(IsoWriteOpts *opts, mode_t file_mode);
+
+/**
+ * Set the uid to use when you set the replace_uid to 2.
+ * 
+ * @see iso_write_opts_set_replace_mode
+ */
+int iso_write_opts_set_default_uid(IsoWriteOpts *opts, uid_t uid);
+
+/**
+ * Set the gid to use when you set the replace_gid to 2.
+ * 
+ * @see iso_write_opts_set_replace_mode
+ */
+int iso_write_opts_set_default_gid(IsoWriteOpts *opts, gid_t gid);
+
+/**
+ * 0 to use IsoNode timestamps, 1 to use recording time, 2 to use
+ * values from timestamp field. This has only meaning if RR extensions
+ * are enabled.
+ * 
+ * @see iso_write_opts_set_default_timestamp
+ */
+int iso_write_opts_set_replace_timestamps(IsoWriteOpts *opts, int replace);
+
+/**
+ * Set the timestamp to use when you set the replace_timestamps to 2.
+ * 
+ * @see iso_write_opts_set_replace_timestamps
+ */
+int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp);
+
+/**
+ * Set the charset to use for the RR names of the files that will be created 
+ * on the image.
+ * NULL to use default charset, that is the locale charset.
+ */
+int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
+
+/**
+ * Set the type of the image to create. Libisofs support two kind of images: 
+ * stand-alone and appendable. 
+ * 
+ * A stand-alone image is an image that is valid alone, and that can be
+ * mounted by its own. This is the kind of image you will want to create
+ * in most cases. A stand-alone image can be burned in an empty CD or DVD,
+ * or write to an .iso file for future burning or distribution.
+ * 
+ * On the other side, an appendable image is not self contained, it refers
+ * to serveral files that are stored outside the image. Its usage is for
+ * multisession discs, where you add data in a new session, while the 
+ * previous session data can still be accessed. In those cases, the old 
+ * data is not written again. Instead, the new image refers to it, and thus
+ * it's only valid when appended to the original. Note that in those cases
+ * the image will be written after the original, and thus you will want
+ * to use a ms_block greater than 0. 
+ * 
+ * Note that if you haven't import a previous image (by means of 
+ * iso_image_import()), the image will always be a stand-alone image, as
+ * there is no previous data to refer to.
+ * 
+ * @param appendable
+ *      1 to create an appendable image, 0 for an stand-alone one.
+ */
+int iso_write_opts_set_appendable(IsoWriteOpts *opts, int appendable);
+
+/**
+ * Set the start block of the image. It is supposed to be the lba where the 
+ * first block of the image will be written on disc. All references inside the
+ * ISO image will take this into account, thus providing a mountable image.
+ * 
+ * For appendable images, that are written to a new session, you should 
+ * pass here the lba of the next writable address on disc.
+ * 
+ * In stand alone images this is usually 0. However, you may want to 
+ * provide a different ms_block if you don't plan to burn the image in the
+ * first session on disc, such as in some CD-Extra disc whether the data
+ * image is written in a new session after some audio tracks. 
+ */
+int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
+
+/**
+ * Sets the buffer where to store the descriptors that need to be written
+ * at the beginning of a overwriteable media to grow the image. 
+ * 
+ * @param overwrite
+ *      When not NULL, it should point to a buffer of at least 64KiB, where 
+ *      libisofs will write the contents that should be written at the 
+ *      beginning of a overwriteable media, to grow the image. The growing 
+ *      of an image is a way, used by first time in growisofs by Andy Polyakov,
+ *      to allow the appending of new data to non-multisession media, such 
+ *      as DVD+RW, in the same way you append a new session to a multisession 
+ *      disc, i.e., without need to write again the contents of the previous 
+ *      image.   
+ * 
+ * Note that if you want this kind of image growing, you will also need to
+ * set appendable to "1" and provide a valid ms_block after the previous
+ * image.
+ * 
+ * You should initialize the buffer either with 0s, or with the contents of 
+ * the first blocks of the image you're growing. In most cases, 0 is good 
+ * enought. 
+ * 
+ * If you don't need this information, for example because you're creating a
+ * new image from scratch of because you will create an image for a true
+ * multisession media, just don't set this buffer or set it to NULL.
+ */
+int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
+
+/**
+ * Set the size, in number of blocks, of the FIFO buffer used between the 
+ * writer thread and the burn_source. You have to provide at least a 32 
+ * blocks buffer. Default value is set to 2MB, if that is ok for you, you
+ * don't need to call this function.
+ */
+int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
+
+/**
  * Create a burn_source to actually write the image. That burn_source can be 
  * used with libburn as a data source for a track.
  * 
@@ -763,7 +891,7 @@ void iso_lib_version(int *major, int *minor, int *micro);
  * @return
  *     1 on success, < 0 on error 
  */
-int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
+int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src);
 
 /**

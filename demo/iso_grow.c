@@ -30,38 +30,10 @@ int main(int argc, char **argv)
     struct burn_drive_info *drives;
     struct burn_drive *drive;
     unsigned char buf[32 * 2048];
+    IsoWriteOpts *opts;
     int ret = 0;
     struct iso_read_image_features features;
-    Ecma119WriteOpts opts = {
-        1, /* level */ 
-        1, /* rockridge */
-        0, /* joliet */
-        0, /* iso1999 */
-        0, /* omit_version_numbers */
-        0, /* allow_deep_paths */
-        0, /* allow_longer_paths */
-        0, /* max_37_char_filenames */
-        0, /* no_force_dots */
-        0, /* allow_lowercase */
-        0, /* allow_full_ascii */
-        0, /* joliet_longer_paths */
-        1, /* sort files */
-        0, /* replace_dir_mode */
-        0, /* replace_file_mode */
-        0, /* replace_uid */
-        0, /* replace_gid */
-        0, /* dir_mode */
-        0, /* file_mode */
-        0, /* uid */
-        0, /* gid */
-        0, /* replace_timestamps */
-        0, /* timestamp */
-        NULL, /* output charset */
-        0, /* appendable */
-        0, /* ms_block */
-        NULL, /* overwrite */
-        1024 /* fifo_size */
-    };
+    uint32_t ms_block;
     struct iso_read_opts ropts = {
         0, /* block */
         0, /* norock */
@@ -150,15 +122,25 @@ int main(int argc, char **argv)
     }
     
     /* generate a multisession image with new contents */
-    /* round up to 32kb aligment = 16 block*/
-    opts.ms_block = ((features.size + 15) / 16 ) * 16;
-    opts.appendable = 1;
-    opts.overwrite = buf;
-    result = iso_image_create_burn_source(image, &opts, &burn_src);
+    result = iso_write_opts_new(&opts, 1);
     if (result < 0) {
-        printf ("Cant create image, error %d\n", result);
+        printf("Cant create write opts, error %d\n", result);
         return 1;
     }
+    
+    /* round up to 32kb aligment = 16 block */
+    ms_block = ((features.size + 15) / 16 ) * 16;
+    iso_write_opts_set_ms_block(opts, ms_block);
+    iso_write_opts_set_appendable(opts, 1);
+    iso_write_opts_set_overwrite_buf(opts, buf);
+
+    result = iso_image_create_burn_source(image, opts, &burn_src);
+    if (result < 0) {
+        printf("Cant create image, error %d\n", result);
+        return 1;
+    }
+    
+    iso_write_opts_free(opts);
     
     /* a. write the new image */
     printf("Adding new data...\n");
@@ -182,8 +164,8 @@ int main(int argc, char **argv)
         burn_drive_set_speed(drive, 0, 0);
         burn_write_opts_set_underrun_proof(burn_options, 1);
         
-        //mmm, check for 32K alignment?
-        burn_write_opts_set_start_byte(burn_options, opts.ms_block * 2048);
+        /* mmm, check for 32K alignment? */
+        burn_write_opts_set_start_byte(burn_options, ms_block * 2048);
         
         if (burn_write_opts_auto_write_type(burn_options, target_disc,
                     reasons, 0) == BURN_WRITE_NONE) {
@@ -208,7 +190,7 @@ int main(int argc, char **argv)
     
     /* b. write the new vol desc */
     printf("Writing the new vol desc...\n");
-    ret = burn_random_access_write(drive, 0, (char*)opts.overwrite, 32*2048, 0);
+    ret = burn_random_access_write(drive, 0, (char*)buf, 32*2048, 0);
     if (ret != 1) {
         printf("Ups, new vol desc write failed\n");
     }
@@ -233,7 +215,7 @@ libburn_ds_read_block(IsoDataSource *src, uint32_t lba, uint8_t *buffer)
     
     if ( burn_read_data(d, (off_t) lba * (off_t) 2048, (char*)buffer, 
                         2048, &data_count, 0) < 0 ) {
-         return -1; //error
+         return -1; /* error */
     }
         
     return 1;

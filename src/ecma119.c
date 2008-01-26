@@ -798,7 +798,7 @@ void *write_function(void *arg)
 }
 
 static
-int ecma119_image_new(IsoImage *src, Ecma119WriteOpts *opts, Ecma119Image **img)
+int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters;
     Ecma119Image *target;
@@ -1137,7 +1137,7 @@ int bs_set_size(struct burn_source *bs, off_t size)
     return 1;
 }
 
-int iso_image_create_burn_source(IsoImage *image, Ecma119WriteOpts *opts,
+int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src)
 {
     int ret;
@@ -1202,4 +1202,310 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
     }
     
     return ret;
+}
+
+int iso_write_opts_new(IsoWriteOpts **opts, int profile)
+{
+    IsoWriteOpts *wopts;
+    
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (profile < 0 || profile > 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
+    wopts = calloc(1, sizeof(IsoWriteOpts));
+    if (wopts == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    
+    switch (profile) {
+    case 0:
+        wopts->level = 1;
+        break;
+    case 1:
+        wopts->level = 2;
+        wopts->rockridge = 1;
+        break;
+    case 2:
+        wopts->level = 2;
+        wopts->rockridge = 1;
+        wopts->joliet = 1;
+        wopts->replace_dir_mode = 1;
+        wopts->replace_file_mode = 1;
+        wopts->replace_uid = 1;
+        wopts->replace_gid = 1;
+        wopts->replace_timestamps = 1;
+        break;
+    default:
+        /* should never happen */
+        free(wopts);
+        return ISO_ASSERT_FAILURE;
+        break;
+    }
+    wopts->fifo_size = 1024; /* 2 MB buffer */
+    
+    *opts = wopts;
+    return ISO_SUCCESS;
+}
+
+void iso_write_opts_free(IsoWriteOpts *opts)
+{
+    if (opts == NULL) {
+        return;
+    }
+    
+    free(opts->output_charset);
+    free(opts);
+}
+
+int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (level != 1 && level != 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    opts->level = level;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->rockridge = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->joliet = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->iso1999 = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->omit_version_numbers = omit ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_allow_deep_paths(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->allow_deep_paths = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_allow_longer_paths(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->allow_longer_paths = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_max_37_char_filenames(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->max_37_char_filenames = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->no_force_dots = no ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->allow_lowercase = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->allow_full_ascii = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->joliet_longer_paths = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->sort_files = sort ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_replace_mode(IsoWriteOpts *opts, int dir_mode,
+                                    int file_mode, int uid, int gid)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (dir_mode < 0 || dir_mode > 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (file_mode < 0 || file_mode > 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (uid < 0 || uid > 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (gid < 0 || gid > 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    opts->replace_dir_mode = dir_mode;
+    opts->replace_file_mode = file_mode;
+    opts->replace_uid = uid;
+    opts->replace_gid = gid;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_default_dir_mode(IsoWriteOpts *opts, mode_t dir_mode)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->dir_mode = dir_mode;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_default_file_mode(IsoWriteOpts *opts, mode_t file_mode)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->file_mode = file_mode;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_default_uid(IsoWriteOpts *opts, uid_t uid)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->uid = uid;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_default_gid(IsoWriteOpts *opts, gid_t gid)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->gid = gid;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_replace_timestamps(IsoWriteOpts *opts, int replace)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (replace < 0 || replace > 2) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    opts->replace_timestamps = replace;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->timestamp = timestamp;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->output_charset = charset ? strdup(charset) : NULL;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_appendable(IsoWriteOpts *opts, int appendable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->appendable = appendable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->ms_block = ms_block;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->overwrite = overwrite;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (fifo_size < 32) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    opts->fifo_size = fifo_size;
+    return ISO_SUCCESS;
 }

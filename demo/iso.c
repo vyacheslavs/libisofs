@@ -55,39 +55,10 @@ int main(int argc, char **argv)
     struct burn_source *burn_src;
     unsigned char buf[2048];
     FILE *fd;
+    IsoWriteOpts *opts;
     char *volid = "VOLID";
     char *boot_img = NULL;
-    
-    Ecma119WriteOpts opts = {
-        1, /* level */ 
-        0, /* rockridge */
-        0, /* joliet */
-        0, /* iso1999 */
-        0, /* omit_version_numbers */
-        0, /* allow_deep_paths */
-        0, /* allow_longer_paths */
-        0, /* max_37_char_filenames */
-        0, /* no_force_dots */
-        0, /* allow_lowercase */
-        0, /* allow_full_ascii */
-        0, /* joliet_longer_paths */
-        0, /* sort files */
-        0, /* replace_dir_mode */
-        0, /* replace_file_mode */
-        0, /* replace_uid */
-        0, /* replace_gid */
-        0, /* dir_mode */
-        0, /* file_mode */
-        0, /* uid */
-        0, /* gid */
-        0, /* replace_timestamps */
-        0, /* timestamp */
-        NULL, /* output charset */
-        0, /* appendable */
-        0, /* ms_block */
-        NULL, /* overwrite */
-        1024 /* fifo_size */
-    };
+    int rr = 0, j = 0, iso1999 = 0, level = 1;
 
     while ((c = getopt(argc, argv, optstring)) != -1) {
         switch(c) {
@@ -97,16 +68,16 @@ int main(int argc, char **argv)
             exit(0);
             break;
         case 'J':
-            opts.joliet = 1;
+            j = 1;
             break;
         case 'R':
-            opts.rockridge = 1;
+            rr = 1;
             break;
         case 'I':
-            opts.iso1999 = 1;
+            iso1999 = 1;
             break;
         case 'L':
-            opts.level = atoi(optarg);
+            level = atoi(optarg);
             break;
         case 'b':
             boot_img = optarg;
@@ -173,12 +144,24 @@ int main(int argc, char **argv)
         el_torito_set_load_size(bootimg, 4);
         el_torito_patch_isolinux_image(bootimg);
     }
+
+    result = iso_write_opts_new(&opts, 0);
+    if (result < 0) {
+        printf ("Cant create write opts, error %d\n", result);
+        return 1;
+    }
+    iso_write_opts_set_iso_level(opts, level);
+    iso_write_opts_set_rockridge(opts, rr);
+    iso_write_opts_set_joliet(opts, j);
+    iso_write_opts_set_iso1999(opts, iso1999);
     
-    result = iso_image_create_burn_source(image, &opts, &burn_src);
+    result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
         printf ("Cant create image, error %d\n", result);
         return 1;
     }
+    
+    iso_write_opts_free(opts);
     
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         fwrite(buf, 1, 2048, fd);
