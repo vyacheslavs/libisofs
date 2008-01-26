@@ -247,6 +247,7 @@ libburn_data_source_new(struct burn_drive *d)
     IsoDataSource *ret;
     
     ret = malloc(sizeof(IsoDataSource));
+    ret->version = 0;
     ret->refcount = 1;
     ret->read_block = libburn_ds_read_block;
     ret->open = libburn_ds_open;

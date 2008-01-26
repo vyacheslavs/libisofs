@@ -182,6 +182,7 @@ int iso_data_source_new_from_file(const char *path, IsoDataSource **src)
     }
 
     data->fd = -1;
+    ds->version = 0;
     ds->refcount = 1;
     ds->data = data;
 

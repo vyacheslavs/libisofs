@@ -109,6 +109,9 @@ typedef struct iso_data_source IsoDataSource;
  * drive.
  */
 struct iso_data_source {
+
+    /* reserved for future usage, set to 0 */
+    int version;
     
     /** 
      * Reference count for the data source. Should be 1 when a new source
@@ -281,6 +284,9 @@ struct iso_filesystem
      */
     char type[4];
 
+    /* reserved for future usage, set to 0 */
+    int version;
+
     /**
      * Get the root of a filesystem.
      * 
@@ -358,6 +364,9 @@ struct iso_filesystem
  */
 struct IsoFileSource_Iface
 {
+    /* reserved for future usage, set to 0 */
+    int version;
+
     /**
      * Get the path, relative to the filesystem this file source belongs to.
      * 

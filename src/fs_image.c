@@ -683,6 +683,7 @@ void ifs_free(IsoFileSource *src)
 }
 
 IsoFileSourceIface ifs_class = { 
+    0, /* version */
     ifs_get_path,
     ifs_get_name,
     ifs_lstat,
@@ -1685,6 +1686,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     strncpy(ifs->type, "iso ", 4);
     ifs->data = data;
     ifs->refcount = 1;
+    ifs->version = 0;
     ifs->get_root = ifs_get_root;
     ifs->get_by_path = ifs_get_by_path;
     ifs->get_id = ifs_get_id;

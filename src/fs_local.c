@@ -422,6 +422,7 @@ void lfs_free(IsoFileSource *src)
 }
 
 IsoFileSourceIface lfs_class = { 
+    0, /* version */
     lfs_get_path,
     lfs_get_name,
     lfs_lstat,
@@ -631,6 +632,7 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
         /* fill struct */
         strncpy(lfs->type, "file", 4);
         lfs->refcount = 1;
+        lfs->version = 0;
         lfs->data = NULL; /* we don't need private data */
         lfs->get_root = lfs_get_root;
         lfs->get_by_path = lfs_get_by_path;
