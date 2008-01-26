@@ -109,26 +109,28 @@ int main(int argc, char **argv)
     }
     iso_read_opts_free(ropts);
 
+    iso_tree_set_replace_mode(image, ISO_REPLACE_IF_NEWER);
+
     /* add new dir */
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[2]);
     if (result < 0) {
         printf ("Error adding directory %d\n", result);
         return 1;
     }
-    
+
     /* generate a multisession image with new contents */
     result = iso_write_opts_new(&opts, 1);
     if (result < 0) {
         printf("Cant create write opts, error %d\n", result);
         return 1;
     }
-    
+
     /* round up to 32kb aligment = 16 block */
     ms_block = ((features->size + 15) / 16 ) * 16;
     iso_write_opts_set_ms_block(opts, ms_block);
     iso_write_opts_set_appendable(opts, 1);
     iso_write_opts_set_overwrite_buf(opts, buf);
-    
+
     free(features);
 
     result = iso_image_create_burn_source(image, opts, &burn_src);

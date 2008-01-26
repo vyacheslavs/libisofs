@@ -85,10 +85,22 @@ enum iso_replace_mode {
     /**
      * Always replace the old node with the new.
      */
-    ISO_REPLACE_ALWAYS
+    ISO_REPLACE_ALWAYS,
+    /**
+     * Replace with the new node if it is the same file type
+     */
+    ISO_REPLACE_IF_SAME_TYPE,
+    /**
+     * Replace with the new node if it is the same file type and its ctime
+     * is newer than the old one.
+     */
+    ISO_REPLACE_IF_SAME_TYPE_AND_NEWER,
+    /**
+     * Replace with the new node if its ctime is newer than the old one.
+     */
+    ISO_REPLACE_IF_NEWER
     /*
      * TODO #00006 define more values
-     *  -to replace only if both are the same kind of file
      *  -if both are dirs, add contents (and what to do with conflicts?)
      */
 };

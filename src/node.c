@@ -704,20 +704,42 @@ int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
 {
     if (*pos != NULL && !strcmp((*pos)->name, node->name)) {
         /* a node with same name already exists */
-        if (replace == ISO_REPLACE_NEVER) {
+        switch(replace) {
+        case ISO_REPLACE_NEVER:
             return ISO_NODE_NAME_NOT_UNIQUE;
-        } else if (replace == ISO_REPLACE_ALWAYS) {
-            node->next = (*pos)->next;
-            (*pos)->parent = NULL;
-            (*pos)->next = NULL;
-            iso_node_unref(*pos);
-            *pos = node;
-            node->parent = dir;
-            return dir->nchildren;
-        } else {
+        case ISO_REPLACE_IF_NEWER:
+            if ((*pos)->mtime >= node->mtime) {
+                /* old file is newer */
+                return ISO_NODE_NAME_NOT_UNIQUE;
+            }
+            break;
+        case ISO_REPLACE_IF_SAME_TYPE_AND_NEWER:
+            if ((*pos)->mtime >= node->mtime) {
+                /* old file is newer */
+                return ISO_NODE_NAME_NOT_UNIQUE;
+            }
+            /* fall down */
+        case ISO_REPLACE_IF_SAME_TYPE:
+            if ((node->mode & S_IFMT) != ((*pos)->mode & S_IFMT)) {
+                /* different file types */
+                return ISO_NODE_NAME_NOT_UNIQUE;
+            }
+            break;
+        case ISO_REPLACE_ALWAYS:
+            break;
+        default:
             /* CAN'T HAPPEN */
             return ISO_ASSERT_FAILURE;
         }
+        
+        /* if we are reach here we have to replace */
+        node->next = (*pos)->next;
+        (*pos)->parent = NULL;
+        (*pos)->next = NULL;
+        iso_node_unref(*pos);
+        *pos = node;
+        node->parent = dir;
+        return dir->nchildren;
     }
 
     node->next = *pos;

@@ -555,12 +555,24 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret,
                          "Error when adding file %s", path);
             goto dir_rec_continue;
-        } else {
-            iso_msg_debug(image->id, "Adding file %s", path);
         }
 
         /* ok, node has correctly created, we need to add it */
-        iso_dir_insert(parent, new, pos, replace);
+        ret = iso_dir_insert(parent, new, pos, replace);
+        if (ret < 0) {
+            iso_node_unref(new);
+            if (ret != ISO_NODE_NAME_NOT_UNIQUE) {
+                /* error */
+                goto dir_rec_continue;
+            } else {
+                /* file ignored because a file with same node already exists */
+                iso_msg_debug(image->id, "Skipping file %s. A node with same "
+                              "file already exists", path);
+                ret = 0;
+            }
+        } else {
+            iso_msg_debug(image->id, "Added file %s", path);
+        }
 
         /* finally, if the node is a directory we need to recurse */
         if (new->type == LIBISO_DIR && S_ISDIR(info.st_mode)) {
