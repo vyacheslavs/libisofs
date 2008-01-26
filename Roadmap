@@ -4,7 +4,7 @@
 	-> Expose node extended info. Always compile it.
 	   (little memory cost)
 	-> Review builder / tree / node relation
-	-> Add low level functions to create nodes. 
+	OK -> Add low level functions to create nodes. 
 	-> Optimize storage of children in node?
 	-> Inode object?
 

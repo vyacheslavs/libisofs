@@ -10,6 +10,34 @@
 #include <stdlib.h>
 
 static
+void test_iso_node_new_dir()
+{
+    int ret;
+    IsoDir *dir;
+    char *name;
+
+    name = strdup("name1");
+    ret = iso_node_new_dir(name, &dir);
+    CU_ASSERT_EQUAL(ret, ISO_SUCCESS);
+    CU_ASSERT_EQUAL(dir->node.refcount, 1);
+    CU_ASSERT_EQUAL(dir->node.type, LIBISO_DIR);
+    CU_ASSERT_EQUAL(dir->node.mode, S_IFDIR);
+    CU_ASSERT_EQUAL(dir->node.uid, 0);
+    CU_ASSERT_EQUAL(dir->node.gid, 0);
+    CU_ASSERT_EQUAL(dir->node.atime, 0);
+    CU_ASSERT_EQUAL(dir->node.mtime, 0);
+    CU_ASSERT_EQUAL(dir->node.ctime, 0);
+    CU_ASSERT_STRING_EQUAL(dir->node.name, "name1");
+    CU_ASSERT_EQUAL(dir->node.hidden, 0);
+    CU_ASSERT_PTR_NULL(dir->node.parent);
+    CU_ASSERT_PTR_NULL(dir->node.next);
+    CU_ASSERT_EQUAL(dir->nchildren, 0);
+    CU_ASSERT_PTR_NULL(dir->children);
+    
+    iso_node_unref((IsoNode*)dir);
+}
+
+static
 void test_iso_node_set_permissions()
 {
     IsoNode *node;
@@ -575,7 +603,8 @@ void add_node_suite()
 {
 	CU_pSuite pSuite = CU_add_suite("Node Test Suite", NULL, NULL);
 	
-    CU_add_test(pSuite, "iso_node_set_permissions()", test_iso_node_set_permissions);
+	CU_add_test(pSuite, "iso_node_new_dir()", test_iso_node_new_dir);
+	CU_add_test(pSuite, "iso_node_set_permissions()", test_iso_node_set_permissions);
     CU_add_test(pSuite, "iso_node_get_permissions()", test_iso_node_get_permissions);
     CU_add_test(pSuite, "iso_node_get_mode()", test_iso_node_get_mode);
     CU_add_test(pSuite, "iso_node_set_uid()", test_iso_node_set_uid);
