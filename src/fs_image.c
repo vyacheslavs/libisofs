@@ -1986,7 +1986,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 }
                 /* take a ref to the src, as stream has taken our ref */
                 iso_file_source_ref(src);
-            
+
                 file = calloc(1, sizeof(IsoFile));
                 if (file == NULL) {
                     free(name);

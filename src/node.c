@@ -632,6 +632,12 @@ int iso_node_is_valid_name(const char *name)
     return 1;
 }
 
+/**
+ * Check if a given path is valid for the destination of a link.
+ * 
+ * @return
+ *     1 if yes, 0 if not
+ */
 int iso_node_is_valid_link_dest(const char *dest)
 {
     int ret;
@@ -710,7 +716,7 @@ int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
             return dir->nchildren;
         } else {
             /* CAN'T HAPPEN */
-            return ISO_WRONG_ARG_VALUE;
+            return ISO_ASSERT_FAILURE;
         }
     }
 

@@ -46,6 +46,8 @@
  */
 int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
 {
+    int ret;
+    char *n;
     IsoDir *node;
     IsoNode **pos;
     time_t now;
@@ -56,11 +58,6 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     if (dir) {
         *dir = NULL;
     }
-    
-    /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
 
     /* find place where to insert and check if it exists */
     if (iso_dir_exists(parent, name, &pos)) {
@@ -68,30 +65,24 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
 
-    node = calloc(1, sizeof(IsoDir));
-    if (node == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
-
-    node->node.refcount = 1;
-    node->node.type = LIBISO_DIR;
-    node->node.name = strdup(name);
-    if (node->node.name == NULL) {
-        free(node);
-        return ISO_OUT_OF_MEM;
+    n = strdup(name);
+    ret = iso_node_new_dir(n, &node);
+    if (ret < 0) {
+        free(n);
+        return ret;
     }
 
     /* permissions from parent */
-    node->node.mode = parent->node.mode;
-    node->node.uid = parent->node.uid;
-    node->node.gid = parent->node.gid;
-    node->node.hidden = parent->node.hidden;
+    iso_node_set_permissions((IsoNode*)node, parent->node.mode);
+    iso_node_set_uid((IsoNode*)node, parent->node.uid);
+    iso_node_set_gid((IsoNode*)node, parent->node.gid);
+    iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
     now = time(NULL);
-    node->node.atime = now;
-    node->node.ctime = now;
-    node->node.mtime = now;
+    iso_node_set_atime((IsoNode*)node, now);
+    iso_node_set_ctime((IsoNode*)node, now);
+    iso_node_set_mtime((IsoNode*)node, now);
 
     if (dir) {
         *dir = node;
@@ -128,6 +119,8 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
 int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
                              const char *dest, IsoSymlink **link)
 {
+    int ret;
+    char *n, *d;
     IsoSymlink *node;
     IsoNode **pos;
     time_t now;
@@ -138,17 +131,6 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     if (link) {
         *link = NULL;
     }
-    
-    /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
-    
-    /* check if destination is valid */
-    if (!iso_node_is_valid_link_dest(dest)) {
-        /* guard against null or empty dest */
-        return ISO_WRONG_ARG_VALUE;
-    }
 
     /* find place where to insert */
     if (iso_dir_exists(parent, name, &pos)) {
@@ -156,37 +138,26 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
 
-    node = calloc(1, sizeof(IsoSymlink));
-    if (node == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
-
-    node->node.refcount = 1;
-    node->node.type = LIBISO_SYMLINK;
-    node->node.name = strdup(name);
-    if (node->node.name == NULL) {
-        free(node);
-        return ISO_OUT_OF_MEM;
-    }
-
-    node->dest = strdup(dest);
-    if (node->dest == NULL) {
-        free(node->node.name);
-        free(node);
-        return ISO_OUT_OF_MEM;
+    n = strdup(name);
+    d = strdup(dest);
+    ret = iso_node_new_symlink(n, d, &node);
+    if (ret < 0) {
+        free(n);
+        free(d);
+        return ret;
     }
 
     /* permissions from parent */
-    node->node.mode = S_IFLNK | 0777;
-    node->node.uid = parent->node.uid;
-    node->node.gid = parent->node.gid;
-    node->node.hidden = parent->node.hidden;
+    iso_node_set_permissions((IsoNode*)node, 0777);
+    iso_node_set_uid((IsoNode*)node, parent->node.uid);
+    iso_node_set_gid((IsoNode*)node, parent->node.gid);
+    iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
     now = time(NULL);
-    node->node.atime = now;
-    node->node.ctime = now;
-    node->node.mtime = now;
+    iso_node_set_atime((IsoNode*)node, now);
+    iso_node_set_ctime((IsoNode*)node, now);
+    iso_node_set_mtime((IsoNode*)node, now);
 
     if (link) {
         *link = node;
@@ -237,6 +208,8 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
 int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
                              dev_t dev, IsoSpecial **special)
 {
+    int ret;
+    char *n;
     IsoSpecial *node;
     IsoNode **pos;
     time_t now;
@@ -250,11 +223,6 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     if (special) {
         *special = NULL;
     }
-    
-    /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
 
     /* find place where to insert */
     if (iso_dir_exists(parent, name, &pos)) {
@@ -262,32 +230,23 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
 
-    node = calloc(1, sizeof(IsoSpecial));
-    if (node == NULL) {
-        return ISO_OUT_OF_MEM;
+    n = strdup(name);
+    ret = iso_node_new_special(n, mode, dev, &node);
+    if (ret < 0) {
+        free(n);
+        return ret;
     }
-
-    node->node.refcount = 1;
-    node->node.type = LIBISO_SPECIAL;
-    node->node.name = strdup(name);
-    if (node->node.name == NULL) {
-        free(node);
-        return ISO_OUT_OF_MEM;
-    }
-
-    node->node.mode = mode;
-    node->dev = dev;
 
     /* atts from parent */
-    node->node.uid = parent->node.uid;
-    node->node.gid = parent->node.gid;
-    node->node.hidden = parent->node.hidden;
+    iso_node_set_uid((IsoNode*)node, parent->node.uid);
+    iso_node_set_gid((IsoNode*)node, parent->node.gid);
+    iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
     now = time(NULL);
-    node->node.atime = now;
-    node->node.ctime = now;
-    node->node.mtime = now;
+    iso_node_set_atime((IsoNode*)node, now);
+    iso_node_set_ctime((IsoNode*)node, now);
+    iso_node_set_mtime((IsoNode*)node, now);
 
     if (special) {
         *special = node;
