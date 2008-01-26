@@ -294,6 +294,16 @@ int iso_tree_get_ignore_hidden(IsoImage *image)
     return image->ignore_hidden;
 }
 
+void iso_tree_set_replace_mode(IsoImage *image, enum iso_replace_mode mode)
+{
+    image->replace = mode;
+}
+
+enum iso_replace_mode iso_tree_get_replace_mode(IsoImage *image)
+{
+    return image->replace;
+}
+
 /**
  * Set whether to skip or not special files. Default behavior is to not skip
  * them. Note that, despite of this setting, special files won't never be added

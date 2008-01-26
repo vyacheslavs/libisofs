@@ -1692,6 +1692,20 @@ void iso_tree_set_ignore_hidden(IsoImage *image, int skip);
 int iso_tree_get_ignore_hidden(IsoImage *image);
 
 /**
+ * Set the replace mode, that defines the behavior of libisofs when adding
+ * a node whit the same name that an existent one, during a recursive 
+ * directory addition.
+ */
+void iso_tree_set_replace_mode(IsoImage *image, enum iso_replace_mode mode);
+
+/**
+ * Get current setting for replace_mode.
+ * 
+ * @see iso_tree_set_replace_mode
+ */
+enum iso_replace_mode iso_tree_get_replace_mode(IsoImage *image);
+
+/**
  * Set whether to skip or not special files. Default behavior is to not skip
  * them. Note that, despite of this setting, special files won't never be added
  * to an image unless RR extensions were enabled.
