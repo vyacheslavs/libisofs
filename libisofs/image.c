@@ -216,3 +216,8 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image)
 {
     return image->biblio_file_id;
 }
+
+int iso_image_get_msg_id(IsoImage *image)
+{
+    return image->id;
+}

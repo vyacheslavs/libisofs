@@ -1911,6 +1911,13 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
                     char msg_text[], int *os_errno, char severity[]);
 
 /**
+ * Get the id of an IsoImage, used for message reporting. This message id,
+ * retrieved with iso_obtain_msgs(), can be used to distinguish what
+ * IsoImage has isssued a given message.
+ */
+int iso_image_get_msg_id(IsoImage *image);
+
+/**
  * Get a textual description of a libisofs error.
  */
 const char *iso_error_to_msg(int errcode);
