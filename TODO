@@ -36,6 +36,6 @@ OK #00002 (node.h) -> handle deletion of each kind of node
 FIXME
 =====
 
-#00001 (iso1999.c) -> Mangle ISO 9660:1999 names
+OK #00001 (iso1999.c) -> Mangle ISO 9660:1999 names
 OK #00002 (joliet.c) -> Mangle Joliet names
 

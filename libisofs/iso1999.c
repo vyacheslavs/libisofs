@@ -15,6 +15,7 @@
 #include "eltorito.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 static
@@ -287,6 +288,209 @@ void sort_tree(Iso1999Node *root)
 }
 
 static
+int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
+{
+    int ret;
+    int i, nchildren;
+    Iso1999Node **children;
+    IsoHTable *table;
+    int need_sort = 0;
+
+    nchildren = dir->info.dir->nchildren;
+    children = dir->info.dir->children;
+    
+    /* a hash table will temporary hold the names, for fast searching */
+    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash, 
+                            (compare_function_t)strcmp, &table);
+    if (ret < 0) {
+        return ret;
+    }
+    for (i = 0; i < nchildren; ++i) {
+        char *name = children[i]->name;
+        ret = iso_htable_add(table, name, name);
+        if (ret < 0) {
+            goto mangle_cleanup;
+        }
+    }
+
+    for (i = 0; i < nchildren; ++i) {
+        char *name, *ext;
+        char full_name[208];
+        int max; /* computed max len for name, without extension */
+        int j = i;
+        int digits = 1; /* characters to change per name */
+
+        /* first, find all child with same name */
+        while (j + 1 < nchildren && 
+               !cmp_node(children + i, children + j + 1)) {
+            ++j;
+        }
+        if (j == i) {
+            /* name is unique */
+            continue;
+        }
+
+        /*
+         * A max of 7 characters is good enought, it allows handling up to 
+         * 9,999,999 files with same name.
+         */
+        while (digits < 8) {
+            int ok, k;
+            char *dot;
+            int change = 0; /* number to be written */
+
+            /* copy name to buffer */
+            strcpy(full_name, children[i]->name);
+
+            /* compute name and extension */
+            dot = strrchr(full_name, '.');
+            if (dot != NULL && children[i]->type != ISO1999_DIR) {
+
+                /* 
+                 * File (not dir) with extension.
+                 */
+                int extlen;
+                full_name[dot - full_name] = '\0';
+                name = full_name;
+                ext = dot + 1;
+
+                extlen = strlen(ext);
+                max = 207 - extlen - 1 - digits;
+                if (max <= 0) {
+                    /* this can happen if extension is too long */
+                    if (extlen + max > 3) {
+                        /* 
+                         * reduce extension len, to give name an extra char
+                         * note that max is negative or 0 
+                         */
+                        extlen = extlen + max - 1;
+                        ext[extlen] = '\0';
+                        max = 207 - extlen - 1 - digits;
+                    } else {
+                        /* 
+                         * error, we don't support extensions < 3
+                         * This can't happen with current limit of digits. 
+                         */
+                        ret = ISO_ERROR;
+                        goto mangle_cleanup;
+                    }
+                }
+                /* ok, reduce name by digits */
+                if (name + max < dot) {
+                    name[max] = '\0';
+                }
+            } else {
+                /* Directory, or file without extension */
+                if (children[i]->type == ISO1999_DIR) {
+                    dot = NULL; /* dots have no meaning in dirs */
+                }
+                max = 207 - digits;
+                name = full_name;
+                if (max < strlen(name)) {
+                    name[max] = '\0';
+                }
+                /* let ext be an empty string */
+                ext = name + strlen(name);
+            }
+
+            ok = 1;
+            /* change name of each file */
+            for (k = i; k <= j; ++k) {
+                char tmp[208];
+                char fmt[16];
+                if (dot != NULL) {
+                    sprintf(fmt, "%%s%%0%dd.%%s", digits);
+                } else {
+                    sprintf(fmt, "%%s%%0%dd%%s", digits);
+                }
+                while (1) {
+                    sprintf(tmp, fmt, name, change, ext);
+                    ++change;
+                    if (change > int_pow(10, digits)) {
+                        ok = 0;
+                        break;
+                    }
+                    if (!iso_htable_get(table, tmp, NULL)) {
+                        /* the name is unique, so it can be used */
+                        break;
+                    }
+                }
+                if (ok) {
+                    char *new = strdup(tmp);
+                    if (new == NULL) {
+                        ret = ISO_OUT_OF_MEM;
+                        goto mangle_cleanup;
+                    }
+                    iso_msg_debug(img->image->id, "\"%s\" renamed to \"%s\"",
+                                  children[k]->name, new);
+
+                    iso_htable_remove_ptr(table, children[k]->name, NULL);
+                    free(children[k]->name);
+                    children[k]->name = new;
+                    iso_htable_add(table, new, new);
+
+                    /* 
+                     * if we change a name we need to sort again children
+                     * at the end
+                     */
+                    need_sort = 1;
+                } else {
+                    /* we need to increment digits */
+                    break;
+                }
+            }
+            if (ok) {
+                break;
+            } else {
+                ++digits;
+            }
+        }
+        if (digits == 8) {
+            ret = ISO_MANGLE_TOO_MUCH_FILES;
+            goto mangle_cleanup;
+        }
+        i = j;
+    }
+
+    /*
+     * If needed, sort again the files inside dir
+     */
+    if (need_sort) {
+        qsort(children, nchildren, sizeof(void*), cmp_node);
+    }
+
+    ret = ISO_SUCCESS;
+    
+mangle_cleanup : ;
+    iso_htable_destroy(table, NULL);
+    return ret;
+}
+
+static
+int mangle_tree(Ecma119Image *t, Iso1999Node *dir)
+{
+    int ret;
+    size_t i;
+
+    ret = mangle_single_dir(t, dir);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* recurse */
+    for (i = 0; i < dir->info.dir->nchildren; ++i) {
+        if (dir->info.dir->children[i]->type == ISO1999_DIR) {
+            ret = mangle_tree(t, dir->info.dir->children[i]);
+            if (ret < 0) {
+                /* error */
+                return ret;
+            }
+        }
+    }
+    return ISO_SUCCESS;
+}
+
+static
 int iso1999_tree_create(Ecma119Image *t)
 {
     int ret;
@@ -311,11 +515,11 @@ int iso1999_tree_create(Ecma119Image *t)
     iso_msg_debug(t->image->id, "Sorting the ISO 9660:1999 tree...");
     sort_tree(root);
 
-    /* 
-     * FIXME #00001 : Mangle ISO 9660:1999 names
-     * iso_msg_debug(t->image->id, "Mangling ISO 9660:1999 names...");
-     * FIXME ret = mangle_tree(t, 1);
-     */
+    iso_msg_debug(t->image->id, "Mangling ISO 9660:1999 names...");
+    ret = mangle_tree(t, t->iso1999_root);
+    if (ret < 0) {
+        return ret;
+    }
 
     return ISO_SUCCESS;
 }
