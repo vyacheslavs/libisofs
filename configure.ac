@@ -92,16 +92,27 @@ AC_PROG_INSTALL
 
 AC_CHECK_HEADERS()
 
+dnl Use GNU extensions if available
+AC_DEFINE(_GNU_SOURCE, 1)
+
+dnl Check for tm_gmtoff field in struct tm
 AC_CHECK_MEMBER([struct tm.tm_gmtoff],
 	[AC_DEFINE(HAVE_TM_GMTOFF, 1,
 		[Define this if tm structure includes a tm_gmtoff entry.])],
 	,
 	[#include <time.h>])
 
+dnl Check if non standard timegm() function is available
 AC_CHECK_DECL([timegm], 
 	[AC_DEFINE(HAVE_TIMEGM, 1, [Define this if timegm function is available])],
 	,
 	[#include <time.h>])
+
+dnl Check if non standard eaccess() function is available
+AC_CHECK_DECL([eaccess], 
+	[AC_DEFINE(HAVE_EACCESS, 1, [Define this if eaccess function is available])],
+	,
+	[#include <unistd.h>])
 
 THREAD_LIBS=-lpthread
 AC_SUBST(THREAD_LIBS)

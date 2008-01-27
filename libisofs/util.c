@@ -22,9 +22,14 @@
 #include <locale.h>
 #include <langinfo.h>
 
-/* for eaccess, defined in unistd.h */
-#define __USE_GNU
 #include <unistd.h>
+
+/* if we don't have eaccess, we check file access by openning it */
+#ifndef HAVE_EACCESS
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
 
 int int_pow(int base, int power)
 {
@@ -1117,7 +1122,22 @@ time_t iso_datetime_read_17(const uint8_t *buf)
  */
 int iso_eaccess(const char *path)
 {
-    if (eaccess(path, R_OK) != 0) {
+    int access;
+    
+    /* use non standard eaccess when available, open() otherwise */
+#ifdef HAVE_EACCESS
+    access = !eaccess(path, R_OK);
+#else 
+    int fd = open(path, O_RDONLY);
+    if (fd != -1) {
+        close(fd);
+        access = 1;
+    } else {
+        access = 0;
+    }
+#endif
+    
+    if (!access) {
         int err;
 
         /* error, choose an appropriate return code */
