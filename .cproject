@@ -28,22 +28,22 @@
 <tool errorParsers="org.eclipse.cdt.core.VCErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="org.eclipse.cdt.build.core.settings.holder.libs.1044033465" name="holder for library settings" superClass="org.eclipse.cdt.build.core.settings.holder.libs"/>
 <tool errorParsers="org.eclipse.cdt.core.VCErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="org.eclipse.cdt.build.core.settings.holder.1194007042" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
 <option id="org.eclipse.cdt.build.core.settings.holder.undef.incpaths.905785218" name="Undefined Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.undef.incpaths" valueType="undefIncludePath">
-<listOptionValue builtIn="false" value="/home/metalpain/Projectos/workspace/nglibisofs"/>
-<listOptionValue builtIn="false" value="/home/metalpain/Projectos/workspace/nglibisofs/src"/>
+<listOptionValue builtIn="false" value=""/>
+<listOptionValue builtIn="false" value="libisofs"/>
 </option>
 <inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1292939907" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 </tool>
 <tool errorParsers="org.eclipse.cdt.core.VCErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="org.eclipse.cdt.build.core.settings.holder.252347798" name="GNU C++" superClass="org.eclipse.cdt.build.core.settings.holder">
 <option id="org.eclipse.cdt.build.core.settings.holder.undef.incpaths.1152034091" name="Undefined Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.undef.incpaths" valueType="undefIncludePath">
-<listOptionValue builtIn="false" value="/home/metalpain/Projectos/workspace/nglibisofs"/>
-<listOptionValue builtIn="false" value="/home/metalpain/Projectos/workspace/nglibisofs/src"/>
+<listOptionValue builtIn="false" value=""/>
+<listOptionValue builtIn="false" value="libisofs"/>
 </option>
 <inputType id="org.eclipse.cdt.build.core.settings.holder.inType.420485796" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 </tool>
 <tool errorParsers="org.eclipse.cdt.core.VCErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="org.eclipse.cdt.build.core.settings.holder.2137486439" name="GNU C" superClass="org.eclipse.cdt.build.core.settings.holder">
 <option id="org.eclipse.cdt.build.core.settings.holder.undef.incpaths.565285959" name="Undefined Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.undef.incpaths" valueType="undefIncludePath">
-<listOptionValue builtIn="false" value="/home/metalpain/Projectos/workspace/nglibisofs"/>
-<listOptionValue builtIn="false" value="/home/metalpain/Projectos/workspace/nglibisofs/src"/>
+<listOptionValue builtIn="false" value=""/>
+<listOptionValue builtIn="false" value="libisofs"/>
 </option>
 <option id="org.eclipse.cdt.build.core.settings.holder.symbols.734273601" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 <listOptionValue builtIn="false" value="HAVE_EACCESS=1"/>
