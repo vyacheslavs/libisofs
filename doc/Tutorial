@@ -1,0 +1,35 @@
+===============================================================================
+                      LIBISOFS DEVELOPMENT TUTORIAL
+===============================================================================
+
+Creation date: 2008-Jan-27
+Author: Vreixo Formoso
+_______________________________________________________________________________
+
+This is a little tutorial of how to use libisofs library for application
+development.
+
+Contents:
+---------
+
+1. Introduction
+   1.1 Library initialization
+   1.2 Error reporting
+2. Creating an image
+   2.1 Image context
+   2.2 Image tree manipulation
+   2.3 Obtaining a burn_source
+3. Image growing and multisession
+4. Bootable images
+5. Advanced features
+
+
+-------------------------------------------------------------------------------
+1. Introduction
+
+
+1.1. Library initialization  --------------------------------------------------
+
+
+
+
