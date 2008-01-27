@@ -169,7 +169,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Europe/Madrid", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -182,7 +182,7 @@ static void test_iso_datetime_7()
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
     
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 7); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -198,7 +198,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Europe/London", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -211,7 +211,7 @@ static void test_iso_datetime_7()
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
     
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 7); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -228,7 +228,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "America/New_York", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -245,7 +245,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Asia/Hong_Kong", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -271,7 +271,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Africa/Luanda", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -284,7 +284,7 @@ static void test_iso_datetime_7()
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
     
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 7); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -303,7 +303,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Australia/Broken_Hill", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -316,7 +316,7 @@ static void test_iso_datetime_7()
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
     
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     CU_ASSERT_EQUAL(buf[0], 107); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 7); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -335,7 +335,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Pacific/Tongatapu", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 2); /* day */
@@ -352,7 +352,7 @@ static void test_iso_datetime_7()
     setenv("TZ", "Pacific/Pago_Pago", 1);
     tzset();
     
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     CU_ASSERT_EQUAL(buf[0], 76); /* year since 1900 */
     CU_ASSERT_EQUAL(buf[1], 3); /* month */
     CU_ASSERT_EQUAL(buf[2], 1); /* day */
@@ -366,149 +366,147 @@ static void test_iso_datetime_7()
     CU_ASSERT_EQUAL(tr, t1);
 
     /* --- and now test from several zones, just for write/read compatibilty */
-    /*
     setenv("TZ", "Pacific/Kiritimati", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 1); /* this needs GMT */
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
-    tr = iso_datetime_read_7(buf);
-    CU_ASSERT_EQUAL(tr, t2);
-    */
-    
-    setenv("TZ", "America/Argentina/La_Rioja", 1);
-    tzset();
-    iso_datetime_7(buf, t1);
-    tr = iso_datetime_read_7(buf);
-    CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "America/Argentina/La_Rioja", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t2);
+    
+    setenv("TZ", "America/Argentina/La_Rioja", 1);
+    tzset();
+    iso_datetime_7(buf, t1, 0);
+    tr = iso_datetime_read_7(buf);
+    CU_ASSERT_EQUAL(tr, t1);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "America/Caracas", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Asia/Bangkok", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Asia/Tehran", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Pacific/Pitcairn", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Antarctica/McMurdo", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "EET", 1); /* Eastern European Time */
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Europe/Moscow", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Asia/Novosibirsk", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Asia/Vladivostok", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Asia/Anadyr", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Atlantic/Canary", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "Indian/Mauritius", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
     
     setenv("TZ", "America/Los_Angeles", 1);
     tzset();
-    iso_datetime_7(buf, t1);
+    iso_datetime_7(buf, t1, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t1);
-    iso_datetime_7(buf, t2);
+    iso_datetime_7(buf, t2, 0);
     tr = iso_datetime_read_7(buf);
     CU_ASSERT_EQUAL(tr, t2);
 

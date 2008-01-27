@@ -695,7 +695,7 @@ void write_one_dir_record(Ecma119Image *t, Iso1999Node *node, int file_id,
     rec->len_dr[0] = len_dr;
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
-    iso_datetime_7(rec->recording_time, t->now);
+    iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
     rec->flags[0] = (node->type == ISO1999_DIR) ? 2 : 0;
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
@@ -768,9 +768,9 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
     strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    iso_datetime_17(vol.vol_creation_time, t->now);
-    iso_datetime_17(vol.vol_modification_time, t->now);
-    iso_datetime_17(vol.vol_effective_time, t->now);
+    iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
+    iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
+    iso_datetime_17(vol.vol_effective_time, t->now, t->always_gmt);
     vol.file_structure_version[0] = 1;
 
     free(vol_id);

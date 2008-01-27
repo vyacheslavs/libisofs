@@ -213,11 +213,20 @@ uint32_t iso_read_msb(const uint8_t *buf, int bytes);
  */
 uint32_t iso_read_bb(const uint8_t *buf, int bytes, int *error);
 
-/** Records the date/time into a 7 byte buffer (ECMA-119, 9.1.5) */
-void iso_datetime_7(uint8_t *buf, time_t t);
+/** 
+ * Records the date/time into a 7 byte buffer (ECMA-119, 9.1.5)
+ * 
+ * @param buf
+ *      Buffer where the date will be written
+ * @param t
+ *      The time to be written
+ * @param always_gmt
+ *      Always write the date in GMT and not in local time.
+ */
+void iso_datetime_7(uint8_t *buf, time_t t, int always_gmt);
 
 /** Records the date/time into a 17 byte buffer (ECMA-119, 8.4.26.1) */
-void iso_datetime_17(uint8_t *buf, time_t t);
+void iso_datetime_17(uint8_t *buf, time_t t, int always_gmt);
 
 time_t iso_datetime_read_7(const uint8_t *buf);
 time_t iso_datetime_read_17(const uint8_t *buf);

@@ -126,9 +126,12 @@ int rrip_add_TF(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     TF[4] = (1 << 1) | (1 << 2) | (1 << 3);
     
     iso = n->node;
-    iso_datetime_7(&TF[5], t->replace_timestamps ? t->timestamp : iso->mtime);
-    iso_datetime_7(&TF[12], t->replace_timestamps ? t->timestamp : iso->atime);
-    iso_datetime_7(&TF[19], t->replace_timestamps ? t->timestamp : iso->ctime);
+    iso_datetime_7(&TF[5], t->replace_timestamps ? t->timestamp : iso->mtime,
+                   t->always_gmt);
+    iso_datetime_7(&TF[12], t->replace_timestamps ? t->timestamp : iso->atime,
+                   t->always_gmt);
+    iso_datetime_7(&TF[19], t->replace_timestamps ? t->timestamp : iso->ctime,
+                   t->always_gmt);
     return susp_append(t, susp, TF);
 }
 

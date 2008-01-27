@@ -281,7 +281,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
-    iso_datetime_7(rec->recording_time, t->now);
+    iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
     rec->flags[0] = (node->type == ECMA119_DIR) ? 2 : 0;
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
@@ -352,9 +352,9 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
     strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    iso_datetime_17(vol.vol_creation_time, t->now);
-    iso_datetime_17(vol.vol_modification_time, t->now);
-    iso_datetime_17(vol.vol_effective_time, t->now);
+    iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
+    iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
+    iso_datetime_17(vol.vol_effective_time, t->now, t->always_gmt);
     vol.file_structure_version[0] = 1;
 
     free(vol_id);
@@ -823,6 +823,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
     target->iso1999 = opts->iso1999;
+    target->always_gmt = opts->always_gmt;
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers 
                                  | opts->max_37_char_filenames;
@@ -1237,6 +1238,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->replace_uid = 1;
         wopts->replace_gid = 1;
         wopts->replace_timestamps = 1;
+        wopts->always_gmt = 1;
         break;
     default:
         /* should never happen */
@@ -1459,6 +1461,15 @@ int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp)
         return ISO_NULL_POINTER;
     }
     opts->timestamp = timestamp;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->always_gmt = gmt ? 1 : 0;
     return ISO_SUCCESS;
 }
 

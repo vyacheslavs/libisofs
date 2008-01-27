@@ -766,6 +766,17 @@ int iso_write_opts_set_replace_timestamps(IsoWriteOpts *opts, int replace);
 int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp);
 
 /**
+ * Whether to always record timestamps in GMT.
+ * 
+ * By default, libisofs stores local time information on image. You can set 
+ * this to always store timestamps in GMT. This is useful if you want to hide
+ * your timezone, or you live in a timezone that can't be represented in
+ * ECMA-119. These are timezones whose offset from GMT is greater than +13 
+ * hours, lower than -12 hours, or not a multiple of 15 minutes. 
+ */
+int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt);
+
+/**
  * Set the charset to use for the RR names of the files that will be created 
  * on the image.
  * NULL to use default charset, that is the locale charset.

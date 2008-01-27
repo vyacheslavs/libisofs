@@ -30,6 +30,9 @@ struct iso_write_opts {
     unsigned int joliet :1;
     unsigned int iso1999 :1;
 
+    /* allways write timestamps in GMT */
+    unsigned int always_gmt :1;
+
     /* 
      * Relaxed constraints. Setting any of these to 1 break the specifications,
      * but it is supposed to work on most moderns systems. Use with caution. 
@@ -206,6 +209,9 @@ struct ecma119_image
     unsigned int joliet :1;
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
+
+    /* allways write timestamps in GMT */
+    unsigned int always_gmt :1;
 
     /* relaxed constraints */
     unsigned int omit_version_numbers :1;

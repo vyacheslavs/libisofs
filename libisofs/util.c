@@ -972,7 +972,7 @@ uint32_t iso_read_bb(const uint8_t *buf, int bytes, int *error)
     return v1;
 }
 
-void iso_datetime_7(unsigned char *buf, time_t t)
+void iso_datetime_7(unsigned char *buf, time_t t, int always_gmt)
 {
     static int tzsetup = 0;
     int tzoffset;
@@ -984,15 +984,9 @@ void iso_datetime_7(unsigned char *buf, time_t t)
     }
 
     memset(&tm, 0, sizeof(tm));
-    tm.tm_isdst = -1;
+    tm.tm_isdst = -1;  /* some Linuxes change tm_isdst only if it is -1 */
     localtime_r(&t, &tm);
 
-    buf[0] = tm.tm_year;
-    buf[1] = tm.tm_mon + 1;
-    buf[2] = tm.tm_mday;
-    buf[3] = tm.tm_hour;
-    buf[4] = tm.tm_min;
-    buf[5] = tm.tm_sec;
 #ifdef HAVE_TM_GMTOFF
     tzoffset = tm.tm_gmtoff / 60 / 15;
 #else
@@ -1000,12 +994,22 @@ void iso_datetime_7(unsigned char *buf, time_t t)
         tm.tm_isdst = 0;
     tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
 #endif
-    if (tzoffset > 52)
-        tzoffset -= 101;
+
+    if (tzoffset > 52 || tzoffset < -48 || always_gmt) {
+        /* absurd timezone offset, represent time in GMT */
+        gmtime_r(&t, &tm);
+        tzoffset = 0;
+    }
+    buf[0] = tm.tm_year;
+    buf[1] = tm.tm_mon + 1;
+    buf[2] = tm.tm_mday;
+    buf[3] = tm.tm_hour;
+    buf[4] = tm.tm_min;
+    buf[5] = tm.tm_sec;
     buf[6] = tzoffset;
 }
 
-void iso_datetime_17(unsigned char *buf, time_t t)
+void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
 {
     static int tzsetup = 0;
     static int tzoffset;
@@ -1015,30 +1019,43 @@ void iso_datetime_17(unsigned char *buf, time_t t)
         /* unspecified time */
         memset(buf, '0', 16);
         buf[16] = 0;
-    } else {
-        if (!tzsetup) {
-            tzset();
-            tzsetup = 1;
-        }
-
-        localtime_r(&t, &tm);
-
-        sprintf((char*)&buf[0], "%04d", tm.tm_year + 1900);
-        sprintf((char*)&buf[4], "%02d", tm.tm_mon + 1);
-        sprintf((char*)&buf[6], "%02d", tm.tm_mday);
-        sprintf((char*)&buf[8], "%02d", tm.tm_hour);
-        sprintf((char*)&buf[10], "%02d", tm.tm_min);
-        sprintf((char*)&buf[12], "%02d", MIN(59, tm.tm_sec));
-        memcpy(&buf[14], "00", 2);
-#ifdef HAVE_TM_GMTOFF
-        tzoffset = tm.tm_gmtoff / 60 / 15;
-#else
-        tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
-#endif
-        if (tzoffset > 52)
-            tzoffset -= 101;
-        buf[16] = tzoffset;
+        return;
     }
+    
+    if (!tzsetup) {
+        tzset();
+        tzsetup = 1;
+    }
+
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_isdst = -1;  /* some Linuxes change tm_isdst only if it is -1 */
+    localtime_r(&t, &tm);
+
+    localtime_r(&t, &tm);
+
+#ifdef HAVE_TM_GMTOFF
+    tzoffset = tm.tm_gmtoff / 60 / 15;
+#else
+    if (tm.tm_isdst < 0)
+        tm.tm_isdst = 0;
+    tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
+#endif
+
+    if (tzoffset > 52 || tzoffset < -48 || always_gmt) {
+        /* absurd timezone offset, represent time in GMT */
+        gmtime_r(&t, &tm);
+        tzoffset = 0;
+    }
+
+    sprintf((char*)&buf[0], "%04d", tm.tm_year + 1900);
+    sprintf((char*)&buf[4], "%02d", tm.tm_mon + 1);
+    sprintf((char*)&buf[6], "%02d", tm.tm_mday);
+    sprintf((char*)&buf[8], "%02d", tm.tm_hour);
+    sprintf((char*)&buf[10], "%02d", tm.tm_min);
+    sprintf((char*)&buf[12], "%02d", MIN(59, tm.tm_sec));
+    memcpy(&buf[14], "00", 2);
+    buf[16] = tzoffset;
+
 }
 
 time_t iso_datetime_read_7(const uint8_t *buf)
