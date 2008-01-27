@@ -251,16 +251,16 @@ int iso_set_msgs_severities(char *queue_severity, char *print_severity,
  * will discard the whole queue.
  * 
  * @param error_code Will become a unique error code as listed in messages.h
+ * @param imgid      Id of the image that was issued the message.
  * @param msg_text   Must provide at least ISO_MSGS_MESSAGE_LEN bytes.
- * @param os_errno   Will become the eventual errno related to the message
  * @param severity   Will become the severity related to the message and
  *                   should provide at least 80 bytes.
  * @return 1 if a matching item was found, 0 if not, <0 for severe errors
  */
 int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
-                    char msg_text[], int *os_errno, char severity[])
+                    char msg_text[], char severity[])
 {
-    int ret, minimum_sevno, sevno, priority;
+    int ret, minimum_sevno, sevno, priority, os_errno;
     double timestamp;
     pid_t pid;
     char *textpt, *sev_name;
@@ -273,13 +273,12 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
                              LIBISO_MSGS_PRIO_ZERO, 0);
     if (ret <= 0)
         goto ex;
-    ret = libiso_msgs_item_get_msg(item, error_code, &textpt, os_errno, 0);
+    ret = libiso_msgs_item_get_msg(item, error_code, &textpt, &os_errno, 0);
     if (ret <= 0)
         goto ex;
     strncpy(msg_text, textpt, ISO_MSGS_MESSAGE_LEN-1);
     if (strlen(textpt) >= ISO_MSGS_MESSAGE_LEN)
         msg_text[ISO_MSGS_MESSAGE_LEN-1] = 0;
-
 
     ret = libiso_msgs_item_get_origin(item, &timestamp, &pid, imgid, 0);
     if (ret <= 0)
