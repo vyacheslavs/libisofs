@@ -1058,6 +1058,26 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
 
 }
 
+#ifndef HAVE_TIMEGM
+static
+time_t timegm(struct tm *tm)
+{
+    time_t ret;
+    char *tz;
+
+    tz = getenv("TZ");
+    setenv("TZ", "", 1);
+    tzset();
+    ret = mktime(tm);
+    if (tz)
+        setenv("TZ", tz, 1);
+    else
+        unsetenv("TZ");
+    tzset();
+    return ret;
+}
+#endif
+
 time_t iso_datetime_read_7(const uint8_t *buf)
 {
     struct tm tm;

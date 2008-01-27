@@ -98,6 +98,11 @@ AC_CHECK_MEMBER([struct tm.tm_gmtoff],
 	,
 	[#include <time.h>])
 
+AC_CHECK_DECL([timegm], 
+	[AC_DEFINE(HAVE_TIMEGM, 1, [Define this if timegm function is available])],
+	,
+	[#include <time.h>])
+
 THREAD_LIBS=-lpthread
 AC_SUBST(THREAD_LIBS)
 
