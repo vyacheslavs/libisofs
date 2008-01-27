@@ -13,6 +13,10 @@
 
 struct burn_source;
 
+/**
+ * Context for image creation. It holds the files that will be added to image,
+ * and several options to control libisofs behavior.
+ */
 typedef struct Iso_Image IsoImage;
 
 typedef struct Iso_Node IsoNode;
@@ -74,7 +78,8 @@ enum eltorito_boot_media_type {
 
 /**
  * Replace mode used when addding a node to a file.
- * TODO comment
+ * This controls how libisofs will act when you tried to add to a dir a file
+ * with the same name that an existing file.
  */
 enum iso_replace_mode {
     /**
@@ -1797,10 +1802,14 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
 /**
  * Add the contents of a dir to a given directory of the iso tree.
  * 
+ * There are several options to control what files are added or how they are
+ * managed. Take a look at iso_tree_set_* functions to see diferent options
+ * for recursive directory addition.
+ * 
  * TODO comment Builder and Filesystem related issues when exposing both
  * 
  * @param image
- *      TODO expose dir rec options and explain that here
+ *      The image to which the directory belong.
  * @param parent
  *      Directory on the image tree where to add the contents of the dir
  * @param dir

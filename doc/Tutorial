@@ -14,7 +14,8 @@ Contents:
 
 1. Introduction
    1.1 Library initialization
-   1.2 Error reporting
+   1.2 Image context
+   1.3 Error reporting
 2. Creating an image
    2.1 Image context
    2.2 Image tree manipulation
@@ -26,10 +27,72 @@ Contents:
 
 -------------------------------------------------------------------------------
 1. Introduction
+-------------------------------------------------------------------------------
 
 
-1.1. Library initialization  --------------------------------------------------
+-------------------------------------------------------------------------------
+1.1. Library initialization
 
+Before any usage of the library, you have to call
 
+	iso_init()
+
+in the same way, when you have finished using the library, you should call
+
+	iso_finish()
+
+to free all resources reserved by the library.
+
+-------------------------------------------------------------------------------
+1.2. Image context
+
+Libisofs is image-oriented, the core of libisofs usage is the IsoImage object.
+Thus, the first you need to do is to get your own IsoImage object:
+
+	IsoImage *my_image;
+	iso_image_new("NEW DISC", &my_image);
+
+An IsoImage is a context for image creation. It holds the files than will be 
+added to image, other related information and several options to customize
+the behavior of libisofs when working with such Image. i.e., an IsoImage is
+a context for libisofs operations. As such, you can work with several image
+contexts at a time. 
+
+-------------------------------------------------------------------------------
+1.3. Error reporting
+
+In libisofs error reporting is done in two ways: with the return value of
+the functions and with the message queue. 
+
+Error codes are negative numbers, defined in private header "error.h". An
+error code is associated with a given severity, either "DEBUG", "UPDATE",
+"NOTE", "HINT", "WARNING", "SORRY", "FAILURE" and "FATAL". For the meaning
+of each severity take a look at private header "libiso_msgs.h". Errors 
+reported by function return value are always "FAILURE" or "FATAL". Other kind
+of errors are only reported with the message queue.
+
+First of all, most libisofs functions return an integer. If such integer is 
+a negative number, it means the function has returned an error. The error code
+and its severity is encoded in the return value (take a look at error.h private
+header).
+
+Additionally, libisofs reports most of its errors in a message queue. Error
+messages on that queue can be printed directly to stderr or programmatically
+retrieved. First of all, you should set the severity threshold over which an
+error is printed or enqueued, with function:
+
+	iso_set_msgs_severities()
+
+Errors enqueued can be retrieved with function:
+
+	iso_obtain_msgs()
+	
+Together with the code error, a text message and its severity, this function
+also returns the image id. This is an identifier that uniquely identifies a
+given image context. You can get the identifier of each IsoImage with the
+
+	iso_image_get_msg_id()
+
+and that way distinguish what image has issued the message.
 
 
