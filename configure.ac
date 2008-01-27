@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [0.5.0], [http://libburnia-project.org])
+AC_INIT([libisofs], [0.6.0], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -13,35 +13,51 @@ dnl        one must include some config.h and this was a pitfall.
 dnl        So why dig the pit at all ?
 dnl AM_CONFIG_HEADER(config.h)
 
-dnl Making releases:
-dnl   LIBISOFS_MICRO_VERSION += 1;
-dnl   LIBISOFS_INTERFACE_AGE += 1;
-dnl   LIBISOFS_BINARY_AGE += 1;
-dnl if any functions have been added, set LIBISOFS_INTERFACE_AGE to 0.
-dnl if backwards compatibility has been broken,
-dnl set LIBISOFS_BINARY_AGE and LIBISOFS_INTERFACE_AGE to 0.
 dnl
 dnl if MAJOR or MINOR version changes, be sure to change AC_INIT above to match
 dnl
+dnl CURRENT and AGE describe the binary compatibility interval of a
+dnl dynamic library.
+dnl See also http://www.gnu.org/software/libtool/manual.html#Interfaces
+dnl
+dnl The name of the library will be libisofs.so.$CURRENT-$AGE.$AGE.$REV
+dnl In the terminology of this file:
+dnl   CURRENT = LT_CURRENT
+dnl   REV     = LT_REVISION
+dnl   AGE     = LT_AGE
+dnl
+dnl LT_CURRENT, LT_REVISION and LT_AGE get set directly now.
+dnl
+dnl SONAME of the emerging library is  LT_CURRENT - LT_AGE.
+dnl The linker will do no finer checks. Especially no age range check for
+dnl the cdrskin binary. If SONAME matches, then the couple starts.
+dnl 
+dnl Therefore a run time check is provided by libisofs function 
+dnl iso_lib_version(). It returns the major, minor and micro revision of the 
+dnl library. This means LIBISOFS_*_VERSION kept its second job which does not  
+dnl comply to the usual ways of configure.ac . I.e. now *officially* this is 
+dnl the source code release version as announced to the public. It has no 
+dnl conection to SONAME or libtool version numbering.
+dnl It rather feeds the API function iso_lib_version().
+dnl
+dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
+dnl
 LIBISOFS_MAJOR_VERSION=0
-LIBISOFS_MINOR_VERSION=5
+LIBISOFS_MINOR_VERSION=6
 LIBISOFS_MICRO_VERSION=0
-LIBISOFS_INTERFACE_AGE=0
-LIBISOFS_BINARY_AGE=0
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
 AC_SUBST(LIBISOFS_MINOR_VERSION)
 AC_SUBST(LIBISOFS_MICRO_VERSION)
-AC_SUBST(LIBISOFS_INTERFACE_AGE)
-AC_SUBST(LIBISOFS_BINARY_AGE)
 AC_SUBST(LIBISOFS_VERSION)
 
 dnl Libtool versioning
 LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
-LT_CURRENT=`expr $LIBISOFS_MICRO_VERSION - $LIBISOFS_INTERFACE_AGE`
-LT_REVISION=$LIBISOFS_INTERFACE_AGE
-LT_AGE=`expr $LIBISOFS_BINARY_AGE - $LIBISOFS_INTERFACE_AGE`
+# SONAME = 6 - 0 = 6 . Library name = libisofs.6.0.0
+LT_CURRENT=6
+LT_REVISION=0
+LT_AGE=0
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
 AC_SUBST(LT_RELEASE)
