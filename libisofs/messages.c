@@ -257,10 +257,12 @@ int iso_set_msgs_severities(char *queue_severity, char *print_severity,
  *                   should provide at least 80 bytes.
  * @return 1 if a matching item was found, 0 if not, <0 for severe errors
  */
-int iso_obtain_msgs(char *minimum_severity, int *error_code, 
+int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
                     char msg_text[], int *os_errno, char severity[])
 {
     int ret, minimum_sevno, sevno, priority;
+    double timestamp;
+    pid_t pid;
     char *textpt, *sev_name;
     struct libiso_msgs_item *item= NULL;
 
@@ -278,6 +280,11 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code,
     if (strlen(textpt) >= ISO_MSGS_MESSAGE_LEN)
         msg_text[ISO_MSGS_MESSAGE_LEN-1] = 0;
 
+
+    ret = libiso_msgs_item_get_origin(item, &timestamp, &pid, imgid, 0);
+    if (ret <= 0)
+        goto ex;
+    
     severity[0]= 0;
     ret = libiso_msgs_item_get_rank(item, &sevno, &priority, 0);
     if (ret <= 0)
