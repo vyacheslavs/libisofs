@@ -997,6 +997,28 @@ void iso_image_ref(IsoImage *image);
 void iso_image_unref(IsoImage *image);
 
 /**
+ * Attach user defined data to the image. Use this if your application needs
+ * to store addition info together with the IsoImage. If the image already
+ * has data attached, the old data will be freed.
+ * 
+ * @param data
+ *      Pointer to application defined data that will be attached to the
+ *      image. You can pass NULL to remove any already attached data.
+ * @param free
+ *      Function that will be called when the image does not need the data
+ *      any more. It receives the data pointer as an argumente, and eventually
+ *      causes data to be free.
+ * @return
+ *      1 on succes, < 0 on error
+ */
+int iso_image_attach_data(IsoImage *image, void *data, void (*free)(void*));
+
+/**
+ * The the data previously attached with iso_image_attach_data()
+ */
+void *iso_image_get_attached_data(IsoImage *image);
+
+/**
  * Get the root directory of the image.
  * No extra ref is added to it, so you musn't unref it. Use iso_node_ref()
  * if you want to get your own reference.

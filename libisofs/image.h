@@ -101,6 +101,12 @@ struct Iso_Image
      *      1 add, 0 ignore, < 0 cancel
      */
     int (*report)(IsoImage *image, IsoFileSource *src);
+
+    /**
+     * User supplied data
+     */
+    void *user_data;
+    void (*user_data_free)(void *ptr);
 };
 
 #endif /*LIBISO_IMAGE_H_*/
