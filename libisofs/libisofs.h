@@ -1768,7 +1768,7 @@ int iso_tree_get_ignore_special(IsoImage *image);
  *      NULL is allowed if you don't want any callback.
  */
 void iso_tree_set_report_callback(IsoImage *image, 
-                                 int (*report)(IsoFileSource *src));
+                                  int (*report)(IsoImage*, IsoFileSource*));
 
 /**
  * Add a new node to the image tree, from an existing file. 

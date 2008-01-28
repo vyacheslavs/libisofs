@@ -345,7 +345,7 @@ int iso_tree_get_ignore_special(IsoImage *image)
  *      NULL is allowed if you don't want any callback.
  */
 void iso_tree_set_report_callback(IsoImage *image, 
-                                 int (*report)(IsoFileSource *src))
+                                  int (*report)(IsoImage*, IsoFileSource*))
 {
     image->report = report;
 }
@@ -544,7 +544,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         
         /* if we are here we must insert. Give user a chance for cancel */
         if (image->report) {
-            int r = image->report(file);
+            int r = image->report(image, file);
             if (r <= 0) {
                 ret = (r < 0 ? ISO_CANCELED : ISO_SUCCESS);
                 goto dir_rec_continue;

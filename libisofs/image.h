@@ -100,7 +100,7 @@ struct Iso_Image
      * @return
      *      1 add, 0 ignore, < 0 cancel
      */
-    int (*report)(IsoFileSource *src);
+    int (*report)(IsoImage *image, IsoFileSource *src);
 };
 
 #endif /*LIBISO_IMAGE_H_*/
