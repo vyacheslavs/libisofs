@@ -12,7 +12,6 @@ libisofs_libisofs_la_LDFLAGS = \
 libisofs_libisofs_la_SOURCES = \
 	libisofs/builder.h \
 	libisofs/builder.c \
-	libisofs/error.h \
 	libisofs/node.h \
 	libisofs/node.c \
 	libisofs/tree.h \
@@ -52,7 +51,8 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/iso1999.c \
 	libisofs/data_source.c
 libinclude_HEADERS = \
-	libisofs/libisofs.h
+	libisofs/libisofs.h \
+	libisofs/error.h
 
 ## ========================================================================= ##
 

@@ -10,7 +10,6 @@
 
 /*
  * Error codes and return values for libisofs.
- * TODO #00003 make this header public
  */
 
 /* 

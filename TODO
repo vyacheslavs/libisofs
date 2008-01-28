@@ -7,7 +7,7 @@ TODO
 
 #00001 (node.h) -> consider adding new timestamps to IsoTreeNode
 OK #00002 (node.h) -> handle deletion of each kind of node 
-#00003 make error.h header public
+OK #00003 make error.h header public
 #00004 (libisofs.h) -> Add a get_mime_type() function.
 #00005 (node.c) -> optimize iso_dir_iter_take. 
 #00006 (libisofs.h) -> define more replace values when adding a node to a dir
