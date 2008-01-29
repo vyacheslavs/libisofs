@@ -558,6 +558,14 @@ int iso_image_new(const char *name, IsoImage **image);
 void iso_lib_version(int *major, int *minor, int *micro);
 
 /**
+ * Check if the library is ABI compatible with the given version.
+ * 
+ * @return 
+ *      1 lib is compatible, 0 is not.
+ */
+int iso_lib_is_compatible(int major, int minor, int micro);
+
+/**
  * Creates an IsoWriteOpts for writing an image. You should set the options
  * desired with the correspondent setters.
  * 
