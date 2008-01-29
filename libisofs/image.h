@@ -81,6 +81,7 @@ struct Iso_Image
      * TODO add wildcard support
      */
     char** excludes;
+    int nexcludes;
 
     /**
      * if the dir already contains a node with the same name, whether to

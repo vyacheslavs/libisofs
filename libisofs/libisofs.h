@@ -1785,6 +1785,31 @@ void iso_tree_set_ignore_special(IsoImage *image, int skip);
 int iso_tree_get_ignore_special(IsoImage *image);
 
 /**
+ * Add a excluded path. These are paths that won't never added to image,
+ * and will be excluded even when adding recursively its parent directory.
+ * 
+ * For example, in
+ * 
+ * iso_tree_add_exclude(image, "/home/user/data/private");
+ * iso_tree_add_dir_rec(image, root, "/home/user/data");
+ * 
+ * the directory /home/user/data/private won't be added to image.
+ * 
+ * @return
+ *      1 on success, < 0 on error
+ */
+int iso_tree_add_exclude(IsoImage *image, const char *path);
+
+/**
+ * Remove a previously added exclude.
+ * 
+ * @see iso_tree_add_exclude
+ * @return
+ *      1 on success, 0 exclude do not exists, < 0 on error
+ */
+int iso_tree_remove_exclude(IsoImage *image, const char *path);
+
+/**
  * Set a callback function that libisofs will call for each file that is
  * added to the given image by a recursive addition function. This includes
  * image import.

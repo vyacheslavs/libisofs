@@ -350,6 +350,68 @@ void iso_tree_set_report_callback(IsoImage *image,
     image->report = report;
 }
 
+/**
+ * Add a excluded path. These are paths that won't never added to image,
+ * and will be excluded even when adding recursively its parent directory.
+ * 
+ * For example, in
+ * 
+ * iso_tree_add_exclude(image, "/home/user/data/private");
+ * iso_tree_add_dir_rec(image, root, "/home/user/data");
+ * 
+ * the directory /home/user/data/private won't be added to image.
+ * 
+ * @return
+ *      1 on success, < 0 on error
+ */
+int iso_tree_add_exclude(IsoImage *image, const char *path)
+{
+    if (image == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    image->excludes = realloc(image->excludes, ++image->nexcludes * 
+                              sizeof(void*));
+    if (image->excludes == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    image->excludes[image->nexcludes - 1] = strdup(path);
+    if (image->excludes[image->nexcludes - 1] == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    return ISO_SUCCESS;
+}
+
+/**
+ * Remove a previously added exclude.
+ * 
+ * @see iso_tree_add_exclude
+ * @return
+ *      1 on success, 0 exclude do not exists, < 0 on error
+ */
+int iso_tree_remove_exclude(IsoImage *image, const char *path)
+{
+    size_t i, j;
+
+    if (image == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    for (i = 0; i < image->nexcludes; ++i) {
+        if (strcmp(image->excludes[i], path) == 0) {
+            /* exclude found */
+            free(image->excludes[i]);
+            --image->nexcludes;
+            for (j = i; j < image->nexcludes; ++j) {
+                image->excludes[j] = image->excludes[j+1]; 
+            }
+            image->excludes = realloc(image->excludes, image->nexcludes * 
+                                      sizeof(void*));
+            return ISO_SUCCESS;
+        }
+    }
+    return 0;
+}
+
 static
 int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
                               IsoFileSource *src, IsoNodeBuilder *builder,
@@ -416,16 +478,11 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
 static
 int check_excludes(IsoImage *image, const char *path)
 {
-    char **exclude;
-    if (image->excludes == NULL) {
-        return 0;
-    }
-    exclude = image->excludes;
-    while (*exclude) {
-        if (strcmp(*exclude, path) == 0) {
+    int i;
+    for (i = 0; i < image->nexcludes; ++i) {
+        if (strcmp(image->excludes[i], path) == 0) {
             return 1;
         }
-        ++exclude;
     }
     return 0;
 }
