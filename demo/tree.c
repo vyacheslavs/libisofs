@@ -49,20 +49,20 @@ print_dir(IsoDir *dir, int level)
 	iso_dir_get_children(dir, &iter);
 	while (iso_dir_iter_next(iter, &node) == 1) {
 		
-		if (iso_node_get_type(node) == LIBISO_DIR) {
+		if (ISO_NODE_IS_DIR(node)) {
 			printf("%s+[D] ", sp);
 			print_permissions(iso_node_get_permissions(node));
 			printf(" %s\n", iso_node_get_name(node));
-			print_dir((IsoDir*)node, level+1);
-		} else if (iso_node_get_type(node) == LIBISO_FILE) {
+			print_dir(ISO_DIR(node), level+1);
+		} else if (ISO_NODE_IS_FILE(node)) {
 			printf("%s-[F] ", sp);
 			print_permissions(iso_node_get_permissions(node));
 			printf(" %s\n", iso_node_get_name(node) );
-		} else if (iso_node_get_type(node) == LIBISO_SYMLINK) {
+		} else if (ISO_NODE_IS_SYMLINK(node)) {
 			printf("%s-[L] ", sp);
 			print_permissions(iso_node_get_permissions(node));
 			printf(" %s -> %s \n", iso_node_get_name(node),
-			       iso_symlink_get_dest((IsoSymlink*)node) );
+			       iso_symlink_get_dest(ISO_SYMLINK(node)) );
 		} else {
 			printf("%s-[C] ", sp);
 			print_permissions(iso_node_get_permissions(node));

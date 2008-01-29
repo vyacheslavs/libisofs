@@ -25,6 +25,21 @@ typedef struct Iso_Symlink IsoSymlink;
 typedef struct Iso_File IsoFile;
 typedef struct Iso_Special IsoSpecial;
 
+/* macros to check node type */
+#define ISO_NODE_IS_DIR(n) (iso_node_get_type(n) == LIBISO_DIR)
+#define ISO_NODE_IS_FILE(n) (iso_node_get_type(n) == LIBISO_FILE)
+#define ISO_NODE_IS_SYMLINK(n) (iso_node_get_type(n) == LIBISO_SYMLINK)
+#define ISO_NODE_IS_SPECIAL(n) (iso_node_get_type(n) == LIBISO_SPECIAL)
+#define ISO_NODE_IS_BOOTCAT(n) (iso_node_get_type(n) == LIBISO_BOOT)
+
+/* macros for safe downcasting */
+#define ISO_DIR(n) ((IsoDir*)(ISO_NODE_IS_DIR(n) ? n : NULL))
+#define ISO_FILE(n) ((IsoFile*)(ISO_NODE_IS_FILE(n) ? n : NULL))
+#define ISO_SYMLINK(n) ((IsoSymlink*)(ISO_NODE_IS_SYMLINK(n) ? n : NULL))
+#define ISO_SPECIAL(n) ((IsoSpecial*)(ISO_NODE_IS_SPECIAL(n) ? n : NULL))
+
+#define ISO_NODE(n) ((IsoNode*)n)
+
 typedef struct Iso_Dir_Iter IsoDirIter;
 
 typedef struct el_torito_boot_image ElToritoBootImage;
