@@ -1425,6 +1425,8 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child,
 /**
  * Locate a node inside a given dir.
  * 
+ * @param dir
+ *     The dir where to look for the node.
  * @param name
  *     The name of the node
  * @param node
@@ -2123,6 +2125,13 @@ int iso_file_source_close(IsoFileSource *src);
  * more needed. Not valid for dirs. On symlinks it reads the destination
  * file.
  * 
+ * @param src
+ *     The given source
+ * @param buf
+ *     Pointer to a buffer of at least count bytes where the read data will be
+ *     stored
+ * @param count
+ *     Bytes to read
  * @return 
  *     number of bytes read, 0 if EOF, < 0 on error
  *      Error codes:
@@ -2164,12 +2173,14 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  * Read the destination of a symlink. You don't need to open the file
  * to call this.
  * 
+ * @param src
+ *     An IsoFileSource corresponding to a symbolic link.
  * @param buf 
  *     allocated buffer of at least bufsiz bytes. 
  *     The dest. will be copied there, and it will be NULL-terminated
  * @param bufsiz
  *     characters to be copied. Destination link will be truncated if
- *     it is larger than given size. This include the \0 character.
+ *     it is larger than given size. This include the '\0' character.
  * @return 
  *     1 on success, < 0 on error
  *      Error codes:
