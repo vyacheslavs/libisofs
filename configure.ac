@@ -142,6 +142,7 @@ fi
 
 AC_CONFIG_FILES([
 	Makefile
+	doc/doxygen.conf
 	version.h
 	libisofs-5.pc
 	])

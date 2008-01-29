@@ -138,7 +138,21 @@ test_test_SOURCES = \
 ## ========================================================================= ##
 
 ## Build documentation (You need Doxygen for this to work)
-## TODO!!
+
+docdir = $(DESTDIR)$(prefix)/share/doc/$(PACKAGE)-$(VERSION)
+
+doc:	doc/html
+
+doc/html: doc/doxygen.conf
+	$(RM) -r doc/html; \
+	doxygen doc/doxygen.conf;
+
+install-data-local: 
+	$(mkinstalldirs) $(docdir)/html; \
+	$(INSTALL_DATA) doc/html/* $(docdir)/html;
+
+uninstall-local:
+	rm -rf $(docdir)
 
 ## ========================================================================= ##
 
@@ -149,6 +163,8 @@ nodist_pkgconfig_DATA = \
 EXTRA_DIST = \
 	libisofs-5.pc.in \
 	version.h.in \
+	doc/doxygen.conf.in \
+	doc/Tutorial \
 	README \
 	AUTHORS \
 	COPYRIGHT \
@@ -156,5 +172,6 @@ EXTRA_DIST = \
     NEWS \
     INSTALL \
     TODO \
-    ChangeLog
+    ChangeLog \
+    Roadmap
 
