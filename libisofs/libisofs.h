@@ -808,6 +808,8 @@ int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt);
  * Set the charset to use for the RR names of the files that will be created 
  * on the image.
  * NULL to use default charset, that is the locale charset.
+ * You can obtain the list of charsets supported on your system executing 
+ * "iconv -l" in a shell.
  */
 int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
 
@@ -985,7 +987,12 @@ int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
 /**
  * Set the input charset of the file names on the image. NULL to use locale
  * charset. You have to specify a charset if the image filenames are encoded
- * in a charset different that the local one.
+ * in a charset different that the local one. This could happen, for example,
+ * if the image was created on a system with different charset.
+ * 
+ * @param charset
+ *      The charset to use as input charset.  You can obtain the list of
+ *      charsets supported on your system executing "iconv -l" in a shell.
  */
 int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
 
