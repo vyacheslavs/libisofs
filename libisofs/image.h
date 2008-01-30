@@ -77,8 +77,7 @@ struct Iso_Image
     int ignore_special;
 
     /**
-     * Files to exclude
-     * TODO add wildcard support
+     * Files to exclude. Wildcard support is included.
      */
     char** excludes;
     int nexcludes;

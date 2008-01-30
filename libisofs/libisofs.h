@@ -1820,10 +1820,44 @@ int iso_tree_get_ignore_special(IsoImage *image);
  * 
  * For example, in
  * 
- * iso_tree_add_exclude(image, "/home/user/data/private");
- * iso_tree_add_dir_rec(image, root, "/home/user/data");
+ *   iso_tree_add_exclude(image, "/home/user/data/private");
+ *   iso_tree_add_dir_rec(image, root, "/home/user/data");
  * 
- * the directory /home/user/data/private won't be added to image.
+ * the directory /home/user/data/private won't be added to image. 
+ * 
+ * However, if you explicity add a deeper dir, it won't be excluded. i.e.,
+ * in the following example.
+ * 
+ *   iso_tree_add_exclude(image, "/home/user/data");
+ *   iso_tree_add_dir_rec(image, root, "/home/user/data/private");
+ * 
+ * the directory /home/user/data/private is added. On the other, side, and
+ * foollowing the the example above,
+ * 
+ *   iso_tree_add_dir_rec(image, root, "/home/user");
+ * 
+ * will exclude the directory "/home/user/data".
+ * 
+ * Absolute paths are not mandatory, you can, for example, add a relative
+ * path such as:
+ * 
+ *   iso_tree_add_exclude(image, "private");
+ *   iso_tree_add_exclude(image, "user/data");
+ * 
+ * to excluve, respectively, all files or dirs named private, and also all
+ * files or dirs named data that belong to a folder named "user". Not that the
+ * above rule about deeper dirs is still valid. i.e., if you call
+ * 
+ *   iso_tree_add_dir_rec(image, root, "/home/user/data/music");
+ * 
+ * it is included even containing "user/data" string. However, a possible
+ * "/home/user/data/music/user/data" is not added.
+ * 
+ * Usual wildcards, such as * or ? are also supported, with the usual meaning
+ * as stated in "man 7 glob". For example
+ * 
+ * // to exclude backup text files
+ * iso_tree_add_exclude(image, "*.~");
  * 
  * @return
  *      1 on success, < 0 on error

@@ -24,6 +24,7 @@
 #include <time.h>
 #include <limits.h>
 #include <stdio.h>
+#include <fnmatch.h>
 
 /**
  * Add a new directory to the iso tree.
@@ -479,9 +480,24 @@ static
 int check_excludes(IsoImage *image, const char *path)
 {
     int i;
+
     for (i = 0; i < image->nexcludes; ++i) {
-        if (strcmp(image->excludes[i], path) == 0) {
-            return 1;
+        char *exclude = image->excludes[i];
+        if (exclude[0] == '/') {
+            /* absolute exclude, must completely match path */
+            if (!fnmatch(exclude, path, FNM_PERIOD|FNM_FILE_NAME)) {
+                return 1;
+            }
+        } else {
+            /* relative exclude, it is enought if a part of the path matches */
+            char *pos = (char*)path;
+            while (pos != NULL) {
+                pos++;
+                if (!fnmatch(exclude, pos, FNM_PERIOD|FNM_FILE_NAME)) {
+                    return 1;
+                }
+                pos = strchr(pos, '/');
+            }
         }
     }
     return 0;
