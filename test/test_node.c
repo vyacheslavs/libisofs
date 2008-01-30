@@ -5,7 +5,6 @@
 #include "libisofs.h"
 #include "node.h"
 #include "test.h"
-#include "error.h"
 
 #include <stdlib.h>
 

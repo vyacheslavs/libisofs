@@ -8,7 +8,6 @@
 
 #include "libisofs.h"
 #include "image.h"
-#include "error.h"
 #include "node.h"
 #include "messages.h"
 #include "eltorito.h"

@@ -12,7 +12,6 @@
  */
 
 #include "libisofs.h"
-#include "error.h"
 #include "ecma119.h"
 #include "messages.h"
 #include "rockridge.h"

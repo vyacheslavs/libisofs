@@ -8,7 +8,7 @@
  */
 
 #include "util.h"
-#include "error.h"
+#include "libisofs.h"
 #include "../version.h"
 
 #include <stdlib.h>

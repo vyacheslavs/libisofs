@@ -51,8 +51,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/iso1999.c \
 	libisofs/data_source.c
 libinclude_HEADERS = \
-	libisofs/libisofs.h \
-	libisofs/error.h
+	libisofs/libisofs.h
 
 ## ========================================================================= ##
 

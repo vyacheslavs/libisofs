@@ -10,7 +10,6 @@
 #include "joliet.h"
 #include "messages.h"
 #include "writer.h"
-#include "error.h"
 #include "image.h"
 #include "filesrc.h"
 #include "eltorito.h"

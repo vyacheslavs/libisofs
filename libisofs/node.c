@@ -8,7 +8,6 @@
 
 #include "libisofs.h"
 #include "node.h"
-#include "error.h"
 #include "stream.h"
 
 #include <stdlib.h>

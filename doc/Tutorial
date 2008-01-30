@@ -65,7 +65,7 @@ contexts at a time.
 In libisofs error reporting is done in two ways: with the return value of
 the functions and with the message queue. 
 
-Error codes are negative numbers, defined in "libisofs/error.h" header. An
+Error codes are negative numbers, defined in "libisofs.h" header. An
 error code is associated with a given severity, either "DEBUG", "UPDATE",
 "NOTE", "HINT", "WARNING", "SORRY", "FAILURE" and "FATAL". For the meaning
 of each severity take a look at private header "libiso_msgs.h". Errors 
@@ -76,8 +76,8 @@ translate error severity to string]
 
 First of all, most libisofs functions return an integer. If such integer is 
 a negative number, it means the function has returned an error. The error code
-and its severity is encoded in the return value (take a look at 
-libisofs/error.h header).
+and its severity is encoded in the return value (take a look at error codes in 
+libisofs.h header).
 
 Additionally, libisofs reports most of its errors in a message queue. Error
 messages on that queue can be printed directly to stderr or programmatically

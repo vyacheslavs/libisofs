@@ -17,7 +17,6 @@
  */
 
 #include "buffer.h"
-#include "error.h"
 #include "libburn/libburn.h"
 #include "ecma119.h"
 

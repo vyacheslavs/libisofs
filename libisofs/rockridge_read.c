@@ -15,7 +15,6 @@
 #include "ecma119.h"
 #include "util.h"
 #include "rockridge.h"
-#include "error.h"
 #include "messages.h"
 
 #include <sys/stat.h>

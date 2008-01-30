@@ -12,7 +12,6 @@
 
 #include "libisofs.h"
 #include "node.h"
-#include "error.h"
 #include "image.h"
 #include "fsource.h"
 #include "builder.h"

@@ -5,7 +5,7 @@
  
 #include "fsource.h"
 #include "mocked_fsrc.h"
-#include "error.h"
+#include "libisofs.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
