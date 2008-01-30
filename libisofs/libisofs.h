@@ -973,8 +973,14 @@ int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid);
 
 /**
  * Set default permissions for files when RR extensions are not present.
+ * 
+ * @param file_perm
+ *      Permissions for files.
+ * @param dir_perm
+ *      Permissions for directories.
  */
-int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t perm);
+int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
+                                          mode_t dir_perm);
 
 /**
  * Set the input charset of the file names on the image. NULL to use locale

@@ -27,7 +27,7 @@ OK #00003 make error.h header public
 #00020 (fs_image.c) -> handle RR info in Joliet tree
 #00021 (fs_image.c) -> handle RR info in ISO 9660:1999 tree
 #00022 (joliet.c) -> support relaxed constraints in joliet filenames
-#00023 (libisofs.h) -> let different default file and dir mode for iso reading
+OK #00023 (libisofs.h) -> let different default file and dir mode for iso reading
 #00024 (libisofs.h) -> option to convert names to lower case for iso reading
 #00025 (libisofs.h) -> support for merging old image files
 #00026 (libisofs.h) -> add support for "hidden" bootable images.

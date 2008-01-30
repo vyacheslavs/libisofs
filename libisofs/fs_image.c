@@ -67,8 +67,8 @@ struct iso_read_opts
     
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
-    mode_t mode; /**< Default mode when no RR (only permissions) */
-    /* TODO #00023 : let different default file and dir mode for iso reading */
+    mode_t dir_mode; /**< Default mode when no RR (only permissions) */
+    mode_t file_mode;
     /* TODO #00024 : option to convert names to lower case for iso reading */
     
     /**
@@ -115,7 +115,8 @@ typedef struct
 
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
-    mode_t mode; /**< Default mode when no RR (only permissions) */
+    mode_t dir_mode; /**< Default mode when no RR (only permissions) */
+    mode_t file_mode;
 
     int msgid;
 
@@ -1064,13 +1065,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         
     } else {
         /* RR extensions are not read / used */
-        atts.st_mode = fsdata->mode;
         atts.st_gid = fsdata->gid;
         atts.st_uid = fsdata->uid;
-        if (record->flags[0] & 0x02) 
-            atts.st_mode |= S_IFDIR;
-        else
-            atts.st_mode |= S_IFREG;
+        if (record->flags[0] & 0x02) {
+            atts.st_mode = S_IFDIR | fsdata->dir_mode;
+        } else {
+            atts.st_mode = S_IFREG | fsdata->file_mode;
+        }
     }
     
     /* 
@@ -1723,7 +1724,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     /* fill data from opts */
     data->gid = opts->gid;
     data->uid = opts->uid;
-    data->mode = opts->mode & ~S_IFMT;
+    data->file_mode = opts->file_mode & ~S_IFMT;
+    data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
     
     setlocale(LC_CTYPE, "");
@@ -2453,7 +2455,8 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
         return ISO_OUT_OF_MEM;
     }
     
-    ropts->mode = 0555;
+    ropts->file_mode = 0444;
+    ropts->dir_mode = 0555;
     *opts = ropts;
     return ISO_SUCCESS;
 }
@@ -2531,12 +2534,14 @@ int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid)
     return ISO_SUCCESS;
 }
 
-int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t perm)
+int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
+                                          mode_t dir_perm)
 {
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    opts->mode = perm;
+    opts->file_mode = file_perm;
+    opts->dir_mode = dir_perm;
     return ISO_SUCCESS;
 }
 
