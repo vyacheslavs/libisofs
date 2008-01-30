@@ -81,7 +81,7 @@ AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_CHECK_FUNC([fseeko])
 if test ! $ac_cv_func_fseeko; then
-   AC_ERROR([Libisofs requires largefile support.])
+   AC_MSG_ERROR([Libisofs requires largefile support.])
 fi
 
 AC_PROG_LIBTOOL

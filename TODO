@@ -6,8 +6,6 @@ TODO
 ====
 
 #00001 (node.h) -> consider adding new timestamps to IsoTreeNode
-OK #00002 (node.h) -> handle deletion of each kind of node 
-OK #00003 make error.h header public
 #00004 (libisofs.h) -> Add a get_mime_type() function.
 #00005 (node.c) -> optimize iso_dir_iter_take. 
 #00006 (libisofs.h) -> define more replace values when adding a node to a dir
@@ -27,7 +25,6 @@ OK #00003 make error.h header public
 #00020 (fs_image.c) -> handle RR info in Joliet tree
 #00021 (fs_image.c) -> handle RR info in ISO 9660:1999 tree
 #00022 (joliet.c) -> support relaxed constraints in joliet filenames
-OK #00023 (libisofs.h) -> let different default file and dir mode for iso reading
 #00024 (libisofs.h) -> option to convert names to lower case for iso reading
 #00025 (libisofs.h) -> support for merging old image files
 #00026 (libisofs.h) -> add support for "hidden" bootable images.
@@ -35,7 +32,4 @@ OK #00023 (libisofs.h) -> let different default file and dir mode for iso readin
 
 FIXME
 =====
-
-OK #00001 (iso1999.c) -> Mangle ISO 9660:1999 names
-OK #00002 (joliet.c) -> Mangle Joliet names
 
