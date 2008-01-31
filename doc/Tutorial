@@ -53,7 +53,7 @@ Thus, the first you need to do is to get your own IsoImage object:
 	IsoImage *my_image;
 	iso_image_new("NEW DISC", &my_image);
 
-An IsoImage is a context for image creation. It holds the files than will be 
+An IsoImage is a context for image creation. It holds the files that will be 
 added to image, other related information and several options to customize
 the behavior of libisofs when working with such Image. i.e., an IsoImage is
 a context for libisofs operations. As such, you can work with several image
@@ -104,17 +104,23 @@ and that way distinguish what image has issued the message.
 -------------------------------------------------------------------------------
 
 An image is built from a set of files that you want to store together in an 
-ISO-9660 volume.
+ISO-9660 volume. We call the "iso tree" to the file hierarchy that will be
+written to image. The image context, IsoImage, holds that tree, together with
+configuration options and other properties of the image, that provide info
+about the volume (such as the identifier, author, etc...).
 
-[TODO]
+All configuration options and volume properties are set by its corresponding
+setters (iso_image_set_volset_id(), iso_image_set_publisher_id()...)
 
-[explain volume properties]
-
-phases [TODO]:
+To create an image, you have to follow the following steps:
 
 * Obtain the image context.
+    See "1.2 Image context" for details of how to obtain the IsoImage.
+* Set the desired properties
 * Prepare the iso tree with the files you want to add to image.
+    See "2.1 Image tree manipulation" for details
 * Select the options for image generation.
+    See "2.2 Set the write options"
 * Get the burn_source used to actually write the image.
 
 
@@ -175,15 +181,29 @@ subtype, you can downcast a given IsoNode to the specific subtype.
 	    ...
 	}
 
+or with the provided macros:
+
+	IsoDir *dir;
+	IsoNode *node;
+
+	node = ISO_NODE(dir);
+
+	if (ISO_NODE_IS_DIR(node)) {
+	    dir = ISO_DIR(node);
+	    ...
+	}
+
 * Adding files to the image
 
 Files can be added to the image or iso tree either as new files or as files
-"imported" from the filesystem.
+from the filesystem.
 
 In the first case, files are created directly on the image. They do not
-correspond to any file in the filesystem. 
+correspond to any file in the filesystem. Provided functions are: 
 
-[...explain this kind of functions...]
+	- iso_tree_add_new_dir()
+	- iso_tree_add_new_symlink()
+	- iso_tree_add_new_special()
 
 On the other side, you can add local files to the image, either with the
 
@@ -209,18 +229,36 @@ after adding them to the IsoImage.
 
 * Recursive directory addition.
 
-[TODO]
+One common use case is to add a local directory to the image. While this can
+be done with iso_tree_add_node(), handling the addition of directory children
+in the application, libisofs provides a function suitable for this case:
+
+	iso_tree_add_dir_rec()
+	
+that takes care of adding all files inside a directory, recursing on directory
+children. By default, this function adds all children. However, it is usual 
+that you don't want really this. For example, you may want to exclude some
+kind of files (backup files, application sockets,...). Libisofs provides
+several functions to customize the behavior of that function:
+
+	- iso_tree_set_follow_symlinks()
+	- iso_tree_set_ignore_hidden()
+	- iso_tree_set_ignore_special()
+	- iso_tree_add_exclude()
 
 * Operations on iso tree
 
 [TODO briefly explain how to add node, change attributes, ...]
 
+* Replace mode
 
+[TODO]
 
 -------------------------------------------------------------------------------
 2.2 Set the write options
 
-
+Once you have prepared the iso tree, it is time to select the options for the
+image writing. 
 
 
 

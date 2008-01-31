@@ -68,31 +68,40 @@ struct burn_source;
  */
 typedef struct Iso_Image IsoImage;
 
+/*
+ * A node in the iso tree, i.e. a file that will be written to image.
+ * 
+ * It can represent any kind of files. When needed, you can get the type with 
+ * iso_node_get_type() and cast it to the appropiate subtype. Useful macros
+ * are provided, see below.
+ */
 typedef struct Iso_Node IsoNode;
+
+/**
+ * A directory in the iso tree. It is an special type of IsoNode and can be
+ * casted to it in any case.
+ */
 typedef struct Iso_Dir IsoDir;
+
+/**
+ * A symbolic link in the iso tree. It is an special type of IsoNode and can be
+ * casted to it in any case.
+ */
 typedef struct Iso_Symlink IsoSymlink;
+
+/**
+ * A regular file in the iso tree. It is an special type of IsoNode and can be
+ * casted to it in any case.
+ */
 typedef struct Iso_File IsoFile;
+
+/**
+ * An special file in the iso tree. This is used to represent any POSIX file 
+ * other that regular files, directories or symlinks, i.e.: socket, block and
+ * character devices, and fifos.
+ * It is an special type of IsoNode and can be casted to it in any case.
+ */
 typedef struct Iso_Special IsoSpecial;
-
-/* macros to check node type */
-#define ISO_NODE_IS_DIR(n) (iso_node_get_type(n) == LIBISO_DIR)
-#define ISO_NODE_IS_FILE(n) (iso_node_get_type(n) == LIBISO_FILE)
-#define ISO_NODE_IS_SYMLINK(n) (iso_node_get_type(n) == LIBISO_SYMLINK)
-#define ISO_NODE_IS_SPECIAL(n) (iso_node_get_type(n) == LIBISO_SPECIAL)
-#define ISO_NODE_IS_BOOTCAT(n) (iso_node_get_type(n) == LIBISO_BOOT)
-
-/* macros for safe downcasting */
-#define ISO_DIR(n) ((IsoDir*)(ISO_NODE_IS_DIR(n) ? n : NULL))
-#define ISO_FILE(n) ((IsoFile*)(ISO_NODE_IS_FILE(n) ? n : NULL))
-#define ISO_SYMLINK(n) ((IsoSymlink*)(ISO_NODE_IS_SYMLINK(n) ? n : NULL))
-#define ISO_SPECIAL(n) ((IsoSpecial*)(ISO_NODE_IS_SPECIAL(n) ? n : NULL))
-
-#define ISO_NODE(n) ((IsoNode*)n)
-
-typedef struct Iso_Dir_Iter IsoDirIter;
-
-typedef struct el_torito_boot_image ElToritoBootImage;
-typedef struct Iso_Boot IsoBoot;
 
 /**
  * The type of an IsoNode.
@@ -116,6 +125,38 @@ enum IsoNodeType {
     LIBISO_SPECIAL,
     LIBISO_BOOT
 };
+
+/* macros to check node type */
+#define ISO_NODE_IS_DIR(n) (iso_node_get_type(n) == LIBISO_DIR)
+#define ISO_NODE_IS_FILE(n) (iso_node_get_type(n) == LIBISO_FILE)
+#define ISO_NODE_IS_SYMLINK(n) (iso_node_get_type(n) == LIBISO_SYMLINK)
+#define ISO_NODE_IS_SPECIAL(n) (iso_node_get_type(n) == LIBISO_SPECIAL)
+#define ISO_NODE_IS_BOOTCAT(n) (iso_node_get_type(n) == LIBISO_BOOT)
+
+/* macros for safe downcasting */
+#define ISO_DIR(n) ((IsoDir*)(ISO_NODE_IS_DIR(n) ? n : NULL))
+#define ISO_FILE(n) ((IsoFile*)(ISO_NODE_IS_FILE(n) ? n : NULL))
+#define ISO_SYMLINK(n) ((IsoSymlink*)(ISO_NODE_IS_SYMLINK(n) ? n : NULL))
+#define ISO_SPECIAL(n) ((IsoSpecial*)(ISO_NODE_IS_SPECIAL(n) ? n : NULL))
+
+#define ISO_NODE(n) ((IsoNode*)n)
+
+/**
+ * Context for iterate on directory children.
+ * @see iso_dir_get_children()
+ */
+typedef struct Iso_Dir_Iter IsoDirIter;
+
+/**
+ * It represents an El-Torito boot image.
+ */
+typedef struct el_torito_boot_image ElToritoBootImage;
+
+/**
+ * An special type of IsoNode that acts as a placeholder for an El-Torito
+ * boot catalog. Once written, it will appear as a regular file.
+ */
+typedef struct Iso_Boot IsoBoot;
 
 /**
  * Flag used to hide a file in the RR/ISO or Joliet tree.
@@ -174,8 +215,23 @@ enum iso_replace_mode {
      */
 };
 
+/**
+ * Options for image written.
+ * @see iso_write_opts_new()
+ */
 typedef struct iso_write_opts IsoWriteOpts;
+
+/**
+ * Options for image reading or import.
+ * @see iso_read_opts_new()
+ */
 typedef struct iso_read_opts IsoReadOpts;
+
+/**
+ * Source for image reading.
+ * 
+ * @see struct iso_data_source
+ */
 typedef struct iso_data_source IsoDataSource;
 
 /**
@@ -275,8 +331,26 @@ struct iso_read_image_features
     unsigned int hasElTorito :1;
 };
 
+/**
+ * POSIX abstraction for source files.
+ * 
+ * @see struct iso_file_source
+ */
 typedef struct iso_file_source IsoFileSource;
+
+/**
+ * Abstract for source filesystems.
+ * 
+ * @see struct iso_filesystem
+ */
 typedef struct iso_filesystem IsoFilesystem;
+
+/**
+ * Interface that defines the operations (methods) available for an 
+ * IsoFileSource.
+ * 
+ * @see struct IsoFileSource_Iface
+ */
 typedef struct IsoFileSource_Iface IsoFileSourceIface;
 
 /**
@@ -637,6 +711,10 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  * Options by default are determined by the selected profile. Fifo size is set
  * by default to 2 MB.
  * 
+ * @param opts
+ *     Pointer to the location where the newly created IsoWriteOpts will be
+ *     stored. You should free it with iso_write_opts_free() when no more
+ *     needed.
  * @param profile
  *     Default profile for image creation. For now the following values are
  *     defined:
@@ -948,7 +1026,8 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  * @param image
  *     The image to write.
  * @param opts
- *     The options for image generation.
+ *     The options for image generation. All needed data will be copied, so 
+ *     you can free the given struct once this function returns.
  * @param burn_src
  *     Location where the pointer to the burn_source will be stored
  * @return
@@ -964,6 +1043,10 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
  * 
  * Options by default are determined by the selected profile.
  * 
+ * @param opts
+ *     Pointer to the location where the newly created IsoReadOpts will be
+ *     stored. You should free it with iso_read_opts_free() when no more
+ *     needed.
  * @param profile
  *     Default profile for image reading. For now the following values are
  *     defined:
@@ -1058,7 +1141,8 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  *     Data Source from which old image will be read. A extra reference is
  *     added, so you still need to iso_data_source_unref() yours.
  * @param opts
- *     Options for image import
+ *     Options for image import. All needed data will be copied, so you
+ *     can free the given struct once this function returns.
  * @param features
  *     If not NULL, a new  struct iso_read_image_features will be allocated
  *     and filled with the features of the old image. It should be freed when
