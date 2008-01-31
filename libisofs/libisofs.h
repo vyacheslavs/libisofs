@@ -1260,11 +1260,10 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image);
  * @return 
  *      1 on success, < 0 on error
  */
-int
-        iso_image_set_boot_image(IsoImage *image, const char *image_path,
-                                 enum eltorito_boot_media_type type,
-                                 const char *catalog_path,
-                                 ElToritoBootImage **boot);
+int iso_image_set_boot_image(IsoImage *image, const char *image_path,
+                             enum eltorito_boot_media_type type,
+                             const char *catalog_path,
+                             ElToritoBootImage **boot);
 
 /* TODO #00026 : add support for "hidden" bootable images. */
 
@@ -1497,9 +1496,8 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs);
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE, if child == dir, or replace != (0,1)
  */
-int
-        iso_dir_add_node(IsoDir *dir, IsoNode *child,
-                         enum iso_replace_mode replace);
+int iso_dir_add_node(IsoDir *dir, IsoNode *child,
+                     enum iso_replace_mode replace);
 
 /**
  * Locate a node inside a given dir.
@@ -1937,7 +1935,8 @@ int iso_tree_remove_exclude(IsoImage *image, const char *path);
  *      continue, < 0 to abort the process
  *      NULL is allowed if you don't want any callback.
  */
-void iso_tree_set_report_callback(IsoImage *image, int (*report)(IsoImage*, IsoFileSource*));
+void iso_tree_set_report_callback(IsoImage *image, 
+                                  int (*report)(IsoImage*, IsoFileSource*));
 
 /**
  * Add a new node to the image tree, from an existing file. 
@@ -2340,7 +2339,10 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  * @param opts
  *      Image read options
  * @param msgid
- *      TODO
+ *      An image identifer, obtained with iso_image_get_msg_id(), used to
+ *      associated messages issued by the filesystem implementation with an
+ *      existent image. If you are not using this filesystem in relation with
+ *      any image context, just use 0x1fffff as the value for this parameter.
  * @param fs
  *      Will be filled with a pointer to the filesystem that can be used
  *      to access image contents.
