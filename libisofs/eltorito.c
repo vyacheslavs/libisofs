@@ -8,7 +8,6 @@
 
 #include "eltorito.h"
 #include "stream.h"
-#include "error.h"
 #include "fsource.h"
 #include "filesrc.h"
 #include "image.h"

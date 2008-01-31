@@ -17,8 +17,8 @@ Contents:
    1.2 Image context
    1.3 Error reporting
 2. Creating an image
-   2.1 Image context
-   2.2 Image tree manipulation
+   2.1 Image tree manipulation
+   2.2 Set the write options
    2.3 Obtaining a burn_source
 3. Image growing and multisession
 4. Bootable images
@@ -29,6 +29,7 @@ Contents:
 1. Introduction
 -------------------------------------------------------------------------------
 
+[TODO some lines about refcounts]
 
 -------------------------------------------------------------------------------
 1.1. Library initialization
@@ -64,17 +65,19 @@ contexts at a time.
 In libisofs error reporting is done in two ways: with the return value of
 the functions and with the message queue. 
 
-Error codes are negative numbers, defined in private header "error.h". An
+Error codes are negative numbers, defined in "libisofs.h" header. An
 error code is associated with a given severity, either "DEBUG", "UPDATE",
 "NOTE", "HINT", "WARNING", "SORRY", "FAILURE" and "FATAL". For the meaning
 of each severity take a look at private header "libiso_msgs.h". Errors 
 reported by function return value are always "FAILURE" or "FATAL". Other kind
-of errors are only reported with the message queue.
+of errors are only reported with the message queue. You can get the severity
+of any error message with ISO_ERR_SEV() macro [TODO: we need a function to
+translate error severity to string]
 
 First of all, most libisofs functions return an integer. If such integer is 
 a negative number, it means the function has returned an error. The error code
-and its severity is encoded in the return value (take a look at error.h private
-header).
+and its severity is encoded in the return value (take a look at error codes in 
+libisofs.h header).
 
 Additionally, libisofs reports most of its errors in a message queue. Error
 messages on that queue can be printed directly to stderr or programmatically
@@ -94,5 +97,130 @@ given image context. You can get the identifier of each IsoImage with the
 	iso_image_get_msg_id()
 
 and that way distinguish what image has issued the message.
+
+
+-------------------------------------------------------------------------------
+2. Creating an Image
+-------------------------------------------------------------------------------
+
+An image is built from a set of files that you want to store together in an 
+ISO-9660 volume.
+
+[TODO]
+
+[explain volume properties]
+
+phases [TODO]:
+
+* Obtain the image context.
+* Prepare the iso tree with the files you want to add to image.
+* Select the options for image generation.
+* Get the burn_source used to actually write the image.
+
+
+-------------------------------------------------------------------------------
+2.1 Image tree manipulation
+
+libisofs maintains in memory a file tree (usually called the iso tree), that 
+represents the files and directories that will be written later to image. You
+are allowed to make whatever changes you want to that tree, just like you do
+to any "real" filesystem, before actually write it to image.
+
+Unlike other ISO-9660 mastering tools, you have full control over the file
+hierarchy that will be written to image, via the libisofs API. You can add
+new files, create any file in image, change its name, attributes, etc The iso
+tree behaves just like any other POSIX filesystem. 
+
+The root of the iso tree is created automatically when the IsoImage is 
+allocated, and you can't replace it. To get a reference to it you can use the
+function:
+
+	iso_image_get_root()
+
+* Iso tree objects
+
+Each file in the image or iso tree is represented by an IsoNode instance. In 
+the same way a POSIX filesystem has several file types (regular files, 
+directories, symlinks...), the IsoNode has several subtypes:
+
+                    IsoNode
+                       |
+        ---------------------------------
+        |         |         |           |
+      IsoDir   IsoFile  IsoSymlink  IsoSpecial
+
+where
+
+ - IsoDir represents a directory
+ - IsoFile represents a regular file
+ - IsoSymlink represents a symbolic linke
+ - IsoSpecial represents any other POSIX file, i.e. block and character 
+   devices, FIFOs, sockets.
+
+You can obtain the concrete type of an IsoNode with the iso_node_get_type()
+function.
+
+Many libisofs functions take or return an IsoNode. Many others, however,
+require an specific type. You can safety cast any subtype to an IsoNode
+object. In the same way, after ensuring you are dealing with the correct
+subtype, you can downcast a given IsoNode to the specific subtype.
+
+	IsoDir *dir;
+	IsoNode *node;
+
+	node = (IsoNode*) dir;
+
+	if (iso_node_get_type(node) == LIBISO_DIR) {
+	    dir = (IsoDir*) node;
+	    ...
+	}
+
+* Adding files to the image
+
+Files can be added to the image or iso tree either as new files or as files
+"imported" from the filesystem.
+
+In the first case, files are created directly on the image. They do not
+correspond to any file in the filesystem. 
+
+[...explain this kind of functions...]
+
+On the other side, you can add local files to the image, either with the
+
+	iso_tree_add_node()
+
+or with
+
+	iso_tree_add_dir_rec().
+
+The first is intended to add a single file, while the last can be used to add,
+recursively, a full directory (see below for details).
+
+It is important to note that libisofs doesn't store any kind of link between
+the IsoNode and the filesystem file it was created from. The above functions
+just initialize a newly created IsoNode with the attributes of a given file in
+the filesystem. After that, you can move the original file, change its 
+attributes or even delete it. The IsoNode in the image tree remains with the
+original attributes. One exception to this rule are the contents of a regular
+file. Libisofs does not make any copy of those contents until they're actually
+written to image. Thus, you shouldn't modify, move or delete regular files
+after adding them to the IsoImage.
+
+
+* Recursive directory addition.
+
+[TODO]
+
+* Operations on iso tree
+
+[TODO briefly explain how to add node, change attributes, ...]
+
+
+
+-------------------------------------------------------------------------------
+2.2 Set the write options
+
+
+
 
 

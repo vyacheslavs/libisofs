@@ -9,7 +9,6 @@
 #include "iso1999.h"
 #include "messages.h"
 #include "writer.h"
-#include "error.h"
 #include "image.h"
 #include "filesrc.h"
 #include "eltorito.h"

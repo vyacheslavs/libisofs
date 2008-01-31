@@ -77,10 +77,10 @@ struct Iso_Image
     int ignore_special;
 
     /**
-     * Files to exclude
-     * TODO add wildcard support
+     * Files to exclude. Wildcard support is included.
      */
     char** excludes;
+    int nexcludes;
 
     /**
      * if the dir already contains a node with the same name, whether to

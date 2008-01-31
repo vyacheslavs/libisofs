@@ -10,7 +10,6 @@
 #include "rockridge.h"
 #include "node.h"
 #include "ecma119_tree.h"
-#include "error.h"
 #include "writer.h"
 #include "messages.h"
 #include "image.h"

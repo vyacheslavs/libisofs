@@ -5,7 +5,6 @@
  */
 #include "test.h"
 #include "util.h"
-#include "error.h"
 
 #include <string.h>
 #include <stdlib.h>

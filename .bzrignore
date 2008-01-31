@@ -35,3 +35,5 @@ demo/isocat
 demo/isomodify
 demo/isoms
 demo/isogrow
+doc/html
+doc/doxygen.conf

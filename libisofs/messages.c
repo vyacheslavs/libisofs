@@ -12,7 +12,6 @@
 
 #include "libisofs.h"
 #include "messages.h"
-#include "error.h"
 
 int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 

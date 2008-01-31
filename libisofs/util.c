@@ -8,7 +8,7 @@
  */
 
 #include "util.h"
-#include "error.h"
+#include "libisofs.h"
 #include "../version.h"
 
 #include <stdlib.h>
@@ -1247,4 +1247,18 @@ void iso_lib_version(int *major, int *minor, int *micro)
     *major = LIBISOFS_MAJOR_VERSION;
     *minor = LIBISOFS_MINOR_VERSION;
     *micro = LIBISOFS_MICRO_VERSION;
+}
+
+int iso_lib_is_compatible(int major, int minor, int micro)
+{
+    int cmajor, cminor, cmicro;
+    
+    /* for now, the rule is that library is compitable if requested
+     * version is lower */
+    iso_lib_version(&cmajor, &cminor, &cmicro);
+
+    return cmajor > major 
+           || (cmajor == major 
+               && (cminor > minor 
+                   || (cminor == minor && cmicro >= micro)));
 }

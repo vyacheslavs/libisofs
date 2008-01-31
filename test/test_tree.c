@@ -4,7 +4,6 @@
 
 #include "libisofs.h"
 #include "node.h"
-#include "error.h"
 #include "image.h"
 
 #include "test.h"

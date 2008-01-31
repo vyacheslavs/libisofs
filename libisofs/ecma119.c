@@ -13,7 +13,6 @@
 #include "iso1999.h"
 #include "eltorito.h"
 #include "ecma119_tree.h"
-#include "error.h"
 #include "filesrc.h"
 #include "image.h"
 #include "writer.h"

@@ -7,7 +7,6 @@
  */
 
 #include "filesrc.h"
-#include "error.h"
 #include "node.h"
 #include "util.h"
 #include "writer.h"

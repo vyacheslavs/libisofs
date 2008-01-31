@@ -7,7 +7,6 @@
  */
 
 #include "libisofs.h"
-#include "error.h"
 #include "util.h"
 
 #include <stdlib.h>

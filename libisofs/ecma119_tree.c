@@ -8,7 +8,6 @@
 
 #include "ecma119_tree.h"
 #include "ecma119.h"
-#include "error.h"
 #include "node.h"
 #include "util.h"
 #include "filesrc.h"

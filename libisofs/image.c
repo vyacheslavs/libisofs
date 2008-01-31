@@ -8,7 +8,6 @@
 
 #include "libisofs.h"
 #include "image.h"
-#include "error.h"
 #include "node.h"
 #include "messages.h"
 #include "eltorito.h"
@@ -92,11 +91,19 @@ void iso_image_ref(IsoImage *image)
 void iso_image_unref(IsoImage *image)
 {
     if (--image->refcount == 0) {
+        int nexcl;
+
         /* we need to free the image */
         if (image->user_data != NULL) {
             /* free attached data */
             image->user_data_free(image->user_data);
         }
+
+        for (nexcl = 0; nexcl < image->nexcludes; ++nexcl) {
+            free(image->excludes[nexcl]);
+        }
+        free(image->excludes);
+
         iso_node_unref((IsoNode*)image->root);
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);

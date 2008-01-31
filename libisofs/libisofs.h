@@ -8,6 +8,55 @@
 #ifndef LIBISO_LIBISOFS_H_
 #define LIBISO_LIBISOFS_H_
 
+/** 
+ * These three release version numbers tell the revision of this header file
+ * and of the API it describes. They are memorized by applications at compile 
+ * time.
+ * 
+ * Before usage on your code, please read the usage discussion below.
+ */
+#define libisofs_header_version_major  0
+#define libisofs_header_version_minor  6
+#define libisofs_header_version_micro  1
+
+/** 
+ * Usage discussion:
+ * 
+ * Some developers of the libburnia project have differing opinions how to 
+ * ensure the compatibility of libaries and applications.
+ * 
+ * It is about whether to use at compile time and at runtime the version 
+ * numbers provided here. Thomas Schmitt advises to use them. Vreixo Formoso 
+ * advises to use other means.
+ * 
+ * At compile time:
+ * 
+ * Vreixo Formoso advises to leave proper version matching to properly 
+ * programmed checks in the the application's build system, which will 
+ * eventually refuse compilation.
+ * 
+ * Thomas Schmitt advises to use the macros defined here for comparison with 
+ * the application's requirements of library revisions and to eventually 
+ * break compilation.
+ * 
+ * Both advises are combinable. I.e. be master of your build system and have 
+ * #if checks in the source code of your application, nevertheless.
+ * 
+ * At runtime (via iso_lib_is_compatible()):
+ * 
+ * Vreixo Formoso advises to compare the application's requirements of 
+ * library revisions with the runtime library. This is to allow runtime 
+ * libraries which are young enough for the application but too old for
+ * the lib*.h files seen at compile time.
+ * 
+ * Thomas Schmitt advises to compare the header revisions defined here with 
+ * the runtime library. This is to enforce a strictly monotonous chain of 
+ * revisions from app to header to library, at the cost of excluding some older
+ * libraries.
+ * 
+ * These two advises are mutually exclusive.
+ */
+
 #include <sys/stat.h>
 #include <stdint.h>
 
@@ -24,6 +73,21 @@ typedef struct Iso_Dir IsoDir;
 typedef struct Iso_Symlink IsoSymlink;
 typedef struct Iso_File IsoFile;
 typedef struct Iso_Special IsoSpecial;
+
+/* macros to check node type */
+#define ISO_NODE_IS_DIR(n) (iso_node_get_type(n) == LIBISO_DIR)
+#define ISO_NODE_IS_FILE(n) (iso_node_get_type(n) == LIBISO_FILE)
+#define ISO_NODE_IS_SYMLINK(n) (iso_node_get_type(n) == LIBISO_SYMLINK)
+#define ISO_NODE_IS_SPECIAL(n) (iso_node_get_type(n) == LIBISO_SPECIAL)
+#define ISO_NODE_IS_BOOTCAT(n) (iso_node_get_type(n) == LIBISO_BOOT)
+
+/* macros for safe downcasting */
+#define ISO_DIR(n) ((IsoDir*)(ISO_NODE_IS_DIR(n) ? n : NULL))
+#define ISO_FILE(n) ((IsoFile*)(ISO_NODE_IS_FILE(n) ? n : NULL))
+#define ISO_SYMLINK(n) ((IsoSymlink*)(ISO_NODE_IS_SYMLINK(n) ? n : NULL))
+#define ISO_SPECIAL(n) ((IsoSpecial*)(ISO_NODE_IS_SPECIAL(n) ? n : NULL))
+
+#define ISO_NODE(n) ((IsoNode*)n)
 
 typedef struct Iso_Dir_Iter IsoDirIter;
 
@@ -126,11 +190,12 @@ typedef struct iso_data_source IsoDataSource;
  * it with regular .iso images, and also with block devices that represent a 
  * drive.
  */
-struct iso_data_source {
+struct iso_data_source
+{
 
     /* reserved for future usage, set to 0 */
     int version;
-    
+
     /** 
      * Reference count for the data source. Should be 1 when a new source
      * is created. Don't access it directly, but with iso_data_source_ref()
@@ -192,20 +257,20 @@ struct iso_read_image_features
      * Will be filled with the size (in 2048 byte block) of the image, as 
      * reported in the PVM. 
      */
-    uint32_t size; 
-    
+    uint32_t size;
+
     /** It will be set to 1 if RR extensions are present, to 0 if not. */
     unsigned int hasRR :1;
-    
+
     /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
     unsigned int hasJoliet :1;
-    
+
     /** 
      * It will be set to 1 if the image is an ISO 9660:1999, i.e. it has
      * a version 2 Enhanced Volume Descriptor. 
      */
     unsigned int hasIso1999 :1;
-    
+
     /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
     unsigned int hasElTorito :1;
 };
@@ -314,7 +379,7 @@ struct iso_filesystem
      * @return 1 on success, < 0 on error
      */
     int (*close)(IsoFilesystem *fs);
-    
+
     /**
      * Free implementation specific data. Should never be called by user.
      * Use iso_filesystem_unref() instead.
@@ -558,6 +623,14 @@ int iso_image_new(const char *name, IsoImage **image);
 void iso_lib_version(int *major, int *minor, int *micro);
 
 /**
+ * Check if the library is ABI compatible with the given version.
+ * 
+ * @return 
+ *      1 lib is compatible, 0 is not.
+ */
+int iso_lib_is_compatible(int major, int minor, int micro);
+
+/**
  * Creates an IsoWriteOpts for writing an image. You should set the options
  * desired with the correspondent setters.
  * 
@@ -785,6 +858,8 @@ int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt);
  * Set the charset to use for the RR names of the files that will be created 
  * on the image.
  * NULL to use default charset, that is the locale charset.
+ * You can obtain the list of charsets supported on your system executing 
+ * "iconv -l" in a shell.
  */
 int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
 
@@ -950,13 +1025,24 @@ int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid);
 
 /**
  * Set default permissions for files when RR extensions are not present.
+ * 
+ * @param file_perm
+ *      Permissions for files.
+ * @param dir_perm
+ *      Permissions for directories.
  */
-int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t perm);
+int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
+                                          mode_t dir_perm);
 
 /**
  * Set the input charset of the file names on the image. NULL to use locale
  * charset. You have to specify a charset if the image filenames are encoded
- * in a charset different that the local one.
+ * in a charset different that the local one. This could happen, for example,
+ * if the image was created on a system with different charset.
+ * 
+ * @param charset
+ *      The charset to use as input charset.  You can obtain the list of
+ *      charsets supported on your system executing "iconv -l" in a shell.
  */
 int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
 
@@ -980,8 +1066,7 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  * @return
  *     1 on success, < 0 on error
  */
-int iso_image_import(IsoImage *image, IsoDataSource *src,
-                     IsoReadOpts *opts, 
+int iso_image_import(IsoImage *image, IsoDataSource *src, IsoReadOpts *opts,
                      struct iso_read_image_features **features);
 
 /**
@@ -1175,10 +1260,11 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image);
  * @return 
  *      1 on success, < 0 on error
  */
-int iso_image_set_boot_image(IsoImage *image, const char *image_path,
-                             enum eltorito_boot_media_type type,
-                             const char *catalog_path,
-                             ElToritoBootImage **boot);
+int
+        iso_image_set_boot_image(IsoImage *image, const char *image_path,
+                                 enum eltorito_boot_media_type type,
+                                 const char *catalog_path,
+                                 ElToritoBootImage **boot);
 
 /* TODO #00026 : add support for "hidden" bootable images. */
 
@@ -1411,12 +1497,15 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs);
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE, if child == dir, or replace != (0,1)
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child, 
-                     enum iso_replace_mode replace);
+int
+        iso_dir_add_node(IsoDir *dir, IsoNode *child,
+                         enum iso_replace_mode replace);
 
 /**
  * Locate a node inside a given dir.
  * 
+ * @param dir
+ *     The dir where to look for the node.
  * @param name
  *     The name of the node
  * @param node
@@ -1777,6 +1866,65 @@ void iso_tree_set_ignore_special(IsoImage *image, int skip);
 int iso_tree_get_ignore_special(IsoImage *image);
 
 /**
+ * Add a excluded path. These are paths that won't never added to image,
+ * and will be excluded even when adding recursively its parent directory.
+ * 
+ * For example, in
+ * 
+ *   iso_tree_add_exclude(image, "/home/user/data/private");
+ *   iso_tree_add_dir_rec(image, root, "/home/user/data");
+ * 
+ * the directory /home/user/data/private won't be added to image. 
+ * 
+ * However, if you explicity add a deeper dir, it won't be excluded. i.e.,
+ * in the following example.
+ * 
+ *   iso_tree_add_exclude(image, "/home/user/data");
+ *   iso_tree_add_dir_rec(image, root, "/home/user/data/private");
+ * 
+ * the directory /home/user/data/private is added. On the other, side, and
+ * foollowing the the example above,
+ * 
+ *   iso_tree_add_dir_rec(image, root, "/home/user");
+ * 
+ * will exclude the directory "/home/user/data".
+ * 
+ * Absolute paths are not mandatory, you can, for example, add a relative
+ * path such as:
+ * 
+ *   iso_tree_add_exclude(image, "private");
+ *   iso_tree_add_exclude(image, "user/data");
+ * 
+ * to excluve, respectively, all files or dirs named private, and also all
+ * files or dirs named data that belong to a folder named "user". Not that the
+ * above rule about deeper dirs is still valid. i.e., if you call
+ * 
+ *   iso_tree_add_dir_rec(image, root, "/home/user/data/music");
+ * 
+ * it is included even containing "user/data" string. However, a possible
+ * "/home/user/data/music/user/data" is not added.
+ * 
+ * Usual wildcards, such as * or ? are also supported, with the usual meaning
+ * as stated in "man 7 glob". For example
+ * 
+ * // to exclude backup text files
+ * iso_tree_add_exclude(image, "*.~");
+ * 
+ * @return
+ *      1 on success, < 0 on error
+ */
+int iso_tree_add_exclude(IsoImage *image, const char *path);
+
+/**
+ * Remove a previously added exclude.
+ * 
+ * @see iso_tree_add_exclude
+ * @return
+ *      1 on success, 0 exclude do not exists, < 0 on error
+ */
+int iso_tree_remove_exclude(IsoImage *image, const char *path);
+
+/**
  * Set a callback function that libisofs will call for each file that is
  * added to the given image by a recursive addition function. This includes
  * image import.
@@ -1789,8 +1937,7 @@ int iso_tree_get_ignore_special(IsoImage *image);
  *      continue, < 0 to abort the process
  *      NULL is allowed if you don't want any callback.
  */
-void iso_tree_set_report_callback(IsoImage *image, 
-                                  int (*report)(IsoImage*, IsoFileSource*));
+void iso_tree_set_report_callback(IsoImage *image, int (*report)(IsoImage*, IsoFileSource*));
 
 /**
  * Add a new node to the image tree, from an existing file. 
@@ -1900,7 +2047,7 @@ int iso_data_source_new_from_file(const char *path, IsoDataSource **src);
  *           6="ended"     : consumption has ended without input error
  *           7="aborted"   : consumption has ended after input error
  */
-int iso_ring_buffer_get_status(struct burn_source *b, size_t *size, 
+int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
                                size_t *free_bytes);
 
 #define ISO_MSGS_MESSAGE_LEN 4096
@@ -1918,7 +2065,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
  * @param print_id       A text prefix to be printed before the message.
  * @return               >0 for success, <=0 for error
  */
-int iso_set_msgs_severities(char *queue_severity, char *print_severity, 
+int iso_set_msgs_severities(char *queue_severity, char *print_severity,
                             char *print_id);
 
 /** 
@@ -1930,12 +2077,17 @@ int iso_set_msgs_severities(char *queue_severity, char *print_severity,
  * "NOTE", "UPDATE", "DEBUG", "ALL". To call with minimum_severity "NEVER"
  * will discard the whole queue.
  * 
- * @param error_code Will become a unique error code as listed in error.h
- * @param imgid      Id of the image that was issued the message.
- * @param msg_text   Must provide at least ISO_MSGS_MESSAGE_LEN bytes.
- * @param severity   Will become the severity related to the message and
- *                   should provide at least 80 bytes.
- * @return 1 if a matching item was found, 0 if not, <0 for severe errors
+ * @param error_code 
+ *     Will become a unique error code as listed at the end of this header
+ * @param imgid
+ *     Id of the image that was issued the message.
+ * @param msg_text
+ *     Must provide at least ISO_MSGS_MESSAGE_LEN bytes.
+ * @param severity
+ *     Will become the severity related to the message and should provide at 
+ *     least 80 bytes.
+ * @return 
+ *     1 if a matching item was found, 0 if not, <0 for severe errors
  */
 int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
                     char msg_text[], char severity[]);
@@ -2090,6 +2242,13 @@ int iso_file_source_close(IsoFileSource *src);
  * more needed. Not valid for dirs. On symlinks it reads the destination
  * file.
  * 
+ * @param src
+ *     The given source
+ * @param buf
+ *     Pointer to a buffer of at least count bytes where the read data will be
+ *     stored
+ * @param count
+ *     Bytes to read
  * @return 
  *     number of bytes read, 0 if EOF, < 0 on error
  *      Error codes:
@@ -2131,12 +2290,14 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  * Read the destination of a symlink. You don't need to open the file
  * to call this.
  * 
+ * @param src
+ *     An IsoFileSource corresponding to a symbolic link.
  * @param buf 
  *     allocated buffer of at least bufsiz bytes. 
  *     The dest. will be copied there, and it will be NULL-terminated
  * @param bufsiz
  *     characters to be copied. Destination link will be truncated if
- *     it is larger than given size. This include the \0 character.
+ *     it is larger than given size. This include the '\0' character.
  * @return 
  *     1 on success, < 0 on error
  *      Error codes:
@@ -2186,8 +2347,8 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  * @param
  *      1 on success, < 0 on error
  */
-int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts,
-                             int msgid, IsoImageFilesystem **fs);
+int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts, int msgid,
+                             IsoImageFilesystem **fs);
 
 /**
  * Get the volset identifier for an existent image. The returned string belong
@@ -2242,5 +2403,213 @@ const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
  */
 const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
+
+/************ Error codes and return values for libisofs ********************/
+
+/* 
+ * error codes are 32 bit numbers, that follow the following conventions:
+ * 
+ * bit  31 (MSB) -> 1 (to make the value always negative)
+ * bits 30-24 -> Encoded severity (Use ISO_ERR_SEV to translate an error code
+ *               to a LIBISO_MSGS_SEV_* constant)
+ *        = 0x10 -> DEBUG
+ *        = 0x20 -> UPDATE
+ *        = 0x30 -> NOTE
+ *        = 0x40 -> HINT
+ *        = 0x50 -> WARNING
+ *        = 0x60 -> SORRY
+ *        = 0x68 -> FAILURE
+ *        = 0x70 -> FATAL
+ *        = 0x71 -> ABORT
+ * bits 23-20 -> Encoded priority (Use ISO_ERR_PRIO to translate an error code
+ *               to a LIBISO_MSGS_PRIO_* constant)
+ *        = 0x0 -> ZERO
+ *        = 0x1 -> LOW
+ *        = 0x2 -> MEDIUM
+ *        = 0x3 -> HIGH
+ * bits 19-16 -> Reserved for future usage (maybe message ranges)
+ * bits 15-0  -> Error code
+ */
+
+#define ISO_ERR_SEV(e)      (e & 0x7F000000)
+#define ISO_ERR_PRIO(e)     ((e & 0x00F00000) << 8)
+#define ISO_ERR_CODE(e)     (e & 0x0000FFFF)
+
+/** successfully execution */
+#define ISO_SUCCESS                     1
+
+/** 
+ * special return value, it could be or not an error depending on the 
+ * context. 
+ */
+#define ISO_NONE                        0
+
+/** Operation canceled (FAILURE,HIGH, -1) */
+#define ISO_CANCELED                    0xE830FFFF
+
+/** Unknown or unexpected fatal error (FATAL,HIGH, -2) */
+#define ISO_FATAL_ERROR                 0xF030FFFE
+
+/** Unknown or unexpected error (FAILURE,HIGH, -3) */
+#define ISO_ERROR                       0xE830FFFD
+
+/** Internal programming error. Please report this bug (FATAL,HIGH, -4) */
+#define ISO_ASSERT_FAILURE              0xF030FFFC
+
+/** 
+ * NULL pointer as value for an arg. that doesn't allow NULL (FAILURE,HIGH, -5)
+ */
+#define ISO_NULL_POINTER                0xE830FFFB
+
+/** Memory allocation error (FATAL,HIGH, -6) */
+#define ISO_OUT_OF_MEM                  0xF030FFFA
+
+/** Interrupted by a signal (FATAL,HIGH, -7) */
+#define ISO_INTERRUPTED                 0xF030FFF9
+
+/** Invalid parameter value (FAILURE,HIGH, -8) */
+#define ISO_WRONG_ARG_VALUE             0xE830FFF8
+
+/** Can't create a needed thread (FATAL,HIGH, -9) */
+#define ISO_THREAD_ERROR                0xF030FFF7
+
+/** Write error (FAILURE,HIGH, -10) */
+#define ISO_WRITE_ERROR                 0xE830FFF6
+
+/** Buffer read error (FAILURE,HIGH, -11) */
+#define ISO_BUF_READ_ERROR              0xE830FFF5
+
+/** Trying to add to a dir a node already added to a dir (FAILURE,HIGH, -64) */
+#define ISO_NODE_ALREADY_ADDED          0xE830FFC0
+
+/** Node with same name already exists (FAILURE,HIGH, -65) */
+#define ISO_NODE_NAME_NOT_UNIQUE        0xE830FFBF
+
+/** Trying to remove a node that was not added to dir (FAILURE,HIGH, -65) */
+#define ISO_NODE_NOT_ADDED_TO_DIR       0xE830FFBE
+
+/** A requested node does not exists  (FAILURE,HIGH, -66) */
+#define ISO_NODE_DOESNT_EXIST           0xE830FFBD
+
+/** 
+ * Try to set the boot image of an already bootable image (FAILURE,HIGH, -67)
+ */
+#define ISO_IMAGE_ALREADY_BOOTABLE      0xE830FFBC
+
+/** Trying to use an invalid file as boot image (FAILURE,HIGH, -68) */
+#define ISO_BOOT_IMAGE_NOT_VALID        0xE830FFBB
+
+/** 
+ * Error on file operation (FAILURE,HIGH, -128) 
+ * (take a look at more specified error codes below)
+ */
+#define ISO_FILE_ERROR                  0xE830FF80
+
+/** Trying to open an already openned file (FAILURE,HIGH, -129) */
+#define ISO_FILE_ALREADY_OPENNED        0xE830FF7F
+
+/** Access to file is not allowed (FAILURE,HIGH, -130) */
+#define ISO_FILE_ACCESS_DENIED          0xE830FF7E
+
+/** Incorrect path to file (FAILURE,HIGH, -131) */
+#define ISO_FILE_BAD_PATH               0xE830FF7D
+
+/** The file does not exists in the filesystem (FAILURE,HIGH, -132) */
+#define ISO_FILE_DOESNT_EXIST           0xE830FF7C
+
+/** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
+#define ISO_FILE_NOT_OPENNED            0xE830FF7B
+
+/** Directory used where no dir is expected (FAILURE,HIGH, -134) */
+#define ISO_FILE_IS_DIR                 0xE830FF7A
+
+/** Read error (FAILURE,HIGH, -135) */
+#define ISO_FILE_READ_ERROR             0xE830FF79
+
+/** Not dir used where a dir is expected (FAILURE,HIGH, -136) */
+#define ISO_FILE_IS_NOT_DIR             0xE830FF78
+
+/** Not symlink used where a symlink is expected (FAILURE,HIGH, -137) */
+#define ISO_FILE_IS_NOT_SYMLINK         0xE830FF77
+
+/** Can't seek to specified location (FAILURE,HIGH, -138) */
+#define ISO_FILE_SEEK_ERROR             0xE830FF76
+
+/** File not supported in ECMA-119 tree and thus ignored (HINT,MEDIUM, -139) */
+#define ISO_FILE_IGNORED                0xC020FF75
+
+/* A file is bigger than supported by used standard  (HINT,MEDIUM, -140) */
+#define ISO_FILE_TOO_BIG                0xC020FF74
+
+/* File read error during image creations (SORRY,HIGH, -141) */
+#define ISO_FILE_CANT_WRITE             0xE030FF73
+
+/* Can't convert filename to requested charset (HINT,MEDIUM, -142) */
+#define ISO_FILENAME_WRONG_CHARSET      0xC020FF72
+
+/* File can't be added to the tree (SORRY,HIGH, -143) */
+#define ISO_FILE_CANT_ADD               0xE030FF71
+
+/** 
+ * File path break specification constraints and will be ignored 
+ * (HINT,MEDIUM, -141) 
+ */
+#define ISO_FILE_IMGPATH_WRONG          0xC020FF73
+
+/** Charset conversion error (FAILURE,HIGH, -256) */
+#define ISO_CHARSET_CONV_ERROR          0xE830FF00
+
+/** 
+ * Too much files to mangle, i.e. we cannot guarantee unique file names 
+ * (FAILURE,HIGH, -257) 
+ */
+#define ISO_MANGLE_TOO_MUCH_FILES       0xE830FEFF
+
+/* image related errors */
+
+/** 
+ * Wrong or damaged Primary Volume Descriptor (FAILURE,HIGH, -320)
+ * This could mean that the file is not a valid ISO image. 
+ */
+#define ISO_WRONG_PVD                   0xE830FEC0
+
+/** Wrong or damaged RR entry (SORRY,HIGH, -321) */
+#define ISO_WRONG_RR                    0xE030FEBF
+
+/** Unsupported RR feature (SORRY,HIGH, -322) */
+#define ISO_UNSUPPORTED_RR              0xE030FEBE
+
+/** Wrong or damaged ECMA-119 (FAILURE,HIGH, -323) */
+#define ISO_WRONG_ECMA119               0xE830FEBD
+
+/** Unsupported ECMA-119 feature (FAILURE,HIGH, -324) */
+#define ISO_UNSUPPORTED_ECMA119         0xE830FEBC
+
+/** Wrong or damaged El-Torito catalog (SORRY,HIGH, -325) */
+#define ISO_WRONG_EL_TORITO             0xE030FEBB
+
+/** Unsupported El-Torito feature (SORRY,HIGH, -326) */
+#define ISO_UNSUPPORTED_EL_TORITO       0xE030FEBA
+
+/** Can't patch an isolinux boot image (SORRY,HIGH, -327) */
+#define ISO_ISOLINUX_CANT_PATCH         0xE030FEB9
+
+/** Unsupported SUSP feature (SORRY,HIGH, -328) */
+#define ISO_UNSUPPORTED_SUSP            0xE030FEB8
+
+/** Error on a RR entry that can be ignored (WARNING,MEDIUM, -329) */
+#define ISO_WRONG_RR_WARN               0xD020FEB7
+
+/** Error on a RR entry that can be ignored (HINT,MEDIUM, -330) */
+#define ISO_SUSP_UNHANDLED              0xC020FEB6
+
+/** Multiple ER SUSP entries found (WARNING,MEDIUM, -331) */
+#define ISO_SUSP_MULTIPLE_ER            0xD020FEB5
+
+/** Unsupported volume descriptor found (HINT,MEDIUM, -332) */
+#define ISO_UNSUPPORTED_VD              0xC020FEB4
+
+/** El-Torito related warning (WARNING,MEDIUM, -333) */
+#define ISO_EL_TORITO_WARN              0xD020FEB3
 
 #endif /*LIBISO_LIBISOFS_H_*/

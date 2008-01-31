@@ -7,7 +7,7 @@
  */
 
 #include "util.h"
-#include "error.h"
+#include "libisofs.h"
 
 #include <stdlib.h>
 #include <string.h>
