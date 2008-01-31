@@ -8,6 +8,55 @@
 #ifndef LIBISO_LIBISOFS_H_
 #define LIBISO_LIBISOFS_H_
 
+/** 
+ * These three release version numbers tell the revision of this header file
+ * and of the API it describes. They are memorized by applications at compile 
+ * time.
+ * 
+ * Before usage on your code, please read the usage discussion below.
+ */
+#define libisofs_header_version_major  0
+#define libisofs_header_version_minor  6
+#define libisofs_header_version_micro  1
+
+/** 
+ * Usage discussion:
+ * 
+ * Some developers of the libburnia project have differing opinions how to 
+ * ensure the compatibility of libaries and applications.
+ * 
+ * It is about whether to use at compile time and at runtime the version 
+ * numbers provided here. Thomas Schmitt advises to use them. Vreixo Formoso 
+ * advises to use other means.
+ * 
+ * At compile time:
+ * 
+ * Vreixo Formoso advises to leave proper version matching to properly 
+ * programmed checks in the the application's build system, which will 
+ * eventually refuse compilation.
+ * 
+ * Thomas Schmitt advises to use the macros defined here for comparison with 
+ * the application's requirements of library revisions and to eventually 
+ * break compilation.
+ * 
+ * Both advises are combinable. I.e. be master of your build system and have 
+ * #if checks in the source code of your application, nevertheless.
+ * 
+ * At runtime (via iso_lib_is_compatible()):
+ * 
+ * Vreixo Formoso advises to compare the application's requirements of 
+ * library revisions with the runtime library. This is to allow runtime 
+ * libraries which are young enough for the application but too old for
+ * the lib*.h files seen at compile time.
+ * 
+ * Thomas Schmitt advises to compare the header revisions defined here with 
+ * the runtime library. This is to enforce a strictly monotonous chain of 
+ * revisions from app to header to library, at the cost of excluding some older
+ * libraries.
+ * 
+ * These two advises are mutually exclusive.
+ */
+
 #include <sys/stat.h>
 #include <stdint.h>
 
@@ -141,11 +190,12 @@ typedef struct iso_data_source IsoDataSource;
  * it with regular .iso images, and also with block devices that represent a 
  * drive.
  */
-struct iso_data_source {
+struct iso_data_source
+{
 
     /* reserved for future usage, set to 0 */
     int version;
-    
+
     /** 
      * Reference count for the data source. Should be 1 when a new source
      * is created. Don't access it directly, but with iso_data_source_ref()
@@ -207,20 +257,20 @@ struct iso_read_image_features
      * Will be filled with the size (in 2048 byte block) of the image, as 
      * reported in the PVM. 
      */
-    uint32_t size; 
-    
+    uint32_t size;
+
     /** It will be set to 1 if RR extensions are present, to 0 if not. */
     unsigned int hasRR :1;
-    
+
     /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
     unsigned int hasJoliet :1;
-    
+
     /** 
      * It will be set to 1 if the image is an ISO 9660:1999, i.e. it has
      * a version 2 Enhanced Volume Descriptor. 
      */
     unsigned int hasIso1999 :1;
-    
+
     /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
     unsigned int hasElTorito :1;
 };
@@ -329,7 +379,7 @@ struct iso_filesystem
      * @return 1 on success, < 0 on error
      */
     int (*close)(IsoFilesystem *fs);
-    
+
     /**
      * Free implementation specific data. Should never be called by user.
      * Use iso_filesystem_unref() instead.
@@ -1016,8 +1066,7 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  * @return
  *     1 on success, < 0 on error
  */
-int iso_image_import(IsoImage *image, IsoDataSource *src,
-                     IsoReadOpts *opts, 
+int iso_image_import(IsoImage *image, IsoDataSource *src, IsoReadOpts *opts,
                      struct iso_read_image_features **features);
 
 /**
@@ -1211,10 +1260,11 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image);
  * @return 
  *      1 on success, < 0 on error
  */
-int iso_image_set_boot_image(IsoImage *image, const char *image_path,
-                             enum eltorito_boot_media_type type,
-                             const char *catalog_path,
-                             ElToritoBootImage **boot);
+int
+        iso_image_set_boot_image(IsoImage *image, const char *image_path,
+                                 enum eltorito_boot_media_type type,
+                                 const char *catalog_path,
+                                 ElToritoBootImage **boot);
 
 /* TODO #00026 : add support for "hidden" bootable images. */
 
@@ -1447,8 +1497,9 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs);
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE, if child == dir, or replace != (0,1)
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child, 
-                     enum iso_replace_mode replace);
+int
+        iso_dir_add_node(IsoDir *dir, IsoNode *child,
+                         enum iso_replace_mode replace);
 
 /**
  * Locate a node inside a given dir.
@@ -1886,8 +1937,7 @@ int iso_tree_remove_exclude(IsoImage *image, const char *path);
  *      continue, < 0 to abort the process
  *      NULL is allowed if you don't want any callback.
  */
-void iso_tree_set_report_callback(IsoImage *image, 
-                                  int (*report)(IsoImage*, IsoFileSource*));
+void iso_tree_set_report_callback(IsoImage *image, int (*report)(IsoImage*, IsoFileSource*));
 
 /**
  * Add a new node to the image tree, from an existing file. 
@@ -1997,7 +2047,7 @@ int iso_data_source_new_from_file(const char *path, IsoDataSource **src);
  *           6="ended"     : consumption has ended without input error
  *           7="aborted"   : consumption has ended after input error
  */
-int iso_ring_buffer_get_status(struct burn_source *b, size_t *size, 
+int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
                                size_t *free_bytes);
 
 #define ISO_MSGS_MESSAGE_LEN 4096
@@ -2015,7 +2065,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
  * @param print_id       A text prefix to be printed before the message.
  * @return               >0 for success, <=0 for error
  */
-int iso_set_msgs_severities(char *queue_severity, char *print_severity, 
+int iso_set_msgs_severities(char *queue_severity, char *print_severity,
                             char *print_id);
 
 /** 
@@ -2297,8 +2347,8 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  * @param
  *      1 on success, < 0 on error
  */
-int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts,
-                             int msgid, IsoImageFilesystem **fs);
+int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts, int msgid,
+                             IsoImageFilesystem **fs);
 
 /**
  * Get the volset identifier for an existent image. The returned string belong
