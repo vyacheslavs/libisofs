@@ -147,8 +147,10 @@ doc/html: doc/doxygen.conf
 	doxygen doc/doxygen.conf;
 
 install-data-local: 
-	$(mkinstalldirs) $(docdir)/html; \
-	$(INSTALL_DATA) doc/html/* $(docdir)/html;
+	if [ -d doc/html ]; then \
+		$(mkinstalldirs) $(docdir)/html; \
+		$(INSTALL_DATA) doc/html/* $(docdir)/html; \
+	fi
 
 uninstall-local:
 	rm -rf $(docdir)
