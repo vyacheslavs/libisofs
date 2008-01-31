@@ -567,18 +567,81 @@ void iso_finish();
  */
 int iso_image_new(const char *name, IsoImage **image);
 
+
+/** The following two functions three macros are utilities to help ensuring
+    version match of application, compile time header, and runtime library.
+*/
 /**
- * Get version of the libisofs library.
+ * Get version of the libisofs library at runtime.
  */
 void iso_lib_version(int *major, int *minor, int *micro);
 
 /**
- * Check if the library is ABI compatible with the given version.
+ * Check at runtime if the library is ABI compatible with the given version.
  * 
  * @return 
  *      1 lib is compatible, 0 is not.
  */
 int iso_lib_is_compatible(int major, int minor, int micro);
+
+
+/** These three release version numbers tell the revision of this header file
+    and of the API it describes. They are memorized by applications at
+    compile time.
+    They must show the same values as these symbols in ./configure.ac
+      LIBISOFS_MAJOR_VERSION=...
+      LIBISOFS_MINOR_VERSION=...
+      LIBISOFS_MICRO_VERSION=...
+    Note to anybody who does own work inside libisofs:
+    Any change of configure.ac or libisofs.h has to keep up this equality !
+*/
+#define iso_lib_header_version_major  0
+#define iso_lib_header_version_minor  6
+#define iso_lib_header_version_micro  1
+
+/** Usage discussion:
+
+Some developers of the libburnia project have differing
+opinions how to ensure the compatibility of libaries
+and applications.
+
+It is about whether to use at compile time and at runtime
+the version numbers provided here.
+Thomas Schmitt advises to use them.
+Vreixo Formoso advises to use other means.
+
+At compile time:
+
+Vreixo Formoso advises to leave proper version matching
+to properly programmed checks in the the application's
+build system, which will eventually refuse compilation.
+
+Thomas Schmitt advises to use the macros defined here
+for comparison with the application's requirements of
+library revisions and to eventually break compilation.
+
+Both advises are combinable. I.e. be master of your
+build system and have #if checks in the source code
+of your application, nevertheless.
+
+At runtime (via *_is_compatible()):
+
+Vreixo Formoso advises to compare the application's
+requirements of library revisions with the runtime
+library. This is to allow runtime libraries which are
+young enough for the application but too old for
+the lib*.h files seen at compile time.
+
+Thomas Schmitt advises to compare the header
+revisions defined here with the runtime library.
+This is to enforce a strictly monotonous chain
+of revisions from app to header to library,
+at the cost of excluding some older libraries.
+
+These two advises are mutually exclusive.
+
+*/
+
 
 /**
  * Creates an IsoWriteOpts for writing an image. You should set the options
