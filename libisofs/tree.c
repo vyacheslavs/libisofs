@@ -484,7 +484,7 @@ int check_excludes(IsoImage *image, const char *path)
         char *exclude = image->excludes[i];
         if (exclude[0] == '/') {
             /* absolute exclude, must completely match path */
-            if (!fnmatch(exclude, path, FNM_PERIOD|FNM_FILE_NAME)) {
+            if (!fnmatch(exclude, path, FNM_PERIOD|FNM_PATHNAME)) {
                 return 1;
             }
         } else {
@@ -492,7 +492,7 @@ int check_excludes(IsoImage *image, const char *path)
             char *pos = (char*)path;
             while (pos != NULL) {
                 pos++;
-                if (!fnmatch(exclude, pos, FNM_PERIOD|FNM_FILE_NAME)) {
+                if (!fnmatch(exclude, pos, FNM_PERIOD|FNM_PATHNAME)) {
                     return 1;
                 }
                 pos = strchr(pos, '/');
