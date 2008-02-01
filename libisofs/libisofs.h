@@ -16,6 +16,8 @@ struct burn_source;
 /**
  * Context for image creation. It holds the files that will be added to image,
  * and several options to control libisofs behavior.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Image IsoImage;
 
@@ -25,24 +27,32 @@ typedef struct Iso_Image IsoImage;
  * It can represent any kind of files. When needed, you can get the type with 
  * iso_node_get_type() and cast it to the appropiate subtype. Useful macros
  * are provided, see below.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Node IsoNode;
 
 /**
  * A directory in the iso tree. It is an special type of IsoNode and can be
  * casted to it in any case.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Dir IsoDir;
 
 /**
  * A symbolic link in the iso tree. It is an special type of IsoNode and can be
  * casted to it in any case.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Symlink IsoSymlink;
 
 /**
  * A regular file in the iso tree. It is an special type of IsoNode and can be
  * casted to it in any case.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_File IsoFile;
 
@@ -51,6 +61,8 @@ typedef struct Iso_File IsoFile;
  * other that regular files, directories or symlinks, i.e.: socket, block and
  * character devices, and fifos.
  * It is an special type of IsoNode and can be casted to it in any case.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Special IsoSpecial;
 
@@ -68,6 +80,8 @@ typedef struct Iso_Special IsoSpecial;
  *      IsoDir *dir = (IsoDir *)node;
  *      ...
  * }
+ *
+ * @since 0.6.1
  */
 enum IsoNodeType {
     LIBISO_DIR,
@@ -95,24 +109,31 @@ enum IsoNodeType {
 /**
  * Context for iterate on directory children.
  * @see iso_dir_get_children()
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Dir_Iter IsoDirIter;
 
 /**
  * It represents an El-Torito boot image.
+ *
+ * @since 0.6.1
  */
 typedef struct el_torito_boot_image ElToritoBootImage;
 
 /**
  * An special type of IsoNode that acts as a placeholder for an El-Torito
  * boot catalog. Once written, it will appear as a regular file.
+ *
+ * @since 0.6.1
  */
 typedef struct Iso_Boot IsoBoot;
 
 /**
  * Flag used to hide a file in the RR/ISO or Joliet tree.
  * 
- * \see iso_node_set_hidden
+ * @see iso_node_set_hidden
+ * @since 0.6.1
  */
 enum IsoHideNodeFlag {
     /** Hide the node in the ECMA-119 / RR tree */
@@ -125,6 +146,8 @@ enum IsoHideNodeFlag {
 
 /**
  * El-Torito bootable image type.
+ *
+ * @since 0.6.1
  */
 enum eltorito_boot_media_type {
     ELTORITO_FLOPPY_EMUL,
@@ -136,6 +159,8 @@ enum eltorito_boot_media_type {
  * Replace mode used when addding a node to a file.
  * This controls how libisofs will act when you tried to add to a dir a file
  * with the same name that an existing file.
+ *
+ * @since 0.6.1
  */
 enum iso_replace_mode {
     /**
@@ -169,12 +194,14 @@ enum iso_replace_mode {
 /**
  * Options for image written.
  * @see iso_write_opts_new()
+ * @since 0.6.1
  */
 typedef struct iso_write_opts IsoWriteOpts;
 
 /**
  * Options for image reading or import.
  * @see iso_read_opts_new()
+ * @since 0.6.1
  */
 typedef struct iso_read_opts IsoReadOpts;
 
@@ -182,6 +209,7 @@ typedef struct iso_read_opts IsoReadOpts;
  * Source for image reading.
  * 
  * @see struct iso_data_source
+ * @since 0.6.1
  */
 typedef struct iso_data_source IsoDataSource;
 
@@ -196,6 +224,8 @@ typedef struct iso_data_source IsoDataSource;
  * an IsoDataSource that uses POSIX I/O functions to access data. You can use 
  * it with regular .iso images, and also with block devices that represent a 
  * drive.
+ *
+ * @since 0.6.1
  */
 struct iso_data_source
 {
@@ -257,6 +287,8 @@ struct iso_data_source
  * Return information for image.
  * Both size, hasRR and hasJoliet will be filled by libisofs with suitable 
  * values.
+ *
+ * @since 0.6.1
  */
 struct iso_read_image_features
 {
@@ -286,6 +318,7 @@ struct iso_read_image_features
  * POSIX abstraction for source files.
  * 
  * @see struct iso_file_source
+ * @since 0.6.1
  */
 typedef struct iso_file_source IsoFileSource;
 
@@ -293,6 +326,7 @@ typedef struct iso_file_source IsoFileSource;
  * Abstract for source filesystems.
  * 
  * @see struct iso_filesystem
+ * @since 0.6.1
  */
 typedef struct iso_filesystem IsoFilesystem;
 
@@ -301,6 +335,7 @@ typedef struct iso_filesystem IsoFilesystem;
  * IsoFileSource.
  * 
  * @see struct IsoFileSource_Iface
+ * @since 0.6.1
  */
 typedef struct IsoFileSource_Iface IsoFileSourceIface;
 
@@ -308,11 +343,14 @@ typedef struct IsoFileSource_Iface IsoFileSourceIface;
  * IsoFilesystem implementation to deal with ISO images, and to offer a way to
  * access specific information of the image, such as several volume attributes, 
  * extensions being used, El-Torito artifacts...
+ *
+ * @since 0.6.1
  */
 typedef IsoFilesystem IsoImageFilesystem;
 
 /**
  * See IsoFilesystem->get_id() for info about this.
+ * @since 0.6.1
  */
 extern unsigned int iso_fs_global_id;
 
@@ -332,6 +370,8 @@ extern unsigned int iso_fs_global_id;
  * 
  * Each file inside an IsoFilesystem is represented as an IsoFileSource object,
  * that defines POSIX-like interface for accessing files.
+ *
+ * @since 0.6.1
  */
 struct iso_filesystem
 {
@@ -419,6 +459,8 @@ struct iso_filesystem
 /**
  * Interface definition for an IsoFileSource. Defines the POSIX-like function
  * to access files and abstract underlying source.
+ *
+ * @since 0.6.1
  */
 struct IsoFileSource_Iface
 {
@@ -609,6 +651,8 @@ struct IsoFileSource_Iface
 
 /**
  * An IsoFile Source is a POSIX abstraction of a file.
+ *
+ * @since 0.6.1
  */
 struct iso_file_source
 {
@@ -620,11 +664,15 @@ struct iso_file_source
 /**
  * Initialize libisofs. You must call this before any usage of the library.
  * @return 1 on success, < 0 on error 
+ *
+ * @since 0.6.1
  */
 int iso_init();
 
 /**
  * Finalize libisofs.
+ *
+ * @since 0.6.1
  */
 void iso_finish();
 
@@ -639,6 +687,8 @@ void iso_finish();
  *     Location where the image pointer will be stored.
  * @return
  *     1 sucess, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_image_new(const char *name, IsoImage **image);
 
@@ -649,6 +699,8 @@ int iso_image_new(const char *name, IsoImage **image);
  */
 /**
  * Get version of the libisofs library at runtime.
+ *
+ * @since 0.6.1
  */
 void iso_lib_version(int *major, int *minor, int *micro);
 
@@ -657,6 +709,8 @@ void iso_lib_version(int *major, int *minor, int *micro);
  * 
  * @return 
  *      1 lib is compatible, 0 is not.
+ *
+ * @since 0.6.1
  */
 int iso_lib_is_compatible(int major, int minor, int micro);
 
@@ -674,6 +728,8 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  * 
  * Before usage of these macros on your code, please read the usage discussion 
  * below.
+ *
+ * @since 0.6.1
  */
 #define iso_lib_header_version_major  0
 #define iso_lib_header_version_minor  6
@@ -745,11 +801,15 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  *        default values, and timestamps to the time of recording.
  * @return
  *      1 success, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_new(IsoWriteOpts **opts, int profile);
 
 /**
  * Free an IsoWriteOpts previously allocated with iso_write_opts_new().
+ *
+ * @since 0.6.1
  */
 void iso_write_opts_free(IsoWriteOpts *opts);
 
@@ -762,6 +822,8 @@ void iso_write_opts_free(IsoWriteOpts *opts);
  *      -> 2 to allow up to 31 filename characters.
  * @return
  *      1 success, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level);
 
@@ -780,6 +842,8 @@ int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level);
  *      1 to enable RR extension, 0 to not add them
  * @return
  *      1 success, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable);
 
@@ -795,6 +859,8 @@ int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable);
  *      1 to enable Joliet extension, 0 to not add them
  * @return
  *      1 success, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
 
@@ -804,6 +870,8 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
  * This is the second version of ISO-9660. It allows longer filenames and has
  * less restrictions than old ISO-9660. However, nobody is using it so there
  * are no much reasons to enable this. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
 
@@ -811,18 +879,24 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
  * Omit the version number (";1") at the end of the ISO-9660 identifiers.
  * This breaks ECMA-119 specification, but version numbers are usually not 
  * used, so it should work on most systems. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit);
 
 /**
  * Allow ISO-9660 directory hierarchy to be deeper than 8 levels. 
  * This breaks ECMA-119 specification. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_allow_deep_paths(IsoWriteOpts *opts, int allow);
 
 /**
  * Allow path in the ISO-9660 tree to have more than 255 characters.
  * This breaks ECMA-119 specification. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_allow_longer_paths(IsoWriteOpts *opts, int allow);
 
@@ -833,6 +907,8 @@ int iso_write_opts_set_allow_longer_paths(IsoWriteOpts *opts, int allow);
  * omit_version_numbers.
  * This breaks ECMA-119 specification and could lead to buffer overflow
  * problems on old systems. Use with caution.
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_max_37_char_filenames(IsoWriteOpts *opts, int allow);
 
@@ -841,6 +917,8 @@ int iso_write_opts_set_max_37_char_filenames(IsoWriteOpts *opts, int allow);
  * extension. libisofs adds it if original filename doesn't has one. Set 
  * this to 1 to prevent this behavior.
  * This breaks ECMA-119 specification. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no);
 
@@ -848,6 +926,8 @@ int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no);
  * Allow lowercase characters in ISO-9660 filenames. By default, only 
  * uppercase characters, numbers and a few other characters are allowed. 
  * This breaks ECMA-119 specification. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
 
@@ -855,12 +935,16 @@ int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
  * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
  * that "/" and "\0" characters are never allowed, even in RR names.
  * This breaks ECMA-119 specification. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow);
 
 /**
  * Allow paths in the Joliet tree to have more than 240 characters.
  * This breaks Joliet specification. Use with caution. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
 
@@ -868,6 +952,7 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
  * Whether to sort files based on their weight.
  * 
  * @see iso_node_set_sort_weight
+ * @since 0.6.1
  */
 int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
 
@@ -887,6 +972,7 @@ int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
  * @see iso_write_opts_set_default_file_mode
  * @see iso_write_opts_set_default_uid
  * @see iso_write_opts_set_default_gid
+ * @since 0.6.1
  */
 int iso_write_opts_set_replace_mode(IsoWriteOpts *opts, int dir_mode,
                                     int file_mode, int uid, int gid);
@@ -895,6 +981,7 @@ int iso_write_opts_set_replace_mode(IsoWriteOpts *opts, int dir_mode,
  * Set the mode to use on dirs when you set the replace_mode of dirs to 2.
  * 
  * @see iso_write_opts_set_replace_mode
+ * @since 0.6.1
  */
 int iso_write_opts_set_default_dir_mode(IsoWriteOpts *opts, mode_t dir_mode);
 
@@ -902,6 +989,7 @@ int iso_write_opts_set_default_dir_mode(IsoWriteOpts *opts, mode_t dir_mode);
  * Set the mode to use on files when you set the replace_mode of files to 2.
  * 
  * @see iso_write_opts_set_replace_mode
+ * @since 0.6.1
  */
 int iso_write_opts_set_default_file_mode(IsoWriteOpts *opts, mode_t file_mode);
 
@@ -909,6 +997,7 @@ int iso_write_opts_set_default_file_mode(IsoWriteOpts *opts, mode_t file_mode);
  * Set the uid to use when you set the replace_uid to 2.
  * 
  * @see iso_write_opts_set_replace_mode
+ * @since 0.6.1
  */
 int iso_write_opts_set_default_uid(IsoWriteOpts *opts, uid_t uid);
 
@@ -916,6 +1005,7 @@ int iso_write_opts_set_default_uid(IsoWriteOpts *opts, uid_t uid);
  * Set the gid to use when you set the replace_gid to 2.
  * 
  * @see iso_write_opts_set_replace_mode
+ * @since 0.6.1
  */
 int iso_write_opts_set_default_gid(IsoWriteOpts *opts, gid_t gid);
 
@@ -925,6 +1015,7 @@ int iso_write_opts_set_default_gid(IsoWriteOpts *opts, gid_t gid);
  * are enabled.
  * 
  * @see iso_write_opts_set_default_timestamp
+ * @since 0.6.1
  */
 int iso_write_opts_set_replace_timestamps(IsoWriteOpts *opts, int replace);
 
@@ -932,6 +1023,7 @@ int iso_write_opts_set_replace_timestamps(IsoWriteOpts *opts, int replace);
  * Set the timestamp to use when you set the replace_timestamps to 2.
  * 
  * @see iso_write_opts_set_replace_timestamps
+ * @since 0.6.1
  */
 int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp);
 
@@ -943,6 +1035,8 @@ int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp);
  * your timezone, or you live in a timezone that can't be represented in
  * ECMA-119. These are timezones whose offset from GMT is greater than +13 
  * hours, lower than -12 hours, or not a multiple of 15 minutes. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt);
 
@@ -952,6 +1046,8 @@ int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt);
  * NULL to use default charset, that is the locale charset.
  * You can obtain the list of charsets supported on your system executing 
  * "iconv -l" in a shell.
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
 
@@ -979,6 +1075,8 @@ int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
  * 
  * @param appendable
  *      1 to create an appendable image, 0 for an stand-alone one.
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_appendable(IsoWriteOpts *opts, int appendable);
 
@@ -994,6 +1092,8 @@ int iso_write_opts_set_appendable(IsoWriteOpts *opts, int appendable);
  * provide a different ms_block if you don't plan to burn the image in the
  * first session on disc, such as in some CD-Extra disc whether the data
  * image is written in a new session after some audio tracks. 
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
 
@@ -1022,6 +1122,8 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
  * If you don't need this information, for example because you're creating a
  * new image from scratch of because you will create an image for a true
  * multisession media, just don't set this buffer or set it to NULL.
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
 
@@ -1030,6 +1132,8 @@ int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
  * writer thread and the burn_source. You have to provide at least a 32 
  * blocks buffer. Default value is set to 2MB, if that is ok for you, you
  * don't need to call this function.
+ *
+ * @since 0.6.1
  */
 int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
 
@@ -1046,6 +1150,8 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *     Location where the pointer to the burn_source will be stored
  * @return
  *     1 on success, < 0 on error 
+ *
+ * @since 0.6.1
  */
 int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src);
@@ -1069,17 +1175,23 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
  *         Joliet and RR extension are present, RR is used. 
  * @return
  *      1 success, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_new(IsoReadOpts **opts, int profile);
 
 /**
  * Free an IsoReadOpts previously allocated with iso_read_opts_new().
+ *
+ * @since 0.6.1
  */
 void iso_read_opts_free(IsoReadOpts *opts);
 
 /** 
  * Set the block where the image begins. It is usually 0, but may be different 
  * on a multisession disc.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_start_block(IsoReadOpts *opts, uint32_t block);
 
@@ -1087,16 +1199,22 @@ int iso_read_opts_set_start_block(IsoReadOpts *opts, uint32_t block);
  * Do not read Rock Ridge extensions. 
  * In most cases you don't want to use this. It could be useful if RR info
  * is damaged, or if you want to use the Joliet tree.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_no_rockridge(IsoReadOpts *opts, int norr);
 
 /**
  * Do not read Joliet extensions.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_no_joliet(IsoReadOpts *opts, int nojoliet);
 
 /**
  * Do not read ISO 9660:1999 enhanced tree
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
 
@@ -1107,16 +1225,22 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
  * note that this is not very recommended. This doesn't mean than RR 
  * extensions are not read: if no Joliet is present, libisofs will read
  * RR tree.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet);
 
 /**
  * Set default uid for files when RR extensions are not present.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_default_uid(IsoReadOpts *opts, uid_t uid);
 
 /**
  * Set default gid for files when RR extensions are not present.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid);
 
@@ -1127,6 +1251,8 @@ int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid);
  *      Permissions for files.
  * @param dir_perm
  *      Permissions for directories.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
                                           mode_t dir_perm);
@@ -1140,6 +1266,8 @@ int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
  * @param charset
  *      The charset to use as input charset.  You can obtain the list of
  *      charsets supported on your system executing "iconv -l" in a shell.
+ *
+ * @since 0.6.1
  */
 int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
 
@@ -1163,12 +1291,16 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  *     no more needed. You can pass NULL if you're not interested on them.
  * @return
  *     1 on success, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_image_import(IsoImage *image, IsoDataSource *src, IsoReadOpts *opts,
                      struct iso_read_image_features **features);
 
 /**
  * Increments the reference counting of the given image.
+ *
+ * @since 0.6.1
  */
 void iso_image_ref(IsoImage *image);
 
@@ -1176,6 +1308,8 @@ void iso_image_ref(IsoImage *image);
  * Decrements the reference couting of the given image.
  * If it reaches 0, the image is free, together with its tree nodes (whether 
  * their refcount reach 0 too, of course).
+ *
+ * @since 0.6.1
  */
 void iso_image_unref(IsoImage *image);
 
@@ -1193,11 +1327,15 @@ void iso_image_unref(IsoImage *image);
  *      causes data to be free.
  * @return
  *      1 on succes, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_image_attach_data(IsoImage *image, void *data, void (*free)(void*));
 
 /**
  * The the data previously attached with iso_image_attach_data()
+ *
+ * @since 0.6.1
  */
 void *iso_image_get_attached_data(IsoImage *image);
 
@@ -1205,11 +1343,15 @@ void *iso_image_get_attached_data(IsoImage *image);
  * Get the root directory of the image.
  * No extra ref is added to it, so you musn't unref it. Use iso_node_ref()
  * if you want to get your own reference.
+ *
+ * @since 0.6.1
  */
 IsoDir *iso_image_get_root(const IsoImage *image);
 
 /**
  * Fill in the volset identifier for a image.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_volset_id(IsoImage *image, const char *volset_id);
 
@@ -1217,11 +1359,15 @@ void iso_image_set_volset_id(IsoImage *image, const char *volset_id);
  * Get the volset identifier. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_volset_id(const IsoImage *image);
 
 /**
  * Fill in the volume identifier for a image.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_volume_id(IsoImage *image, const char *volume_id);
 
@@ -1229,11 +1375,15 @@ void iso_image_set_volume_id(IsoImage *image, const char *volume_id);
  * Get the volume identifier. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_volume_id(const IsoImage *image);
 
 /**
  * Fill in the publisher for a image.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_publisher_id(IsoImage *image, const char *publisher_id);
 
@@ -1241,11 +1391,15 @@ void iso_image_set_publisher_id(IsoImage *image, const char *publisher_id);
  * Get the publisher of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_publisher_id(const IsoImage *image);
 
 /**
  * Fill in the data preparer for a image.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_data_preparer_id(IsoImage *image,
                                     const char *data_preparer_id);
@@ -1254,11 +1408,15 @@ void iso_image_set_data_preparer_id(IsoImage *image,
  * Get the data preparer of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_data_preparer_id(const IsoImage *image);
 
 /**
  * Fill in the system id for a image. Up to 32 characters.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_system_id(IsoImage *image, const char *system_id);
 
@@ -1266,11 +1424,15 @@ void iso_image_set_system_id(IsoImage *image, const char *system_id);
  * Get the system id of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_system_id(const IsoImage *image);
 
 /**
  * Fill in the application id for a image. Up to 128 chars.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_application_id(IsoImage *image, const char *application_id);
 
@@ -1278,12 +1440,16 @@ void iso_image_set_application_id(IsoImage *image, const char *application_id);
  * Get the application id of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_application_id(const IsoImage *image);
 
 /**
  * Fill copyright information for the image. Usually this refers
  * to a file on disc. Up to 37 characters.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_copyright_file_id(IsoImage *image,
                                      const char *copyright_file_id);
@@ -1292,12 +1458,16 @@ void iso_image_set_copyright_file_id(IsoImage *image,
  * Get the copyright information of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_copyright_file_id(const IsoImage *image);
 
 /**
  * Fill abstract information for the image. Usually this refers
  * to a file on disc. Up to 37 characters.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_abstract_file_id(IsoImage *image,
                                     const char *abstract_file_id);
@@ -1306,12 +1476,16 @@ void iso_image_set_abstract_file_id(IsoImage *image,
  * Get the abstract information of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_abstract_file_id(const IsoImage *image);
 
 /**
  * Fill biblio information for the image. Usually this refers
  * to a file on disc. Up to 37 characters.
+ *
+ * @since 0.6.1
  */
 void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
 
@@ -1319,6 +1493,8 @@ void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
  * Get the biblio information of a image. 
  * The returned string is owned by the image and should not be freed nor
  * changed.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_get_biblio_file_id(const IsoImage *image);
 
@@ -1357,6 +1533,8 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image);
  *      reference to the boot image. 
  * @return 
  *      1 on success, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_image_set_boot_image(IsoImage *image, const char *image_path,
                              enum eltorito_boot_media_type type,
@@ -1397,6 +1575,8 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
  * @return
  *      1 on success, 0 is the image is not bootable (i.e., it has no El-Torito
  *      image), < 0 error.
+ *
+ * @since 0.6.1
  */
 int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
                              IsoFile **imgnode, IsoBoot **catnode);
@@ -1408,12 +1588,16 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
  * for the image tree, if there.
  * If the image is not bootable (don't have el-torito boot image) this function
  * just returns.
+ *
+ * @since 0.6.1
  */
 void iso_image_remove_boot_image(IsoImage *image);
 
 /**
  * Sets the load segment for the initial boot image. This is only for
  * no emulation boot images, and is a NOP for other image types.
+ *
+ * @since 0.6.1
  */
 void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment);
 
@@ -1421,11 +1605,15 @@ void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment);
  * Sets the number of sectors (512b) to be load at load segment during
  * the initial boot procedure. This is only for
  * no emulation boot images, and is a NOP for other image types.
+ *
+ * @since 0.6.1
  */
 void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors);
 
 /**
  * Marks the specified boot image as not bootable
+ *
+ * @since 0.6.1
  */
 void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
 
@@ -1434,11 +1622,15 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
  * of a 56 bytes boot information table at offset 8 of the boot image file.
  * The original boot image file won't be modified.
  * This is needed for isolinux boot images.
+ *
+ * @since 0.6.1
  */
 void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
 
 /**
  * Increments the reference counting of the given node.
+ *
+ * @since 0.6.1
  */
 void iso_node_ref(IsoNode *node);
 
@@ -1446,11 +1638,15 @@ void iso_node_ref(IsoNode *node);
  * Decrements the reference couting of the given node.
  * If it reach 0, the node is free, and, if the node is a directory,
  * its children will be unref() too.
+ *
+ * @since 0.6.1
  */
 void iso_node_unref(IsoNode *node);
 
 /**
  * Get the type of an IsoNode.
+ *
+ * @since 0.6.1
  */
 enum IsoNodeType iso_node_get_type(IsoNode *node);
 
@@ -1467,6 +1663,8 @@ enum IsoNodeType iso_node_get_type(IsoNode *node);
  *      node name is not modified.
  * @return 
  *      1 on success, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_node_set_name(IsoNode *node, const char *name);
 
@@ -1474,6 +1672,8 @@ int iso_node_set_name(IsoNode *node, const char *name);
  * Get the name of a node.
  * The returned string belongs to the node and should not be modified nor
  * freed. Use strdup if you really need your own copy.
+ *
+ * @since 0.6.1
  */
 const char *iso_node_get_name(const IsoNode *node);
 
@@ -1485,69 +1685,95 @@ const char *iso_node_get_name(const IsoNode *node);
  *     bitmask with the permissions of the node, as specified in 'man 2 stat'.
  *     The file type bitfields will be ignored, only file permissions will be
  *     modified.
+ *
+ * @since 0.6.1
  */
 void iso_node_set_permissions(IsoNode *node, mode_t mode);
 
 /** 
  * Get the permissions for the node 
+ *
+ * @since 0.6.1
  */
 mode_t iso_node_get_permissions(const IsoNode *node);
 
 /** 
  * Get the mode of the node, both permissions and file type, as specified in
  * 'man 2 stat'.
+ *
+ * @since 0.6.1
  */
 mode_t iso_node_get_mode(const IsoNode *node);
 
 /**
  * Set the user id for the node. This attribute is only useful when 
  * Rock Ridge extensions are enabled.
+ *
+ * @since 0.6.1
  */
 void iso_node_set_uid(IsoNode *node, uid_t uid);
 
 /**
  * Get the user id of the node.
+ *
+ * @since 0.6.1
  */
 uid_t iso_node_get_uid(const IsoNode *node);
 
 /**
  * Set the group id for the node. This attribute is only useful when 
  * Rock Ridge extensions are enabled.
+ *
+ * @since 0.6.1
  */
 void iso_node_set_gid(IsoNode *node, gid_t gid);
 
 /**
  * Get the group id of the node.
+ *
+ * @since 0.6.1
  */
 gid_t iso_node_get_gid(const IsoNode *node);
 
 /** 
  * Set the time of last modification of the file
+ *
+ * @since 0.6.1
  */
 void iso_node_set_mtime(IsoNode *node, time_t time);
 
 /** 
  * Get the time of last modification of the file
+ *
+ * @since 0.6.1
  */
 time_t iso_node_get_mtime(const IsoNode *node);
 
 /** 
  * Set the time of last access to the file
+ *
+ * @since 0.6.1
  */
 void iso_node_set_atime(IsoNode *node, time_t time);
 
 /** 
  * Get the time of last access to the file 
+ *
+ * @since 0.6.1
  */
 time_t iso_node_get_atime(const IsoNode *node);
 
 /** 
  * Set the time of last status change of the file 
+ *
+ * @since 0.6.1
  */
 void iso_node_set_ctime(IsoNode *node, time_t time);
 
 /** 
  * Get the time of last status change of the file 
+ *
+ * @since 0.6.1
  */
 time_t iso_node_get_ctime(const IsoNode *node);
 
@@ -1567,6 +1793,8 @@ time_t iso_node_get_ctime(const IsoNode *node);
  *      The node that is to be hidden.
  * @param hide_attrs 
  *      IsoHideNodeFlag's to set the trees in which file will be hidden.
+ *
+ * @since 0.6.1
  */
 void iso_node_set_hidden(IsoNode *node, int hide_attrs);
 
@@ -1593,6 +1821,8 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs);
  *         ISO_NODE_ALREADY_ADDED, if child is already added to other dir 
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE, if child == dir, or replace != (0,1)
+ *
+ * @since 0.6.1
  */
 int iso_dir_add_node(IsoDir *dir, IsoNode *child,
                      enum iso_replace_mode replace);
@@ -1615,6 +1845,8 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child,
  *     1 node found, 0 child has no such node, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir or name are NULL
+ *
+ * @since 0.6.1
  */
 int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
 
@@ -1625,6 +1857,8 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
  *     >= 0 number of items, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir is NULL
+ *
+ * @since 0.6.1
  */
 int iso_dir_get_nchildren(IsoDir *dir);
 
@@ -1639,6 +1873,8 @@ int iso_dir_get_nchildren(IsoDir *dir);
  *     Possible errors:
  *         ISO_NULL_POINTER, if node is NULL
  *         ISO_NODE_NOT_ADDED_TO_DIR, if node doesn't belong to a dir
+ *
+ * @since 0.6.1
  */
 int iso_node_take(IsoNode *node);
 
@@ -1650,6 +1886,8 @@ int iso_node_take(IsoNode *node);
  * 
  * @return 
  *     1 on success, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_node_remove(IsoNode *node);
 
@@ -1662,6 +1900,8 @@ int iso_node_remove(IsoNode *node);
  * 
  * This returns NULL if the node doesn't pertain to any tree 
  * (it was removed/take).
+ *
+ * @since 0.6.1
  */
 IsoDir *iso_node_get_parent(IsoNode *node);
 
@@ -1695,6 +1935,8 @@ IsoDir *iso_node_get_parent(IsoNode *node);
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir or iter are NULL
  *         ISO_OUT_OF_MEM
+ *
+ * @since 0.6.1
  */
 int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter);
 
@@ -1710,6 +1952,8 @@ int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter);
  *         ISO_NULL_POINTER, if node or iter are NULL
  *         ISO_ERROR, on wrong iter usage, usual caused by modiying the
  *         dir during iteration
+ *
+ * @since 0.6.1
  */
 int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node);
 
@@ -1720,11 +1964,15 @@ int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node);
  *     1 dir has more elements, 0 no, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if iter is NULL
+ *
+ * @since 0.6.1
  */
 int iso_dir_iter_has_next(IsoDirIter *iter);
 
 /** 
  * Free a dir iterator.
+ *
+ * @since 0.6.1
  */
 void iso_dir_iter_free(IsoDirIter *iter);
 
@@ -1742,6 +1990,8 @@ void iso_dir_iter_free(IsoDirIter *iter);
  *         ISO_NULL_POINTER, if iter is NULL
  *         ISO_ERROR, on wrong iter usage, for example by call this before
  *         iso_dir_iter_next.
+ *
+ * @since 0.6.1
  */
 int iso_dir_iter_take(IsoDirIter *iter);
 
@@ -1759,6 +2009,8 @@ int iso_dir_iter_take(IsoDirIter *iter);
  *         ISO_NULL_POINTER, if iter is NULL
  *         ISO_ERROR, on wrong iter usage, for example by call this before
  *         iso_dir_iter_next.
+ *
+ * @since 0.6.1
  */
 int iso_dir_iter_remove(IsoDirIter *iter);
 
@@ -1766,6 +2018,8 @@ int iso_dir_iter_remove(IsoDirIter *iter);
  * Get the destination of a node.
  * The returned string belongs to the node and should not be modified nor
  * freed. Use strdup if you really need your own copy.
+ *
+ * @since 0.6.1
  */
 const char *iso_symlink_get_dest(const IsoSymlink *link);
 
@@ -1777,6 +2031,8 @@ const char *iso_symlink_get_dest(const IsoSymlink *link);
  *     this function doesn't modify previous destination.
  * @return
  *     1 on success, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_symlink_set_dest(IsoSymlink *link, const char *dest);
 
@@ -1791,16 +2047,22 @@ int iso_symlink_set_dest(IsoSymlink *link, const char *dest);
  * @param w 
  *      The weight as a integer number, the greater this value is, the 
  *      closer from the begining of image the file will be written.
+ *
+ * @since 0.6.1
  */
 void iso_node_set_sort_weight(IsoNode *node, int w);
 
 /**
  * Get the sort weight of a file.
+ *
+ * @since 0.6.1
  */
 int iso_file_get_sort_weight(IsoFile *file);
 
 /** 
  * Get the size of the file, in bytes 
+ *
+ * @since 0.6.1
  */
 off_t iso_file_get_size(IsoFile *file);
 
@@ -1824,6 +2086,8 @@ off_t iso_file_get_size(IsoFile *file);
  *         ISO_NULL_POINTER, if parent or name are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_MEM_ERROR
+ *
+ * @since 0.6.1
  */
 int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
 
@@ -1855,6 +2119,8 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
  *         ISO_NULL_POINTER, if parent, name or dest are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_MEM_ERROR
+ *
+ * @since 0.6.1
  */
 int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
                              const char *dest, IsoSymlink **link);
@@ -1896,6 +2162,8 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE if you select a incorrect mode
  *         ISO_MEM_ERROR
+ *
+ * @since 0.6.1
  */
 int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
                              dev_t dev, IsoSpecial **special);
@@ -1903,6 +2171,8 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
 /**
  * Set whether to follow or not symbolic links when added a file from a source
  * to IsoImage. Default behavior is to not follow symlinks.
+ *
+ * @since 0.6.1
  */
 void iso_tree_set_follow_symlinks(IsoImage *image, int follow);
 
@@ -1910,12 +2180,15 @@ void iso_tree_set_follow_symlinks(IsoImage *image, int follow);
  * Get current setting for follow_symlinks.
  * 
  * @see iso_tree_set_follow_symlinks
+ * @since 0.6.1
  */
 int iso_tree_get_follow_symlinks(IsoImage *image);
 
 /**
  * Set whether to skip or not hidden files when adding a directory recursibely.
  * Default behavior is to not ignore them, i.e., to add hidden files to image.
+ *
+ * @since 0.6.1
  */
 void iso_tree_set_ignore_hidden(IsoImage *image, int skip);
 
@@ -1923,6 +2196,7 @@ void iso_tree_set_ignore_hidden(IsoImage *image, int skip);
  * Get current setting for ignore_hidden.
  * 
  * @see iso_tree_set_ignore_hidden
+ * @since 0.6.1
  */
 int iso_tree_get_ignore_hidden(IsoImage *image);
 
@@ -1930,6 +2204,8 @@ int iso_tree_get_ignore_hidden(IsoImage *image);
  * Set the replace mode, that defines the behavior of libisofs when adding
  * a node whit the same name that an existent one, during a recursive 
  * directory addition.
+ *
+ * @since 0.6.1
  */
 void iso_tree_set_replace_mode(IsoImage *image, enum iso_replace_mode mode);
 
@@ -1937,6 +2213,7 @@ void iso_tree_set_replace_mode(IsoImage *image, enum iso_replace_mode mode);
  * Get current setting for replace_mode.
  * 
  * @see iso_tree_set_replace_mode
+ * @since 0.6.1
  */
 enum iso_replace_mode iso_tree_get_replace_mode(IsoImage *image);
 
@@ -1951,6 +2228,8 @@ enum iso_replace_mode iso_tree_get_replace_mode(IsoImage *image);
  *          bit1: ignore Sockets
  *          bit2: ignore char devices
  *          bit3: ignore block devices
+ *
+ * @since 0.6.1
  */
 void iso_tree_set_ignore_special(IsoImage *image, int skip);
 
@@ -1958,6 +2237,7 @@ void iso_tree_set_ignore_special(IsoImage *image, int skip);
  * Get current setting for ignore_special.
  * 
  * @see iso_tree_set_ignore_special
+ * @since 0.6.1
  */
 int iso_tree_get_ignore_special(IsoImage *image);
 
@@ -2008,6 +2288,8 @@ int iso_tree_get_ignore_special(IsoImage *image);
  * 
  * @return
  *      1 on success, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_tree_add_exclude(IsoImage *image, const char *path);
 
@@ -2017,6 +2299,8 @@ int iso_tree_add_exclude(IsoImage *image, const char *path);
  * @see iso_tree_add_exclude
  * @return
  *      1 on success, 0 exclude do not exists, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_tree_remove_exclude(IsoImage *image, const char *path);
 
@@ -2032,6 +2316,8 @@ int iso_tree_remove_exclude(IsoImage *image, const char *path);
  *      This function should return 1 to add the file, 0 to ignore it and 
  *      continue, < 0 to abort the process
  *      NULL is allowed if you don't want any callback.
+ *
+ * @since 0.6.1
  */
 void iso_tree_set_report_callback(IsoImage *image, 
                                   int (*report)(IsoImage*, IsoFileSource*));
@@ -2061,6 +2347,8 @@ void iso_tree_set_report_callback(IsoImage *image,
  *         ISO_NULL_POINTER, if image, parent or path are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_MEM_ERROR
+ *
+ * @since 0.6.1
  */
 int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
                       IsoNode **node);
@@ -2082,6 +2370,8 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
  *      Path to a dir in the filesystem
  * @return 
  *     number of nodes in parent if success, < 0 otherwise
+ *
+ * @since 0.6.1
  */
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 
@@ -2097,17 +2387,23 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
  *     if a node with such path really exists.
  * @return
  *      1 found, 0 not found, < 0 error
+ *
+ * @since 0.6.1
  */
 int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
 
 /**
  * Increments the reference counting of the given IsoDataSource.
+ *
+ * @since 0.6.1
  */
 void iso_data_source_ref(IsoDataSource *src);
 
 /**
  * Decrements the reference counting of the given IsoDataSource, freeing it
  * if refcount reach 0.
+ *
+ * @since 0.6.1
  */
 void iso_data_source_unref(IsoDataSource *src);
 
@@ -2122,6 +2418,8 @@ void iso_data_source_unref(IsoDataSource *src);
  *     Will be filled with the pointer to the newly created data source.
  * @return
  *    1 on success, < 0 on error.
+ *
+ * @since 0.6.1
  */
 int iso_data_source_new_from_file(const char *path, IsoDataSource **src);
 
@@ -2143,6 +2441,8 @@ int iso_data_source_new_from_file(const char *path, IsoDataSource **src);
  *           5="abandoned" : consumption has ended prematurely
  *           6="ended"     : consumption has ended without input error
  *           7="aborted"   : consumption has ended after input error
+ *
+ * @since 0.6.1
  */
 int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
                                size_t *free_bytes);
@@ -2161,6 +2461,8 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
  *                       to stderr.
  * @param print_id       A text prefix to be printed before the message.
  * @return               >0 for success, <=0 for error
+ *
+ * @since 0.6.1
  */
 int iso_set_msgs_severities(char *queue_severity, char *print_severity,
                             char *print_id);
@@ -2185,6 +2487,8 @@ int iso_set_msgs_severities(char *queue_severity, char *print_severity,
  *     least 80 bytes.
  * @return 
  *     1 if a matching item was found, 0 if not, <0 for severe errors
+ *
+ * @since 0.6.1
  */
 int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
                     char msg_text[], char severity[]);
@@ -2193,11 +2497,15 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
  * Get the id of an IsoImage, used for message reporting. This message id,
  * retrieved with iso_obtain_msgs(), can be used to distinguish what
  * IsoImage has isssued a given message.
+ *
+ * @since 0.6.1
  */
 int iso_image_get_msg_id(IsoImage *image);
 
 /**
  * Get a textual description of a libisofs error.
+ *
+ * @since 0.6.1
  */
 const char *iso_error_to_msg(int errcode);
 
@@ -2211,6 +2519,8 @@ const char *iso_error_to_msg(int errcode);
  *      NOTE won't never cause function abort.
  * @return 
  *      Previous abort priority on success, < 0 on error. 
+ *
+ * @since 0.6.1
  */
 int iso_set_abort_severity(char *severity);
 
@@ -2221,17 +2531,23 @@ int iso_set_abort_severity(char *severity);
  * message queue. See also: libburn, API function burn_set_messenger().
  * 
  * @return the handle. Do only use with compatible
+ *
+ * @since 0.6.1
  */
 void *iso_get_messenger();
 
 /**
  * Take a ref to the given IsoFileSource.
+ *
+ * @since 0.6.1
  */
 void iso_file_source_ref(IsoFileSource *src);
 
 /**
  * Drop your ref to the given IsoFileSource, eventually freeing the associated
  * system resources.
+ *
+ * @since 0.6.1
  */
 void iso_file_source_unref(IsoFileSource *src);
 
@@ -2246,6 +2562,8 @@ void iso_file_source_unref(IsoFileSource *src);
  * @return
  *     the path of the FileSource inside the filesystem, it should be 
  *     freed when no more needed.
+ *
+ * @since 0.6.1
  */
 char* iso_file_source_get_path(IsoFileSource *src);
 
@@ -2254,6 +2572,8 @@ char* iso_file_source_get_path(IsoFileSource *src);
  * 
  * @return
  *     the name of the file, it should be freed when no more needed.
+ *
+ * @since 0.6.1
  */
 char* iso_file_source_get_name(IsoFileSource *src);
 
@@ -2268,6 +2588,8 @@ char* iso_file_source_get_name(IsoFileSource *src);
  *         ISO_MEM_ERROR
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
+ *
+ * @since 0.6.1
  */
 int iso_file_source_lstat(IsoFileSource *src, struct stat *info);
 
@@ -2288,6 +2610,8 @@ int iso_file_source_lstat(IsoFileSource *src, struct stat *info);
  *         ISO_MEM_ERROR
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
+ *
+ * @since 0.6.1
  */
 int iso_file_source_access(IsoFileSource *src);
 
@@ -2304,6 +2628,8 @@ int iso_file_source_access(IsoFileSource *src);
  *         ISO_MEM_ERROR
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
+ *
+ * @since 0.6.1
  */
 int iso_file_source_stat(IsoFileSource *src, struct stat *info);
 
@@ -2318,6 +2644,8 @@ int iso_file_source_stat(IsoFileSource *src, struct stat *info);
  *         ISO_MEM_ERROR
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
+ *
+ * @since 0.6.1
  */
 int iso_file_source_open(IsoFileSource *src);
 
@@ -2328,6 +2656,8 @@ int iso_file_source_open(IsoFileSource *src);
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
  *         ISO_FILE_NOT_OPENNED
+ *
+ * @since 0.6.1
  */
 int iso_file_source_close(IsoFileSource *src);
 
@@ -2356,6 +2686,8 @@ int iso_file_source_close(IsoFileSource *src);
  *         ISO_FILE_IS_DIR
  *         ISO_MEM_ERROR
  *         ISO_INTERRUPTED
+ *
+ * @since 0.6.1
  */
 int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
 
@@ -2380,6 +2712,8 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
  *         ISO_FILE_NOT_OPENNED
  *         ISO_FILE_IS_NOT_DIR
  *         ISO_MEM_ERROR
+ *
+ * @since 0.6.1
  */
 int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
 
@@ -2405,7 +2739,8 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  *         ISO_MEM_ERROR
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
- * 
+ *
+ * @since 0.6.1
  */
 int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
 
@@ -2415,17 +2750,23 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  * 
  * @return
  *     The filesystem, NULL on error
+ *
+ * @since 0.6.1
  */
 IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src);
 
 /**
  * Take a ref to the given IsoFilesystem
+ *
+ * @since 0.6.1
  */
 void iso_filesystem_ref(IsoFilesystem *fs);
 
 /**
  * Drop your ref to the given IsoFilesystem, evetually freeing associated 
  * resources.
+ *
+ * @since 0.6.1
  */
 void iso_filesystem_unref(IsoFilesystem *fs);
 
@@ -2446,6 +2787,8 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  *      to access image contents.
  * @param
  *      1 on success, < 0 on error
+ *
+ * @since 0.6.1
  */
 int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts, int msgid,
                              IsoImageFilesystem **fs);
@@ -2453,54 +2796,72 @@ int iso_image_filesystem_new(IsoDataSource *src, IsoReadOpts *opts, int msgid,
 /**
  * Get the volset identifier for an existent image. The returned string belong
  * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_volset_id(IsoImageFilesystem *fs);
 
 /**
  * Get the volume identifier for an existent image. The returned string belong
  * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_volume_id(IsoImageFilesystem *fs);
 
 /**
  * Get the publisher identifier for an existent image. The returned string 
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_publisher_id(IsoImageFilesystem *fs);
 
 /**
  * Get the data preparer identifier for an existent image. The returned string 
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_data_preparer_id(IsoImageFilesystem *fs);
 
 /**
  * Get the system identifier for an existent image. The returned string belong
  * to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_system_id(IsoImageFilesystem *fs);
 
 /**
  * Get the application identifier for an existent image. The returned string 
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_application_id(IsoImageFilesystem *fs);
 
 /**
  * Get the copyright file identifier for an existent image. The returned string
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_copyright_file_id(IsoImageFilesystem *fs);
 
 /**
  * Get the abstract file identifier for an existent image. The returned string
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
 
 /**
  * Get the biblio file identifier for an existent image. The returned string 
  * belong to the IsoImageFilesystem and shouldn't be free() nor modified.
+ *
+ * @since 0.6.1
  */
 const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 
