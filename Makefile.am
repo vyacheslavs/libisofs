@@ -159,10 +159,10 @@ uninstall-local:
 
 # Extra things
 nodist_pkgconfig_DATA = \
-	libisofs-5.pc
+	libisofs-1.pc
 
 EXTRA_DIST = \
-	libisofs-5.pc.in \
+	libisofs-1.pc.in \
 	version.h.in \
 	doc/doxygen.conf.in \
 	doc/Tutorial \
