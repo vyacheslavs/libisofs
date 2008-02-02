@@ -76,6 +76,35 @@ struct iso_read_opts
     char *input_charset;
 };
 
+/**
+ * Return information for image.
+ * Both size, hasRR and hasJoliet will be filled by libisofs with suitable 
+ * values.
+ */
+struct iso_read_image_features
+{
+    /** 
+     * Will be filled with the size (in 2048 byte block) of the image, as 
+     * reported in the PVM. 
+     */
+    uint32_t size;
+
+    /** It will be set to 1 if RR extensions are present, to 0 if not. */
+    unsigned int hasRR :1;
+
+    /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
+    unsigned int hasJoliet :1;
+
+    /** 
+     * It will be set to 1 if the image is an ISO 9660:1999, i.e. it has
+     * a version 2 Enhanced Volume Descriptor. 
+     */
+    unsigned int hasIso1999 :1;
+
+    /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
+    unsigned int hasElTorito :1;
+};
+
 static int ifs_fs_open(IsoImageFilesystem *fs);
 static int ifs_fs_close(IsoImageFilesystem *fs);
 static int iso_file_source_new_ifs(IsoImageFilesystem *fs, 
@@ -2203,7 +2232,7 @@ boot_fs_cleanup: ;
 
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts, 
-                     struct iso_read_image_features **features)
+                     IsoReadImageFeatures **features)
 {
     int ret;
     IsoImageFilesystem *fs;
@@ -2347,7 +2376,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_image_set_biblio_file_id(image, data->biblio_file_id);
 
     if (features != NULL) {
-        *features = malloc(sizeof(struct iso_read_image_features));
+        *features = malloc(sizeof(IsoReadImageFeatures));
         if (*features == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto import_cleanup;
@@ -2551,4 +2580,55 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset)
     }
     opts->input_charset = charset ? strdup(charset) : NULL;
     return ISO_SUCCESS;
+}
+
+/**
+ * Destroy an IsoReadImageFeatures object obtained with iso_image_import.
+ */
+void iso_read_image_features_destroy(IsoReadImageFeatures *f)
+{
+    if (f) {
+        free(f);
+    }
+}
+
+/**
+ * Get the size (in 2048 byte block) of the image, as reported in the PVM. 
+ */
+uint32_t iso_read_image_features_get_size(IsoReadImageFeatures *f)
+{
+    return f->size;
+}
+
+/**
+ * Whether RockRidge extensions are present in the image imported.
+ */
+int iso_read_image_features_has_rockridge(IsoReadImageFeatures *f)
+{
+    return f->hasRR;
+}
+
+/**
+ * Whether Joliet extensions are present in the image imported.
+ */
+int iso_read_image_features_has_joliet(IsoReadImageFeatures *f)
+{
+    return f->hasJoliet;
+}
+
+/**
+ * Whether the image is recorded according to ISO 9660:1999, i.e. it has
+ * a version 2 Enhanced Volume Descriptor. 
+ */
+int iso_read_image_features_has_iso1999(IsoReadImageFeatures *f)
+{
+    return f->hasIso1999;
+}
+
+/**
+ * Whether El-Torito boot record is present present in the image imported.
+ */
+int iso_read_image_features_has_eltorito(IsoReadImageFeatures *f)
+{
+    return f->hasElTorito;
 }

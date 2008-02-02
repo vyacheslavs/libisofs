@@ -284,35 +284,14 @@ struct iso_data_source
 };
 
 /**
- * Return information for image.
- * Both size, hasRR and hasJoliet will be filled by libisofs with suitable 
- * values.
+ * Return information for image. This is optionally allocated by libisofs,
+ * as a way to inform user about the features of an existing image, such as
+ * extensions present, size, ...
  *
+ * @see iso_image_import()
  * @since 0.6.2
  */
-struct iso_read_image_features
-{
-    /** 
-     * Will be filled with the size (in 2048 byte block) of the image, as 
-     * reported in the PVM. 
-     */
-    uint32_t size;
-
-    /** It will be set to 1 if RR extensions are present, to 0 if not. */
-    unsigned int hasRR :1;
-
-    /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
-    unsigned int hasJoliet :1;
-
-    /** 
-     * It will be set to 1 if the image is an ISO 9660:1999, i.e. it has
-     * a version 2 Enhanced Volume Descriptor. 
-     */
-    unsigned int hasIso1999 :1;
-
-    /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
-    unsigned int hasElTorito :1;
-};
+typedef struct iso_read_image_features IsoReadImageFeatures;
 
 /**
  * POSIX abstraction for source files.
@@ -1286,16 +1265,60 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  *     Options for image import. All needed data will be copied, so you
  *     can free the given struct once this function returns.
  * @param features
- *     If not NULL, a new  struct iso_read_image_features will be allocated
- *     and filled with the features of the old image. It should be freed when
- *     no more needed. You can pass NULL if you're not interested on them.
+ *     If not NULL, a new IsoReadImageFeatures will be allocated and filled 
+ *     with the features of the old image. It should be freed with 
+ *     iso_read_image_features_destroy() when no more needed. You can pass 
+ *     NULL if you're not interested on them.
  * @return
  *     1 on success, < 0 on error
  *
  * @since 0.6.2
  */
 int iso_image_import(IsoImage *image, IsoDataSource *src, IsoReadOpts *opts,
-                     struct iso_read_image_features **features);
+                     IsoReadImageFeatures **features);
+
+/**
+ * Destroy an IsoReadImageFeatures object obtained with iso_image_import.
+ *
+ * @since 0.6.2
+ */
+void iso_read_image_features_destroy(IsoReadImageFeatures *f);
+
+/**
+ * Get the size (in 2048 byte block) of the image, as reported in the PVM. 
+ *
+ * @since 0.6.2
+ */
+uint32_t iso_read_image_features_get_size(IsoReadImageFeatures *f);
+
+/**
+ * Whether RockRidge extensions are present in the image imported.
+ *
+ * @since 0.6.2
+ */
+int iso_read_image_features_has_rockridge(IsoReadImageFeatures *f);
+
+/**
+ * Whether Joliet extensions are present in the image imported.
+ *
+ * @since 0.6.2
+ */
+int iso_read_image_features_has_joliet(IsoReadImageFeatures *f);
+
+/**
+ * Whether the image is recorded according to ISO 9660:1999, i.e. it has
+ * a version 2 Enhanced Volume Descriptor. 
+ *
+ * @since 0.6.2
+ */
+int iso_read_image_features_has_iso1999(IsoReadImageFeatures *f);
+
+/**
+ * Whether El-Torito boot record is present present in the image imported.
+ *
+ * @since 0.6.2
+ */
+int iso_read_image_features_has_eltorito(IsoReadImageFeatures *f);
 
 /**
  * Increments the reference counting of the given image.
