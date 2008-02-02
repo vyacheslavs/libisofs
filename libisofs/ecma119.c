@@ -1246,7 +1246,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         break;
     }
     wopts->fifo_size = 1024; /* 2 MB buffer */
-    
+    wopts->sort_files = 1; /* file sorting is always good */
+
     *opts = wopts;
     return ISO_SUCCESS;
 }
