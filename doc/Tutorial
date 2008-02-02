@@ -260,5 +260,80 @@ several functions to customize the behavior of that function:
 Once you have prepared the iso tree, it is time to select the options for the
 image writing. 
 
+These options affect the characteristics of the filesystem to create in the 
+image, but also can control how libisofs generates the image.
 
+First of all you have to get an instance of IsoWriteOpts, with the function
+
+	iso_write_opts_new()
+
+The several options available can be classified in:
+
+- Extensions to add to the ISO-9660 image:
+
+	iso_write_opts_set_rockridge()
+	iso_write_opts_set_joliet()
+	iso_write_opts_set_iso1999()
+	
+RockRidge is highly recommended, in fact you should use it in all image. Joliet
+is needed if you want to use your images in Windows system. Nowadays,
+ISO-9660:1999 is no much useful, so in most cases you don't want such 
+extension.
+
+- ISO-9660 options:
+
+	iso_write_opts_set_iso_level()
+	iso_write_opts_set_omit_version_numbers()
+	iso_write_opts_set_allow_deep_paths()
+	iso_write_opts_set_allow_longer_paths()
+	iso_write_opts_set_max_37_char_filenames()
+	iso_write_opts_set_no_force_dots()
+	iso_write_opts_set_allow_lowercase()
+	iso_write_opts_set_allow_full_ascii()
+
+These control the options for the ISO-9660 filesystem. In most cases you won't
+care about them, as it is the RockRidge or Joliet extensions what determine the
+properties of the files once the image is mounted.
+
+- File attributes options
+
+	iso_write_opts_set_replace_mode()
+	iso_write_opts_set_default_dir_mode()
+	iso_write_opts_set_default_file_mode()
+	iso_write_opts_set_default_uid()
+	iso_write_opts_set_default_gid()
+	iso_write_opts_set_replace_timestamps()
+	iso_write_opts_set_default_timestamp()
+	iso_write_opts_set_always_gmt()
+	
+They allow to set default attributes for files in image, despite of the real
+attributes of the file on the local filesystem.
+
+-------------------------------------------------------------------------------
+2.3 Obtaining a burn_source
+
+Finally, you get the burn_source used to write the image with the function:
+
+	iso_image_create_burn_source()
+	
+The returned burn_source is suitable for using with libburn, to directly burn
+the image to a disc. Alternatively, you can use burn_source read() to get
+the image contents (for example, to write them to a file, pipe...).
+
+Before creating the burn_source, libisofs computes the size of the image, so
+the get_size() function of the burn_source always returns the final image 
+size. It also starts a writing thread. All the operations needed to generate
+the image are done by this thread, including read the original files contents.
+The image is writing to a FIFO buffer, from which the burn_source will read.
+The size of the buffer can be set in advanced with a property of the
+IsoWriteOpts struct:
+
+	iso_write_opts_set_fifo_size()
+
+You can get the state of the buffer in any moment, with the function:
+
+	iso_ring_buffer_get_status()
+	
+You can also cancel the writer thread at any time, with the cancel() function
+of the burn_source.
 
