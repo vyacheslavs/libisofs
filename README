@@ -1,55 +1,85 @@
 ------------------------------------------------------------------------------
-                              libburnia-project.org
-------------------------------------------------------------------------------
-This all is under GPL.
-(See GPL reference, our clarification and commitment at the end of this text)
-------------------------------------------------------------------------------
-libburnia-project.org
-By Mario Danic <mario.danic@gmail.com> and Thomas Schmitt <scdbackup@gmx.net>
-Copyright (C) 2006-2007 Mario Danic, Thomas Schmitt
-
-Still containing parts of
-Libburn. By Derek Foreman <derek@signalmarketing.com> and
-            Ben Jansens <xor@orodu.net>
-Copyright (C) 2002-2006  Derek Foreman and Ben Jansens
-These parts are to be replaced by own code of above libburnia-project.org
-copyright holders and then libburnia-project.org is to be their sole copyright.
-This is done to achieve the right to issue the clarification and the
-commitment as written at the end of this text.
-The rights and merits of the Libburn-copyright holders Derek Foreman and
-Ben Jansens will be duely respected. 
-
-This libburnia-project.org toplevel README (C) 2006-2007 Thomas Schmitt 
+                                    libisofs
 ------------------------------------------------------------------------------
 
-                           Build and Installation
+Released under GPL (see COPYING file for details).
 
-Our build system is based on autotools. For preparing the build of a SVN 
-snapshot you will need autotools of at least version 1.7. 
-Check out from SVN by
-   svn co http://svn.libburnia-project.org/libburn/trunk libburn
-go into directory libburn and apply autotools by
-   ./bootstrap
+Copyright (C) 2008 Vreixo Formoso, Mario Danic, Thomas Schmitt
+
+libisofs is part of the libburnia project (libburnia-project.org)
+------------------------------------------------------------------------------
+
+libisofs is a library to create an ISO-9660 filesystem, and supports extensions
+like RockRidge or Joliet. It is also a full featured ISO-9660 editor, allowing 
+you to modify an ISO image or multisession disc, including file addition and 
+removal, change of file names and attributes, etc
+
+Features:
+---------
+
+- Image creation
+	- Creates ISO-9660 images from local files.
+	- Support for RockRidge and Joliet extensions.
+	- Support for ISO-9660:1999 (version 2)
+	- Support for El-Torito bootable images.
+	- Full featured edition of file names and attributes on the image.
+	- Several options to relax ISO-9660 constraints.
+	- Special options for images intended for distribution (suitable default
+	  modes for files, hiding of real timestamps...)
+- Multisession
+	- Support for growing an existing image
+	- Full-featured edition of the image files, including: addition of new
+	  files, removing of existent files, moving files, renaming files,
+	  change file attributes (permissions, timestamps...)
+	- Support for "emulated multisession" or image growing, suitable for non
+	  multisession media such as DVD+RW
+- Image modification
+	- It can create a completely new image from files on another image.
+	- Full-featured edition of image contents
+- Others
+	- Handling of different input and output charset
+	- Good integration with libburn for image burning.
+	- Reliable, good handling of different kind of errors.
+
+Requirements:
+-------------
+
+- libburn 0.4.2 headers must be installed at compile time. It is not required
+  at runtime.
+
+------------------------------------------------------------------------------
+
+                        Download, Build and Installation
+
+libisofs code is mantained in a Bazaar repository at Launchpad 
+(https://launchpad.net/libisofs/). You can download it with:
+
+$ bzr branch lp:libisofs
+
+Our build system is based on autotools. For preparing the build you will need 
+autotools of at least version 1.7. If you have download the code from the
+repository, first of all you need to execute
+
+   ./autogen.sh
+   
+on toplevel dir to execute autotools.
 
 Alternatively you may unpack a release tarball for which you do not need
 autotools installed.
 
-To build a libburnia-project.org subproject it should be sufficient to go
-into its toplevel directory (here: "libburn") and execute
+To build libisofs it should be sufficient to go into its toplevel directory 
+and execute
+
    ./configure --prefix=/usr
    make
 
 To make the libraries accessible for running resp. developing applications 
    make install
 
-
-The other half of the project, libisofs, is hosted in the libburnia SVN, too:
-   svn co http://svn.libburnia-project.org/libisofs/trunk libisofs
-See README file there.
+See INSTALL file for further details.
 
 
 ------------------------------------------------------------------------------
-
 
                         Overview of libburnia-project.org
 
@@ -203,6 +233,17 @@ Project history as far as known to me:
 - 31st July 2007 version 0.3.8 marks the first anniversary of libburn revival.
   We look back on improved stability, a substantially extended list of media
   and write modes, and better protection against typical user mishaps.
+
+- 24th October 2007 version 0.4.0 is the foundation of new library libisoburn
+  and an upcomming integrated application for manipulating and writing
+  ISO 9660 + Rock Ridge images. cdrskin-0.4.0 got capabilities like growisofs
+  by these enhancements: growing of overwriteable media and disk files.
+  Taking again a bow towards Andy Polyakov.
+
+- 26th Januar 2008 version 0.4.2 rectifies the version numbering so that we
+  reliably release libburn.so.4 as should have been done since libburn-0.3.2.
+  cdrskin now is by default linked dynamically and does a runtime check
+  to ensure not to be started with a libburn which is older than itself.
 
 
 ------------------------------------------------------------------------------
