@@ -790,8 +790,14 @@ void *write_function(void *arg)
     pthread_exit(NULL);
 
     write_error: ;
-    iso_msg_submit(target->image->id, ISO_WRITE_ERROR, res, 
+    if (res == ISO_CANCELED) {
+        /* canceled */
+        iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED, 0, NULL);
+    } else {
+        /* image write error */
+        iso_msg_submit(target->image->id, ISO_WRITE_ERROR, res, 
                    "Image write error");
+    }
     iso_ring_buffer_writer_close(target->buffer, 1);
     pthread_exit(NULL);
 }
@@ -1107,6 +1113,7 @@ static void bs_free_data(struct burn_source *bs)
     ecma119_image_free(target);
 }
 
+static
 int bs_cancel(struct burn_source *bs)
 {
     Ecma119Image *target = (Ecma119Image*)bs->data;

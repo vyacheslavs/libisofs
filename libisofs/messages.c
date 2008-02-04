@@ -170,6 +170,8 @@ const char *iso_error_to_msg(int errcode)
         return "Unsupported volume descriptor found";
     case ISO_EL_TORITO_WARN: 
         return "El-Torito related warning";
+    case ISO_IMAGE_WRITE_CANCELED: 
+        return "Image write cancelled";
     default:
         return "Unknown error";
     }
