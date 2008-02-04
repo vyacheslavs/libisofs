@@ -1095,15 +1095,21 @@ static off_t bs_get_size(struct burn_source *bs)
 
 static void bs_free_data(struct burn_source *bs)
 {
+    int st;
     Ecma119Image *target = (Ecma119Image*)bs->data;
 
-    /* forces writer to stop if it is still running */
-    iso_ring_buffer_reader_close(target->buffer, 0);
+    st = iso_ring_buffer_get_status(bs, NULL, NULL);
 
-    /* wait until writer thread finishes */
-    pthread_join(target->wthread, NULL);
-
-    iso_msg_debug(target->image->id, "Writer thread joined");
+    /* was read already finished (i.e, canceled)? */
+    if (st < 4) {
+        /* forces writer to stop if it is still running */
+        iso_ring_buffer_reader_close(target->buffer, 0);
+    
+        /* wait until writer thread finishes */
+        pthread_join(target->wthread, NULL);
+        iso_msg_debug(target->image->id, "Writer thread joined");
+    }
+    
     iso_msg_debug(target->image->id, 
                   "Ring buffer was %d times full and %d times empty", 
                   iso_ring_buffer_get_times_full(target->buffer),
@@ -1116,12 +1122,21 @@ static void bs_free_data(struct burn_source *bs)
 static
 int bs_cancel(struct burn_source *bs)
 {
+    int st;
+    size_t cap, free;
     Ecma119Image *target = (Ecma119Image*)bs->data;
-    
-    iso_msg_debug(target->image->id, "Reader thread being cancelled");
 
-    /* forces writer to stop if it is still running */
-    iso_ring_buffer_reader_close(target->buffer, ISO_CANCELED);
+    st = iso_ring_buffer_get_status(bs, &cap, &free);
+    
+    if (free == cap && (st == 2 || st == 3)) {
+        /* image was already consumed */ 
+        iso_ring_buffer_reader_close(target->buffer, 0);
+    } else {
+        iso_msg_debug(target->image->id, "Reader thread being cancelled");
+
+        /* forces writer to stop if it is still running */
+        iso_ring_buffer_reader_close(target->buffer, ISO_CANCELED);
+    }
 
     /* wait until writer thread finishes */
     pthread_join(target->wthread, NULL);
