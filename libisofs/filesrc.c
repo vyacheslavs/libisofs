@@ -295,9 +295,12 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             wres = iso_write(t, buffer, BLOCK_SIZE);
             if (wres < 0) {
                 /* ko, writer error, we need to go out! */
+                filesrc_close(file);
                 return wres;
             }
         }
+
+        filesrc_close(file);
 
         if (b < nblocks) {
             /* premature end of file, due to error or eof */
@@ -329,8 +332,6 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 }
             }
         }
-
-        filesrc_close(file);
     }
 
     return ISO_SUCCESS;
