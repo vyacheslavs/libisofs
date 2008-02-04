@@ -2533,6 +2533,35 @@ int iso_image_get_msg_id(IsoImage *image);
 const char *iso_error_to_msg(int errcode);
 
 /**
+ * Get the severity of a given error code
+ * @return
+ *       0x10000000 -> DEBUG
+ *       0x20000000 -> UPDATE
+ *       0x30000000 -> NOTE
+ *       0x40000000 -> HINT
+ *       0x50000000 -> WARNING
+ *       0x60000000 -> SORRY
+ *       0x68000000 -> FAILURE
+ *       0x70000000 -> FATAL
+ *       0x71000000 -> ABORT
+ * 
+ * @since 0.6.2
+ */
+int iso_error_get_severity(int e);
+
+/**
+ * Get the priority of a given error.
+ * @return
+ *      0x00000000 -> ZERO
+ *      0x10000000 -> LOW
+ *      0x20000000 -> MEDIUM
+ *      0x30000000 -> HIGH
+ * 
+ * @since 0.6.2
+ */
+int iso_error_get_priority(int e);
+
+/**
  * Set the minimum error severity that causes a libisofs operation to 
  * be aborted as soon as possible.
  * 
@@ -2889,35 +2918,6 @@ const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
 const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 
 /************ Error codes and return values for libisofs ********************/
-
-/* 
- * error codes are 32 bit numbers, that follow the following conventions:
- * 
- * bit  31 (MSB) -> 1 (to make the value always negative)
- * bits 30-24 -> Encoded severity (Use ISO_ERR_SEV to translate an error code
- *               to a LIBISO_MSGS_SEV_* constant)
- *        = 0x10 -> DEBUG
- *        = 0x20 -> UPDATE
- *        = 0x30 -> NOTE
- *        = 0x40 -> HINT
- *        = 0x50 -> WARNING
- *        = 0x60 -> SORRY
- *        = 0x68 -> FAILURE
- *        = 0x70 -> FATAL
- *        = 0x71 -> ABORT
- * bits 23-20 -> Encoded priority (Use ISO_ERR_PRIO to translate an error code
- *               to a LIBISO_MSGS_PRIO_* constant)
- *        = 0x0 -> ZERO
- *        = 0x1 -> LOW
- *        = 0x2 -> MEDIUM
- *        = 0x3 -> HIGH
- * bits 19-16 -> Reserved for future usage (maybe message ranges)
- * bits 15-0  -> Error code
- */
-
-#define ISO_ERR_SEV(e)      (e & 0x7F000000)
-#define ISO_ERR_PRIO(e)     ((e & 0x00F00000) << 8)
-#define ISO_ERR_CODE(e)     (e & 0x0000FFFF)
 
 /** successfully execution */
 #define ISO_SUCCESS                     1

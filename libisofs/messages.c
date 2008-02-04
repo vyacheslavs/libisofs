@@ -10,8 +10,37 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "libiso_msgs.h"
 #include "libisofs.h"
 #include "messages.h"
+
+/* 
+ * error codes are 32 bit numbers, that follow the following conventions:
+ * 
+ * bit  31 (MSB) -> 1 (to make the value always negative)
+ * bits 30-24 -> Encoded severity (Use ISO_ERR_SEV to translate an error code
+ *               to a LIBISO_MSGS_SEV_* constant)
+ *        = 0x10 -> DEBUG
+ *        = 0x20 -> UPDATE
+ *        = 0x30 -> NOTE
+ *        = 0x40 -> HINT
+ *        = 0x50 -> WARNING
+ *        = 0x60 -> SORRY
+ *        = 0x68 -> FAILURE
+ *        = 0x70 -> FATAL
+ *        = 0x71 -> ABORT
+ * bits 23-20 -> Encoded priority (Use ISO_ERR_PRIO to translate an error code
+ *               to a LIBISO_MSGS_PRIO_* constant)
+ *        = 0x0 -> ZERO
+ *        = 0x1 -> LOW
+ *        = 0x2 -> MEDIUM
+ *        = 0x3 -> HIGH
+ * bits 19-16 -> Reserved for future usage (maybe message ranges)
+ * bits 15-0  -> Error code
+ */
+#define ISO_ERR_SEV(e)      (e & 0x7F000000)
+#define ISO_ERR_PRIO(e)     ((e & 0x00F00000) << 8)
+#define ISO_ERR_CODE(e)     (e & 0x0000FFFF)
 
 int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 
@@ -311,4 +340,14 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
 void *iso_get_messenger()
 {
     return libiso_msgr;
+}
+
+int iso_error_get_severity(int e)
+{
+    return ISO_ERR_SEV(e);
+}
+
+int iso_error_get_priority(int e)
+{
+    return ISO_ERR_PRIO(e);
 }

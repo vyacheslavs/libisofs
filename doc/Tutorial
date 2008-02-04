@@ -74,8 +74,7 @@ error code is associated with a given severity, either "DEBUG", "UPDATE",
 of each severity take a look at private header "libiso_msgs.h". Errors 
 reported by function return value are always "FAILURE" or "FATAL". Other kind
 of errors are only reported with the message queue. You can get the severity
-of any error message with ISO_ERR_SEV() macro [TODO: we need a function to
-translate error severity to string]
+of any error message with iso_error_get_severity() function.
 
 First of all, most libisofs functions return an integer. If such integer is 
 a negative number, it means the function has returned an error. The error code
