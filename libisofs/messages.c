@@ -40,7 +40,7 @@
  */
 #define ISO_ERR_SEV(e)      (e & 0x7F000000)
 #define ISO_ERR_PRIO(e)     ((e & 0x00F00000) << 8)
-#define ISO_ERR_CODE(e)     (e & 0x0000FFFF)
+#define ISO_ERR_CODE(e)     ((e & 0x0000FFFF) | 0x00030000)
 
 int iso_message_id = LIBISO_MSGS_ORIGIN_IMAGE_BASE;
 
@@ -128,7 +128,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_NODE_NOT_ADDED_TO_DIR: 
         return "Trying to remove a node that was not added to dir";
     case ISO_NODE_DOESNT_EXIST: 
-        return "A requested node does not exists";
+        return "A requested node does not exist";
     case ISO_IMAGE_ALREADY_BOOTABLE: 
         return "Try to set the boot image of an already bootable image";
     case ISO_BOOT_IMAGE_NOT_VALID: 
@@ -142,7 +142,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_FILE_BAD_PATH: 
         return "Incorrect path to file";
     case ISO_FILE_DOESNT_EXIST: 
-        return "The file does not exists in the filesystem";
+        return "The file does not exist in the filesystem";
     case ISO_FILE_NOT_OPENNED: 
         return "Trying to read or close a file not openned";
     case ISO_FILE_IS_DIR: 
@@ -160,7 +160,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_FILE_TOO_BIG: 
         return "A file is bigger than supported by used standard";
     case ISO_FILE_CANT_WRITE: 
-        return "File read error during image creations";
+        return "File read error during image creation";
     case ISO_FILENAME_WRONG_CHARSET: 
         return "Can't convert filename to requested charset";
     case ISO_FILE_CANT_ADD: 
@@ -224,8 +224,8 @@ int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
         strncpy(msg, iso_error_to_msg(errcode), MAX_MSG_LEN);
     }
 
-    libiso_msgs_submit(libiso_msgr, imgid, errcode, ISO_ERR_SEV(errcode),
-                       ISO_ERR_PRIO(errcode), msg, 0, 0);
+    libiso_msgs_submit(libiso_msgr, imgid, ISO_ERR_CODE(errcode), 
+                       ISO_ERR_SEV(errcode), ISO_ERR_PRIO(errcode), msg, 0, 0);
     if (causedby != 0) {
         iso_msg_debug(imgid, " > Caused by: %s", iso_error_to_msg(causedby));
         if (ISO_ERR_SEV(causedby) == LIBISO_MSGS_SEV_FATAL) {
@@ -350,4 +350,9 @@ int iso_error_get_severity(int e)
 int iso_error_get_priority(int e)
 {
     return ISO_ERR_PRIO(e);
+}
+
+int iso_error_get_code(int e)
+{
+    return ISO_ERR_CODE(e);
 }

@@ -2562,6 +2562,11 @@ int iso_error_get_severity(int e);
 int iso_error_get_priority(int e);
 
 /**
+ * Get the message queue code of a libisofs error.
+ */
+int iso_error_get_code(int e);
+
+/**
  * Set the minimum error severity that causes a libisofs operation to 
  * be aborted as soon as possible.
  * 
@@ -2972,7 +2977,7 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /** Trying to remove a node that was not added to dir (FAILURE,HIGH, -65) */
 #define ISO_NODE_NOT_ADDED_TO_DIR       0xE830FFBE
 
-/** A requested node does not exists  (FAILURE,HIGH, -66) */
+/** A requested node does not exist  (FAILURE,HIGH, -66) */
 #define ISO_NODE_DOESNT_EXIST           0xE830FFBD
 
 /** 
@@ -2998,7 +3003,7 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /** Incorrect path to file (FAILURE,HIGH, -131) */
 #define ISO_FILE_BAD_PATH               0xE830FF7D
 
-/** The file does not exists in the filesystem (FAILURE,HIGH, -132) */
+/** The file does not exist in the filesystem (FAILURE,HIGH, -132) */
 #define ISO_FILE_DOESNT_EXIST           0xE830FF7C
 
 /** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
@@ -3025,7 +3030,7 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /* A file is bigger than supported by used standard  (HINT,MEDIUM, -140) */
 #define ISO_FILE_TOO_BIG                0xC020FF74
 
-/* File read error during image creations (SORRY,HIGH, -141) */
+/* File read error during image creation (SORRY,HIGH, -141) */
 #define ISO_FILE_CANT_WRITE             0xE030FF73
 
 /* Can't convert filename to requested charset (HINT,MEDIUM, -142) */
@@ -3038,7 +3043,7 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
  * File path break specification constraints and will be ignored 
  * (HINT,MEDIUM, -141) 
  */
-#define ISO_FILE_IMGPATH_WRONG          0xC020FF73
+#define ISO_FILE_IMGPATH_WRONG          0xC020FF70
 
 /** Charset conversion error (FAILURE,HIGH, -256) */
 #define ISO_CHARSET_CONV_ERROR          0xE830FF00
@@ -3081,20 +3086,20 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /** Unsupported SUSP feature (SORRY,HIGH, -328) */
 #define ISO_UNSUPPORTED_SUSP            0xE030FEB8
 
-/** Error on a RR entry that can be ignored (WARNING,MEDIUM, -329) */
-#define ISO_WRONG_RR_WARN               0xD020FEB7
+/** Error on a RR entry that can be ignored (WARNING,HIGH, -329) */
+#define ISO_WRONG_RR_WARN               0xD030FEB7
 
 /** Error on a RR entry that can be ignored (HINT,MEDIUM, -330) */
 #define ISO_SUSP_UNHANDLED              0xC020FEB6
 
-/** Multiple ER SUSP entries found (WARNING,MEDIUM, -331) */
-#define ISO_SUSP_MULTIPLE_ER            0xD020FEB5
+/** Multiple ER SUSP entries found (WARNING,HIGH, -331) */
+#define ISO_SUSP_MULTIPLE_ER            0xD030FEB5
 
 /** Unsupported volume descriptor found (HINT,MEDIUM, -332) */
 #define ISO_UNSUPPORTED_VD              0xC020FEB4
 
-/** El-Torito related warning (WARNING,MEDIUM, -333) */
-#define ISO_EL_TORITO_WARN              0xD020FEB3
+/** El-Torito related warning (WARNING,HIGH, -333) */
+#define ISO_EL_TORITO_WARN              0xD030FEB3
 
 /** Image write cancelled (SORRY,HIGH, -334) */
 #define ISO_IMAGE_WRITE_CANCELED        0xE030FEB2
