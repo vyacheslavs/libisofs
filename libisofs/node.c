@@ -346,7 +346,7 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir is NULL
  */
-int iso_dir_get_nchildren(IsoDir *dir)
+int iso_dir_get_children_count(IsoDir *dir)
 {
     if (dir == NULL) {
         return ISO_NULL_POINTER;

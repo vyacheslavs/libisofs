@@ -1883,7 +1883,7 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node);
  *
  * @since 0.6.2
  */
-int iso_dir_get_nchildren(IsoDir *dir);
+int iso_dir_get_children_count(IsoDir *dir);
 
 /**
  * Removes a child from a directory.
