@@ -286,6 +286,16 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 }
             }
             continue;
+        } else if (res > 1) {
+            char *name = iso_stream_get_name(file->stream);
+            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0, 
+                      "Size of file \"%s\" has changed. It will be %s", name,
+                      (res == 2 ? "truncated" : "padded with 0's"));
+            free(name);
+            if (res < 0) {
+                filesrc_close(file);
+                return res; /* aborted due to error severity */
+            }
         }
 
         /* write file contents to image */

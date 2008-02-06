@@ -30,12 +30,28 @@ typedef struct
 static
 int fsrc_open(IsoStream *stream)
 {
+    int ret;
+    struct stat info;
+    off_t esize;
     IsoFileSource *src;
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
     src = ((FSrcStreamData*)stream->data)->src;
-    return iso_file_source_open(src);
+    ret = iso_file_source_stat(src, &info);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = iso_file_source_open(src);
+    if (ret < 0) {
+        return ret;
+    }
+    esize = ((FSrcStreamData*)stream->data)->size;
+    if (info.st_size == esize) {
+        return ISO_SUCCESS;
+    } else {
+        return (esize > info.st_size) ? 3 : 2;
+    }
 }
 
 static

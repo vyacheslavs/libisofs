@@ -32,10 +32,9 @@ typedef struct IsoStream_Iface
     /**
      * Opens the stream.
      * 
-     * TODO it would be great to return a different success code if the
-     * underlying source size has changed.
      * @return 
-     *     1 on success, < 0 on error
+     *     1 on success, 2 file greater than expected, 3 file smaller than
+     *     expected, < 0 on error
      */
     int (*open)(IsoStream *stream);
 
