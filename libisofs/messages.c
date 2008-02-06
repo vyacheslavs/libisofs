@@ -227,7 +227,10 @@ int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
     libiso_msgs_submit(libiso_msgr, imgid, ISO_ERR_CODE(errcode), 
                        ISO_ERR_SEV(errcode), ISO_ERR_PRIO(errcode), msg, 0, 0);
     if (causedby != 0) {
-        iso_msg_debug(imgid, " > Caused by: %s", iso_error_to_msg(causedby));
+        snprintf(msg, MAX_MSG_LEN, " > Caused by: %s", 
+                 iso_error_to_msg(causedby));
+        libiso_msgs_submit(libiso_msgr, imgid, ISO_ERR_CODE(causedby), 
+                 LIBISO_MSGS_SEV_NOTE, LIBISO_MSGS_PRIO_LOW, msg, 0, 0);
         if (ISO_ERR_SEV(causedby) == LIBISO_MSGS_SEV_FATAL) {
             return ISO_CANCELED;
         }
