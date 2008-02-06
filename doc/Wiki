@@ -1,9 +1,8 @@
 = libisofs =
 
-libisofs is a library to create an ISO-9660 filesystem, and supports extensions like !RockRidge or Joliet. It is also a full featured ISO-9660 editor, allowing you to modify an ISO image or multisession disc, including file addition/removal, change of file names and attributes, etc
+libisofs is a library to create an ISO-9660 filesystem, and supports extensions like RockRidge and Joliet. It is also a full featured ISO-9660 editor, allowing you to modify an ISO image or multisession disc, including file addition/removal, change of file names and attributes, and similar.
 
-The old libisofs.so.5 has been declarated deprecated and frozen, it will not be be maintained anymore. A full refactoring of the design has been done during the last months, and the next generation libisofs.so.6
-of the library will be released in the next days.
+The old libisofs.so.5 has been declarated deprecated and frozen, leaving it unmaintained. A full refactoring of the design has been done during the last months, and the next generation libisofs.so.6 of the library will be released in the following days.
 
 == Source Code ==
 
@@ -14,7 +13,7 @@ $ bzr branch lp:libisofs
 }}}
 
 
-To report any bug or suggest enhancementes, [http://libburnia-project.org/register register] yourself and submit a new ticket. Bug and enhacement reports for nglibisofs can be consulted in http://libburnia-project.org/report/9.
+To report any bug or suggest enchantments, [http://libburnia-project.org/register register] yourself and submit a new ticket. Bug and enchantments reports for nglibisofs can be found at http://libburnia-project.org/report/9.
 
 == Usage tutorial ==
 
