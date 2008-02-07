@@ -2350,6 +2350,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 ret = ISO_OUT_OF_MEM;
                 goto import_revert;
             }
+            node->type = LIBISO_BOOT;
             node->mode = S_IFREG;
             node->refcount = 1;
             image->bootcat->node = (IsoBoot*)node;
