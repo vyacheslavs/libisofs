@@ -94,7 +94,7 @@ void iso_image_unref(IsoImage *image)
         int nexcl;
 
         /* we need to free the image */
-        if (image->user_data != NULL) {
+        if (image->user_data_free != NULL) {
             /* free attached data */
             image->user_data_free(image->user_data);
         }
@@ -129,12 +129,12 @@ void iso_image_unref(IsoImage *image)
  * @param data
  *      Pointer to application defined data that will be attached to the
  *      image. You can pass NULL to remove any already attached data.
- * @param free
+ * @param give_up
  *      Function that will be called when the image does not need the data
  *      any more. It receives the data pointer as an argumente, and eventually
- *      causes data to be free.
+ *      causes data to be free. It can be NULL if you don't need it.
  */
-int iso_image_attach_data(IsoImage *image, void *data, void (*free)(void*))
+int iso_image_attach_data(IsoImage *image, void *data, void (*give_up)(void*))
 {
     if (image == NULL || (data != NULL && free == NULL)) {
         return ISO_NULL_POINTER;
@@ -142,13 +142,16 @@ int iso_image_attach_data(IsoImage *image, void *data, void (*free)(void*))
     
     if (image->user_data != NULL) {
         /* free previously attached data */
-        image->user_data_free(image->user_data);
+        if (image->user_data_free) {
+            image->user_data_free(image->user_data);
+        }
         image->user_data = NULL;
+        image->user_data_free = NULL;
     }
     
     if (data != NULL) {
         image->user_data = data;
-        image->user_data_free = free;
+        image->user_data_free = give_up;
     }
     return ISO_SUCCESS;
 }

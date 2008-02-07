@@ -1344,16 +1344,16 @@ void iso_image_unref(IsoImage *image);
  * @param data
  *      Pointer to application defined data that will be attached to the
  *      image. You can pass NULL to remove any already attached data.
- * @param free
+ * @param give_up
  *      Function that will be called when the image does not need the data
  *      any more. It receives the data pointer as an argumente, and eventually
- *      causes data to be free.
+ *      causes data to be freed. It can be NULL if you don't need it.
  * @return
  *      1 on succes, < 0 on error
  *
  * @since 0.6.2
  */
-int iso_image_attach_data(IsoImage *image, void *data, void (*free)(void*));
+int iso_image_attach_data(IsoImage *image, void *data, void (*give_up)(void*));
 
 /**
  * The the data previously attached with iso_image_attach_data()
