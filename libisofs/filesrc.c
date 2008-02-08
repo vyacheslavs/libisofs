@@ -302,6 +302,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         for (b = 0; b < nblocks; ++b) {
             int wres;
             res = filesrc_read(file, buffer, BLOCK_SIZE);
+            if (res <= 0) {
+                /* read error */
+                break;
+            }
             wres = iso_write(t, buffer, BLOCK_SIZE);
             if (wres < 0) {
                 /* ko, writer error, we need to go out! */
