@@ -291,6 +291,27 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     }
 }
 
+static
+char *get_relaxed_vol_id(Ecma119Image *t, const char *name)
+{
+    int ret;
+    if (name == NULL) {
+        return NULL;
+    }
+    if (strcmp(t->input_charset, t->output_charset)) {
+        /* charset conversion needed */
+        char *str;
+        ret = strconv(name, t->input_charset, t->output_charset, &str);
+        if (ret == ISO_SUCCESS) {
+            return str;
+        }
+        iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, ret,
+                  "Charset conversion error. Can't convert %s from %s to %s",
+                  name, t->input_charset, t->output_charset);
+    }
+    return strdup(name);
+}
+
 /**
  * Write the Primary Volume Descriptor (ECMA-119, 8.4)
  */
@@ -316,11 +337,15 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
 
     memset(&vol, 0, sizeof(struct ecma119_pri_vol_desc));
 
-    str2d_char(t->input_charset, image->volume_id, &vol_id);
+    if (t->relaxed_vol_atts) {
+        vol_id = get_relaxed_vol_id(t, image->volume_id);
+        volset_id = get_relaxed_vol_id(t, image->volset_id);
+    } else {
+        str2d_char(t->input_charset, image->volume_id, &vol_id);
+        str2d_char(t->input_charset, image->volset_id, &volset_id);
+    }
     str2a_char(t->input_charset, image->publisher_id, &pub_id);
     str2a_char(t->input_charset, image->data_preparer_id, &data_id);
-    str2d_char(t->input_charset, image->volset_id, &volset_id);
-
     str2a_char(t->input_charset, image->system_id, &system_id);
     str2a_char(t->input_charset, image->application_id, &application_id);
     str2d_char(t->input_charset, image->copyright_file_id, &copyright_file_id);
@@ -838,6 +863,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->no_force_dots = opts->no_force_dots;
     target->allow_lowercase = opts->allow_lowercase;
     target->allow_full_ascii = opts->allow_full_ascii;
+    target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->sort_files = opts->sort_files;
 
@@ -1383,6 +1409,15 @@ int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow)
         return ISO_NULL_POINTER;
     }
     opts->allow_full_ascii = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_relaxed_vol_atts(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->relaxed_vol_atts = allow ? 1 : 0;
     return ISO_SUCCESS;
 }
 

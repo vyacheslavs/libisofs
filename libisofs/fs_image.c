@@ -1638,6 +1638,7 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     /* ok, it is a valid PVD */
 
     /* fill volume attributes  */
+    /* TODO take care of input charset */
     data->volset_id = strcopy((char*)pvm->vol_set_id, 128);
     data->volume_id = strcopy((char*)pvm->volume_id, 32);
     data->publisher_id = strcopy((char*)pvm->publisher_id, 128);

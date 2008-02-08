@@ -82,6 +82,13 @@ struct iso_write_opts {
     unsigned int allow_full_ascii :1;
     
     /**
+     * Allow all characters to be part of Volume and Volset identifiers on
+     * the Primary Volume Descriptor. This breaks ISO-9660 contraints, but
+     * should work on modern systems.
+     */
+    unsigned int relaxed_vol_atts :1;
+    
+    /**
      * Allow paths in the Joliet tree to have more than 240 characters.
      */
     unsigned int joliet_longer_paths :1;
@@ -221,6 +228,8 @@ struct ecma119_image
     unsigned int no_force_dots :1;
     unsigned int allow_lowercase :1;
     unsigned int allow_full_ascii :1;
+    
+    unsigned int relaxed_vol_atts : 1;
     
     /** Allow paths on Joliet tree to be larger than 240 bytes */
     unsigned int joliet_longer_paths :1;

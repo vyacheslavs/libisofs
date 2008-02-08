@@ -920,6 +920,15 @@ int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
 int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow);
 
 /**
+ * Allow all characters to be part of Volume and Volset identifiers on
+ * the Primary Volume Descriptor. This breaks ISO-9660 contraints, but
+ * should work on modern systems.
+ *
+ * @since 0.6.2
+ */
+int iso_write_opts_set_relaxed_vol_atts(IsoWriteOpts *opts, int allow);
+
+/**
  * Allow paths in the Joliet tree to have more than 240 characters.
  * This breaks Joliet specification. Use with caution. 
  *
