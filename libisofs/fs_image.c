@@ -620,7 +620,7 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
         /* how much can I read */
         bytes = MIN(BLOCK_SIZE - (data->data.offset % BLOCK_SIZE), 
                     count - read);
-	if (data->data.offset + (off_t)bytes > data->info.st_size) {
+        if (data->data.offset + (off_t)bytes > data->info.st_size) {
              bytes = data->info.st_size - data->data.offset;
         }
         orig = data->data.content;
