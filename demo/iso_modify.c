@@ -86,6 +86,7 @@ int main(int argc, char **argv)
         printf("Cant create write opts, error %d\n", result);
         return 1;
     }
+    /* for isolinux: iso_write_opts_set_allow_full_ascii(opts, 1); */
     
     result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {

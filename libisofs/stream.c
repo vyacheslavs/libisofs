@@ -284,8 +284,13 @@ int mem_read(IsoStream *stream, void *buf, size_t count)
         return ISO_FILE_NOT_OPENNED;
     }
     
+    if (data->offset >= data->size) {
+        return 0; /* EOF */
+    }
+    
     len = MIN(count, data->size - data->offset);
     memcpy(buf, data->buf + data->offset, len);
+    data->offset += len;
     return len;
 }
 

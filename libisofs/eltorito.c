@@ -502,8 +502,7 @@ write_validation_entry(uint8_t *buf)
     /* calculate the checksum, to ensure sum of all words is 0 */
     checksum = 0;
     for (i = 0; i < sizeof(struct el_torito_validation_entry); i += 2) {
-        checksum -= buf[i];
-        checksum -= (buf[i] << 8);
+        checksum -= (int16_t) ((buf[i+1] << 8) | buf[i]);
     }
     iso_lsb(ve->checksum, checksum, 2);
 }
@@ -775,8 +774,6 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
             "Isolinux image too small. We won't patch it.");
     }
     
-    memset(&info, 0, sizeof(info));
-    
     /* compute checksum, as the the sum of all 32 bit words in boot image
      * from offset 64 */
     checksum = 0;
@@ -794,7 +791,7 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
     
     /* patch boot info table */
     info = (struct boot_info_table*)(buf + 8);
-    memset(info, 0, sizeof(struct boot_info_table));
+    /*memset(info, 0, sizeof(struct boot_info_table));*/
     iso_lsb(info->bi_pvd, t->ms_block + 16, 4);
     iso_lsb(info->bi_file, t->bootimg->block, 4);
     iso_lsb(info->bi_length, imgsize, 4);
@@ -903,6 +900,11 @@ int eltorito_writer_create(Ecma119Image *target)
         return ret;
     }
     target->bootimg = src;
+    
+    /* if we have selected to patch the image, it needs to be copied always */
+    if (target->catalog->image->isolinux) {
+        src->prev_img = 0;
+    }
 
     /* we need the bootable volume descriptor */
     target->curblock++;
