@@ -46,6 +46,50 @@ Requirements:
 
 - libburn 0.4.2 headers must be installed at compile time. It is not required
   at runtime.
+  
+Know bugs:
+----------
+
+Multisession and image growing can lead to undesired results in several cases:
+
+a) Images with unsupported features, such as:
+	- UDF.
+	- HSF/HFS+ or other Mac extensions.
+	- El-Torito with multiple entries.
+	- ECMA-119 with extended attributes, multiple extends per file.
+	- Non El-Torito boot info.
+	- zisofs compressed images.
+	- ...
+   In all these cases, the resulting new image (or new session) could lack some
+   features of the original image.
+   In some cases libisofs will issue warning messages, or even refuse to grow
+   or modify the image. Others remain undetected. Images created with libisofs
+   do not have this problems.
+
+b) Bootable El-Torito images may have several problems, that result in a new
+   image that is not bootable, or that boots from an outdated session. In many
+   cases it is recommended to add boot info again in the new session.
+   
+    - isolinux images won't be bootable after a modify. This is because 
+      isolinux images need to have hardcoded the root dir lba. libisofs cannot 
+      know whether an image is an isolinux image or not, so the user is 
+      responsible to tell libisofs that it must patch the image, with the
+      el_torito_patch_isolinux_image() function. This problem could also exists
+      on other boot images.
+	- Most boot images are highly dependent of the image contents, so if the 
+	  user moves or removes some files on image it is possible they won't boot 
+	  anymore.
+	- There is no safer way to modify hidden boot images, as the size of the 
+	  boot image can't be figured out.
+
+c) Generated images could have different ECMA-119 low level names, due to 
+   different way to mangle names, to new files added that force old files to 
+   be renamed, to different relaxed contraints... This only affect the 
+   ISO-9660 info, not the RR names, so it shouldn't be a problem in most
+   cases. If your app. relies on low level ISO-9660 names, you will need to 
+   ensure all node names are valid ISO names (maybe together with some
+   relaxed contraints), otherwise libisofs might arbitrarily change the names.
+
 
 ------------------------------------------------------------------------------
 
