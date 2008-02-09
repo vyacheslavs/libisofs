@@ -267,6 +267,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
         res = filesrc_open(file);
         name = iso_stream_get_name(file->stream);
+        iso_msg_debug(t->image->id, "Writing file %s", name);
         if (res < 0) {
             /* 
              * UPS, very ugly error, the best we can do is just to write
@@ -296,9 +297,9 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 filesrc_close(file);
                 return res; /* aborted due to error severity */
             }
+        } else {
+            free(name);
         }
-        iso_msg_debug(t->image->id, "Writing file %s", name);
-        free(name);
 
         /* write file contents to image */
         for (b = 0; b < nblocks; ++b) {
