@@ -140,6 +140,12 @@ else
     CFLAGS="$CFLAGS -DDEBUG"
 fi
 
+dnl Verbose debug to make libisofs issue more debug messages
+AC_ARG_ENABLE(verbose-debug,
+[  --enable-verbose-debug          Enable verbose debug messages [default=no]],
+	AC_DEFINE(LIBISOFS_VERBOSE_DEBUG, 1))
+
+
 AC_CONFIG_FILES([
 	Makefile
 	doc/doxygen.conf

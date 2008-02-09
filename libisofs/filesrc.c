@@ -266,13 +266,12 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         uint32_t nblocks = DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
 
         res = filesrc_open(file);
-        name = iso_stream_get_name(file->stream);
-        iso_msg_debug(t->image->id, "Writing file %s", name);
         if (res < 0) {
             /* 
              * UPS, very ugly error, the best we can do is just to write
              * 0's to image
              */
+            name = iso_stream_get_name(file->stream);
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res, 
                       "File \"%s\" can't be opened. Filling with 0s.", name);
             free(name);
@@ -289,6 +288,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             }
             continue;
         } else if (res > 1) {
+            name = iso_stream_get_name(file->stream);
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0, 
                       "Size of file \"%s\" has changed. It will be %s", name,
                       (res == 2 ? "truncated" : "padded with 0's"));
@@ -297,9 +297,14 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 filesrc_close(file);
                 return res; /* aborted due to error severity */
             }
-        } else {
+        }
+#ifdef LIBISOFS_VERBOSE_DEBUG
+        else {
+            name = iso_stream_get_name(file->stream);
+            iso_msg_debug(t->image->id, "Writing file %s", name);
             free(name);
         }
+#endif
 
         /* write file contents to image */
         for (b = 0; b < nblocks; ++b) {
