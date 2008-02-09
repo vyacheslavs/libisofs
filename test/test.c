@@ -7,6 +7,7 @@ static void create_test_suite()
     add_tree_suite();
     add_util_suite();
     add_rockridge_suite();
+    add_stream_suite();
 } 
 
 int main(int argc, char **argv)

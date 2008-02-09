@@ -131,6 +131,7 @@ test_test_SOURCES = \
 	test/test_tree.c \
 	test/test_util.c \
 	test/test_rockridge.c \
+	test/test_stream.c \
 	test/mocked_fsrc.h \
 	test/mocked_fsrc.c
 

@@ -861,19 +861,24 @@ static void test_iso_r_fileid()
     
     file = iso_r_fileid("more than 30 characters filename.extension", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FIL.EXT");
+    free(file);
     
     /* incrementing the size... */
     file = iso_r_fileid("more than 30 characters filename.extension", 35, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FILENAME.EXT");
+    free(file);
+    
     file = iso_r_fileid("more than 30 characters filename.extension", 36, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "MORE_THAN_30_CHARACTERS_FILENAME.EXTE");
-    
     free(file);
+
     file = iso_r_fileid("file.bigext", 30, 1, 0);
     CU_ASSERT_STRING_EQUAL(file, "file.bigext");
     free(file);
+
     file = iso_r_fileid(".bigext", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, ".BIGEXT");
+    free(file);
     
     /* "strange" characters */
     file = iso_r_fileid("file<:a.ext", 30, 0, 0);
@@ -895,6 +900,7 @@ static void test_iso_r_fileid()
     free(file);
     file = iso_r_fileid("fi.le.a.ext", 30, 2, 0);
     CU_ASSERT_STRING_EQUAL(file, "fi.le.a.ext");
+    free(file);
     
     file = iso_r_fileid("file.<:a", 30, 0, 0);
     CU_ASSERT_STRING_EQUAL(file, "FILE.__A");
