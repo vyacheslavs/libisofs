@@ -201,6 +201,8 @@ const char *iso_error_to_msg(int errcode)
         return "El-Torito related warning";
     case ISO_IMAGE_WRITE_CANCELED: 
         return "Image write cancelled";
+    case ISO_EL_TORITO_HIDDEN: 
+        return "El-Torito image is hidden";
     default:
         return "Unknown error";
     }

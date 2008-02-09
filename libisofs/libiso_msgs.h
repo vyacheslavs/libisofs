@@ -550,6 +550,7 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  0x0003feb4 (HINT,MEDIUM)  = Unsupported volume descriptor found
  0x0003feb3 (WARNING,HIGH) = El-Torito related warning
  0x0003feb2 (SORRY,HIGH)   = Image write cancelled
+ 0x0003feb1 (WARNING,HIGH) = El-Torito image is hidden
 
 
 ------------------------------------------------------------------------------

@@ -3113,4 +3113,7 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /** Image write cancelled (SORRY,HIGH, -334) */
 #define ISO_IMAGE_WRITE_CANCELED        0xE030FEB2
 
+/** El-Torito image is hidden (WARNING,HIGH, -335) */
+#define ISO_EL_TORITO_HIDDEN            0xD030FEB1
+
 #endif /*LIBISO_LIBISOFS_H_*/

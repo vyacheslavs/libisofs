@@ -2344,6 +2344,12 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 goto import_revert;
             }
             image->bootcat->image->image = (IsoFile*)node;
+            
+            /* warn about hidden images */
+            iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0, 
+                           "Found hidden El-Torito image. Its size could not "
+                           "be figure out, so image modify or boot image "
+                           "patching may lead to bad results.");
         }
         if (image->bootcat->node == NULL) {
             IsoNode *node = calloc(1, sizeof(IsoBoot));
