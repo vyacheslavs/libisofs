@@ -10,6 +10,17 @@
 #include <stdlib.h>
 #include <time.h>
 
+static void test_int_pow()
+{
+    CU_ASSERT_EQUAL(int_pow(1, 2), 1);
+    CU_ASSERT_EQUAL(int_pow(2, 2), 4);
+    CU_ASSERT_EQUAL(int_pow(0, 2), 0);
+    CU_ASSERT_EQUAL(int_pow(-1, 2), 1);
+    CU_ASSERT_EQUAL(int_pow(-1, 3), -1);
+    CU_ASSERT_EQUAL(int_pow(3, 2), 9);
+    CU_ASSERT_EQUAL(int_pow(3, 10), 59049);
+}
+
 static void test_strconv()
 {
     int ret;
@@ -1043,6 +1054,7 @@ void add_util_suite()
     CU_pSuite pSuite = CU_add_suite("UtilSuite", NULL, NULL);
 
     CU_add_test(pSuite, "strconv()", test_strconv);
+    CU_add_test(pSuite, "int_pow()", test_int_pow);
     CU_add_test(pSuite, "DIV_UP()", test_div_up);
     CU_add_test(pSuite, "ROUND_UP()", test_round_up);
     CU_add_test(pSuite, "iso_bb()", test_iso_bb);
