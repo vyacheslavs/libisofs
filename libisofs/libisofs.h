@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -10,6 +10,7 @@
 
 #include <sys/stat.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 struct burn_source;
 
