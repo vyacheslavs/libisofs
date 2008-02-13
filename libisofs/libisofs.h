@@ -381,7 +381,7 @@ struct iso_filesystem
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
      */
@@ -472,7 +472,7 @@ struct IsoFileSource_Iface
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
      */
@@ -488,7 +488,7 @@ struct IsoFileSource_Iface
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
      */
@@ -508,7 +508,7 @@ struct IsoFileSource_Iface
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
      */
@@ -522,7 +522,7 @@ struct IsoFileSource_Iface
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
      */
@@ -554,7 +554,7 @@ struct IsoFileSource_Iface
      *         ISO_FILE_NOT_OPENNED
      *         ISO_WRONG_ARG_VALUE -> if count == 0
      *         ISO_FILE_IS_DIR
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_INTERRUPTED
      */
     int (*read)(IsoFileSource *src, void *buf, size_t count);
@@ -579,7 +579,7 @@ struct IsoFileSource_Iface
      *         ISO_NULL_POINTER
      *         ISO_FILE_NOT_OPENNED
      *         ISO_FILE_IS_NOT_DIR
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      */
     int (*readdir)(IsoFileSource *src, IsoFileSource **child);
 
@@ -600,7 +600,7 @@ struct IsoFileSource_Iface
      *         ISO_NULL_POINTER
      *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
      *         ISO_FILE_IS_NOT_SYMLINK
-     *         ISO_MEM_ERROR
+     *         ISO_OUT_OF_MEM
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
      * 
@@ -2117,7 +2117,7 @@ off_t iso_file_get_size(IsoFile *file);
  *     Possible errors:
  *         ISO_NULL_POINTER, if parent or name are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *
  * @since 0.6.2
  */
@@ -2150,7 +2150,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
  *     Possible errors:
  *         ISO_NULL_POINTER, if parent, name or dest are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *
  * @since 0.6.2
  */
@@ -2193,7 +2193,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  *         ISO_NULL_POINTER, if parent, name or dest are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_WRONG_ARG_VALUE if you select a incorrect mode
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *
  * @since 0.6.2
  */
@@ -2378,7 +2378,7 @@ void iso_tree_set_report_callback(IsoImage *image,
  *     Possible errors:
  *         ISO_NULL_POINTER, if image, parent or path are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *
  * @since 0.6.2
  */
@@ -2550,6 +2550,7 @@ const char *iso_error_to_msg(int errcode);
  *       0x40000000 -> HINT
  *       0x50000000 -> WARNING
  *       0x60000000 -> SORRY
+ *       0x64000000 -> MISHAP
  *       0x68000000 -> FAILURE
  *       0x70000000 -> FATAL
  *       0x71000000 -> ABORT
@@ -2580,9 +2581,9 @@ int iso_error_get_code(int e);
  * be aborted as soon as possible.
  * 
  * @param severity
- *      one of "FAILURE", "SORRY", "WARNING", "HINT", "NOTE".  Severities
- *      greater than SORRY always cause program to abort. Severities under
- *      NOTE won't never cause function abort.
+ *      one of "FAILURE", "MISHAP", "SORRY", "WARNING", "HINT", "NOTE".  
+ *      Severities greater or equal than FAILURE always cause program to abort. 
+ *      Severities under NOTE won't never cause function abort.
  * @return 
  *      Previous abort priority on success, < 0 on error. 
  *
@@ -2651,7 +2652,7 @@ char* iso_file_source_get_name(IsoFileSource *src);
  *         ISO_FILE_ACCESS_DENIED
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
  *
@@ -2673,7 +2674,7 @@ int iso_file_source_lstat(IsoFileSource *src, struct stat *info);
  *         ISO_FILE_ACCESS_DENIED
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
  *
@@ -2691,7 +2692,7 @@ int iso_file_source_access(IsoFileSource *src);
  *         ISO_FILE_ACCESS_DENIED
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
  *
@@ -2707,7 +2708,7 @@ int iso_file_source_stat(IsoFileSource *src, struct stat *info);
  *         ISO_FILE_ACCESS_DENIED
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
  *
@@ -2750,7 +2751,7 @@ int iso_file_source_close(IsoFileSource *src);
  *         ISO_FILE_NOT_OPENNED
  *         ISO_WRONG_ARG_VALUE -> if count == 0
  *         ISO_FILE_IS_DIR
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_INTERRUPTED
  *
  * @since 0.6.2
@@ -2777,7 +2778,7 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
  *         ISO_NULL_POINTER
  *         ISO_FILE_NOT_OPENNED
  *         ISO_FILE_IS_NOT_DIR
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *
  * @since 0.6.2
  */
@@ -2802,7 +2803,7 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  *         ISO_NULL_POINTER
  *         ISO_WRONG_ARG_VALUE -> if bufsiz <= 0
  *         ISO_FILE_IS_NOT_SYMLINK
- *         ISO_MEM_ERROR
+ *         ISO_OUT_OF_MEM
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
  *
@@ -3039,8 +3040,8 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /* A file is bigger than supported by used standard  (HINT,MEDIUM, -140) */
 #define ISO_FILE_TOO_BIG                0xC020FF74
 
-/* File read error during image creation (SORRY,HIGH, -141) */
-#define ISO_FILE_CANT_WRITE             0xE030FF73
+/* File read error during image creation (MISHAP,HIGH, -141) */
+#define ISO_FILE_CANT_WRITE             0xE430FF73
 
 /* Can't convert filename to requested charset (HINT,MEDIUM, -142) */
 #define ISO_FILENAME_WRONG_CHARSET      0xC020FF72
@@ -3110,8 +3111,8 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 /** El-Torito related warning (WARNING,HIGH, -333) */
 #define ISO_EL_TORITO_WARN              0xD030FEB3
 
-/** Image write cancelled (SORRY,HIGH, -334) */
-#define ISO_IMAGE_WRITE_CANCELED        0xE030FEB2
+/** Image write cancelled (MISHAP,HIGH, -334) */
+#define ISO_IMAGE_WRITE_CANCELED        0xE430FEB2
 
 /** El-Torito image is hidden (WARNING,HIGH, -335) */
 #define ISO_EL_TORITO_HIDDEN            0xD030FEB1

@@ -1,5 +1,5 @@
 
-/* libiso_msgs   (generated from libdax_msgs : Xov Xan 24 11:24:13 CET 2008)
+/* libiso_msgs   (generated from libdax_msgs : Qua Fev 13 14:58:12 CET 2008)
    Message handling facility of libisofs.
    Copyright (C) 2006-2008 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2
@@ -141,12 +141,19 @@ struct libiso_msgs_item;
 #define LIBISO_MSGS_SEV_WARNING                                      0x50000000
 
 
-/** Non-fatal error messages indicating that important parts of an action
-    failed but processing may go on if one accepts deviations from the
-    desired result.
+/** Non-fatal error messages indicating that parts of an action failed but
+    processing may go on if one accepts deviations from the desired result.
 
-    E.g.: One of several libisofs input files cannot be found.
+    SORRY may also be the severity for incidents which are severe enough
+    for FAILURE but happen within already started irrevocable actions,
+    like ISO image generation. A precondition for such a severity ease is
+    that the action can be continued after the incident.
+    See below MISHAP for what xorriso would need instead of this kind of SORRY
+    an generates for itself in case of libisofs image generation.
+
+    E.g.: A pattern yields no result.
           A speed setting cannot be made.
+          A libisofs input file is inaccessible during image generation.
 
     After SORRY a function should try to go on if that makes any sense
     and if no threshold prescribes abort on SORRY. The function should
@@ -156,15 +163,31 @@ struct libiso_msgs_item;
 #define LIBISO_MSGS_SEV_SORRY                                        0x60000000
 
 
-/** Non-fatal error indicating that a complete action failed and that
-    only a thorough new setup of preconditions will give hope for success.
+/** A FAILURE (see below) which can be tolerated during long lasting
+    operations just because they cannot simply be stopped or revoked.
+
+    xorriso converts libisofs SORRY messages issued during image generation
+    into MISHAP messages in order to allow its evaluators to distinguish
+    image generation problems from minor image composition problems.
+    E.g.:
+      A libisofs input file is inaccessible during image generation.
+
+    After a MISHAP a function should behave like after SORRY.
+*/
+#define LIBISO_MSGS_SEV_MISHAP                                       0x64000000
+
+
+/** Non-fatal error indicating that an important part of an action failed and
+    that only a new setup of preconditions will give hope for sufficient
+    success.
 
     E.g.: No media is inserted in the output drive.
           No write mode can be found for inserted media.
-          All libisofs input files are inaccessible.
+          A libisofs input file is inaccessible during grafting.
 
-    After FAILURE a function should end very soon with a return value
-    indicating failure.
+    After FAILURE a function should end with a return value indicating failure.
+    It is at the discretion of the function whether it ends immediately in any
+    case or whether it tries to go on if the eventual threshold allows.
 */
 #define LIBISO_MSGS_SEV_FAILURE                                      0x68000000
 
@@ -527,9 +550,9 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  0x0003ff78 (FAILURE,HIGH) = Not dir used where a dir is expected
  0x0003ff77 (FAILURE,HIGH) = Not symlink used where a symlink is expected
  0x0003ff76 (FAILURE,HIGH) = Cannot seek to specified location
- 0x0003ff75 (HINT,MEDIUM)  = File not supported in ECMA-119 tree and ignored 
+ 0x0003ff75 (HINT,MEDIUM)  = File not supported in ECMA-119 tree and ignored
  0x0003ff74 (HINT,MEDIUM)  = File bigger than supported by used standard
- 0x0003ff73 (SORRY,HIGH)   = File read error during image creation
+ 0x0003ff73 (MISHAP,HIGH)  = File read error during image creation
  0x0003ff72 (HINT,MEDIUM)  = Cannot convert filename to requested charset
  0x0003ff71 (SORRY,HIGH)   = File cannot be added to the tree
  0x0003ff70 (HINT,MEDIUM)  = File path breaks specification constraints
@@ -549,8 +572,31 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  0x0003feb5 (WARNING,HIGH) = Multiple ER SUSP entries found
  0x0003feb4 (HINT,MEDIUM)  = Unsupported volume descriptor found
  0x0003feb3 (WARNING,HIGH) = El-Torito related warning
- 0x0003feb2 (SORRY,HIGH)   = Image write cancelled
+ 0x0003feb2 (MISHAP,HIGH)  = Image write cancelled
  0x0003feb1 (WARNING,HIGH) = El-Torito image is hidden
+
+Outdated codes which may not be re-used for other purposes than
+re-instating them, if ever:
+
+X 0x00031001 (SORRY,HIGH)    = Cannot read file (ignored)
+X 0x00031002 (FATAL,HIGH)    = Cannot read file (operation canceled)
+X 0x00031000 (FATAL,HIGH)    = Unsupported ISO-9660 image
+X 0x00031001 (HINT,MEDIUM)   = Unsupported Vol Desc that will be ignored
+X 0x00031002 (FATAL,HIGH)    = Damaged ISO-9660 image
+X 0x00031003 (SORRY,HIGH)    = Cannot read previous image file
+X 0x00030101 (HINT,MEDIUM)   = Unsupported SUSP entry that will be ignored
+X 0x00030102 (SORRY,HIGH)    = Wrong/damaged SUSP entry
+X 0x00030103 (WARNING,MEDIUM)= Multiple SUSP ER entries where found
+X 0x00030111 (SORRY,HIGH)    = Unsupported RR feature
+X 0x00030112 (SORRY,HIGH)    = Error in a Rock Ridge entry
+X 0x00030201 (HINT,MEDIUM)   = Unsupported Boot Vol Desc that will be ignored
+X 0x00030202 (SORRY,HIGH)    = Wrong El-Torito catalog
+X 0x00030203 (HINT,MEDIUM)   = Unsupported El-Torito feature
+X 0x00030204 (SORRY,HIGH)    = Invalid file to be an El-Torito image
+X 0x00030205 (WARNING,MEDIUM)= Cannot properly patch isolinux image
+X 0x00030206 (WARNING,MEDIUM)= Copying El-Torito from a previous image without
+X                              enought info about it
+X 0x00030301 (NOTE,MEDIUM)   = Unsupported file type for Joliet tree
 
 
 ------------------------------------------------------------------------------
@@ -564,6 +610,22 @@ Range "application"         :  0x00040000 to 0x0004ffff
  0x00040005 (NOTE,HIGH)     : Application supplied message
  0x00040006 (UPDATE,HIGH)   : Application supplied message
  0x00040007 (DEBUG,HIGH)    : Application supplied message
+
+
+------------------------------------------------------------------------------
+Range "libisofs-xorriso"    :  0x00050000 to 0x0005ffff
+
+This is an alternative representation of libisofs.so.6 error codes in xorriso.
+If values returned by iso_error_get_code() do not fit into 0x30000 to 0x3ffff
+then they get truncated to 16 bit and mapped into this range.
+(This should never need to happen, of course.)
+
+------------------------------------------------------------------------------
+Range "libisoburn"          :  0x00060000 to 0x00006ffff
+
+ 0x00060000 (*,*)           : Message which shall be attributed to libisoburn
+
+ >>> the messages of libisoburn need to be registered individually
 
 
 ------------------------------------------------------------------------------

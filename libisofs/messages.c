@@ -26,6 +26,7 @@
  *        = 0x40 -> HINT
  *        = 0x50 -> WARNING
  *        = 0x60 -> SORRY
+ *        = 0x64 -> MISHAP
  *        = 0x68 -> FAILURE
  *        = 0x70 -> FATAL
  *        = 0x71 -> ABORT
