@@ -9,6 +9,30 @@
 #include <stdlib.h>
 
 static
+void test_iso_node_new_root()
+{
+    int ret;
+    IsoDir *dir;
+    
+    ret = iso_node_new_root(&dir);
+    CU_ASSERT_EQUAL(ret, ISO_SUCCESS);
+    
+    CU_ASSERT_EQUAL(dir->node.refcount, 1);
+    CU_ASSERT_EQUAL(dir->node.type, LIBISO_DIR);
+    CU_ASSERT_EQUAL(dir->node.mode, S_IFDIR | 0555);
+    CU_ASSERT_EQUAL(dir->node.uid, 0);
+    CU_ASSERT_EQUAL(dir->node.gid, 0);
+    CU_ASSERT_PTR_NULL(dir->node.name);
+    CU_ASSERT_EQUAL(dir->node.hidden, 0);
+    CU_ASSERT_PTR_EQUAL(dir->node.parent, dir);
+    CU_ASSERT_PTR_NULL(dir->node.next);
+    CU_ASSERT_EQUAL(dir->nchildren, 0);
+    CU_ASSERT_PTR_NULL(dir->children);
+    
+    iso_node_unref((IsoNode*)dir);
+}
+
+static
 void test_iso_node_new_dir()
 {
     int ret;
@@ -34,6 +58,52 @@ void test_iso_node_new_dir()
     CU_ASSERT_PTR_NULL(dir->children);
     
     iso_node_unref((IsoNode*)dir);
+    
+    /* try with invalid names */
+    ret = iso_node_new_dir("H/DHS/s", &dir);
+    CU_ASSERT_EQUAL(ret, ISO_WRONG_ARG_VALUE);
+    ret = iso_node_new_dir(".", &dir);
+    CU_ASSERT_EQUAL(ret, ISO_WRONG_ARG_VALUE);
+    ret = iso_node_new_dir("..", &dir);
+    CU_ASSERT_EQUAL(ret, ISO_WRONG_ARG_VALUE);
+    ret = iso_node_new_dir(NULL, &dir);
+    CU_ASSERT_EQUAL(ret, ISO_NULL_POINTER);
+}
+
+static
+void test_iso_node_new_symlink()
+{
+    int ret;
+    IsoSymlink *link;
+    char *name, *dest;
+
+    name = strdup("name1");
+    dest = strdup("/home");
+    ret = iso_node_new_symlink(name, dest, &link);
+    CU_ASSERT_EQUAL(ret, ISO_SUCCESS);
+    CU_ASSERT_EQUAL(link->node.refcount, 1);
+    CU_ASSERT_EQUAL(link->node.type, LIBISO_SYMLINK);
+    CU_ASSERT_EQUAL(link->node.mode, S_IFLNK);
+    CU_ASSERT_EQUAL(link->node.uid, 0);
+    CU_ASSERT_EQUAL(link->node.gid, 0);
+    CU_ASSERT_EQUAL(link->node.atime, 0);
+    CU_ASSERT_EQUAL(link->node.mtime, 0);
+    CU_ASSERT_EQUAL(link->node.ctime, 0);
+    CU_ASSERT_STRING_EQUAL(link->node.name, "name1");
+    CU_ASSERT_EQUAL(link->node.hidden, 0);
+    CU_ASSERT_PTR_NULL(link->node.parent);
+    CU_ASSERT_PTR_NULL(link->node.next);
+    CU_ASSERT_STRING_EQUAL(link->dest, "/home");
+    
+    iso_node_unref((IsoNode*)link);
+    
+    /* try with invalid names */
+    ret = iso_node_new_symlink("H/DHS/s", "/home", &link);
+    CU_ASSERT_EQUAL(ret, ISO_WRONG_ARG_VALUE);
+    ret = iso_node_new_symlink(".", "/home", &link);
+    CU_ASSERT_EQUAL(ret, ISO_WRONG_ARG_VALUE);
+    ret = iso_node_new_symlink("..", "/home", &link);
+    CU_ASSERT_EQUAL(ret, ISO_WRONG_ARG_VALUE);
 }
 
 static
@@ -602,7 +672,9 @@ void add_node_suite()
 {
 	CU_pSuite pSuite = CU_add_suite("Node Test Suite", NULL, NULL);
 	
-	CU_add_test(pSuite, "iso_node_new_dir()", test_iso_node_new_dir);
+	CU_add_test(pSuite, "iso_node_new_root()", test_iso_node_new_root);
+    CU_add_test(pSuite, "iso_node_new_dir()", test_iso_node_new_dir);
+    CU_add_test(pSuite, "iso_node_new_symlink()", test_iso_node_new_symlink);
 	CU_add_test(pSuite, "iso_node_set_permissions()", test_iso_node_set_permissions);
     CU_add_test(pSuite, "iso_node_get_permissions()", test_iso_node_get_permissions);
     CU_add_test(pSuite, "iso_node_get_mode()", test_iso_node_get_mode);
