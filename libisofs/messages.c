@@ -335,6 +335,60 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
     return ret;
 }
 
+
+/* ts A80222 : derived from libburn/init.c:burn_msgs_submit()
+*/
+int iso_msgs_submit(int error_code, char msg_text[], int os_errno,
+			char severity[], int origin)
+{
+    int ret, sevno;
+
+    ret = libiso_msgs__text_to_sev(severity, &sevno, 0);
+    if (ret <= 0)
+    	sevno = LIBISO_MSGS_SEV_FATAL;
+    if (error_code <= 0) {
+    	switch(sevno) {
+    	       case LIBISO_MSGS_SEV_ABORT:   error_code = 0x00040000;
+    	break; case LIBISO_MSGS_SEV_FATAL:   error_code = 0x00040001;
+    	break; case LIBISO_MSGS_SEV_SORRY:   error_code = 0x00040002;
+    	break; case LIBISO_MSGS_SEV_WARNING: error_code = 0x00040003;
+    	break; case LIBISO_MSGS_SEV_HINT:    error_code = 0x00040004;
+    	break; case LIBISO_MSGS_SEV_NOTE:    error_code = 0x00040005;
+    	break; case LIBISO_MSGS_SEV_UPDATE:  error_code = 0x00040006;
+    	break; case LIBISO_MSGS_SEV_DEBUG:   error_code = 0x00040007;
+    	break; default:                      error_code = 0x00040008;
+    	}
+    }
+    ret = libiso_msgs_submit(libiso_msgr, origin, error_code,
+        	          sevno, LIBISO_MSGS_PRIO_HIGH, msg_text, os_errno, 0);
+    return ret;
+}
+
+
+/* ts A80222 : derived from libburn/init.c:burn_text_to_sev()
+*/
+int iso_text_to_sev(char *severity_name, int *sevno)
+{
+    int ret;
+
+    ret = libiso_msgs__text_to_sev(severity_name, sevno, 0);
+    if (ret <= 0)
+    	*sevno = LIBISO_MSGS_SEV_FATAL;
+    return ret;
+}
+
+
+/* ts A80222 : derived from libburn/init.c:burn_sev_to_text()
+*/
+int iso_sev_to_text(int severity_number, char **severity_name)
+{
+    int ret;
+
+    ret = libiso_msgs__sev_to_text(severity_number, severity_name, 0);
+    return ret;
+}
+
+
 /**
  * Return the messenger object handle used by libisofs. This handle
  * may be used by related libraries to  their own compatible
