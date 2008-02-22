@@ -345,7 +345,7 @@ int iso_msgs_submit(int error_code, char msg_text[], int os_errno,
 
     ret = libiso_msgs__text_to_sev(severity, &sevno, 0);
     if (ret <= 0)
-    	sevno = LIBISO_MSGS_SEV_FATAL;
+    	sevno = LIBISO_MSGS_SEV_ALL;
     if (error_code <= 0) {
     	switch(sevno) {
     	       case LIBISO_MSGS_SEV_ABORT:   error_code = 0x00040000;
