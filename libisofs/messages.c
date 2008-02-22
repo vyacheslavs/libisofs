@@ -341,7 +341,7 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
 int iso_msgs_submit(int error_code, char msg_text[], int os_errno,
 			char severity[], int origin)
 {
-    int ret, sevno, global_index = -1;
+    int ret, sevno;
 
     ret = libiso_msgs__text_to_sev(severity, &sevno, 0);
     if (ret <= 0)
@@ -415,4 +415,14 @@ int iso_error_get_priority(int e)
 int iso_error_get_code(int e)
 {
     return ISO_ERR_CODE(e);
+}
+
+
+/* ts A80222 */
+int iso_report_errfile(char *path, int error_code, int os_errno, int flag)
+{
+    libiso_msgs_submit(libiso_msgr, 0, error_code,
+                       LIBISO_MSGS_SEV_ERRFILE, LIBISO_MSGS_PRIO_HIGH,
+                       path, os_errno, 0);
+    return(1);
 }
