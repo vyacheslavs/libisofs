@@ -39,6 +39,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/ecma119_tree.h \
 	libisofs/ecma119_tree.c \
 	libisofs/writer.h \
+	libisofs/buffer.h \
 	libisofs/buffer.c \
 	libisofs/rockridge.h \
 	libisofs/rockridge.c \
