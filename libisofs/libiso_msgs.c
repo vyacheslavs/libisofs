@@ -1,5 +1,5 @@
 
-/* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:35:41 CET 2008)
+/* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
    Copyright (C) 2006 - 2008 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2
@@ -268,7 +268,7 @@ int libiso_msgs__text_to_sev(char *severity_name, int *severity,
    *severity= LIBISO_MSGS_SEV_UPDATE;
  else if(strncmp(severity_name,"DEBUG",5)==0)
    *severity= LIBISO_MSGS_SEV_DEBUG;
- else if(strncmp(severity_name,"ERRFILE",8)==0)
+ else if(strncmp(severity_name,"ERRFILE",7)==0)
    *severity= LIBISO_MSGS_SEV_ERRFILE;
  else if(strncmp(severity_name,"ALL",3)==0)
    *severity= LIBISO_MSGS_SEV_ALL;

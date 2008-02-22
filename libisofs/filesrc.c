@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 int iso_file_src_cmp(const void *n1, const void *n2)
 {
     const IsoFileSrc *f1, *f2;
