@@ -602,6 +602,23 @@ off_t iso_file_get_size(IsoFile *file)
 }
 
 /**
+ * Get the IsoStream that represents the contents of the given IsoFile.
+ * 
+ * If you open() the stream, it should be close() before image generation.
+ * 
+ * @return
+ *      The IsoStream. No extra ref is added, so the IsoStream belong to the
+ *      IsoFile, and it may be freed together with it. Add your own ref with
+ *      iso_stream_ref() if you need it.
+ *
+ * @since 0.6.4
+ */
+IsoStream *iso_file_get_stream(IsoFile *file)
+{
+    return file->stream;
+}
+
+/**
  * Check if a given name is valid for an iso node.
  * 
  * @return

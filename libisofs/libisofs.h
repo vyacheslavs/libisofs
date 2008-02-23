@@ -642,6 +642,119 @@ struct iso_file_source
 };
 
 /**
+ * Representation of file contents. It is an stream of bytes, functionally
+ * like a pipe.
+ * 
+ * @since 0.6.4
+ */
+typedef struct iso_stream IsoStream;
+
+/**
+ * Interface that defines the operations (methods) available for an 
+ * IsoStream.
+ * 
+ * @see struct IsoStream_Iface
+ * @since 0.6.4
+ */
+typedef struct IsoStream_Iface IsoStreamIface;
+
+/** 
+ * Serial number to be used when you can't get a valid id for a Stream by other
+ * means. If you use this, both fs_id and dev_id should be set to 0.
+ * This must be incremented each time you get a reference to it.
+ * 
+ * @see IsoStreamIface->get_id()
+ * @since 0.6.4
+ */
+extern ino_t serial_id;
+
+/**
+ * Interface definition for IsoStream methods.
+ * 
+ * @since 0.6.4
+ */
+struct IsoStream_Iface
+{
+    /**
+     * Opens the stream.
+     * 
+     * @return 
+     *     1 on success, 2 file greater than expected, 3 file smaller than
+     *     expected, < 0 on error
+     */
+    int (*open)(IsoStream *stream);
+
+    /**
+     * Close the Stream.
+     * @return 1 on success, < 0 on error
+     */
+    int (*close)(IsoStream *stream);
+
+    /**
+     * Get the size (in bytes) of the stream. This function should always 
+     * return the same size, even if the underlying source size changes.
+     */
+    off_t (*get_size)(IsoStream *stream);
+
+    /**
+     * Attempts to read up to count bytes from the given stream into
+     * the buffer starting at buf.
+     * 
+     * The stream must be open() before calling this, and close() when no 
+     * more needed. 
+     * 
+     * @return 
+     *     number of bytes read, 0 if EOF, < 0 on error
+     */
+    int (*read)(IsoStream *stream, void *buf, size_t count);
+
+    /**
+     * Whether this IsoStream can be read several times, with the same results. 
+     * For example, a regular file is repeatable, you can read it as many
+     * times as you want. However, a pipe isn't. 
+     * 
+     * This function doesn't take into account if the file has been modified
+     * between the two reads. 
+     * 
+     * @return
+     *     1 if stream is repeatable, 0 if not, < 0 on error
+     */
+    int (*is_repeatable)(IsoStream *stream);
+
+    /**
+     * Get an unique identifier for the IsoStream.
+     */
+    void (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+                  ino_t *ino_id);
+
+    /**
+     * Get a name that identifies the Stream contents. It is used only for
+     * informational or debug purposes, so you can return anything you 
+     * consider suitable for identification of the source, such as the path
+     * of the file on disc.
+     */
+    char *(*get_name)(IsoStream *stream);
+
+    /**
+     * Free implementation specific data. Should never be called by user.
+     * Use iso_stream_unref() instead.
+     */
+    void (*free)(IsoStream *stream);
+};
+
+/**
+ * Representation of file contents as a stream of bytes.
+ * 
+ * @since 0.6.4
+ */
+struct iso_stream
+{
+    IsoStreamIface *class;
+    int refcount;
+    void *data;
+};
+
+/**
  * Initialize libisofs. You must call this before any usage of the library.
  * @return 1 on success, < 0 on error 
  *
@@ -2100,6 +2213,20 @@ int iso_file_get_sort_weight(IsoFile *file);
 off_t iso_file_get_size(IsoFile *file);
 
 /**
+ * Get the IsoStream that represents the contents of the given IsoFile.
+ * 
+ * If you open() the stream, it should be close() before image generation.
+ * 
+ * @return
+ *      The IsoStream. No extra ref is added, so the IsoStream belong to the
+ *      IsoFile, and it may be freed together with it. Add your own ref with
+ *      iso_stream_ref() if you need it.
+ *
+ * @since 0.6.4
+ */
+IsoStream *iso_file_get_stream(IsoFile *file);
+
+/**
  * Add a new directory to the iso tree. Permissions, owner and hidden atts
  * are taken from parent, you can modify them later.
  * 
@@ -2990,6 +3117,103 @@ const char *iso_image_fs_get_abstract_file_id(IsoImageFilesystem *fs);
  */
 const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs);
 
+/**
+ * Increment reference count of an IsoStream.
+ * 
+ * @since 0.6.4
+ */
+void iso_stream_ref(IsoStream *stream);
+
+/**
+ * Decrement reference count of an IsoStream, and eventually free it if
+ * refcount reach 0.
+ * 
+ * @since 0.6.4
+ */
+void iso_stream_unref(IsoStream *stream);
+
+/**
+ * Opens the given stream. Remember to close the Stream before writing the
+ * image.
+ * 
+ * @return 
+ *     1 on success, 2 file greater than expected, 3 file smaller than
+ *     expected, < 0 on error
+ * 
+ * @since 0.6.4
+ */
+int iso_stream_open(IsoStream *stream);
+
+/**
+ * Close a previously openned IsoStream.
+ * 
+ * @return 
+ *      1 on success, < 0 on error
+ * 
+ * @since 0.6.4
+ */
+int iso_stream_close(IsoStream *stream);
+
+/**
+ * Get the size of a given stream. This function should always return the same 
+ * size, even if the underlying source size changes.
+ * 
+ * @return 
+ *      IsoStream size in bytes
+ * 
+ * @since 0.6.4
+ */
+off_t iso_stream_get_size(IsoStream *stream);
+
+/**
+ * Attempts to read up to count bytes from the given stream into
+ * the buffer starting at buf.
+ * 
+ * The stream must be open() before calling this, and close() when no 
+ * more needed. 
+ * 
+ * @return 
+ *     number of bytes read, 0 if EOF, < 0 on error
+ * 
+ * @since 0.6.4
+ */
+int iso_stream_read(IsoStream *stream, void *buf, size_t count);
+
+/**
+ * Whether the given IsoStream can be read several times, with the same 
+ * results. 
+ * For example, a regular file is repeatable, you can read it as many
+ * times as you want. However, a pipe isn't. 
+ * 
+ * This function doesn't take into account if the file has been modified
+ * between the two reads. 
+ * 
+ * @return
+ *     1 if stream is repeatable, 0 if not, < 0 on error
+ * 
+ * @since 0.6.4
+ */
+int iso_stream_is_repeatable(IsoStream *stream);
+
+/**
+ * Get an unique identifier for a given IsoStream.
+ * 
+ * @since 0.6.4
+ */
+void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+                      ino_t *ino_id);
+
+/**
+ * Get a name that identifies the Stream contents. It is used only for
+ * informational or debug purposes, so you can return anything you 
+ * consider suitable for identification of the source, such as the path
+ * of the file on disc.
+ * Returned string should be freed when no more needed.
+ * 
+ * @since 0.6.4
+ */
+char *iso_stream_get_name(IsoStream *stream);
+    
 /************ Error codes and return values for libisofs ********************/
 
 /** successfully execution */
