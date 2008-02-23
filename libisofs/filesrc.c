@@ -272,6 +272,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * 0's to image
              */
             name = iso_stream_get_name(file->stream);
+            iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res, 
                       "File \"%s\" can't be opened. Filling with 0s.", name);
             free(name);
@@ -289,6 +290,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             continue;
         } else if (res > 1) {
             name = iso_stream_get_name(file->stream);
+            iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0, 
                       "Size of file \"%s\" has changed. It will be %s", name,
                       (res == 2 ? "truncated" : "padded with 0's"));
@@ -327,6 +329,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         if (b < nblocks) {
             /* premature end of file, due to error or eof */
             char *name = iso_stream_get_name(file->stream);
+            iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
             if (res < 0) {
                 /* error */
                 res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,

@@ -37,4 +37,13 @@ void iso_msg_debug(int imgid, const char *fmt, ...);
  */
 int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...);
 
+
+/* ts A80222 */
+/* To be called with events which report incidents with individual input 
+   files from the local filesystem. Not with image nodes, files containing an
+   image or similar file-like objects.
+*/
+int iso_report_errfile(char *path, int error_code, int os_errno, int flag);
+
+
 #endif /*MESSAGES_H_*/

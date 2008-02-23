@@ -1,5 +1,5 @@
 
-/* libiso_msgs   (generated from libdax_msgs : Qua Fev 13 14:58:12 CET 2008)
+/* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
    Copyright (C) 2006-2008 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2
@@ -120,6 +120,19 @@ struct libiso_msgs_item;
 */
 #define LIBISO_MSGS_SEV_ALL                                          0x00000000
 
+
+/** Messages of this severity shall transport plain disk file paths
+    whenever an event of severity SORRY or above is related with an
+    individual disk file.
+    No message text shall be added to the file path. The ERRFILE message
+    shall be issued before the human readable message which carries the
+    true event severity. That message should contain the file path so it
+    can be found by strstr(message, path)!=NULL.
+    The error code shall be the same as with the human readable message.
+*/ 
+#define LIBISO_MSGS_SEV_ERRFILE                                      0x08000000
+
+
 /** Debugging messages not to be visible to normal users by default
 */
 #define LIBISO_MSGS_SEV_DEBUG                                        0x10000000
@@ -149,7 +162,7 @@ struct libiso_msgs_item;
     like ISO image generation. A precondition for such a severity ease is
     that the action can be continued after the incident.
     See below MISHAP for what xorriso would need instead of this kind of SORRY
-    an generates for itself in case of libisofs image generation.
+    and generates for itself in case of libisofs image generation.
 
     E.g.: A pattern yields no result.
           A speed setting cannot be made.
@@ -610,6 +623,7 @@ Range "application"         :  0x00040000 to 0x0004ffff
  0x00040005 (NOTE,HIGH)     : Application supplied message
  0x00040006 (UPDATE,HIGH)   : Application supplied message
  0x00040007 (DEBUG,HIGH)    : Application supplied message
+ 0x00040008 (*,HIGH)        : Application supplied message
 
 
 ------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 
-/* libiso_msgs   (generated from libdax_msgs : Qua Fev 13 14:58:12 CET 2008)
+/* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
    Copyright (C) 2006 - 2008 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2
@@ -268,10 +268,12 @@ int libiso_msgs__text_to_sev(char *severity_name, int *severity,
    *severity= LIBISO_MSGS_SEV_UPDATE;
  else if(strncmp(severity_name,"DEBUG",5)==0)
    *severity= LIBISO_MSGS_SEV_DEBUG;
+ else if(strncmp(severity_name,"ERRFILE",7)==0)
+   *severity= LIBISO_MSGS_SEV_ERRFILE;
  else if(strncmp(severity_name,"ALL",3)==0)
    *severity= LIBISO_MSGS_SEV_ALL;
  else {
-   *severity= LIBISO_MSGS_SEV_NEVER;
+   *severity= LIBISO_MSGS_SEV_ALL;
    return(0);
  }
  return(1);
@@ -282,7 +284,7 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
                              int flag)
 {
  if(flag&1) {
-   *severity_name= "NEVER\nABORT\nFATAL\nFAILURE\nMISHAP\nSORRY\nWARNING\nHINT\nNOTE\nUPDATE\nDEBUG\nALL";
+   *severity_name= "NEVER\nABORT\nFATAL\nFAILURE\nMISHAP\nSORRY\nWARNING\nHINT\nNOTE\nUPDATE\nDEBUG\nERRFILE\nALL";
    return(1);
  }
  *severity_name= "";
@@ -308,6 +310,8 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
    *severity_name= "UPDATE";
  else if(severity>=LIBISO_MSGS_SEV_DEBUG)
    *severity_name= "DEBUG";
+ else if(severity>=LIBISO_MSGS_SEV_ERRFILE)
+   *severity_name= "ERRFILE";
  else if(severity>=LIBISO_MSGS_SEV_ALL)
    *severity_name= "ALL";
  else {
