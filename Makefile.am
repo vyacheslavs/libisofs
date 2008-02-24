@@ -28,6 +28,9 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/libiso_msgs.c \
 	libisofs/stream.h \
 	libisofs/stream.c \
+	libisofs/filter.h \
+	libisofs/filter.c \
+	libisofs/filters/xor_encrypt.c \
 	libisofs/util.h \
 	libisofs/util.c \
 	libisofs/util_rbtree.c \

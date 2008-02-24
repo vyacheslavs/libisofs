@@ -20,6 +20,7 @@
 #define ISO_IMAGE_FS_ID        2
 #define ISO_ELTORITO_FS_ID     3
 #define ISO_MEM_FS_ID          4
+#define ISO_FILTER_FS_ID       5
 
 /**
  * Create a new IsoFilesystem to deal with local filesystem.
