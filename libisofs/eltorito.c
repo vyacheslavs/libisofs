@@ -618,25 +618,20 @@ void catalog_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 }
 
 static
-char *catalog_get_name(IsoStream *stream)
-{
-    return strdup("El-Torito Boot Catalog");
-}
-
-static
 void catalog_free(IsoStream *stream)
 {
     free(stream->data);
 }
 
 IsoStreamIface catalog_stream_class = {
+    0,
+    "boot",
     catalog_open,
     catalog_close,
     catalog_get_size,
     catalog_read,
     catalog_is_repeatable,
     catalog_get_id,
-    catalog_get_name,
     catalog_free
 };
 

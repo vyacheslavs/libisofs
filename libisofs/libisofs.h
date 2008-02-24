@@ -675,6 +675,18 @@ extern ino_t serial_id;
  */
 struct IsoStream_Iface
 {
+    /* reserved for future usage, set to 0 */
+    int version;
+
+    /**
+     * Type of Stream. 
+     * "fsrc" -> Read from file source
+     * "mem " -> Read from memory
+     * "boot" -> Boot catalog
+     * "user" -> User supplied stream
+     */
+    char type[4];
+
     /**
      * Opens the stream.
      * 
@@ -726,14 +738,6 @@ struct IsoStream_Iface
      */
     void (*get_id)(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                   ino_t *ino_id);
-
-    /**
-     * Get a name that identifies the Stream contents. It is used only for
-     * informational or debug purposes, so you can return anything you 
-     * consider suitable for identification of the source, such as the path
-     * of the file on disc.
-     */
-    char *(*get_name)(IsoStream *stream);
 
     /**
      * Free implementation specific data. Should never be called by user.
@@ -3202,17 +3206,6 @@ int iso_stream_is_repeatable(IsoStream *stream);
  */
 void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                       ino_t *ino_id);
-
-/**
- * Get a name that identifies the Stream contents. It is used only for
- * informational or debug purposes, so you can return anything you 
- * consider suitable for identification of the source, such as the path
- * of the file on disc.
- * Returned string should be freed when no more needed.
- * 
- * @since 0.6.4
- */
-char *iso_stream_get_name(IsoStream *stream);
     
 /************ Error codes and return values for libisofs ********************/
 

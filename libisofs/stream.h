@@ -13,12 +13,12 @@
  */
 #include "fsource.h"
 
-/* TODO consider removing this header */
-
-/*
- * Some functions here will be moved to libisofs.h when we expose 
- * Streams.
+/**
+ * Get an identifier for the file of the source, for debug purposes
+ * @param name 
+ *      Should provide at least PATH_MAX bytes
  */
+void iso_stream_get_file_name(IsoStream *stream, char *name);
 
 /**
  * Create a stream to read from a IsoFileSource.

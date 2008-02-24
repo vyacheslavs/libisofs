@@ -13,6 +13,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 ino_t serial_id = (ino_t)1;
 ino_t mem_serial_id = (ino_t)1;
@@ -124,14 +125,6 @@ void fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 }
 
 static
-char *fsrc_get_name(IsoStream *stream)
-{
-    FSrcStreamData *data;
-    data = (FSrcStreamData*)stream->data;
-    return iso_file_source_get_path(data->src);
-}
-
-static
 void fsrc_free(IsoStream *stream)
 {
     FSrcStreamData *data;
@@ -141,13 +134,14 @@ void fsrc_free(IsoStream *stream)
 }
 
 IsoStreamIface fsrc_stream_class = {
+    0,
+    "fsrc",
     fsrc_open,
     fsrc_close,
     fsrc_get_size,
     fsrc_read,
     fsrc_is_repeatable,
     fsrc_get_id,
-    fsrc_get_name,
     fsrc_free
 };
 
@@ -312,12 +306,6 @@ void mem_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 }
 
 static
-char *mem_get_name(IsoStream *stream)
-{
-    return strdup("[MEMORY SOURCE]");
-}
-
-static
 void mem_free(IsoStream *stream)
 {
     MemStreamData *data;
@@ -327,13 +315,14 @@ void mem_free(IsoStream *stream)
 }
 
 IsoStreamIface mem_stream_class = {
+    0,
+    "mem ",
     mem_open,
     mem_close,
     mem_get_size,
     mem_read,
     mem_is_repeatable,
     mem_get_id,
-    mem_get_name,
     mem_free
 };
 
@@ -427,8 +416,19 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
     stream->class->get_id(stream, fs_id, dev_id, ino_id);
 }
 
-inline
-char *iso_stream_get_name(IsoStream *stream)
+void iso_stream_get_file_name(IsoStream *stream, char *name)
 {
-    return stream->class->get_name(stream);
+    char *type = stream->class->type;
+    
+    if (!strncmp(type, "fsrc", 4)) {
+        FSrcStreamData *data = stream->data;
+        char *path = iso_file_source_get_path(data->src);
+        strncpy(name, path, PATH_MAX);
+    } else if (!strncmp(type, "boot", 4)) {
+        strcpy(name, "BOOT CATALOG");
+    } else if (!strncmp(type, "mem ", 4)) {
+        strcpy(name, "MEM SOURCE");
+    } else {
+        strcpy(name, "UNKNOWN SOURCE");
+    }
 }
