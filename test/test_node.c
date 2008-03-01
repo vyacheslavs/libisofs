@@ -527,6 +527,128 @@ void test_iso_dir_get_children()
     free(dir);
 }
 
+void test_iso_dir_iter_take()
+{
+    int result;
+    IsoDirIter *iter;
+    IsoDir *dir;
+    IsoNode *node, *node1, *node2;
+    
+    /* init dir with default values, not all field need to be initialized */
+    dir = malloc(sizeof(IsoDir));
+    dir->children = NULL;
+    dir->nchildren = 0;
+    
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* remove on empty dir! */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_TRUE(result < 0); /* should fail */
+    
+    iso_dir_iter_free(iter);
+    
+    /* 1st node to be added */
+    node1 = calloc(1, sizeof(IsoNode));
+    node1->name = "Node1";
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    
+    /* test iteration again */
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);    
+    
+    /* remove before iso_dir_iter_next() */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_TRUE(result < 0); /* should fail */
+    
+    result = iso_dir_iter_next(iter, &node);
+    
+    /* this should remove the child */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 0);
+    CU_ASSERT_PTR_NULL(dir->children);
+
+    result = iso_dir_iter_has_next(iter);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    iso_dir_iter_free(iter);
+
+    /* add two node */
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    
+    node2 = calloc(1, sizeof(IsoNode));
+    node2->name = "A node to be added first";
+    result = iso_dir_add_node(dir, node2, 0);
+    CU_ASSERT_EQUAL(result, 2);
+    
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);
+
+    /* remove before iso_dir_iter_next() */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_TRUE(result < 0); /* should fail */
+    
+    /* iter should have two items... */
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node2);
+    
+    /* remove node 2 */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    CU_ASSERT_PTR_EQUAL(dir->children, node1);
+    
+    /* next should still work */
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node1);
+    
+    /* ...and no more */
+    result = iso_dir_iter_has_next(iter);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 0);
+    CU_ASSERT_PTR_NULL(node);
+    iso_dir_iter_free(iter);
+    
+    /* now remove only last child */
+    result = iso_dir_add_node(dir, node2, 0);
+    CU_ASSERT_EQUAL(result, 2);
+
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node2);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node1);
+    
+    /* take last child */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    CU_ASSERT_PTR_EQUAL(dir->children, node2);
+
+    result = iso_dir_iter_has_next(iter);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 0);
+    CU_ASSERT_PTR_NULL(node);
+    iso_dir_iter_free(iter);
+    
+    free(node1);
+    free(node2);
+    free(dir);
+}
+
 void test_iso_node_take()
 {
     int result;
@@ -685,6 +807,7 @@ void add_node_suite()
     CU_add_test(pSuite, "iso_dir_add_node()", test_iso_dir_add_node);
     CU_add_test(pSuite, "iso_dir_get_node()", test_iso_dir_get_node);
     CU_add_test(pSuite, "iso_dir_get_children()", test_iso_dir_get_children);
+    CU_add_test(pSuite, "iso_dir_iter_take()", test_iso_dir_iter_take);
     CU_add_test(pSuite, "iso_node_take()", test_iso_node_take);
     CU_add_test(pSuite, "iso_node_set_name()", test_iso_node_set_name);
 }
