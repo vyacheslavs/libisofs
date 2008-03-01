@@ -2062,7 +2062,7 @@ IsoDir *iso_node_get_parent(IsoNode *node);
  * you should free the iterator with iso_dir_iter_free.
  * You musn't delete a child of the same dir, using iso_node_take() or
  * iso_node_remove(), while you're using the iterator. You can use 
- * iso_node_take_iter() or iso_node_remove_iter() instead.
+ * iso_dir_iter_take() or iso_dir_iter_remove() instead.
  * 
  * You can use the iterator in the way like this
  * 

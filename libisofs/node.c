@@ -503,7 +503,7 @@ int iso_dir_iter_take(IsoDirIter *iter)
     if (iter->pos == pos) {
         return ISO_ERROR;
     }
-    while (pos != NULL && pos->next == iter->pos) {
+    while (pos != NULL && pos->next != iter->pos) {
         pos = pos->next;
     }
     if (pos == NULL) {
