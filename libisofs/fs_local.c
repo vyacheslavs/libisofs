@@ -190,7 +190,7 @@ int lfs_open(IsoFileSource *src)
 
     data = src->data;
     if (data->openned) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
 
     /* is a file or a dir ? */
@@ -251,7 +251,7 @@ int lfs_close(IsoFileSource *src)
         ret = closedir(data->info.dir) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
         break;
     default:
-        ret = ISO_FILE_NOT_OPENNED;
+        ret = ISO_FILE_NOT_OPENED;
         break;
     }
     if (ret == ISO_SUCCESS) {
@@ -300,7 +300,7 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
     case 2: /* directory */
         return ISO_FILE_IS_DIR;
     default:
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
 }
 
@@ -341,7 +341,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
             return ret;
         }
     default:
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
 }
 

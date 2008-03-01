@@ -231,7 +231,7 @@ int mem_open(IsoStream *stream)
     }
     data = (MemStreamData*)stream->data;
     if (data->offset != -1) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
     data->offset = 0;
     return ISO_SUCCESS;
@@ -246,7 +246,7 @@ int mem_close(IsoStream *stream)
     }
     data = (MemStreamData*)stream->data;
     if (data->offset == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     data->offset = -1;
     return ISO_SUCCESS;
@@ -275,7 +275,7 @@ int mem_read(IsoStream *stream, void *buf, size_t count)
     data = stream->data;
     
     if (data->offset == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     
     if (data->offset >= data->size) {

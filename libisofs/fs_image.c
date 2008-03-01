@@ -474,7 +474,7 @@ int ifs_open(IsoFileSource *src)
     data = (ImageFileSourceData*)src->data;
 
     if (data->opened) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
     
     if (S_ISDIR(data->info.st_mode)) {
@@ -530,7 +530,7 @@ int ifs_close(IsoFileSource *src)
     data = (ImageFileSourceData*)src->data;
     
     if (!data->opened) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     
     if (data->opened == 2) {
@@ -569,7 +569,7 @@ int ifs_close(IsoFileSource *src)
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *         ISO_FILE_IS_DIR
  *         ISO_OUT_OF_MEM
  *         ISO_INTERRUPTED
@@ -590,7 +590,7 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
     data = (ImageFileSourceData*)src->data;
     
     if (!data->opened) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     } else if (data->opened != 1) {
         return ISO_FILE_IS_DIR;
     }
@@ -644,7 +644,7 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
     data = (ImageFileSourceData*)src->data;
     
     if (!data->opened) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     } else if (data->opened != 2) {
         return ISO_FILE_IS_NOT_DIR;
     }

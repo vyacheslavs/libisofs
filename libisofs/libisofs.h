@@ -519,7 +519,7 @@ struct IsoFileSource_Iface
      * Opens the source.
      * @return 1 on success, < 0 on error
      *      Error codes:
-     *         ISO_FILE_ALREADY_OPENNED
+     *         ISO_FILE_ALREADY_OPENED
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
@@ -535,7 +535,7 @@ struct IsoFileSource_Iface
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
-     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_NOT_OPENED
      */
     int (*close)(IsoFileSource *src);
 
@@ -552,7 +552,7 @@ struct IsoFileSource_Iface
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
-     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_NOT_OPENED
      *         ISO_WRONG_ARG_VALUE -> if count == 0
      *         ISO_FILE_IS_DIR
      *         ISO_OUT_OF_MEM
@@ -578,7 +578,7 @@ struct IsoFileSource_Iface
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
-     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_NOT_OPENED
      *         ISO_FILE_IS_NOT_DIR
      *         ISO_OUT_OF_MEM
      */
@@ -2893,7 +2893,7 @@ int iso_file_source_stat(IsoFileSource *src, struct stat *info);
  * Opens the source.
  * @return 1 on success, < 0 on error
  *      Error codes:
- *         ISO_FILE_ALREADY_OPENNED
+ *         ISO_FILE_ALREADY_OPENED
  *         ISO_FILE_ACCESS_DENIED
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
@@ -2911,7 +2911,7 @@ int iso_file_source_open(IsoFileSource *src);
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *
  * @since 0.6.2
  */
@@ -2937,7 +2937,7 @@ int iso_file_source_close(IsoFileSource *src);
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *         ISO_WRONG_ARG_VALUE -> if count == 0
  *         ISO_FILE_IS_DIR
  *         ISO_OUT_OF_MEM
@@ -2965,7 +2965,7 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *         ISO_FILE_IS_NOT_DIR
  *         ISO_OUT_OF_MEM
  *
@@ -3280,6 +3280,9 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_FILE_ERROR                  0xE830FF80
 
 /** Trying to open an already openned file (FAILURE,HIGH, -129) */
+#define ISO_FILE_ALREADY_OPENED         0xE830FF7F
+
+/* @deprecated use ISO_FILE_ALREADY_OPENED instead */
 #define ISO_FILE_ALREADY_OPENNED        0xE830FF7F
 
 /** Access to file is not allowed (FAILURE,HIGH, -130) */
@@ -3292,7 +3295,10 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_FILE_DOESNT_EXIST           0xE830FF7C
 
 /** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
-#define ISO_FILE_NOT_OPENNED            0xE830FF7B
+#define ISO_FILE_NOT_OPENED             0xE830FF7B
+
+/* @deprecated use ISO_FILE_NOT_OPENED instead */
+#define ISO_FILE_NOT_OPENNED            ISO_FILE_NOT_OPENED
 
 /** Directory used where no dir is expected (FAILURE,HIGH, -134) */
 #define ISO_FILE_IS_DIR                 0xE830FF7A

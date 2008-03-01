@@ -43,13 +43,13 @@ void test_mem_open()
     
     /* try to open an already opened stream */
     ret = iso_stream_open(stream);
-    CU_ASSERT_EQUAL(ret, ISO_FILE_ALREADY_OPENNED);
+    CU_ASSERT_EQUAL(ret, ISO_FILE_ALREADY_OPENED);
 
     ret = iso_stream_close(stream);
     CU_ASSERT_EQUAL(ret, 1);
     
     ret = iso_stream_close(stream);
-    CU_ASSERT_EQUAL(ret, ISO_FILE_NOT_OPENNED);
+    CU_ASSERT_EQUAL(ret, ISO_FILE_NOT_OPENED);
     
     iso_stream_unref(stream);
 }
