@@ -532,7 +532,7 @@ void test_iso_dir_iter_take()
     int result;
     IsoDirIter *iter;
     IsoDir *dir;
-    IsoNode *node, *node1, *node2;
+    IsoNode *node, *node1, *node2, *node3;
     
     /* init dir with default values, not all field need to be initialized */
     dir = malloc(sizeof(IsoDir));
@@ -644,8 +644,35 @@ void test_iso_dir_iter_take()
     CU_ASSERT_PTR_NULL(node);
     iso_dir_iter_free(iter);
     
+    /* Ok, now another situation. Modification of dir during iteration */
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(result, 2);
+
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node2);
+    
+    /* returned dir is node2, it should be the node taken next, but
+     * let's insert a node after node2 and before node1 */
+    node3 = calloc(1, sizeof(IsoNode));
+    node3->name = "A node to be added second";
+    result = iso_dir_add_node(dir, node3, 0);
+    CU_ASSERT_EQUAL(dir->nchildren, 3);
+
+    /* is the node 2 the removed one? */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->nchildren, 2);
+    CU_ASSERT_PTR_EQUAL(dir->children, node3);
+    CU_ASSERT_PTR_EQUAL(node3->next, node1);
+
+    iso_dir_iter_free(iter);
+    
     free(node1);
     free(node2);
+    free(node3);
     free(dir);
 }
 
