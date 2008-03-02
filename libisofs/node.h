@@ -153,8 +153,15 @@ struct Iso_Special
  */
 struct Iso_Dir_Iter
 {
-    const IsoDir *dir;
+    IsoDir *dir;
+    
+    /* points to the last visited child, to NULL before start */
     IsoNode *pos;
+    
+    /* Some control flags.
+     * bit 0 -> 1 if next called, 0 reseted at start or on deletion 
+     */
+    int flag;
 };
 
 int iso_node_new_root(IsoDir **root);
