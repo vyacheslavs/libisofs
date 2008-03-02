@@ -612,6 +612,10 @@ void test_iso_dir_iter_take()
     CU_ASSERT_EQUAL(result, 1);
     CU_ASSERT_EQUAL(dir->nchildren, 1);
     CU_ASSERT_PTR_EQUAL(dir->children, node1);
+
+    /* we can't take two times without next()!! */
+    result = iso_dir_iter_take(iter);
+    CU_ASSERT_TRUE(result < 0); /* should fail */
     
     /* next should still work */
     result = iso_dir_iter_next(iter, &node);
