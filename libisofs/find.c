@@ -156,7 +156,7 @@ void cond_name_free(IsoFindCondition *cond)
 }
 
 /**
- * Create a new condition that checks if a the node name matches the given
+ * Create a new condition that checks if the node name matches the given
  * wildcard.
  * 
  * @param wildcard
@@ -180,3 +180,146 @@ IsoFindCondition *iso_new_find_conditions_name(const char *wildcard)
     cond->matches = cond_name_matches;
     return cond;
 }
+
+/*************** find by mode condition *****************/
+
+static
+int cond_mode_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    mode_t *mask = (mode_t*) cond->data;
+    return node->mode & *mask ? 1 : 0;
+}
+
+static
+void cond_mode_free(IsoFindCondition *cond)
+{
+    free(cond->data);
+}
+
+/**
+ * Create a new condition that checks the node mode against a mode mask. It
+ * can be used to check both file type and permissions.
+ * 
+ * For example:
+ * 
+ * iso_new_find_conditions_mode(S_IFREG) : search for regular files
+ * iso_new_find_conditions_mode(S_IFCHR | S_IWUSR) : search for character 
+ *     devices where owner has write permissions.
+ * 
+ * @param mask
+ *      Mode mask to AND against node mode.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_mode(mode_t mask)
+{
+    IsoFindCondition *cond;
+    mode_t *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(mode_t));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    *data = mask;
+    cond->data = data;
+    cond->free = cond_mode_free;
+    cond->matches = cond_mode_matches;
+    return cond;
+}
+
+/*************** find by gid condition *****************/
+
+static
+int cond_gid_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    gid_t *gid = (gid_t*) cond->data;
+    return node->gid == *gid ? 1 : 0;
+}
+
+static
+void cond_gid_free(IsoFindCondition *cond)
+{
+    free(cond->data);
+}
+
+/**
+ * Create a new condition that checks the node gid.
+ * 
+ * @param gid
+ *      Desired Group Id.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_gid(gid_t gid)
+{
+    IsoFindCondition *cond;
+    gid_t *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(gid_t));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    *data = gid;
+    cond->data = data;
+    cond->free = cond_gid_free;
+    cond->matches = cond_gid_matches;
+    return cond;
+}
+
+/*************** find by uid condition *****************/
+
+static
+int cond_uid_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    uid_t *uid = (uid_t*) cond->data;
+    return node->uid == *uid ? 1 : 0;
+}
+
+static
+void cond_uid_free(IsoFindCondition *cond)
+{
+    free(cond->data);
+}
+
+/**
+ * Create a new condition that checks the node uid.
+ * 
+ * @param uid
+ *      Desired User Id.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_uid(uid_t uid)
+{
+    IsoFindCondition *cond;
+    uid_t *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(uid_t));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    *data = uid;
+    cond->data = data;
+    cond->free = cond_uid_free;
+    cond->matches = cond_uid_matches;
+    return cond;
+}
+

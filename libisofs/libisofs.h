@@ -2171,7 +2171,7 @@ int iso_dir_iter_remove(IsoDirIter *iter);
 typedef struct iso_find_condition IsoFindCondition;
 
 /**
- * Create a new condition that checks if a the node name matches the given
+ * Create a new condition that checks if the node name matches the given
  * wildcard.
  * 
  * @param wildcard
@@ -2181,6 +2181,49 @@ typedef struct iso_find_condition IsoFindCondition;
  * @since 0.6.4
  */
 IsoFindCondition *iso_new_find_conditions_name(const char *wildcard);
+
+/**
+ * Create a new condition that checks the node mode against a mode mask. It
+ * can be used to check both file type and permissions.
+ * 
+ * For example:
+ * 
+ * iso_new_find_conditions_mode(S_IFREG) : search for regular files
+ * iso_new_find_conditions_mode(S_IFCHR | S_IWUSR) : search for character 
+ *     devices where owner has write permissions.
+ * 
+ * @param mask
+ *      Mode mask to AND against node mode.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_mode(mode_t mask);
+
+/**
+ * Create a new condition that checks the node gid.
+ * 
+ * @param gid
+ *      Desired Group Id.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_gid(gid_t gid);
+
+/**
+ * Create a new condition that checks the node uid.
+ * 
+ * @param uid
+ *      Desired User Id.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_uid(uid_t uid);
 
 /**
  * Find all directory children that match the given condition.
