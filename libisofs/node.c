@@ -616,7 +616,6 @@ struct iso_dir_iter_iface iter_class = {
         iter_remove
 };
 
-
 int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
 {
     IsoDirIter *it;

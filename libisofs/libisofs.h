@@ -2164,6 +2164,43 @@ int iso_dir_iter_take(IsoDirIter *iter);
  */
 int iso_dir_iter_remove(IsoDirIter *iter);
 
+
+/**
+ * @since 0.6.4
+ */
+typedef struct iso_find_condition IsoFindCondition;
+
+/**
+ * Create a new condition that checks if a the node name matches the given
+ * wildcard.
+ * 
+ * @param wildcard
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_name(const char *wildcard);
+
+/**
+ * Find all directory children that match the given condition.
+ * 
+ * @param dir
+ *      Directory where we will search children.
+ * @param cond
+ *      Condition that the children must match in order to be returned.
+ *      It will be free together with the iterator. Remember to delete it
+ *      if this function return error.
+ * @param iter
+ *      Iterator that returns only the children that match condition.
+ * @return
+ *      1 on success, < 0 on error
+ * 
+ * @since 0.6.4
+ */
+int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond, 
+                          IsoDirIter **iter);
+
 /**
  * Get the destination of a node.
  * The returned string belongs to the node and should not be modified nor
