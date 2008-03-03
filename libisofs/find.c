@@ -323,3 +323,157 @@ IsoFindCondition *iso_new_find_conditions_uid(uid_t uid)
     return cond;
 }
 
+/*************** find by timestamps condition *****************/
+
+struct cond_times
+{
+    time_t time;
+    int what_time; /* 0 atime, 1 mtime, 2 ctime */
+    enum iso_find_comparisons comparison;
+};
+
+static
+int cond_time_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    time_t node_time;
+    struct cond_times *data = cond->data;
+    
+    switch (data->what_time) {
+    case 0: node_time = node->atime; break;
+    case 1: node_time = node->mtime; break;
+    default: node_time = node->ctime; break;
+    }
+    
+    switch (data->comparison) {
+    case ISO_FIND_COND_GREATER:
+        return node_time > data->time ? 1 : 0;
+    case ISO_FIND_COND_GREATER_OR_EQUAL:
+        return node_time >= data->time ? 1 : 0;
+    case ISO_FIND_COND_EQUAL:
+        return node_time == data->time ? 1 : 0;
+    case ISO_FIND_COND_LESS:
+        return node_time < data->time ? 1 : 0;
+    case ISO_FIND_COND_LESS_OR_EQUAL:
+        return node_time <= data->time ? 1 : 0;
+    }
+    /* should never happen */
+    return 0;
+}
+
+static
+void cond_time_free(IsoFindCondition *cond)
+{
+    free(cond->data);
+}
+
+/**
+ * Create a new condition that checks the time of last access.
+ * 
+ * @param time
+ *      Time to compare against IsoNode atime.
+ * @param comparison
+ *      Comparison to be done between IsoNode atime and submitted time.
+ *      Note that ISO_FIND_COND_GREATER, for example, is true if the node
+ *      time is greater than the submitted time.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_atime(time_t time, 
+                      enum iso_find_comparisons comparison)
+{
+    IsoFindCondition *cond;
+    struct cond_times *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(struct cond_times));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    data->time = time;
+    data->comparison = comparison;
+    data->what_time = 0; /* atime */
+    cond->data = data;
+    cond->free = cond_time_free;
+    cond->matches = cond_time_matches;
+    return cond;
+}
+
+/**
+ * Create a new condition that checks the time of last modification.
+ * 
+ * @param time
+ *      Time to compare against IsoNode mtime.
+ * @param comparison
+ *      Comparison to be done between IsoNode mtime and submitted time.
+ *      Note that ISO_FIND_COND_GREATER, for example, is true if the node
+ *      time is greater than the submitted time.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_mtime(time_t time, 
+                      enum iso_find_comparisons comparison)
+{
+    IsoFindCondition *cond;
+    struct cond_times *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(struct cond_times));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    data->time = time;
+    data->comparison = comparison;
+    data->what_time = 1; /* mtime */
+    cond->data = data;
+    cond->free = cond_time_free;
+    cond->matches = cond_time_matches;
+    return cond;
+}
+
+/**
+ * Create a new condition that checks the time of last status change.
+ * 
+ * @param time
+ *      Time to compare against IsoNode ctime.
+ * @param comparison
+ *      Comparison to be done between IsoNode ctime and submitted time.
+ *      Note that ISO_FIND_COND_GREATER, for example, is true if the node
+ *      time is greater than the submitted time.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_ctime(time_t time, 
+                      enum iso_find_comparisons comparison)
+{
+    IsoFindCondition *cond;
+    struct cond_times *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(struct cond_times));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    data->time = time;
+    data->comparison = comparison;
+    data->what_time = 2; /* ctime */
+    cond->data = data;
+    cond->free = cond_time_free;
+    cond->matches = cond_time_matches;
+    return cond;
+}
+
