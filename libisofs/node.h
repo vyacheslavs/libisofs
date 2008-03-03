@@ -148,20 +148,32 @@ struct Iso_Special
     dev_t dev;
 };
 
+struct iso_dir_iter_iface
+{
+    
+    int (*next)(IsoDirIter *iter, IsoNode **node);
+
+    int (*has_next)(IsoDirIter *iter);
+
+    void (*free)(IsoDirIter *iter);
+    
+    int (*take)(IsoDirIter *iter);
+
+    int (*remove)(IsoDirIter *iter);
+    
+};
+
 /**
  * An iterator for directory children.
  */
 struct Iso_Dir_Iter
 {
+    struct iso_dir_iter_iface *class;
+    
+    /* the directory this iterator iterates over */
     IsoDir *dir;
     
-    /* points to the last visited child, to NULL before start */
-    IsoNode *pos;
-    
-    /* Some control flags.
-     * bit 0 -> 1 if next called, 0 reseted at start or on deletion 
-     */
-    int flag;
+    void *data;
 };
 
 int iso_node_new_root(IsoDir **root);
