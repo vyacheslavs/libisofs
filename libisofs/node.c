@@ -687,6 +687,58 @@ IsoStream *iso_file_get_stream(IsoFile *file)
 }
 
 /**
+ * Get the block lba of a file node, if it was imported from an old image.
+ * 
+ * @param file
+ *      The file
+ * @param lba
+ *      Will be filled with the kba
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, < 0 error 
+ *
+ * @since 0.6.4
+ */
+int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag)
+{
+    if (file == NULL || lba == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (flag != 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (file->msblock != 0) {
+        *lba = file->msblock;
+        return 1;
+    }
+    return 0;
+}
+
+/*
+ * Like iso_file_get_old_image_lba(), but take an IsoNode.
+ * 
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, 2 node type has no 
+ *      LBA (no regular file), < 0 error
+ *
+ * @since 0.6.4
+ */
+int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag)
+{
+    if (node == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (ISO_NODE_IS_FILE(node)) {
+        return iso_file_get_old_image_lba((IsoFile*)node, lba, flag);
+    } else {
+        return 2;
+    }
+}
+
+/**
  * Check if a given name is valid for an iso node.
  * 
  * @return

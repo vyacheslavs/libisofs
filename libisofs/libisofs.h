@@ -2231,6 +2231,35 @@ off_t iso_file_get_size(IsoFile *file);
 IsoStream *iso_file_get_stream(IsoFile *file);
 
 /**
+ * Get the block lba of a file node, if it was imported from an old image.
+ * 
+ * @param file
+ *      The file
+ * @param lba
+ *      Will be filled with the kba
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, < 0 error 
+ *
+ * @since 0.6.4
+ */
+int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag);
+
+/*
+ * Like iso_file_get_old_image_lba(), but take an IsoNode.
+ * 
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, 2 node type has no 
+ *      LBA (no regular file), < 0 error
+ *
+ * @since 0.6.4
+ */
+int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag);
+
+/**
  * Add a new directory to the iso tree. Permissions, owner and hidden atts
  * are taken from parent, you can modify them later.
  * 
