@@ -16,9 +16,11 @@ print_dir(IsoDir *dir)
 {
 	IsoDirIter *iter;
 	IsoNode *node;
-	IsoFindCondition *cond;
+	IsoFindCondition *cond, *c1, *c2;
 	
-	cond = iso_new_find_conditions_name("*a*");
+	c1 = iso_new_find_conditions_name("*a*");
+    c2 = iso_new_find_conditions_mode(S_IFREG);
+    cond = iso_new_find_conditions_and(c1, c2);
 	iso_dir_find_children(dir, cond, &iter);
 	while (iso_dir_iter_next(iter, &node) == 1) {
 		printf(" %s\n", iso_node_get_name(node));

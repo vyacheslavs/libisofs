@@ -2290,6 +2290,47 @@ IsoFindCondition *iso_new_find_conditions_ctime(time_t time,
                       enum iso_find_comparisons comparison);
 
 /**
+ * Create a new condition that check if the two given conditions are
+ * valid.
+ * 
+ * @param a
+ * @param b
+ *      IsoFindCondition to compare
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_and(IsoFindCondition *a, 
+                                              IsoFindCondition *b);
+
+/**
+ * Create a new condition that check if at least one the two given conditions 
+ * is valid.
+ * 
+ * @param a
+ * @param b
+ *      IsoFindCondition to compare
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_or(IsoFindCondition *a, 
+                                              IsoFindCondition *b);
+
+/**
+ * Create a new condition that check if the given conditions is false.
+ * 
+ * @param negate
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_not(IsoFindCondition *negate);
+
+/**
  * Find all directory children that match the given condition.
  * 
  * @param dir

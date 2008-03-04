@@ -477,3 +477,141 @@ IsoFindCondition *iso_new_find_conditions_ctime(time_t time,
     return cond;
 }
 
+/*************** logical operations on conditions *****************/
+
+struct logical_binary_conditions {
+    IsoFindCondition *a;
+    IsoFindCondition *b;
+};
+
+static
+void cond_logical_binary_free(IsoFindCondition *cond)
+{
+    struct logical_binary_conditions *data;
+    data = cond->data;
+    data->a->free(data->a);
+    free(data->a);
+    data->b->free(data->b);
+    free(data->b);
+    free(cond->data);
+}
+
+static
+int cond_logical_and_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    struct logical_binary_conditions *data = cond->data;
+    return data->a->matches(data->a, node) && data->b->matches(data->b, node);
+}
+
+/**
+ * Create a new condition that check if the two given conditions are
+ * valid.
+ * 
+ * @param a
+ * @param b
+ *      IsoFindCondition to compare
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_and(IsoFindCondition *a, 
+                                              IsoFindCondition *b)
+{
+    IsoFindCondition *cond;
+    struct logical_binary_conditions *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(struct logical_binary_conditions));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    data->a = a;
+    data->b = b;
+    cond->data = data;
+    cond->free = cond_logical_binary_free;
+    cond->matches = cond_logical_and_matches;
+    return cond;
+}
+
+static
+int cond_logical_or_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    struct logical_binary_conditions *data = cond->data;
+    return data->a->matches(data->a, node) || data->b->matches(data->b, node);
+}
+
+/**
+ * Create a new condition that check if at least one the two given conditions 
+ * is valid.
+ * 
+ * @param a
+ * @param b
+ *      IsoFindCondition to compare
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_or(IsoFindCondition *a, 
+                                              IsoFindCondition *b)
+{
+    IsoFindCondition *cond;
+    struct logical_binary_conditions *data;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    data = malloc(sizeof(struct logical_binary_conditions));
+    if (data == NULL) {
+        free(cond);
+        return NULL;
+    }
+    data->a = a;
+    data->b = b;
+    cond->data = data;
+    cond->free = cond_logical_binary_free;
+    cond->matches = cond_logical_or_matches;
+    return cond;
+}
+
+static
+void cond_not_free(IsoFindCondition *cond)
+{
+    IsoFindCondition *negate = cond->data;
+    negate->free(negate);
+    free(negate);
+}
+
+static
+int cond_not_matches(IsoFindCondition *cond, IsoNode *node)
+{
+    IsoFindCondition *negate = cond->data;
+    return !(negate->matches(negate, node));
+}
+
+/**
+ * Create a new condition that check if the given conditions is false.
+ * 
+ * @param negate
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_not(IsoFindCondition *negate)
+{
+    IsoFindCondition *cond;
+    cond = malloc(sizeof(IsoFindCondition));
+    if (cond == NULL) {
+        return NULL;
+    }
+    cond->data = negate;
+    cond->free = cond_not_free;
+    cond->matches = cond_not_matches;
+    return cond;
+}
+
