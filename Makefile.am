@@ -55,6 +55,8 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/iso1999.h \
 	libisofs/iso1999.c \
 	libisofs/data_source.c
+libisofs_libisofs_la_LIBADD= \
+	$(THREAD_LIBS)
 libinclude_HEADERS = \
 	libisofs/libisofs.h
 
