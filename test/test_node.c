@@ -857,6 +857,107 @@ void test_iso_dir_iter_remove()
 }
 
 static
+void test_iso_dir_iter_when_external_take()
+{
+    int result;
+    IsoDirIter *iter;
+    IsoDir *dir;
+    IsoNode *node, *node1, *node2;
+    
+    /* init dir with default values, not all field need to be initialized */
+    dir = malloc(sizeof(IsoDir));
+    dir->children = NULL;
+    dir->nchildren = 0;
+    
+    /* 1st node to be added */
+    node1 = calloc(1, sizeof(IsoNode));
+    node1->name = "Node1";
+    node1->refcount = 1;
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+
+    /* test iteration again */
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);    
+    
+    /* take node */
+    result = iso_node_take(node1);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* iter should reflect changes */
+    result = iso_dir_iter_has_next(iter);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    iso_dir_iter_free(iter);
+
+    /* add two nodes */
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(dir->nchildren, 1);
+    
+    node2 = calloc(1, sizeof(IsoNode));
+    node2->name = "A node to be added first";
+    node2->refcount = 1;
+    result = iso_dir_add_node(dir, node2, 0);
+    CU_ASSERT_EQUAL(result, 2);
+    
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* iter should have two items... */
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node2);
+    
+    /* remove node 1 asynchronously */
+    result = iso_node_take(node1);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* iter should reflect changes */
+    result = iso_dir_iter_has_next(iter);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    iso_dir_iter_free(iter);
+    
+    /* now remove iter has itered */
+    result = iso_dir_add_node(dir, node1, 0);
+    CU_ASSERT_EQUAL(dir->nchildren, 2);
+    
+    result = iso_dir_get_children(dir, &iter);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node2);
+    
+    /* remove node 2 asynchronously */
+    result = iso_node_take(node2);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* iter should reflect changes */
+    result = iso_dir_iter_has_next(iter);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    result = iso_dir_iter_next(iter, &node);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(node, node1);
+    
+    iso_dir_iter_free(iter);
+
+    /* assert correct refcount */
+    CU_ASSERT_EQUAL(node1->refcount, 1);
+    free(node1);
+    CU_ASSERT_EQUAL(node2->refcount, 1);
+    free(node2);
+    free(dir);
+}
+
+static
 void test_iso_node_take()
 {
     int result;
@@ -1025,5 +1126,6 @@ void add_node_suite()
     CU_add_test(pSuite, "iso_dir_iter_take()", test_iso_dir_iter_take);
     CU_add_test(pSuite, "iso_dir_iter_remove()", test_iso_dir_iter_remove);
     CU_add_test(pSuite, "iso_node_take()", test_iso_node_take);
+    CU_add_test(pSuite, "iso_node_take() during iteration", test_iso_dir_iter_when_external_take);
     CU_add_test(pSuite, "iso_node_set_name()", test_iso_node_set_name);
 }
