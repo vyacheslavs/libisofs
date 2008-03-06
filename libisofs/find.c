@@ -134,6 +134,11 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
     data->iter = children;
     data->cond = cond;
     it->data = data;
+    
+    if (iso_dir_iter_register(it) < 0) {
+        free(it);
+        return ISO_OUT_OF_MEM;
+    }
 
     *iter = it;
     return ISO_SUCCESS;

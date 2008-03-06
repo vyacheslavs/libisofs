@@ -639,6 +639,11 @@ int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
     data->pos = NULL;
     data->flag = 0x00;
     it->data = data;
+    
+    if (iso_dir_iter_register(it) < 0) {
+        free(it);
+        return ISO_OUT_OF_MEM;
+    }
 
     *iter = it;
     return ISO_SUCCESS;
@@ -663,6 +668,7 @@ int iso_dir_iter_has_next(IsoDirIter *iter)
 void iso_dir_iter_free(IsoDirIter *iter)
 {
     if (iter != NULL) {
+        iso_dir_iter_unregister(iter);
         iter->class->free(iter);
         free(iter);
     }
@@ -968,6 +974,51 @@ int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
     node->parent = dir;
 
     return ++dir->nchildren;
+}
+
+/* iterators are stored in a linked list */
+struct iter_reg_node {
+    IsoDirIter *iter;
+    struct iter_reg_node *next;
+};
+
+/* list header */
+static
+struct iter_reg_node *iter_reg = NULL;
+
+/**
+ * Add a new iterator to the registry. The iterator register keeps track of
+ * all iterators being used, and are notified when directory structure 
+ * changes.
+ */
+int iso_dir_iter_register(IsoDirIter *iter)
+{
+    struct iter_reg_node *new;
+    new = malloc(sizeof(struct iter_reg_node));
+    if (new == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    new->iter = iter;
+    new->next = iter_reg;
+    iter_reg = new;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Unregister a directory iterator.
+ */
+void iso_dir_iter_unregister(IsoDirIter *iter)
+{
+    struct iter_reg_node **pos;
+    pos = &iter_reg;
+    while (*pos != NULL && (*pos)->iter != iter) {
+        pos = &(*pos)->next;
+    }
+    if (*pos) {
+        struct iter_reg_node *tmp = (*pos)->next;
+        free(*pos);
+        *pos = tmp;
+    }
 }
 
 int iso_node_new_root(IsoDir **root)

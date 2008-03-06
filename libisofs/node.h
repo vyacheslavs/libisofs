@@ -322,4 +322,18 @@ int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos);
 int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos, 
                    enum iso_replace_mode replace);
 
+/**
+ * Add a new iterator to the registry. The iterator register keeps track of
+ * all iterators being used, and are notified when directory structure 
+ * changes.
+ */
+int iso_dir_iter_register(IsoDirIter *iter);
+
+/**
+ * Unregister a directory iterator.
+ */
+void iso_dir_iter_unregister(IsoDirIter *iter);
+
+
+
 #endif /*LIBISO_NODE_H_*/
