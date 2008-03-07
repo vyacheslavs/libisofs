@@ -485,6 +485,10 @@ int iso_node_take(IsoNode *node)
         /* should never occur */
         return ISO_ASSERT_FAILURE;
     }
+    
+    /* notify iterators just before remove */
+    iso_notify_dir_iters(node, 0); 
+    
     *pos = node->next;
     node->parent = NULL;
     node->next = NULL;
@@ -531,7 +535,6 @@ static
 int iter_take(IsoDirIter *iter)
 {
     struct dir_iter_data *data;
-    IsoNode *pos, *pre;
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -549,38 +552,7 @@ int iter_take(IsoDirIter *iter)
     /* clear next flag */
     data->flag &= ~0x01;
     
-    pos = iter->dir->children;
-    pre = NULL;
-    while (pos != NULL && pos != data->pos) {
-        pre = pos;
-        pos = pos->next;
-    }
-    if (pos == NULL) {
-        return ISO_ERROR; /* node not in dir */
-    }
-    
-    if (pos != data->pos) {
-        return ISO_ASSERT_FAILURE;
-    }
-    
-    /* dispose iterator reference */
-    iso_node_unref(data->pos);
-    
-    if (pre == NULL) {
-        /* node is a first position */
-        iter->dir->children = pos->next;
-        data->pos = NULL;
-    } else {
-        pre->next = pos->next;
-        data->pos = pre;
-        iso_node_ref(pre); /* take iter ref */
-    }
-    
-    /* take pos */
-    pos->parent = NULL;
-    pos->next = NULL;
-    iter->dir->nchildren--;
-    return ISO_SUCCESS;
+    return iso_node_take(data->pos);
 }
 
 static
@@ -601,10 +573,39 @@ int iter_remove(IsoDirIter *iter)
         /* remove node */
         iso_node_unref(pos);
     }
-    if (data->pos == pos) {
-        return ISO_ERROR;
-    }
     return ret;
+}
+
+void iter_notify_child_taken(IsoDirIter *iter, IsoNode *node)
+{
+    IsoNode *pos, *pre;
+    struct dir_iter_data *data;
+    data = iter->data;
+    
+    if (data->pos == node) { 
+        pos = iter->dir->children;
+        pre = NULL;
+        while (pos != NULL && pos != data->pos) {
+            pre = pos;
+            pos = pos->next;
+        }
+        if (pos == NULL || pos != data->pos) {
+            return;
+        }
+        
+        /* dispose iterator reference */
+        iso_node_unref(data->pos);
+        
+        if (pre == NULL) {
+            /* node is a first position */
+            iter->dir->children = pos->next;
+            data->pos = NULL;
+        } else {
+            pre->next = pos->next;
+            data->pos = pre;
+            iso_node_ref(pre); /* take iter ref */
+        }
+    }
 }
 
 static
@@ -613,7 +614,8 @@ struct iso_dir_iter_iface iter_class = {
         iter_has_next,
         iter_free,
         iter_take,
-        iter_remove
+        iter_remove,
+        iter_notify_child_taken
 };
 
 int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
@@ -1018,6 +1020,18 @@ void iso_dir_iter_unregister(IsoDirIter *iter)
         struct iter_reg_node *tmp = (*pos)->next;
         free(*pos);
         *pos = tmp;
+    }
+}
+
+void iso_notify_dir_iters(IsoNode *node, int flag) 
+{
+    struct iter_reg_node *pos = iter_reg;
+    while (pos != NULL) {
+        IsoDirIter *iter = pos->iter;
+        if (iter->dir == node->parent) {
+            iter->class->notify_child_taken(iter, node);
+        }
+        pos = pos->next;
     }
 }
 

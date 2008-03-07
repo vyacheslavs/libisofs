@@ -93,13 +93,20 @@ int find_iter_remove(IsoDirIter *iter)
     return iso_dir_iter_remove(data->iter);
 }
 
+void find_notify_child_taken(IsoDirIter *iter, IsoNode *node)
+{
+    /* nothing to do */
+    return;
+}
+
 static
 struct iso_dir_iter_iface find_iter_class = {
         find_iter_next,
         find_iter_has_next,
         find_iter_free,
         find_iter_take,
-        find_iter_remove
+        find_iter_remove,
+        find_notify_child_taken
 };
 
 int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond, 

@@ -161,6 +161,11 @@ struct iso_dir_iter_iface
 
     int (*remove)(IsoDirIter *iter);
     
+    /** 
+     * This is called just before remove a node from a directory. The iterator
+     * may want to update its internal state according to this.
+     */
+    void (*notify_child_taken)(IsoDirIter *iter, IsoNode *node);
 };
 
 /**
@@ -334,6 +339,6 @@ int iso_dir_iter_register(IsoDirIter *iter);
  */
 void iso_dir_iter_unregister(IsoDirIter *iter);
 
-
+void iso_notify_dir_iters(IsoNode *node, int flag);
 
 #endif /*LIBISO_NODE_H_*/
