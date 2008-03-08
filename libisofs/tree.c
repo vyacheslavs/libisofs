@@ -475,6 +475,59 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
     return result;
 }
 
+int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name, 
+                          const char *path, IsoNode **node)
+{
+    int result;
+    IsoFilesystem *fs;
+    IsoFileSource *file;
+    IsoNode *new;
+    IsoNode **pos;
+
+    if (image == NULL || parent == NULL || name == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    if (node) {
+        *node = NULL;
+    }
+
+    fs = image->fs;
+    result = fs->get_by_path(fs, path, &file);
+    if (result < 0) {
+        return result;
+    }
+
+    /* find place where to insert */
+    result = iso_dir_exists(parent, name, &pos);
+    if (result) {
+        /* a node with same name already exists */
+        iso_file_source_unref(file);
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    result = image->builder->create_node(image->builder, image, file, &new);
+    if (result < 0) {
+        return result;
+    }
+    
+    /* free the file */
+    iso_file_source_unref(file);
+    
+    result = iso_node_set_name(new, name);
+    if (result < 0) {
+        iso_node_unref(new);
+        return result;
+    }
+
+    if (node) {
+        *node = new;
+    }
+
+    /* finally, add node to parent */
+    return iso_dir_insert(parent, new, pos, ISO_REPLACE_NEVER);
+}
+
 static
 int check_excludes(IsoImage *image, const char *path)
 {

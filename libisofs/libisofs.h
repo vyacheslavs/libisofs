@@ -2732,6 +2732,35 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
                       IsoNode **node);
 
 /**
+ * Add a new node to the image tree, from an existing file, and with the
+ * given name, that must not exist on dir.
+ * 
+ * @param image
+ *      The image
+ * @param parent
+ *      The directory in the image tree where the node will be added.
+ * @param name
+ *      The name that the node will have on image.
+ * @param path
+ *      The path of the file to add in the filesystem.
+ * @param node
+ *      place where to store a pointer to the newly added file. No 
+ *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      really need it. You can pass NULL in this parameter if you don't need 
+ *      the pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if image, parent or path are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
+ */
+int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name, 
+                          const char *path, IsoNode **node);
+
+/**
  * Add the contents of a dir to a given directory of the iso tree.
  * 
  * There are several options to control what files are added or how they are
