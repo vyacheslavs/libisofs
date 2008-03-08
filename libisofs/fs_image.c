@@ -633,6 +633,60 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
 }
 
 static
+off_t ifs_lseek(IsoFileSource *src, off_t offset, int flag)
+{
+    ImageFileSourceData *data;
+
+    if (src == NULL) {
+        return (off_t)ISO_NULL_POINTER;
+    }
+    if (offset < (off_t)0) {
+        return (off_t)ISO_WRONG_ARG_VALUE;
+    }
+    
+    data = src->data;
+    
+    if (!data->opened) {
+        return (off_t)ISO_FILE_NOT_OPENED;
+    } else if (data->opened != 1) {
+        return (off_t)ISO_FILE_IS_DIR;
+    }
+
+    switch (flag) {
+    case 0: /* SEEK_SET */
+        data->data.offset = offset;
+        break;
+    case 1: /* SEEK_CUR */
+        data->data.offset += offset;
+        break;
+    case 2: /* SEEK_END */
+        /* do this make sense? */
+        data->data.offset = data->info.st_size + offset;
+        break;
+    default:
+        return (off_t)ISO_WRONG_ARG_VALUE;
+    }
+    
+    if (data->data.offset % BLOCK_SIZE != 0) {
+        /* we need to buffer the block */
+        uint32_t block;
+        _ImageFsData *fsdata;
+        
+        if (data->data.offset < data->info.st_size) {
+            int ret;
+            fsdata = data->fs->data;
+            block = data->block + (data->data.offset / BLOCK_SIZE);
+            ret = fsdata->src->read_block(fsdata->src, block, 
+                                          data->data.content);
+            if (ret < 0) {
+                return (off_t)ret;
+            }
+        }
+    }
+    return data->data.offset;
+}
+
+static
 int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
 {
     ImageFileSourceData *data, *cdata;
@@ -771,6 +825,7 @@ IsoFileSourceIface ifs_class = {
     ifs_open,
     ifs_close,
     ifs_read,
+    ifs_lseek,
     ifs_readdir,
     ifs_readlink,
     ifs_get_filesystem,

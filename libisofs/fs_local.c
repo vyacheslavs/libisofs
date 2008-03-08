@@ -305,6 +305,52 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
 }
 
 static
+off_t lfs_lseek(IsoFileSource *src, off_t offset, int flag)
+{
+    _LocalFsFileSource *data;
+    int whence;
+
+    if (src == NULL) {
+        return (off_t)ISO_NULL_POINTER;
+    }
+    switch (flag) {
+    case 0: 
+        whence = SEEK_SET; break;
+    case 1: 
+        whence = SEEK_CUR; break;
+    case 2: 
+        whence = SEEK_END; break;
+    default: 
+        return (off_t)ISO_WRONG_ARG_VALUE;
+    }
+
+    data = src->data;
+    switch (data->openned) {
+    case 1: /* not dir */
+        {
+            off_t ret;
+            ret = lseek(data->info.fd, offset, whence);
+            if (ret < 0) {
+                /* error on read */
+                switch (errno) {
+                case ESPIPE:
+                    ret = (off_t)ISO_FILE_ERROR;
+                    break;
+                default:
+                    ret = (off_t)ISO_ERROR;
+                    break;
+                }
+            }
+            return ret;
+        }
+    case 2: /* directory */
+        return (off_t)ISO_FILE_IS_DIR;
+    default:
+        return (off_t)ISO_FILE_NOT_OPENED;
+    }
+}
+
+static
 int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
 {
     _LocalFsFileSource *data;
@@ -430,6 +476,7 @@ IsoFileSourceIface lfs_class = {
     lfs_open,
     lfs_close,
     lfs_read,
+    lfs_lseek,
     lfs_readdir,
     lfs_readlink,
     lfs_get_filesystem,

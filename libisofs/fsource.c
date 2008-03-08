@@ -93,6 +93,12 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count)
 }
 
 inline
+off_t iso_file_source_lseek(IsoFileSource *src, off_t offset, int flag)
+{
+    return src->class->lseek(src, offset, flag);
+}
+
+inline
 int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child)
 {
     return src->class->readdir(src, child);

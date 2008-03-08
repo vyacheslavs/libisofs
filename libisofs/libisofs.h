@@ -559,6 +559,25 @@ struct IsoFileSource_Iface
      *         ISO_INTERRUPTED
      */
     int (*read)(IsoFileSource *src, void *buf, size_t count);
+    
+    /**
+     * Repositions the offset of the IsoFileSource (must be opened) to the 
+     * given offset according to the value of flag.
+     * 
+     * @param offset
+     *      in bytes 
+     * @param flag
+     *      0 The offset is set to offset bytes (SEEK_SET)
+     *      1 The offset is set to its current location plus offset bytes 
+     *        (SEEK_CUR)
+     *      2 The offset is set to the size of the file plus offset bytes 
+     *        (SEEK_END).
+     * @return
+     *      Absolute offset posistion on the file, or < 0 on error. Cast the
+     *      returning value to int to get a valid libisofs error.
+     * @since 0.6.4
+     */
+    off_t (*lseek)(IsoFileSource *src, off_t offset, int flag);
 
     /**
      * Read a directory. 
@@ -3215,6 +3234,25 @@ int iso_file_source_close(IsoFileSource *src);
  * @since 0.6.2
  */
 int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
+
+/**
+ * Repositions the offset of the given IsoFileSource (must be opened) to the 
+ * given offset according to the value of flag.
+ * 
+ * @param offset
+ *      in bytes 
+ * @param flag
+ *      0 The offset is set to offset bytes (SEEK_SET)
+ *      1 The offset is set to its current location plus offset bytes 
+ *        (SEEK_CUR)
+ *      2 The offset is set to the size of the file plus offset bytes 
+ *        (SEEK_END).
+ * @return
+ *      Absolute offset posistion on the file, or < 0 on error. Cast the
+ *      returning value to int to get a valid libisofs error.
+ * @since 0.6.4
+ */
+off_t iso_file_source_lseek(IsoFileSource *src, off_t offset, int flag);
 
 /**
  * Read a directory. 
