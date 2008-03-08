@@ -34,8 +34,7 @@ struct Iso_Node_Builder
      * In that case, if the implementation can't do the conversion, it
      * should fail propertly.
      * 
-     * On sucess, the ref. to src will be owned by file, so you musn't
-     * unref it.
+     * Note that the src is never unref, so you need to free it.
      * 
      * @return
      *    1 on success, < 0 on error

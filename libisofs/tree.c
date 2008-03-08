@@ -582,12 +582,13 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
     }
 
     result = image->builder->create_node(image->builder, image, file, &new);
-    if (result < 0) {
-        return result;
-    }
     
     /* free the file */
     iso_file_source_unref(file);
+    
+    if (result < 0) {
+        return result;
+    }
     
     result = iso_node_set_name(new, name);
     if (result < 0) {
@@ -601,6 +602,85 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
 
     /* finally, add node to parent */
     return iso_dir_insert(parent, new, pos, ISO_REPLACE_NEVER);
+}
+
+int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent, 
+                                  const char *name, const char *path, 
+                                  off_t offset, off_t size,
+                                  IsoNode **node)
+{
+    int result;
+    struct stat info;
+    IsoFilesystem *fs;
+    IsoFileSource *src;
+    IsoFile *new;
+    IsoNode **pos;
+    IsoStream *stream;
+
+    if (image == NULL || parent == NULL || name == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    if (node) {
+        *node = NULL;
+    }
+
+    /* find place where to insert */
+    result = iso_dir_exists(parent, name, &pos);
+    if (result) {
+        /* a node with same name already exists */
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    fs = image->fs;
+    result = fs->get_by_path(fs, path, &src);
+    if (result < 0) {
+        return result;
+    }
+
+    result = iso_file_source_stat(src, &info);
+    if (result < 0) {
+        iso_file_source_unref(src);
+        return result;
+    }
+    if (!S_ISREG(info.st_mode)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (offset >= info.st_size) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    /* force regular file */
+    result = image->builder->create_file(image->builder, image, src, &new);
+    
+    /* free the file */
+    iso_file_source_unref(src);
+    
+    if (result < 0) {
+        return result;
+    }
+    
+    /* replace file iso stream with a cut-out-stream */
+    result = iso_cut_out_stream_new(src, offset, size, &stream);
+    if (result < 0) {
+        iso_node_unref((IsoNode*)new);
+        return result;
+    }
+    iso_stream_unref(new->stream);
+    new->stream = stream;
+    
+    result = iso_node_set_name((IsoNode*)new, name);
+    if (result < 0) {
+        iso_node_unref((IsoNode*)new);
+        return result;
+    }
+
+    if (node) {
+        *node = (IsoNode*)new;
+    }
+
+    /* finally, add node to parent */
+    return iso_dir_insert(parent, (IsoNode*)new, pos, ISO_REPLACE_NEVER);
 }
 
 static

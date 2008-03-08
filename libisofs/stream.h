@@ -34,6 +34,16 @@ void iso_stream_get_file_name(IsoStream *stream, char *name);
 int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream);
 
 /**
+ * Create a new stream to read a chunk of an IsoFileSource..
+ * The stream will add a ref. to the IsoFileSource.
+ * 
+ * @return
+ *      1 sucess, < 0 error
+ */
+int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size, 
+                           IsoStream **stream);
+
+/**
  * Create a stream for reading from a arbitrary memory buffer.
  * When the Stream refcount reach 0, the buffer is free(3).
  * 

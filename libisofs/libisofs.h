@@ -2806,6 +2806,44 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
                           const char *path, IsoNode **node);
 
 /**
+ * Add a new node to the image tree, from an existing file, and with the
+ * given name, that must not exist on dir. The node will be cut-out to the
+ * submitted size, and its contents will be read from the given offset. This
+ * function is thus suitable for adding only a piece of a file to the image.
+ * 
+ * @param image
+ *      The image
+ * @param parent
+ *      The directory in the image tree where the node will be added.
+ * @param name
+ *      The name that the node will have on image.
+ * @param path
+ *      The path of the file to add in the filesystem. For now only regular
+ *      files and symlinks to regular files are supported.
+ * @param offset
+ *      Offset on the given file from where to start reading data.
+ * @param size
+ *      Max size of the file.
+ * @param node
+ *      place where to store a pointer to the newly added file. No 
+ *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      really need it. You can pass NULL in this parameter if you don't need 
+ *      the pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if image, parent or path are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
+ */
+int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent, 
+                                  const char *name, const char *path, 
+                                  off_t offset, off_t size,
+                                  IsoNode **node);
+
+/**
  * Add the contents of a dir to a given directory of the iso tree.
  * 
  * There are several options to control what files are added or how they are
@@ -3639,9 +3677,15 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /** 
  * File path break specification constraints and will be ignored 
- * (HINT,MEDIUM, -141) 
+ * (HINT,MEDIUM, -144) 
  */
 #define ISO_FILE_IMGPATH_WRONG          0xC020FF70
+
+/** 
+ * Offset greater than file size (FAILURE,HIGH, -145) 
+ * @since 0.6.4
+ */
+#define ISO_FILE_OFFSET_TOO_BIG         0xE830FF6A
 
 /** Charset conversion error (FAILURE,HIGH, -256) */
 #define ISO_CHARSET_CONV_ERROR          0xE830FF00
