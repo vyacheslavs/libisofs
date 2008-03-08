@@ -2131,8 +2131,8 @@ void iso_dir_iter_free(IsoDirIter *iter);
  * It's like iso_node_take(), but to be used during a directory iteration.
  * The node removed will be the last returned by the iteration.
  * 
- * The behavior on two call to this function without calling iso_dir_iter_next
- * between then is undefined, and should never occur. (TODO protect against this?)
+ * If you call this function twice without calling iso_dir_iter_next between 
+ * them is not allowed and you will get an ISO_ERROR in second call. 
  * 
  * @return
  *     1 on succes, < 0 error
@@ -2150,8 +2150,8 @@ int iso_dir_iter_take(IsoDirIter *iter);
  * It's like iso_node_remove(), but to be used during a directory iteration.
  * The node removed will be the last returned by the iteration.
  * 
- * The behavior on two call to this function without calling iso_tree_iter_next
- * between then is undefined, and should never occur. (TODO protect against this?)
+ * If you call this function twice without calling iso_dir_iter_next between 
+ * them is not allowed and you will get an ISO_ERROR in second call. 
  * 
  * @return
  *     1 on succes, < 0 error
@@ -2469,10 +2469,36 @@ int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag);
  */
 int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
 
-/*
- TODO #00007 expose Stream and this function:
- int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
+/**
+ * Add a new regular file to the iso tree. Permissions are set to 0444, 
+ * owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ *  
+ * @param parent 
+ *      the dir where the new file will be created
+ * @param name
+ *      name for the new file. If a node with same name already exists on
+ *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param stream
+ *      IsoStream for the contents of the file. The reference will be taken
+ *      by the newly created file, you will need to take an extra ref to it
+ *      if you need it.
+ * @param file
+ *      place where to store a pointer to the newly created file. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
  */
+int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream, 
+                          IsoFile **file);
 
 /**
  * Add a new symlink to the directory tree. Permissions are set to 0777, 

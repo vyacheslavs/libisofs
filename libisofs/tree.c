@@ -257,6 +257,81 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
 }
 
 /**
+ * Add a new regular file to the iso tree. Permissions are set to 0444, 
+ * owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ *  
+ * @param parent 
+ *      the dir where the new file will be created
+ * @param name
+ *      name for the new file. If a node with same name already exists on
+ *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param stream
+ *      IsoStream for the contents of the file
+ * @param file
+ *      place where to store a pointer to the newly created file. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
+ */
+int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream, 
+                          IsoFile **file)
+{
+    int ret;
+    char *n;
+    IsoFile *node;
+    IsoNode **pos;
+    time_t now;
+
+    if (parent == NULL || name == NULL || stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (file) {
+        *file = NULL;
+    }
+
+    /* find place where to insert */
+    if (iso_dir_exists(parent, name, &pos)) {
+        /* a node with same name already exists */
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    n = strdup(name);
+    ret = iso_node_new_file(n, stream, &node);
+    if (ret < 0) {
+        free(n);
+        return ret;
+    }
+
+    /* permissions from parent */
+    iso_node_set_permissions((IsoNode*)node, 0444);
+    iso_node_set_uid((IsoNode*)node, parent->node.uid);
+    iso_node_set_gid((IsoNode*)node, parent->node.gid);
+    iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
+
+    /* current time */
+    now = time(NULL);
+    iso_node_set_atime((IsoNode*)node, now);
+    iso_node_set_ctime((IsoNode*)node, now);
+    iso_node_set_mtime((IsoNode*)node, now);
+
+    if (file) {
+        *file = node;
+    }
+
+    /* add to dir */
+    return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
+}
+
+/**
  * Set whether to follow or not symbolic links when added a file from a source
  * to IsoImage.
  */
