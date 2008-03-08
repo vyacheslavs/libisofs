@@ -825,11 +825,11 @@ IsoFileSourceIface ifs_class = {
     ifs_open,
     ifs_close,
     ifs_read,
-    ifs_lseek,
     ifs_readdir,
     ifs_readlink,
     ifs_get_filesystem,
-    ifs_free
+    ifs_free,
+    ifs_lseek
 };
 
 /**

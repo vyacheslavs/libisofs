@@ -476,11 +476,11 @@ IsoFileSourceIface lfs_class = {
     lfs_open,
     lfs_close,
     lfs_read,
-    lfs_lseek,
     lfs_readdir,
     lfs_readlink,
     lfs_get_filesystem,
-    lfs_free
+    lfs_free,
+    lfs_lseek
 };
 
 /**
