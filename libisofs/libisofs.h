@@ -1821,6 +1821,78 @@ void iso_node_unref(IsoNode *node);
 enum IsoNodeType iso_node_get_type(IsoNode *node);
 
 /**
+ * Function to handle particular extended information. The function
+ * pointer acts as an identifier for the type of the information. Structs
+ * with same information type must use the same function.
+ * 
+ * @param data
+ *     Attached data
+ * @param flag
+ *     What to do with the data. At this time the following values are 
+ *     defined:
+ *      -> 1 the data must be freed
+ * @return
+ *     1 in any case.
+ *
+ * @since 0.6.4
+ */
+typedef int (*iso_node_xinfo_func)(void *data, int flag);
+
+/**
+ * Add extended information to the given node. Extended info allows 
+ * applications (and libisofs itself) to add more information to an IsoNode.
+ * You can use this facilities to associate new information with a given
+ * node.
+ * 
+ * Each node keeps a list of added extended info, meaning you can add several
+ * extended info data to each node. Each extended info you add is identified
+ * by the proc parameter, a pointer to a function that knows how to manage
+ * the external info data. Thus, in order to add several types of extended
+ * info, you need to define a "proc" function for each type.
+ * 
+ * @param node
+ *      The node where to add the extended info
+ * @param proc
+ *      A function pointer used to identify the type of the data, and that
+ *      knows how to manage it
+ * @param data
+ *      Extended info to add.
+ * @return
+ *      1 if success, 0 if the given node already has extended info of the
+ *      type defined by the "proc" function, < 0 on error
+ *
+ * @since 0.6.4
+ */
+int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data);
+
+/**
+ * Remove the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ *
+ * @since 0.6.4
+ */
+int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc);
+
+/**
+ * Get the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @param data
+ *      Will be filled with the extended info corresponding to the given proc
+ *      function
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ *
+ * @since 0.6.4
+ */
+int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data);
+
+/**
  * Set the name of a node. Note that if the node is already added to a dir
  * this can fail if dir already contains a node with the new name.
  * 

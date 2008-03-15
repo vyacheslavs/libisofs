@@ -20,9 +20,6 @@
 #include <unistd.h>
 #include <stdint.h>
 
-/* #define LIBISO_EXTENDED_INFORMATION */
-#ifdef LIBISO_EXTENDED_INFORMATION
-
 /**
  * The extended information is a way to attach additional information to each
  * IsoNode. External applications may want to use this extension system to 
@@ -55,15 +52,13 @@ struct iso_extended_info {
      * @return
      *     1
      */
-    int (*process)(void *data, int flag);
+    iso_node_xinfo_func process;
     
     /**
      * Pointer to information specific data.
      */
     void *data;
 };
-
-#endif
 
 /**
  * 
@@ -102,12 +97,10 @@ struct Iso_Node
      */
     IsoNode *next;
 
-#ifdef LIBISO_EXTENDED_INFORMATION
     /**
      * Extended information for the node.
      */
     IsoExtendedInfo *xinfo;
-#endif
 };
 
 struct Iso_Dir

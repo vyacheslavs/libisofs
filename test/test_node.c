@@ -1106,6 +1106,183 @@ void test_iso_node_set_name()
     free(dir);
 }
 
+static
+int xinfo_a(void *data, int flag) {
+    return 1;
+}
+
+static
+int xinfo_b(void *data, int flag) {
+    return 1;
+}
+
+static
+void test_iso_node_add_xinfo()
+{
+    int result;
+    IsoNode *node;
+    
+    /* cretae a node */
+    node = calloc(1, sizeof(IsoNode));
+    
+    /* add xinfo data */
+    result = iso_node_add_xinfo(node, xinfo_a, NULL);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* we can't add again the same xinfo type */
+    result = iso_node_add_xinfo(node, xinfo_a, &result);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    result = iso_node_add_xinfo(node, xinfo_b, NULL);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    free(node->xinfo->next);
+    free(node->xinfo);
+    free(node);
+}
+
+static
+void test_iso_node_get_xinfo()
+{
+    int result;
+    IsoNode *node;
+    char *one_data = "my data";
+    char *another_data = "my data 2";
+    void *data;
+    
+    /* cretae a node */
+    node = calloc(1, sizeof(IsoNode));
+    
+    /* at the beginning we have no data */
+    result = iso_node_get_xinfo(node, xinfo_b, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* add xinfo data */
+    result = iso_node_add_xinfo(node, xinfo_a, one_data);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* we get the correct data */
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    /* we can't add again the same xinfo type */
+    result = iso_node_add_xinfo(node, xinfo_a, &result);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* we get the correct data again */
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    /* xinfo_b has no data */
+    result = iso_node_get_xinfo(node, xinfo_b, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* add another xinfo */
+    result = iso_node_add_xinfo(node, xinfo_b, another_data);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* test both data is returned propertly */
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    result = iso_node_get_xinfo(node, xinfo_b, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, another_data);
+    
+    free(node->xinfo->next);
+    free(node->xinfo);
+    free(node);
+}
+
+static
+void test_iso_node_remove_xinfo()
+{
+    int result;
+    IsoNode *node;
+    char *one_data = "my data";
+    char *another_data = "my data 2";
+    void *data;
+    
+    /* cretae a node */
+    node = calloc(1, sizeof(IsoNode));
+    
+    /* try to remove inexistent data */
+    result = iso_node_remove_xinfo(node, xinfo_b);
+    CU_ASSERT_EQUAL(result, 0);
+    result = iso_node_remove_xinfo(node, xinfo_a);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* add xinfo data */
+    result = iso_node_add_xinfo(node, xinfo_a, one_data);
+    CU_ASSERT_EQUAL(result, 1);
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    /* remove it */
+    result = iso_node_remove_xinfo(node, xinfo_b);
+    CU_ASSERT_EQUAL(result, 0);
+    result = iso_node_remove_xinfo(node, xinfo_a);
+    CU_ASSERT_EQUAL(result, 1);
+
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* add again the same xinfo type */
+    result = iso_node_add_xinfo(node, xinfo_a, one_data);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* we get the correct data again */
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    /* add another xinfo */
+    result = iso_node_add_xinfo(node, xinfo_b, another_data);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* test both data is returned propertly */
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    result = iso_node_get_xinfo(node, xinfo_b, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, another_data);
+
+    /* remove b */
+    result = iso_node_remove_xinfo(node, xinfo_b);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    /* only a can be get */
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_PTR_EQUAL(data, one_data);
+    
+    result = iso_node_get_xinfo(node, xinfo_b, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* try to remove b again */
+    result = iso_node_remove_xinfo(node, xinfo_b);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    /* remove a */
+    result = iso_node_remove_xinfo(node, xinfo_a);
+    CU_ASSERT_EQUAL(result, 1);
+    
+    result = iso_node_get_xinfo(node, xinfo_a, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    result = iso_node_get_xinfo(node, xinfo_b, &data);
+    CU_ASSERT_EQUAL(result, 0);
+    
+    free(node);
+}
+
 void add_node_suite()
 {
 	CU_pSuite pSuite = CU_add_suite("Node Test Suite", NULL, NULL);
@@ -1128,4 +1305,7 @@ void add_node_suite()
     CU_add_test(pSuite, "iso_node_take()", test_iso_node_take);
     CU_add_test(pSuite, "iso_node_take() during iteration", test_iso_dir_iter_when_external_take);
     CU_add_test(pSuite, "iso_node_set_name()", test_iso_node_set_name);
+    CU_add_test(pSuite, "iso_node_add_xinfo()", test_iso_node_add_xinfo);
+    CU_add_test(pSuite, "iso_node_get_xinfo()", test_iso_node_get_xinfo);
+    CU_add_test(pSuite, "iso_node_remove_xinfo()", test_iso_node_remove_xinfo);
 }

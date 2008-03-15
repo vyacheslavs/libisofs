@@ -69,17 +69,142 @@ void iso_node_unref(IsoNode *node)
             /* other kind of nodes does not need to delete anything here */
             break;
         }
-    
-#ifdef LIBISO_EXTENDED_INFORMATION
+
         if (node->xinfo) {
-            /* free extended info */
-            node->xinfo->process(node->xinfo->data, 1);
-            free(node->xinfo);
+            IsoExtendedInfo *info = node->xinfo;
+            while (info != NULL) {
+                IsoExtendedInfo *tmp = info->next;
+                
+                /* free extended info */
+                info->process(info->data, 1);
+                free(info);
+                info = tmp;
+            }
         }
-#endif
         free(node->name);
         free(node);
     }
+}
+
+/**
+ * Add extended information to the given node. Extended info allows 
+ * applications (and libisofs itself) to add more information to an IsoNode.
+ * You can use this facilities to associate new information with a given
+ * node.
+ * 
+ * Each node keeps a list of added extended info, meaning you can add several
+ * extended info data to each node. Each extended info you add is identified
+ * by the proc parameter, a pointer to a function that knows how to manage
+ * the external info data. Thus, in order to add several types of extended
+ * info, you need to define a "proc" function for each type.
+ * 
+ * @param node
+ *      The node where to add the extended info
+ * @param proc
+ *      A function pointer used to identify the type of the data, and that
+ *      knows how to manage it
+ * @param data
+ *      Extended info to add.
+ * @return
+ *      1 if success, 0 if the given node already has extended info of the
+ *      type defined by the "proc" function, < 0 on error
+ */
+int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data)
+{
+    IsoExtendedInfo *info;
+    IsoExtendedInfo *pos;
+
+    if (node == NULL || proc == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    pos = node->xinfo;
+    while (pos != NULL) {
+        if (pos->process == proc) {
+            return 0; /* extended info already added */
+        }
+        pos = pos->next;
+    }
+    
+    info = malloc(sizeof(IsoExtendedInfo));
+    if (info == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    info->next = node->xinfo;
+    info->data = data;
+    info->process = proc;
+    node->xinfo = info;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Remove the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ */
+int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc)
+{
+    IsoExtendedInfo *pos, *prev;
+
+    if (node == NULL || proc == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    prev = NULL;
+    pos = node->xinfo;
+    while (pos != NULL) {
+        if (pos->process == proc) {
+            /* this is the extended info we want to remove */
+            pos->process(pos->data, 1);
+            
+            if (prev != NULL) {
+                prev->next = pos->next;
+            } else {
+                node->xinfo = pos->next;
+            }
+            free(pos);
+            return ISO_SUCCESS;
+        }
+        prev = pos;
+        pos = pos->next;
+    }
+    /* requested xinfo not found */
+    return 0; 
+}
+
+/**
+ * Get the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @param data
+ *      Will be filled with the extended info corresponding to the given proc
+ *      function
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ */
+int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data)
+{
+    IsoExtendedInfo *pos;
+
+    if (node == NULL || proc == NULL || data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    pos = node->xinfo;
+    while (pos != NULL) {
+        if (pos->process == proc) {
+            /* this is the extended info we want */
+            *data = pos->data;
+            return ISO_SUCCESS;
+        }
+        pos = pos->next;
+    }
+    /* requested xinfo not found */
+    return 0;  
 }
 
 /**
