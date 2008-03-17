@@ -37,7 +37,9 @@ struct iso_find_condition
 
 struct find_iter_data
 {
+    IsoDir *dir; /**< original dir of the iterator */
     IsoDirIter *iter;
+    IsoDirIter *itersec; /**< iterator to deal with child dirs */
     IsoFindCondition *cond;
     int err; /**< error? */
     IsoNode *current; /**< node to be returned next */
@@ -45,26 +47,90 @@ struct find_iter_data
     int free_cond; /**< whether to free cond on iter_free */ 
 };
 
+static 
+int get_next(struct find_iter_data *iter, IsoNode **n)
+{
+    int ret;
+    
+    if (iter->itersec != NULL) {
+        ret = iso_dir_iter_next(iter->itersec, n);
+        if (ret <= 0) {
+            /* secondary item no more needed */
+            iso_dir_iter_free(iter->itersec);
+            iter->itersec = NULL;
+        }
+        if (ret != 0) {
+            /* succes or error */
+            return ret;
+        }
+    }
+    
+    /* 
+     * we reach here if:
+     * - no secondary item is present
+     * - secondary item has no more items
+     */
+
+    while ((ret = iso_dir_iter_next(iter->iter, n)) == 1) {
+        if (iter->cond->matches(iter->cond, *n)) {
+            return ISO_SUCCESS;
+        } else if (ISO_NODE_IS_DIR(*n)) {
+            /* recurse on child dir */
+            struct find_iter_data *data;
+            ret = iso_dir_find_children((IsoDir*)*n, iter->cond, 
+                                        &iter->itersec);
+            if (ret < 0) {
+                return ret;
+            }
+            data = iter->itersec->data;
+            data->free_cond = 0; /* we don't need sec iter to free cond */
+            return get_next(iter, n);
+        }
+    }
+    return ret;
+}
+
 static
-void update_next(struct find_iter_data *iter)
+void update_next(IsoDirIter *iter)
 {
     int ret;
     IsoNode *n;
+    struct find_iter_data *data = iter->data;
 
-    if (iter->prev) {
-        iso_node_unref(iter->prev);
+    if (data->prev) {
+        iso_node_unref(data->prev);
     }
-    iter->prev = iter->current;
-    while ((ret = iso_dir_iter_next(iter->iter, &n)) == 1) {
-        if (iter->cond->matches(iter->cond, n)) {
-            iter->current = n;
-            iso_node_ref(n);
-            iter->err = 0;
+    data->prev = data->current;
+    
+    if (data->itersec == NULL && data->current != NULL 
+            && ISO_NODE_IS_DIR(data->current)) {
+        
+        /* we need to recurse on child dir */
+        struct find_iter_data *data2;
+        ret = iso_dir_find_children((IsoDir*)data->current, data->cond, 
+                                    &data->itersec);
+        if (ret < 0) {
+            data->current = NULL;
+            data->err = ret;
             return;
         }
+        data2 = data->itersec->data;
+        data2->free_cond = 0; /* we don't need sec iter to free cond */
     }
-    iter->current = NULL;
-    iter->err = ret;
+    
+    ret = get_next(data, &n);
+    iso_node_unref((IsoNode*)iter->dir);
+    if (ret == 1) {
+        data->current = n;
+        iso_node_ref(n);
+        data->err = 0;
+        iter->dir = n->parent;
+    } else {
+        data->current = NULL;
+        data->err = ret;
+        iter->dir = data->dir;
+    }
+    iso_node_ref((IsoNode*)iter->dir);
 }
 
 static
@@ -80,7 +146,7 @@ int find_iter_next(IsoDirIter *iter, IsoNode **node)
         return data->err;
     }
     *node = data->current;
-    update_next(data);
+    update_next(iter);
     return (*node == NULL) ? 0 : ISO_SUCCESS;
 }
 
@@ -100,6 +166,8 @@ void find_iter_free(IsoDirIter *iter)
         data->cond->free(data->cond);
         free(data->cond);
     }
+    
+    iso_node_unref((IsoNode*)data->dir);
 
     /* free refs to nodes */
     if (data->prev) {
@@ -147,7 +215,7 @@ void find_notify_child_taken(IsoDirIter *iter, IsoNode *node)
     } else if (data->current == node) {
         iso_node_unref(node);
         data->current = NULL;
-        update_next(data);
+        update_next(iter);
     }
 }
 
@@ -191,6 +259,7 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
     it->class = &find_iter_class;
     it->dir = (IsoDir*)dir;
     data->iter = children;
+    data->itersec = NULL;
     data->cond = cond;
     data->free_cond = 1;
     data->err = 0;
@@ -202,8 +271,14 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
         return ISO_OUT_OF_MEM;
     }
 
-    update_next(data);
     iso_node_ref((IsoNode*)dir);
+    
+    /* take another ref to the original dir */
+    data->dir = (IsoDir*)dir;
+    iso_node_ref((IsoNode*)dir);
+
+    update_next(it);
+    
     *iter = it;
     return ISO_SUCCESS;
 }
