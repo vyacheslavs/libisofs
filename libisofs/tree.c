@@ -957,3 +957,27 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
     }
     return result;
 }
+
+char *iso_tree_get_node_path(IsoNode *node)
+{
+    if (node == NULL || node->parent == NULL) {
+        return NULL;
+    }
+    
+    if ((IsoNode*)node->parent == node) {
+        return strdup("/");
+    } else {
+        char path[PATH_MAX];
+        char *parent_path = iso_tree_get_node_path((IsoNode*)node->parent);
+        if (parent_path == NULL) {
+            return NULL;
+        }
+        if (strlen(parent_path) == 1) {
+            snprintf(path, PATH_MAX, "/%s", node->name);
+        } else {
+            snprintf(path, PATH_MAX, "%s/%s", parent_path, node->name);
+        }
+        free(parent_path);
+        return strdup(path);
+    }
+}

@@ -2956,6 +2956,16 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
 
 /**
+ * Get the path on image of the given node. 
+ * 
+ * @return
+ *      The path on the image, that must be freed when no more needed. If the
+ *      given node is not added to any image, this returns NULL.
+ * @since 0.6.4
+ */
+char *iso_tree_get_node_path(IsoNode *node);
+
+/**
  * Increments the reference counting of the given IsoDataSource.
  *
  * @since 0.6.2

@@ -23,7 +23,9 @@ print_dir(IsoDir *dir)
     cond = iso_new_find_conditions_and(c1, c2);
 	iso_dir_find_children(dir, cond, &iter);
 	while (iso_dir_iter_next(iter, &node) == 1) {
-		printf(" %s\n", iso_node_get_name(node));
+	    char *path = iso_tree_get_node_path(node);
+		printf(" %s\n", path);
+		free(path);
 	}
 	iso_dir_iter_free(iter);
 }
