@@ -203,6 +203,7 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
     }
 
     update_next(data);
+    iso_node_ref((IsoNode*)dir);
     *iter = it;
     return ISO_SUCCESS;
 }

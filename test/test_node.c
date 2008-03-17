@@ -420,11 +420,13 @@ void test_iso_dir_get_children()
     
     /* init dir with default values, not all field need to be initialized */
     dir = malloc(sizeof(IsoDir));
+    dir->node.refcount = 1;
     dir->children = NULL;
     dir->nchildren = 0;
     
     result = iso_dir_get_children(dir, &iter);
     CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->node.refcount, 2);
     
     /* item should have no items */
     result = iso_dir_iter_has_next(iter);
@@ -524,6 +526,7 @@ void test_iso_dir_get_children()
     CU_ASSERT_EQUAL(result, 0);
     CU_ASSERT_PTR_NULL(node);
     iso_dir_iter_free(iter);
+    CU_ASSERT_EQUAL(dir->node.refcount, 1);
 
     /* assert correct refcount */
     CU_ASSERT_EQUAL(node1->refcount, 1);
@@ -545,11 +548,13 @@ void test_iso_dir_iter_take()
     
     /* init dir with default values, not all field need to be initialized */
     dir = malloc(sizeof(IsoDir));
+    dir->node.refcount = 1;
     dir->children = NULL;
     dir->nchildren = 0;
     
     result = iso_dir_get_children(dir, &iter);
     CU_ASSERT_EQUAL(result, 1);
+    CU_ASSERT_EQUAL(dir->node.refcount, 2);
     
     /* remove on empty dir! */
     result = iso_dir_iter_take(iter);
@@ -685,6 +690,7 @@ void test_iso_dir_iter_take()
     CU_ASSERT_PTR_EQUAL(node3->next, node1);
 
     iso_dir_iter_free(iter);
+    CU_ASSERT_EQUAL(dir->node.refcount, 1);
 
     /* assert correct refcount */
     CU_ASSERT_EQUAL(node1->refcount, 1);
@@ -706,6 +712,7 @@ void test_iso_dir_iter_remove()
     
     /* init dir with default values, not all field need to be initialized */
     dir = malloc(sizeof(IsoDir));
+    dir->node.refcount = 1;
     dir->children = NULL;
     dir->nchildren = 0;
     
@@ -866,6 +873,7 @@ void test_iso_dir_iter_when_external_take()
     
     /* init dir with default values, not all field need to be initialized */
     dir = malloc(sizeof(IsoDir));
+    dir->node.refcount = 1;
     dir->children = NULL;
     dir->nchildren = 0;
     

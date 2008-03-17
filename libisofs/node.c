@@ -772,6 +772,7 @@ int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
         return ISO_OUT_OF_MEM;
     }
 
+    iso_node_ref((IsoNode*)dir); /* tak a ref to the dir */
     *iter = it;
     return ISO_SUCCESS;
 }
@@ -797,6 +798,7 @@ void iso_dir_iter_free(IsoDirIter *iter)
     if (iter != NULL) {
         iso_dir_iter_unregister(iter);
         iter->class->free(iter);
+        iso_node_unref((IsoNode*)iter->dir);
         free(iter);
     }
 }
