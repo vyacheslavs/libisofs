@@ -39,22 +39,49 @@ struct find_iter_data
 {
     IsoDirIter *iter;
     IsoFindCondition *cond;
+    int err; /**< error? */
+    IsoNode *current; /**< node to be returned next */
+    IsoNode *prev; /**< last returned node, needed for removal */
+    int free_cond; /**< whether to free cond on iter_free */ 
 };
+
+static
+void update_next(struct find_iter_data *iter)
+{
+    int ret;
+    IsoNode *n;
+
+    if (iter->prev) {
+        iso_node_unref(iter->prev);
+    }
+    iter->prev = iter->current;
+    while ((ret = iso_dir_iter_next(iter->iter, &n)) == 1) {
+        if (iter->cond->matches(iter->cond, n)) {
+            iter->current = n;
+            iso_node_ref(n);
+            iter->err = 0;
+            return;
+        }
+    }
+    iter->current = NULL;
+    iter->err = ret;
+}
 
 static
 int find_iter_next(IsoDirIter *iter, IsoNode **node)
 {
-    int ret;
-    IsoNode *n;
     struct find_iter_data *data = iter->data;
     
-    while ((ret = iso_dir_iter_next(data->iter, &n)) == 1) {
-        if (data->cond->matches(data->cond, n)) {
-            *node = n;
-            break;
-        }
+    if (iter == NULL || node == NULL) {
+        return ISO_NULL_POINTER;
     }
-    return ret;
+    
+    if (data->err < 0) {
+        return data->err;
+    }
+    *node = data->current;
+    update_next(data);
+    return (*node == NULL) ? 0 : ISO_SUCCESS;
 }
 
 static
@@ -62,19 +89,27 @@ int find_iter_has_next(IsoDirIter *iter)
 {
     struct find_iter_data *data = iter->data;
     
-    /*
-     * FIXME wrong implementation!!!! the underlying iter may have more nodes,
-     * but they may not match find conditions
-     */
-    return iso_dir_iter_has_next(data->iter);
+    return (data->current != NULL);
 }
 
 static
 void find_iter_free(IsoDirIter *iter)
 {
     struct find_iter_data *data = iter->data;
-    data->cond->free(data->cond);
-    free(data->cond);
+    if (data->free_cond) {
+        data->cond->free(data->cond);
+        free(data->cond);
+    }
+
+    /* free refs to nodes */
+    if (data->prev) {
+        iso_node_unref(data->prev);
+    }
+    if (data->current) {
+        iso_node_unref(data->current);
+    }
+
+    /* free underlying iter */
     iso_dir_iter_free(data->iter);
     free(iter->data);
 }
@@ -83,20 +118,37 @@ static
 int find_iter_take(IsoDirIter *iter)
 {
     struct find_iter_data *data = iter->data;
-    return iso_dir_iter_take(data->iter);
+
+    if (data->prev == NULL) {
+        return ISO_ERROR; /* next not called or end of dir */
+    }
+    return iso_node_take(data->prev);
 }
 
 static
 int find_iter_remove(IsoDirIter *iter)
 {
     struct find_iter_data *data = iter->data;
-    return iso_dir_iter_remove(data->iter);
+
+    if (data->prev == NULL) {
+        return ISO_ERROR; /* next not called or end of dir */
+    }
+    return iso_node_remove(data->prev);
 }
 
 void find_notify_child_taken(IsoDirIter *iter, IsoNode *node)
 {
-    /* nothing to do */
-    return;
+    struct find_iter_data *data = iter->data;
+    
+    if (data->prev == node) {
+        /* free our ref */
+        iso_node_unref(node);
+        data->prev = NULL;
+    } else if (data->current == node) {
+        iso_node_unref(node);
+        data->current = NULL;
+        update_next(data);
+    }
 }
 
 static
@@ -140,6 +192,9 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
     it->dir = (IsoDir*)dir;
     data->iter = children;
     data->cond = cond;
+    data->free_cond = 1;
+    data->err = 0;
+    data->prev = data->current = NULL;
     it->data = data;
     
     if (iso_dir_iter_register(it) < 0) {
@@ -147,6 +202,7 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
         return ISO_OUT_OF_MEM;
     }
 
+    update_next(data);
     *iter = it;
     return ISO_SUCCESS;
 }
