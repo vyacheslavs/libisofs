@@ -2136,7 +2136,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 free(name);
                 return ret;
             }
-            link = malloc(sizeof(IsoSymlink));
+            link = calloc(1, sizeof(IsoSymlink));
             if (link == NULL) {
                 free(name);
                 return ISO_OUT_OF_MEM;
@@ -2154,7 +2154,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         {
             /* source is an special file */
             IsoSpecial *special;
-            special = malloc(sizeof(IsoSpecial));
+            special = calloc(1, sizeof(IsoSpecial));
             if (special == NULL) {
                 free(name);
                 return ISO_OUT_OF_MEM;
