@@ -257,6 +257,81 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
 }
 
 /**
+ * Add a new regular file to the iso tree. Permissions are set to 0444, 
+ * owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ *  
+ * @param parent 
+ *      the dir where the new file will be created
+ * @param name
+ *      name for the new file. If a node with same name already exists on
+ *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param stream
+ *      IsoStream for the contents of the file
+ * @param file
+ *      place where to store a pointer to the newly created file. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
+ */
+int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream, 
+                          IsoFile **file)
+{
+    int ret;
+    char *n;
+    IsoFile *node;
+    IsoNode **pos;
+    time_t now;
+
+    if (parent == NULL || name == NULL || stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (file) {
+        *file = NULL;
+    }
+
+    /* find place where to insert */
+    if (iso_dir_exists(parent, name, &pos)) {
+        /* a node with same name already exists */
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    n = strdup(name);
+    ret = iso_node_new_file(n, stream, &node);
+    if (ret < 0) {
+        free(n);
+        return ret;
+    }
+
+    /* permissions from parent */
+    iso_node_set_permissions((IsoNode*)node, 0444);
+    iso_node_set_uid((IsoNode*)node, parent->node.uid);
+    iso_node_set_gid((IsoNode*)node, parent->node.gid);
+    iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
+
+    /* current time */
+    now = time(NULL);
+    iso_node_set_atime((IsoNode*)node, now);
+    iso_node_set_ctime((IsoNode*)node, now);
+    iso_node_set_mtime((IsoNode*)node, now);
+
+    if (file) {
+        *file = node;
+    }
+
+    /* add to dir */
+    return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
+}
+
+/**
  * Set whether to follow or not symbolic links when added a file from a source
  * to IsoImage.
  */
@@ -473,6 +548,139 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
     /* free the file */
     iso_file_source_unref(file);
     return result;
+}
+
+int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name, 
+                          const char *path, IsoNode **node)
+{
+    int result;
+    IsoFilesystem *fs;
+    IsoFileSource *file;
+    IsoNode *new;
+    IsoNode **pos;
+
+    if (image == NULL || parent == NULL || name == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    if (node) {
+        *node = NULL;
+    }
+
+    fs = image->fs;
+    result = fs->get_by_path(fs, path, &file);
+    if (result < 0) {
+        return result;
+    }
+
+    /* find place where to insert */
+    result = iso_dir_exists(parent, name, &pos);
+    if (result) {
+        /* a node with same name already exists */
+        iso_file_source_unref(file);
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    result = image->builder->create_node(image->builder, image, file, &new);
+    
+    /* free the file */
+    iso_file_source_unref(file);
+    
+    if (result < 0) {
+        return result;
+    }
+    
+    result = iso_node_set_name(new, name);
+    if (result < 0) {
+        iso_node_unref(new);
+        return result;
+    }
+
+    if (node) {
+        *node = new;
+    }
+
+    /* finally, add node to parent */
+    return iso_dir_insert(parent, new, pos, ISO_REPLACE_NEVER);
+}
+
+int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent, 
+                                  const char *name, const char *path, 
+                                  off_t offset, off_t size,
+                                  IsoNode **node)
+{
+    int result;
+    struct stat info;
+    IsoFilesystem *fs;
+    IsoFileSource *src;
+    IsoFile *new;
+    IsoNode **pos;
+    IsoStream *stream;
+
+    if (image == NULL || parent == NULL || name == NULL || path == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    if (node) {
+        *node = NULL;
+    }
+
+    /* find place where to insert */
+    result = iso_dir_exists(parent, name, &pos);
+    if (result) {
+        /* a node with same name already exists */
+        return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    fs = image->fs;
+    result = fs->get_by_path(fs, path, &src);
+    if (result < 0) {
+        return result;
+    }
+
+    result = iso_file_source_stat(src, &info);
+    if (result < 0) {
+        iso_file_source_unref(src);
+        return result;
+    }
+    if (!S_ISREG(info.st_mode)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (offset >= info.st_size) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    /* force regular file */
+    result = image->builder->create_file(image->builder, image, src, &new);
+    
+    /* free the file */
+    iso_file_source_unref(src);
+    
+    if (result < 0) {
+        return result;
+    }
+    
+    /* replace file iso stream with a cut-out-stream */
+    result = iso_cut_out_stream_new(src, offset, size, &stream);
+    if (result < 0) {
+        iso_node_unref((IsoNode*)new);
+        return result;
+    }
+    iso_stream_unref(new->stream);
+    new->stream = stream;
+    
+    result = iso_node_set_name((IsoNode*)new, name);
+    if (result < 0) {
+        iso_node_unref((IsoNode*)new);
+        return result;
+    }
+
+    if (node) {
+        *node = (IsoNode*)new;
+    }
+
+    /* finally, add node to parent */
+    return iso_dir_insert(parent, (IsoNode*)new, pos, ISO_REPLACE_NEVER);
 }
 
 static
@@ -748,4 +956,28 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
         *node = n;
     }
     return result;
+}
+
+char *iso_tree_get_node_path(IsoNode *node)
+{
+    if (node == NULL || node->parent == NULL) {
+        return NULL;
+    }
+    
+    if ((IsoNode*)node->parent == node) {
+        return strdup("/");
+    } else {
+        char path[PATH_MAX];
+        char *parent_path = iso_tree_get_node_path((IsoNode*)node->parent);
+        if (parent_path == NULL) {
+            return NULL;
+        }
+        if (strlen(parent_path) == 1) {
+            snprintf(path, PATH_MAX, "/%s", node->name);
+        } else {
+            snprintf(path, PATH_MAX, "%s/%s", parent_path, node->name);
+        }
+        free(parent_path);
+        return strdup(path);
+    }
 }

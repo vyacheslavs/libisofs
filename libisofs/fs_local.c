@@ -190,7 +190,7 @@ int lfs_open(IsoFileSource *src)
 
     data = src->data;
     if (data->openned) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
 
     /* is a file or a dir ? */
@@ -251,7 +251,7 @@ int lfs_close(IsoFileSource *src)
         ret = closedir(data->info.dir) == 0 ? ISO_SUCCESS : ISO_FILE_ERROR;
         break;
     default:
-        ret = ISO_FILE_NOT_OPENNED;
+        ret = ISO_FILE_NOT_OPENED;
         break;
     }
     if (ret == ISO_SUCCESS) {
@@ -300,7 +300,53 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
     case 2: /* directory */
         return ISO_FILE_IS_DIR;
     default:
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
+    }
+}
+
+static
+off_t lfs_lseek(IsoFileSource *src, off_t offset, int flag)
+{
+    _LocalFsFileSource *data;
+    int whence;
+
+    if (src == NULL) {
+        return (off_t)ISO_NULL_POINTER;
+    }
+    switch (flag) {
+    case 0: 
+        whence = SEEK_SET; break;
+    case 1: 
+        whence = SEEK_CUR; break;
+    case 2: 
+        whence = SEEK_END; break;
+    default: 
+        return (off_t)ISO_WRONG_ARG_VALUE;
+    }
+
+    data = src->data;
+    switch (data->openned) {
+    case 1: /* not dir */
+        {
+            off_t ret;
+            ret = lseek(data->info.fd, offset, whence);
+            if (ret < 0) {
+                /* error on read */
+                switch (errno) {
+                case ESPIPE:
+                    ret = (off_t)ISO_FILE_ERROR;
+                    break;
+                default:
+                    ret = (off_t)ISO_ERROR;
+                    break;
+                }
+            }
+            return ret;
+        }
+    case 2: /* directory */
+        return (off_t)ISO_FILE_IS_DIR;
+    default:
+        return (off_t)ISO_FILE_NOT_OPENED;
     }
 }
 
@@ -341,7 +387,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
             return ret;
         }
     default:
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
 }
 
@@ -433,7 +479,8 @@ IsoFileSourceIface lfs_class = {
     lfs_readdir,
     lfs_readlink,
     lfs_get_filesystem,
-    lfs_free
+    lfs_free,
+    lfs_lseek
 };
 
 /**

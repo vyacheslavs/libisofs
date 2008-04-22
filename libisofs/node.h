@@ -20,9 +20,6 @@
 #include <unistd.h>
 #include <stdint.h>
 
-/* #define LIBISO_EXTENDED_INFORMATION */
-#ifdef LIBISO_EXTENDED_INFORMATION
-
 /**
  * The extended information is a way to attach additional information to each
  * IsoNode. External applications may want to use this extension system to 
@@ -55,15 +52,13 @@ struct iso_extended_info {
      * @return
      *     1
      */
-    int (*process)(void *data, int flag);
+    iso_node_xinfo_func process;
     
     /**
      * Pointer to information specific data.
      */
     void *data;
 };
-
-#endif
 
 /**
  * 
@@ -102,12 +97,10 @@ struct Iso_Node
      */
     IsoNode *next;
 
-#ifdef LIBISO_EXTENDED_INFORMATION
     /**
      * Extended information for the node.
      */
     IsoExtendedInfo *xinfo;
-#endif
 };
 
 struct Iso_Dir
@@ -148,13 +141,37 @@ struct Iso_Special
     dev_t dev;
 };
 
+struct iso_dir_iter_iface
+{
+    
+    int (*next)(IsoDirIter *iter, IsoNode **node);
+
+    int (*has_next)(IsoDirIter *iter);
+
+    void (*free)(IsoDirIter *iter);
+    
+    int (*take)(IsoDirIter *iter);
+
+    int (*remove)(IsoDirIter *iter);
+    
+    /** 
+     * This is called just before remove a node from a directory. The iterator
+     * may want to update its internal state according to this.
+     */
+    void (*notify_child_taken)(IsoDirIter *iter, IsoNode *node);
+};
+
 /**
  * An iterator for directory children.
  */
 struct Iso_Dir_Iter
 {
-    const IsoDir *dir;
-    IsoNode *pos;
+    struct iso_dir_iter_iface *class;
+    
+    /* the directory this iterator iterates over */
+    IsoDir *dir;
+    
+    void *data;
 };
 
 int iso_node_new_root(IsoDir **root);
@@ -302,5 +319,19 @@ int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos);
  */
 int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos, 
                    enum iso_replace_mode replace);
+
+/**
+ * Add a new iterator to the registry. The iterator register keeps track of
+ * all iterators being used, and are notified when directory structure 
+ * changes.
+ */
+int iso_dir_iter_register(IsoDirIter *iter);
+
+/**
+ * Unregister a directory iterator.
+ */
+void iso_dir_iter_unregister(IsoDirIter *iter);
+
+void iso_notify_dir_iters(IsoNode *node, int flag);
 
 #endif /*LIBISO_NODE_H_*/

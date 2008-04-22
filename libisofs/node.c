@@ -15,6 +15,17 @@
 #include <time.h>
 #include <limits.h>
 
+struct dir_iter_data
+{   
+    /* points to the last visited child, to NULL before start */
+    IsoNode *pos;
+    
+    /* Some control flags.
+     * bit 0 -> 1 if next called, 0 reseted at start or on deletion 
+     */
+    int flag;
+};
+
 /**
  * Increments the reference counting of the given node.
  */
@@ -58,17 +69,142 @@ void iso_node_unref(IsoNode *node)
             /* other kind of nodes does not need to delete anything here */
             break;
         }
-    
-#ifdef LIBISO_EXTENDED_INFORMATION
+
         if (node->xinfo) {
-            /* free extended info */
-            node->xinfo->process(node->xinfo->data, 1);
-            free(node->xinfo);
+            IsoExtendedInfo *info = node->xinfo;
+            while (info != NULL) {
+                IsoExtendedInfo *tmp = info->next;
+                
+                /* free extended info */
+                info->process(info->data, 1);
+                free(info);
+                info = tmp;
+            }
         }
-#endif
         free(node->name);
         free(node);
     }
+}
+
+/**
+ * Add extended information to the given node. Extended info allows 
+ * applications (and libisofs itself) to add more information to an IsoNode.
+ * You can use this facilities to associate new information with a given
+ * node.
+ * 
+ * Each node keeps a list of added extended info, meaning you can add several
+ * extended info data to each node. Each extended info you add is identified
+ * by the proc parameter, a pointer to a function that knows how to manage
+ * the external info data. Thus, in order to add several types of extended
+ * info, you need to define a "proc" function for each type.
+ * 
+ * @param node
+ *      The node where to add the extended info
+ * @param proc
+ *      A function pointer used to identify the type of the data, and that
+ *      knows how to manage it
+ * @param data
+ *      Extended info to add.
+ * @return
+ *      1 if success, 0 if the given node already has extended info of the
+ *      type defined by the "proc" function, < 0 on error
+ */
+int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data)
+{
+    IsoExtendedInfo *info;
+    IsoExtendedInfo *pos;
+
+    if (node == NULL || proc == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    pos = node->xinfo;
+    while (pos != NULL) {
+        if (pos->process == proc) {
+            return 0; /* extended info already added */
+        }
+        pos = pos->next;
+    }
+    
+    info = malloc(sizeof(IsoExtendedInfo));
+    if (info == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    info->next = node->xinfo;
+    info->data = data;
+    info->process = proc;
+    node->xinfo = info;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Remove the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ */
+int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc)
+{
+    IsoExtendedInfo *pos, *prev;
+
+    if (node == NULL || proc == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    prev = NULL;
+    pos = node->xinfo;
+    while (pos != NULL) {
+        if (pos->process == proc) {
+            /* this is the extended info we want to remove */
+            pos->process(pos->data, 1);
+            
+            if (prev != NULL) {
+                prev->next = pos->next;
+            } else {
+                node->xinfo = pos->next;
+            }
+            free(pos);
+            return ISO_SUCCESS;
+        }
+        prev = pos;
+        pos = pos->next;
+    }
+    /* requested xinfo not found */
+    return 0; 
+}
+
+/**
+ * Get the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @param data
+ *      Will be filled with the extended info corresponding to the given proc
+ *      function
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ */
+int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data)
+{
+    IsoExtendedInfo *pos;
+
+    if (node == NULL || proc == NULL || data == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    pos = node->xinfo;
+    while (pos != NULL) {
+        if (pos->process == proc) {
+            /* this is the extended info we want */
+            *data = pos->data;
+            return ISO_SUCCESS;
+        }
+        pos = pos->next;
+    }
+    /* requested xinfo not found */
+    return 0;  
 }
 
 /**
@@ -354,42 +490,53 @@ int iso_dir_get_children_count(IsoDir *dir)
     return dir->nchildren;
 }
 
-int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
+static
+int iter_next(IsoDirIter *iter, IsoNode **node)
 {
-    IsoDirIter *it;
-
-    if (dir == NULL || iter == NULL) {
-        return ISO_NULL_POINTER;
-    }
-    it = malloc(sizeof(IsoDirIter));
-    if (it == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
-
-    it->dir = dir;
-    it->pos = dir->children;
-
-    *iter = it;
-    return ISO_SUCCESS;
-}
-
-int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node)
-{
-    IsoNode *n;
+    struct dir_iter_data *data;
     if (iter == NULL || node == NULL) {
         return ISO_NULL_POINTER;
     }
-    n = iter->pos;
-    if (n == NULL) {
-        *node = NULL;
-        return 0;
+    
+    data = iter->data;
+    
+    /* clear next flag */
+    data->flag &= ~0x01;
+    
+    if (data->pos == NULL) {
+        /* we are at the beginning */
+        data->pos = iter->dir->children;
+        if (data->pos == NULL) {
+            /* empty dir */
+            *node = NULL;
+            return 0;
+        }
+    } else {
+        if (data->pos->parent != iter->dir) {
+            /* this can happen if the node has been moved to another dir */
+            /* TODO specific error */
+            return ISO_ERROR;
+        }
+        if (data->pos->next == NULL) {
+            /* no more children */
+            *node = NULL;
+            return 0;
+        } else {
+            /* free reference to current position */
+            iso_node_unref(data->pos); /* it is never last ref!! */
+
+            /* advance a position */
+            data->pos = data->pos->next;
+        }
     }
-    if (n->parent != iter->dir) {
-        /* this can happen if the node has been moved to another dir */
-        return ISO_ERROR;
-    }
-    *node = n;
-    iter->pos = n->next;
+    
+    /* ok, take a ref to the current position, to prevent internal errors
+     * if deleted somewhere */
+    iso_node_ref(data->pos);
+    data->flag |= 0x01; /* set next flag */
+    
+    /* return pointed node */
+    *node = data->pos;
     return ISO_SUCCESS;
 }
 
@@ -401,17 +548,30 @@ int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node)
  *     Possible errors:
  *         ISO_NULL_POINTER, if iter is NULL
  */
-int iso_dir_iter_has_next(IsoDirIter *iter)
+static
+int iter_has_next(IsoDirIter *iter)
 {
+    struct dir_iter_data *data;
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
-    return iter->pos == NULL ? 0 : 1;
+    data = iter->data;
+    if (data->pos == NULL) {
+        return iter->dir->children == NULL ? 0 : 1;
+    } else {
+        return data->pos->next == NULL ? 0 : 1;
+    }
 }
 
-void iso_dir_iter_free(IsoDirIter *iter)
+static
+void iter_free(IsoDirIter *iter)
 {
-    free(iter);
+    struct dir_iter_data *data;
+    data = iter->data;
+    if (data->pos != NULL) {
+        iso_node_unref(data->pos);
+    }
+    free(data);
 }
 
 static IsoNode** iso_dir_find_node(IsoDir *dir, IsoNode *node)
@@ -448,8 +608,12 @@ int iso_node_take(IsoNode *node)
     pos = iso_dir_find_node(dir, node);
     if (pos == NULL) {
         /* should never occur */
-        return ISO_ERROR;
+        return ISO_ASSERT_FAILURE;
     }
+    
+    /* notify iterators just before remove */
+    iso_notify_dir_iters(node, 0); 
+    
     *pos = node->next;
     node->parent = NULL;
     node->next = NULL;
@@ -492,43 +656,167 @@ IsoDir *iso_node_get_parent(IsoNode *node)
 }
 
 /* TODO #00005 optimize iso_dir_iter_take */
-int iso_dir_iter_take(IsoDirIter *iter)
+static
+int iter_take(IsoDirIter *iter)
 {
-    IsoNode *pos;
+    struct dir_iter_data *data;
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
+    
+    data = iter->data;
+    
+    if (!(data->flag & 0x01)) {
+        return ISO_ERROR; /* next not called or end of dir */
+    }
+    
+    if (data->pos == NULL) {
+        return ISO_ASSERT_FAILURE;
+    }
+    
+    /* clear next flag */
+    data->flag &= ~0x01;
+    
+    return iso_node_take(data->pos);
+}
 
-    pos = iter->dir->children;
-    if (iter->pos == pos) {
-        return ISO_ERROR;
+static
+int iter_remove(IsoDirIter *iter)
+{
+    int ret;
+    IsoNode *pos;
+    struct dir_iter_data *data;
+    
+    if (iter == NULL) {
+        return ISO_NULL_POINTER;
     }
-    while (pos != NULL && pos->next == iter->pos) {
-        pos = pos->next;
+    data = iter->data;
+    pos = data->pos;
+    
+    ret = iter_take(iter);
+    if (ret == ISO_SUCCESS) {
+        /* remove node */
+        iso_node_unref(pos);
     }
-    if (pos == NULL) {
-        return ISO_ERROR;
+    return ret;
+}
+
+void iter_notify_child_taken(IsoDirIter *iter, IsoNode *node)
+{
+    IsoNode *pos, *pre;
+    struct dir_iter_data *data;
+    data = iter->data;
+    
+    if (data->pos == node) { 
+        pos = iter->dir->children;
+        pre = NULL;
+        while (pos != NULL && pos != data->pos) {
+            pre = pos;
+            pos = pos->next;
+        }
+        if (pos == NULL || pos != data->pos) {
+            return;
+        }
+        
+        /* dispose iterator reference */
+        iso_node_unref(data->pos);
+        
+        if (pre == NULL) {
+            /* node is a first position */
+            iter->dir->children = pos->next;
+            data->pos = NULL;
+        } else {
+            pre->next = pos->next;
+            data->pos = pre;
+            iso_node_ref(pre); /* take iter ref */
+        }
     }
-    return iso_node_take(pos);
+}
+
+static
+struct iso_dir_iter_iface iter_class = {
+        iter_next,
+        iter_has_next,
+        iter_free,
+        iter_take,
+        iter_remove,
+        iter_notify_child_taken
+};
+
+int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
+{
+    IsoDirIter *it;
+    struct dir_iter_data *data;
+
+    if (dir == NULL || iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    it = malloc(sizeof(IsoDirIter));
+    if (it == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    data = malloc(sizeof(struct dir_iter_data));
+    if (data == NULL) {
+        free(it);
+        return ISO_OUT_OF_MEM;
+    }
+
+    it->class = &iter_class;
+    it->dir = (IsoDir*)dir;
+    data->pos = NULL;
+    data->flag = 0x00;
+    it->data = data;
+    
+    if (iso_dir_iter_register(it) < 0) {
+        free(it);
+        return ISO_OUT_OF_MEM;
+    }
+
+    iso_node_ref((IsoNode*)dir); /* tak a ref to the dir */
+    *iter = it;
+    return ISO_SUCCESS;
+}
+
+int iso_dir_iter_next(IsoDirIter *iter, IsoNode **node)
+{
+    if (iter == NULL || node == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    return iter->class->next(iter, node);
+}
+
+int iso_dir_iter_has_next(IsoDirIter *iter)
+{
+    if (iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    return iter->class->has_next(iter);
+}
+
+void iso_dir_iter_free(IsoDirIter *iter)
+{
+    if (iter != NULL) {
+        iso_dir_iter_unregister(iter);
+        iter->class->free(iter);
+        iso_node_unref((IsoNode*)iter->dir);
+        free(iter);
+    }
+}
+
+int iso_dir_iter_take(IsoDirIter *iter)
+{
+    if (iter == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    return iter->class->take(iter); 
 }
 
 int iso_dir_iter_remove(IsoDirIter *iter)
 {
-    IsoNode *pos;
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
-    pos = iter->dir->children;
-    if (iter->pos == pos) {
-        return ISO_ERROR;
-    }
-    while (pos != NULL && pos->next == iter->pos) {
-        pos = pos->next;
-    }
-    if (pos == NULL) {
-        return ISO_ERROR;
-    }
-    return iso_node_remove(pos);
+    return iter->class->remove(iter); 
 }
 
 /**
@@ -616,6 +904,58 @@ off_t iso_file_get_size(IsoFile *file)
 IsoStream *iso_file_get_stream(IsoFile *file)
 {
     return file->stream;
+}
+
+/**
+ * Get the block lba of a file node, if it was imported from an old image.
+ * 
+ * @param file
+ *      The file
+ * @param lba
+ *      Will be filled with the kba
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, < 0 error 
+ *
+ * @since 0.6.4
+ */
+int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag)
+{
+    if (file == NULL || lba == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (flag != 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (file->msblock != 0) {
+        *lba = file->msblock;
+        return 1;
+    }
+    return 0;
+}
+
+/*
+ * Like iso_file_get_old_image_lba(), but take an IsoNode.
+ * 
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, 2 node type has no 
+ *      LBA (no regular file), < 0 error
+ *
+ * @since 0.6.4
+ */
+int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag)
+{
+    if (node == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (ISO_NODE_IS_FILE(node)) {
+        return iso_file_get_old_image_lba((IsoFile*)node, lba, flag);
+    } else {
+        return 2;
+    }
 }
 
 /**
@@ -763,6 +1103,63 @@ int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
     node->parent = dir;
 
     return ++dir->nchildren;
+}
+
+/* iterators are stored in a linked list */
+struct iter_reg_node {
+    IsoDirIter *iter;
+    struct iter_reg_node *next;
+};
+
+/* list header */
+static
+struct iter_reg_node *iter_reg = NULL;
+
+/**
+ * Add a new iterator to the registry. The iterator register keeps track of
+ * all iterators being used, and are notified when directory structure 
+ * changes.
+ */
+int iso_dir_iter_register(IsoDirIter *iter)
+{
+    struct iter_reg_node *new;
+    new = malloc(sizeof(struct iter_reg_node));
+    if (new == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    new->iter = iter;
+    new->next = iter_reg;
+    iter_reg = new;
+    return ISO_SUCCESS;
+}
+
+/**
+ * Unregister a directory iterator.
+ */
+void iso_dir_iter_unregister(IsoDirIter *iter)
+{
+    struct iter_reg_node **pos;
+    pos = &iter_reg;
+    while (*pos != NULL && (*pos)->iter != iter) {
+        pos = &(*pos)->next;
+    }
+    if (*pos) {
+        struct iter_reg_node *tmp = (*pos)->next;
+        free(*pos);
+        *pos = tmp;
+    }
+}
+
+void iso_notify_dir_iters(IsoNode *node, int flag) 
+{
+    struct iter_reg_node *pos = iter_reg;
+    while (pos != NULL) {
+        IsoDirIter *iter = pos->iter;
+        if (iter->dir == node->parent) {
+            iter->class->notify_child_taken(iter, node);
+        }
+        pos = pos->next;
+    }
 }
 
 int iso_node_new_root(IsoDir **root)

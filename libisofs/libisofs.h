@@ -519,7 +519,7 @@ struct IsoFileSource_Iface
      * Opens the source.
      * @return 1 on success, < 0 on error
      *      Error codes:
-     *         ISO_FILE_ALREADY_OPENNED
+     *         ISO_FILE_ALREADY_OPENED
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
      *         ISO_FILE_DOESNT_EXIST
@@ -535,7 +535,7 @@ struct IsoFileSource_Iface
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
-     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_NOT_OPENED
      */
     int (*close)(IsoFileSource *src);
 
@@ -552,7 +552,7 @@ struct IsoFileSource_Iface
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
-     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_NOT_OPENED
      *         ISO_WRONG_ARG_VALUE -> if count == 0
      *         ISO_FILE_IS_DIR
      *         ISO_OUT_OF_MEM
@@ -578,7 +578,7 @@ struct IsoFileSource_Iface
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
-     *         ISO_FILE_NOT_OPENNED
+     *         ISO_FILE_NOT_OPENED
      *         ISO_FILE_IS_NOT_DIR
      *         ISO_OUT_OF_MEM
      */
@@ -622,6 +622,26 @@ struct IsoFileSource_Iface
      * Use iso_file_source_unref() instead.
      */
     void (*free)(IsoFileSource *src);
+    
+    /**
+     * Repositions the offset of the IsoFileSource (must be opened) to the 
+     * given offset according to the value of flag.
+     * 
+     * @param offset
+     *      in bytes 
+     * @param flag
+     *      0 The offset is set to offset bytes (SEEK_SET)
+     *      1 The offset is set to its current location plus offset bytes 
+     *        (SEEK_CUR)
+     *      2 The offset is set to the size of the file plus offset bytes 
+     *        (SEEK_END).
+     * @return
+     *      Absolute offset posistion on the file, or < 0 on error. Cast the
+     *      returning value to int to get a valid libisofs error.
+     * 
+     * @since 0.6.4
+     */
+    off_t (*lseek)(IsoFileSource *src, off_t offset, int flag);
 
     /*
      * TODO #00004 Add a get_mime_type() function.
@@ -1801,6 +1821,78 @@ void iso_node_unref(IsoNode *node);
 enum IsoNodeType iso_node_get_type(IsoNode *node);
 
 /**
+ * Function to handle particular extended information. The function
+ * pointer acts as an identifier for the type of the information. Structs
+ * with same information type must use the same function.
+ * 
+ * @param data
+ *     Attached data
+ * @param flag
+ *     What to do with the data. At this time the following values are 
+ *     defined:
+ *      -> 1 the data must be freed
+ * @return
+ *     1 in any case.
+ *
+ * @since 0.6.4
+ */
+typedef int (*iso_node_xinfo_func)(void *data, int flag);
+
+/**
+ * Add extended information to the given node. Extended info allows 
+ * applications (and libisofs itself) to add more information to an IsoNode.
+ * You can use this facilities to associate new information with a given
+ * node.
+ * 
+ * Each node keeps a list of added extended info, meaning you can add several
+ * extended info data to each node. Each extended info you add is identified
+ * by the proc parameter, a pointer to a function that knows how to manage
+ * the external info data. Thus, in order to add several types of extended
+ * info, you need to define a "proc" function for each type.
+ * 
+ * @param node
+ *      The node where to add the extended info
+ * @param proc
+ *      A function pointer used to identify the type of the data, and that
+ *      knows how to manage it
+ * @param data
+ *      Extended info to add.
+ * @return
+ *      1 if success, 0 if the given node already has extended info of the
+ *      type defined by the "proc" function, < 0 on error
+ *
+ * @since 0.6.4
+ */
+int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data);
+
+/**
+ * Remove the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ *
+ * @since 0.6.4
+ */
+int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc);
+
+/**
+ * Get the given extended info (defined by the proc function) from the
+ * given node.
+ * 
+ * @param data
+ *      Will be filled with the extended info corresponding to the given proc
+ *      function
+ * @return 
+ *      1 on success, 0 if node does not have extended info of the requested
+ *      type, < 0 on error
+ *
+ * @since 0.6.4
+ */
+int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data);
+
+/**
  * Set the name of a node. Note that if the node is already added to a dir
  * this can fail if dir already contains a node with the new name.
  * 
@@ -2062,7 +2154,7 @@ IsoDir *iso_node_get_parent(IsoNode *node);
  * you should free the iterator with iso_dir_iter_free.
  * You musn't delete a child of the same dir, using iso_node_take() or
  * iso_node_remove(), while you're using the iterator. You can use 
- * iso_node_take_iter() or iso_node_remove_iter() instead.
+ * iso_dir_iter_take() or iso_dir_iter_remove() instead.
  * 
  * You can use the iterator in the way like this
  * 
@@ -2131,8 +2223,8 @@ void iso_dir_iter_free(IsoDirIter *iter);
  * It's like iso_node_take(), but to be used during a directory iteration.
  * The node removed will be the last returned by the iteration.
  * 
- * The behavior on two call to this function without calling iso_dir_iter_next
- * between then is undefined, and should never occur. (TODO protect against this?)
+ * If you call this function twice without calling iso_dir_iter_next between 
+ * them is not allowed and you will get an ISO_ERROR in second call. 
  * 
  * @return
  *     1 on succes, < 0 error
@@ -2150,8 +2242,8 @@ int iso_dir_iter_take(IsoDirIter *iter);
  * It's like iso_node_remove(), but to be used during a directory iteration.
  * The node removed will be the last returned by the iteration.
  * 
- * The behavior on two call to this function without calling iso_tree_iter_next
- * between then is undefined, and should never occur. (TODO protect against this?)
+ * If you call this function twice without calling iso_dir_iter_next between 
+ * them is not allowed and you will get an ISO_ERROR in second call. 
  * 
  * @return
  *     1 on succes, < 0 error
@@ -2163,6 +2255,191 @@ int iso_dir_iter_take(IsoDirIter *iter);
  * @since 0.6.2
  */
 int iso_dir_iter_remove(IsoDirIter *iter);
+
+
+/**
+ * @since 0.6.4
+ */
+typedef struct iso_find_condition IsoFindCondition;
+
+/**
+ * Create a new condition that checks if the node name matches the given
+ * wildcard.
+ * 
+ * @param wildcard
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_name(const char *wildcard);
+
+/**
+ * Create a new condition that checks the node mode against a mode mask. It
+ * can be used to check both file type and permissions.
+ * 
+ * For example:
+ * 
+ * iso_new_find_conditions_mode(S_IFREG) : search for regular files
+ * iso_new_find_conditions_mode(S_IFCHR | S_IWUSR) : search for character 
+ *     devices where owner has write permissions.
+ * 
+ * @param mask
+ *      Mode mask to AND against node mode.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_mode(mode_t mask);
+
+/**
+ * Create a new condition that checks the node gid.
+ * 
+ * @param gid
+ *      Desired Group Id.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_gid(gid_t gid);
+
+/**
+ * Create a new condition that checks the node uid.
+ * 
+ * @param uid
+ *      Desired User Id.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_uid(uid_t uid);
+
+/**
+ * Possible comparison between IsoNode and given conditions.
+ * 
+ * @since 0.6.4
+ */
+enum iso_find_comparisons {
+    ISO_FIND_COND_GREATER,
+    ISO_FIND_COND_GREATER_OR_EQUAL,
+    ISO_FIND_COND_EQUAL,
+    ISO_FIND_COND_LESS,
+    ISO_FIND_COND_LESS_OR_EQUAL
+};
+
+/**
+ * Create a new condition that checks the time of last access.
+ * 
+ * @param time
+ *      Time to compare against IsoNode atime.
+ * @param comparison
+ *      Comparison to be done between IsoNode atime and submitted time.
+ *      Note that ISO_FIND_COND_GREATER, for example, is true if the node
+ *      time is greater than the submitted time.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_atime(time_t time, 
+                      enum iso_find_comparisons comparison);
+
+/**
+ * Create a new condition that checks the time of last modification.
+ * 
+ * @param time
+ *      Time to compare against IsoNode mtime.
+ * @param comparison
+ *      Comparison to be done between IsoNode mtime and submitted time.
+ *      Note that ISO_FIND_COND_GREATER, for example, is true if the node
+ *      time is greater than the submitted time.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_mtime(time_t time, 
+                      enum iso_find_comparisons comparison);
+
+/**
+ * Create a new condition that checks the time of last status change.
+ * 
+ * @param time
+ *      Time to compare against IsoNode ctime.
+ * @param comparison
+ *      Comparison to be done between IsoNode ctime and submitted time.
+ *      Note that ISO_FIND_COND_GREATER, for example, is true if the node
+ *      time is greater than the submitted time.
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_ctime(time_t time, 
+                      enum iso_find_comparisons comparison);
+
+/**
+ * Create a new condition that check if the two given conditions are
+ * valid.
+ * 
+ * @param a
+ * @param b
+ *      IsoFindCondition to compare
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_and(IsoFindCondition *a, 
+                                              IsoFindCondition *b);
+
+/**
+ * Create a new condition that check if at least one the two given conditions 
+ * is valid.
+ * 
+ * @param a
+ * @param b
+ *      IsoFindCondition to compare
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_or(IsoFindCondition *a, 
+                                              IsoFindCondition *b);
+
+/**
+ * Create a new condition that check if the given conditions is false.
+ * 
+ * @param negate
+ * @result
+ *      The created IsoFindCondition, NULL on error.
+ * 
+ * @since 0.6.4
+ */
+IsoFindCondition *iso_new_find_conditions_not(IsoFindCondition *negate);
+
+/**
+ * Find all directory children that match the given condition.
+ * 
+ * @param dir
+ *      Directory where we will search children.
+ * @param cond
+ *      Condition that the children must match in order to be returned.
+ *      It will be free together with the iterator. Remember to delete it
+ *      if this function return error.
+ * @param iter
+ *      Iterator that returns only the children that match condition.
+ * @return
+ *      1 on success, < 0 on error
+ * 
+ * @since 0.6.4
+ */
+int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond, 
+                          IsoDirIter **iter);
 
 /**
  * Get the destination of a node.
@@ -2231,6 +2508,35 @@ off_t iso_file_get_size(IsoFile *file);
 IsoStream *iso_file_get_stream(IsoFile *file);
 
 /**
+ * Get the block lba of a file node, if it was imported from an old image.
+ * 
+ * @param file
+ *      The file
+ * @param lba
+ *      Will be filled with the kba
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, < 0 error 
+ *
+ * @since 0.6.4
+ */
+int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag);
+
+/*
+ * Like iso_file_get_old_image_lba(), but take an IsoNode.
+ * 
+ * @return
+ *      1 if lba is valid (file comes from old image), 0 if file was newly
+ *      added, i.e. it does not come from an old image, 2 node type has no 
+ *      LBA (no regular file), < 0 error
+ *
+ * @since 0.6.4
+ */
+int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag);
+
+/**
  * Add a new directory to the iso tree. Permissions, owner and hidden atts
  * are taken from parent, you can modify them later.
  * 
@@ -2255,10 +2561,36 @@ IsoStream *iso_file_get_stream(IsoFile *file);
  */
 int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
 
-/*
- TODO #00007 expose Stream and this function:
- int iso_tree_add_new_file(IsoDir *parent, const char *name, stream, file)
+/**
+ * Add a new regular file to the iso tree. Permissions are set to 0444, 
+ * owner and hidden atts are taken from parent. You can modify any of them 
+ * later.
+ *  
+ * @param parent 
+ *      the dir where the new file will be created
+ * @param name
+ *      name for the new file. If a node with same name already exists on
+ *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param stream
+ *      IsoStream for the contents of the file. The reference will be taken
+ *      by the newly created file, you will need to take an extra ref to it
+ *      if you need it.
+ * @param file
+ *      place where to store a pointer to the newly created file. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
  */
+int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream, 
+                          IsoFile **file);
 
 /**
  * Add a new symlink to the directory tree. Permissions are set to 0777, 
@@ -2518,6 +2850,73 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
                       IsoNode **node);
 
 /**
+ * Add a new node to the image tree, from an existing file, and with the
+ * given name, that must not exist on dir.
+ * 
+ * @param image
+ *      The image
+ * @param parent
+ *      The directory in the image tree where the node will be added.
+ * @param name
+ *      The name that the node will have on image.
+ * @param path
+ *      The path of the file to add in the filesystem.
+ * @param node
+ *      place where to store a pointer to the newly added file. No 
+ *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      really need it. You can pass NULL in this parameter if you don't need 
+ *      the pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if image, parent or path are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
+ */
+int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name, 
+                          const char *path, IsoNode **node);
+
+/**
+ * Add a new node to the image tree, from an existing file, and with the
+ * given name, that must not exist on dir. The node will be cut-out to the
+ * submitted size, and its contents will be read from the given offset. This
+ * function is thus suitable for adding only a piece of a file to the image.
+ * 
+ * @param image
+ *      The image
+ * @param parent
+ *      The directory in the image tree where the node will be added.
+ * @param name
+ *      The name that the node will have on image.
+ * @param path
+ *      The path of the file to add in the filesystem. For now only regular
+ *      files and symlinks to regular files are supported.
+ * @param offset
+ *      Offset on the given file from where to start reading data.
+ * @param size
+ *      Max size of the file.
+ * @param node
+ *      place where to store a pointer to the newly added file. No 
+ *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      really need it. You can pass NULL in this parameter if you don't need 
+ *      the pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if image, parent or path are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ * 
+ * @since 0.6.4
+ */
+int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent, 
+                                  const char *name, const char *path, 
+                                  off_t offset, off_t size,
+                                  IsoNode **node);
+
+/**
  * Add the contents of a dir to a given directory of the iso tree.
  * 
  * There are several options to control what files are added or how they are
@@ -2555,6 +2954,16 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
  * @since 0.6.2
  */
 int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
+
+/**
+ * Get the path on image of the given node. 
+ * 
+ * @return
+ *      The path on the image, that must be freed when no more needed. If the
+ *      given node is not added to any image, this returns NULL.
+ * @since 0.6.4
+ */
+char *iso_tree_get_node_path(IsoNode *node);
 
 /**
  * Increments the reference counting of the given IsoDataSource.
@@ -2893,7 +3302,7 @@ int iso_file_source_stat(IsoFileSource *src, struct stat *info);
  * Opens the source.
  * @return 1 on success, < 0 on error
  *      Error codes:
- *         ISO_FILE_ALREADY_OPENNED
+ *         ISO_FILE_ALREADY_OPENED
  *         ISO_FILE_ACCESS_DENIED
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
@@ -2911,7 +3320,7 @@ int iso_file_source_open(IsoFileSource *src);
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *
  * @since 0.6.2
  */
@@ -2937,7 +3346,7 @@ int iso_file_source_close(IsoFileSource *src);
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *         ISO_WRONG_ARG_VALUE -> if count == 0
  *         ISO_FILE_IS_DIR
  *         ISO_OUT_OF_MEM
@@ -2946,6 +3355,25 @@ int iso_file_source_close(IsoFileSource *src);
  * @since 0.6.2
  */
 int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
+
+/**
+ * Repositions the offset of the given IsoFileSource (must be opened) to the 
+ * given offset according to the value of flag.
+ * 
+ * @param offset
+ *      in bytes 
+ * @param flag
+ *      0 The offset is set to offset bytes (SEEK_SET)
+ *      1 The offset is set to its current location plus offset bytes 
+ *        (SEEK_CUR)
+ *      2 The offset is set to the size of the file plus offset bytes 
+ *        (SEEK_END).
+ * @return
+ *      Absolute offset posistion on the file, or < 0 on error. Cast the
+ *      returning value to int to get a valid libisofs error.
+ * @since 0.6.4
+ */
+off_t iso_file_source_lseek(IsoFileSource *src, off_t offset, int flag);
 
 /**
  * Read a directory. 
@@ -2965,7 +3393,7 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *         ISO_FILE_IS_NOT_DIR
  *         ISO_OUT_OF_MEM
  *
@@ -3280,6 +3708,9 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_FILE_ERROR                  0xE830FF80
 
 /** Trying to open an already openned file (FAILURE,HIGH, -129) */
+#define ISO_FILE_ALREADY_OPENED         0xE830FF7F
+
+/* @deprecated use ISO_FILE_ALREADY_OPENED instead */
 #define ISO_FILE_ALREADY_OPENNED        0xE830FF7F
 
 /** Access to file is not allowed (FAILURE,HIGH, -130) */
@@ -3292,7 +3723,10 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_FILE_DOESNT_EXIST           0xE830FF7C
 
 /** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
-#define ISO_FILE_NOT_OPENNED            0xE830FF7B
+#define ISO_FILE_NOT_OPENED             0xE830FF7B
+
+/* @deprecated use ISO_FILE_NOT_OPENED instead */
+#define ISO_FILE_NOT_OPENNED            ISO_FILE_NOT_OPENED
 
 /** Directory used where no dir is expected (FAILURE,HIGH, -134) */
 #define ISO_FILE_IS_DIR                 0xE830FF7A
@@ -3326,9 +3760,15 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /** 
  * File path break specification constraints and will be ignored 
- * (HINT,MEDIUM, -141) 
+ * (HINT,MEDIUM, -144) 
  */
 #define ISO_FILE_IMGPATH_WRONG          0xC020FF70
+
+/** 
+ * Offset greater than file size (FAILURE,HIGH, -145) 
+ * @since 0.6.4
+ */
+#define ISO_FILE_OFFSET_TOO_BIG         0xE830FF6A
 
 /** Charset conversion error (FAILURE,HIGH, -256) */
 #define ISO_CHARSET_CONV_ERROR          0xE830FF00

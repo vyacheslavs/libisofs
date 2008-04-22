@@ -33,6 +33,12 @@ int iso_file_add_filter(IsoFile *file, FilterContext *filter, int flag)
     }
     
     original = file->stream;
+
+    if (!iso_stream_is_repeatable(original)) {
+        /* TODO use custom error */
+        return ISO_WRONG_ARG_VALUE;
+    }
+    
     ret = filter->get_filter(filter, original, &filtered);
     if (ret < 0) {
         return ret;

@@ -52,12 +52,13 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     if (ret < 0) {
         return ret;
     }
+
+    /* take a ref to the src, as stream has taken our ref */
+    iso_file_source_ref(src);
     
     name = iso_file_source_get_name(src);
     ret = iso_node_new_file(name, stream, &node);
     if (ret < 0) {
-        /* the stream has taken our ref to src, so we need to add one */
-        iso_file_source_ref(src);
         iso_stream_unref(stream);
         free(name);
         return ret;

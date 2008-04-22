@@ -538,7 +538,7 @@ int catalog_open(IsoStream *stream)
     data = stream->data;
     
     if (data->offset != -1) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
     
     memset(data->buffer, 0, BLOCK_SIZE);
@@ -563,7 +563,7 @@ int catalog_close(IsoStream *stream)
     data = stream->data;
     
     if (data->offset == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     data->offset = -1;
     return ISO_SUCCESS;
@@ -589,7 +589,7 @@ int catalog_read(IsoStream *stream, void *buf, size_t count)
     data = stream->data;
     
     if (data->offset == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     
     len = MIN(count, BLOCK_SIZE - data->offset);

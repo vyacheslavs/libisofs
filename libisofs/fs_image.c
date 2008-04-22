@@ -474,7 +474,7 @@ int ifs_open(IsoFileSource *src)
     data = (ImageFileSourceData*)src->data;
 
     if (data->opened) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
     
     if (S_ISDIR(data->info.st_mode)) {
@@ -530,7 +530,7 @@ int ifs_close(IsoFileSource *src)
     data = (ImageFileSourceData*)src->data;
     
     if (!data->opened) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     
     if (data->opened == 2) {
@@ -569,7 +569,7 @@ int ifs_close(IsoFileSource *src)
  *      Error codes:
  *         ISO_FILE_ERROR
  *         ISO_NULL_POINTER
- *         ISO_FILE_NOT_OPENNED
+ *         ISO_FILE_NOT_OPENED
  *         ISO_FILE_IS_DIR
  *         ISO_OUT_OF_MEM
  *         ISO_INTERRUPTED
@@ -590,7 +590,7 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
     data = (ImageFileSourceData*)src->data;
     
     if (!data->opened) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     } else if (data->opened != 1) {
         return ISO_FILE_IS_DIR;
     }
@@ -633,6 +633,60 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
 }
 
 static
+off_t ifs_lseek(IsoFileSource *src, off_t offset, int flag)
+{
+    ImageFileSourceData *data;
+
+    if (src == NULL) {
+        return (off_t)ISO_NULL_POINTER;
+    }
+    if (offset < (off_t)0) {
+        return (off_t)ISO_WRONG_ARG_VALUE;
+    }
+    
+    data = src->data;
+    
+    if (!data->opened) {
+        return (off_t)ISO_FILE_NOT_OPENED;
+    } else if (data->opened != 1) {
+        return (off_t)ISO_FILE_IS_DIR;
+    }
+
+    switch (flag) {
+    case 0: /* SEEK_SET */
+        data->data.offset = offset;
+        break;
+    case 1: /* SEEK_CUR */
+        data->data.offset += offset;
+        break;
+    case 2: /* SEEK_END */
+        /* do this make sense? */
+        data->data.offset = data->info.st_size + offset;
+        break;
+    default:
+        return (off_t)ISO_WRONG_ARG_VALUE;
+    }
+    
+    if (data->data.offset % BLOCK_SIZE != 0) {
+        /* we need to buffer the block */
+        uint32_t block;
+        _ImageFsData *fsdata;
+        
+        if (data->data.offset < data->info.st_size) {
+            int ret;
+            fsdata = data->fs->data;
+            block = data->block + (data->data.offset / BLOCK_SIZE);
+            ret = fsdata->src->read_block(fsdata->src, block, 
+                                          data->data.content);
+            if (ret < 0) {
+                return (off_t)ret;
+            }
+        }
+    }
+    return data->data.offset;
+}
+
+static
 int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
 {
     ImageFileSourceData *data, *cdata;
@@ -644,7 +698,7 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
     data = (ImageFileSourceData*)src->data;
     
     if (!data->opened) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     } else if (data->opened != 2) {
         return ISO_FILE_IS_NOT_DIR;
     }
@@ -774,7 +828,8 @@ IsoFileSourceIface ifs_class = {
     ifs_readdir,
     ifs_readlink,
     ifs_get_filesystem,
-    ifs_free
+    ifs_free,
+    ifs_lseek
 };
 
 /**
@@ -2081,7 +2136,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 free(name);
                 return ret;
             }
-            link = malloc(sizeof(IsoSymlink));
+            link = calloc(1, sizeof(IsoSymlink));
             if (link == NULL) {
                 free(name);
                 return ISO_OUT_OF_MEM;
@@ -2099,7 +2154,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         {
             /* source is an special file */
             IsoSpecial *special;
-            special = malloc(sizeof(IsoSpecial));
+            special = calloc(1, sizeof(IsoSpecial));
             if (special == NULL) {
                 free(name);
                 return ISO_OUT_OF_MEM;

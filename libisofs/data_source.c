@@ -57,7 +57,7 @@ int ds_open(IsoDataSource *src)
 
     data = (struct file_data_src*) src->data;
     if (data->fd != -1) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
 
     fd = open(data->path, O_RDONLY);
@@ -81,7 +81,7 @@ int ds_close(IsoDataSource *src)
 
     data = (struct file_data_src*) src->data;
     if (data->fd == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
 
     /* close can fail if fd is not valid, but that should never happen */
@@ -102,7 +102,7 @@ static int ds_read_block(IsoDataSource *src, uint32_t lba, uint8_t *buffer)
 
     data = (struct file_data_src*) src->data;
     if (data->fd == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
 
     /* goes to requested block */

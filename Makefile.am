@@ -16,6 +16,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/node.c \
 	libisofs/tree.h \
 	libisofs/tree.c \
+	libisofs/find.c \
 	libisofs/image.h \
 	libisofs/image.c \
 	libisofs/fsource.h \
@@ -54,6 +55,8 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/iso1999.h \
 	libisofs/iso1999.c \
 	libisofs/data_source.c
+libisofs_libisofs_la_LIBADD= \
+	$(THREAD_LIBS)
 libinclude_HEADERS = \
 	libisofs/libisofs.h
 
@@ -65,6 +68,7 @@ noinst_PROGRAMS = \
 	demo/cat \
 	demo/catbuffer \
 	demo/tree \
+	demo/find \
 	demo/ecma119tree \
 	demo/iso \
 	demo/isoread \
@@ -88,6 +92,10 @@ demo_catbuffer_SOURCES = demo/cat_buffer.c
 demo_tree_CPPFLAGS = -Ilibisofs
 demo_tree_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
 demo_tree_SOURCES = demo/tree.c
+
+demo_find_CPPFLAGS = -Ilibisofs
+demo_find_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)
+demo_find_SOURCES = demo/find.c
 
 demo_ecma119tree_CPPFLAGS = -Ilibisofs
 demo_ecma119tree_LDADD = $(libisofs_libisofs_la_OBJECTS) $(THREAD_LIBS)

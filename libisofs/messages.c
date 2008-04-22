@@ -136,16 +136,16 @@ const char *iso_error_to_msg(int errcode)
         return "Trying to use an invalid file as boot image";
     case ISO_FILE_ERROR: 
         return "Error on file operation";
-    case ISO_FILE_ALREADY_OPENNED: 
-        return "Trying to open an already openned file";
+    case ISO_FILE_ALREADY_OPENED: 
+        return "Trying to open an already opened file";
     case ISO_FILE_ACCESS_DENIED: 
         return "Access to file is not allowed";
     case ISO_FILE_BAD_PATH: 
         return "Incorrect path to file";
     case ISO_FILE_DOESNT_EXIST: 
         return "The file does not exist in the filesystem";
-    case ISO_FILE_NOT_OPENNED: 
-        return "Trying to read or close a file not openned";
+    case ISO_FILE_NOT_OPENED: 
+        return "Trying to read or close a file not opened";
     case ISO_FILE_IS_DIR: 
         return "Directory used where no dir is expected";
     case ISO_FILE_READ_ERROR: 

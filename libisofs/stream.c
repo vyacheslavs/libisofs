@@ -17,6 +17,7 @@
 
 ino_t serial_id = (ino_t)1;
 ino_t mem_serial_id = (ino_t)1;
+ino_t cut_out_serial_id = (ino_t)1;
 
 typedef struct
 {
@@ -175,7 +176,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
         return ISO_OUT_OF_MEM;
     }
     data = malloc(sizeof(FSrcStreamData));
-    if (str == NULL) {
+    if (data == NULL) {
         free(str);
         return ISO_OUT_OF_MEM;
     }
@@ -212,6 +213,193 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     return ISO_SUCCESS;
 }
 
+struct cut_out_stream
+{
+    IsoFileSource *src;
+
+    /* key for file identification inside filesystem */
+    dev_t dev_id;
+    ino_t ino_id;
+    off_t offset; /**< offset where read begins */
+    off_t size; /**< size of this file */
+    off_t pos; /* position on the file for read */
+};
+
+static
+int cut_out_open(IsoStream *stream)
+{
+    int ret;
+    struct stat info;
+    IsoFileSource *src;
+    struct cut_out_stream *data;
+    
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    
+    data = stream->data;
+    src = data->src;
+    ret = iso_file_source_stat(data->src, &info);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = iso_file_source_open(src);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    {
+        off_t ret;
+        if (data->offset > info.st_size) {
+            /* file is smaller than expected */
+            ret = iso_file_source_lseek(src, info.st_size, 0);
+        } else {
+            ret = iso_file_source_lseek(src, data->offset, 0);
+        }
+        if (ret < 0) {
+            return (int) ret;
+        }
+    }
+    data->pos = 0;
+    if (data->offset + data->size > info.st_size) {
+        return 3; /* file smaller than expected */
+    } else {
+        return ISO_SUCCESS;
+    }
+}
+
+static
+int cut_out_close(IsoStream *stream)
+{
+    IsoFileSource *src;
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    src = ((struct cut_out_stream*)stream->data)->src;
+    return iso_file_source_close(src);
+}
+
+static
+off_t cut_out_get_size(IsoStream *stream)
+{
+    struct cut_out_stream *data = stream->data;
+    return data->size;
+}
+
+static
+int cut_out_read(IsoStream *stream, void *buf, size_t count)
+{
+    struct cut_out_stream *data = stream->data;
+    count = (size_t)MIN(data->size - data->pos, count);
+    if (count == 0) {
+        return 0;
+    }
+    return iso_file_source_read(data->src, buf, count);
+}
+
+static
+int cut_out_is_repeatable(IsoStream *stream)
+{
+    /* reg files are always repeatable */
+    return 1;
+}
+
+static
+void cut_out_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
+                ino_t *ino_id)
+{
+    FSrcStreamData *data;
+    IsoFilesystem *fs;
+    
+    data = (FSrcStreamData*)stream->data;
+    fs = iso_file_source_get_filesystem(data->src);
+
+    *fs_id = fs->get_id(fs);
+    *dev_id = data->dev_id;
+    *ino_id = data->ino_id;
+}
+
+static
+void cut_out_free(IsoStream *stream)
+{
+    struct cut_out_stream *data = stream->data;
+    iso_file_source_unref(data->src);
+    free(data);
+}
+
+IsoStreamIface cut_out_stream_class = {
+    0,
+    "cout",
+    cut_out_open,
+    cut_out_close,
+    cut_out_get_size,
+    cut_out_read,
+    cut_out_is_repeatable,
+    cut_out_get_id,
+    cut_out_free
+};
+
+int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size, 
+                           IsoStream **stream)
+{
+    int r;
+    struct stat info;
+    IsoStream *str;
+    struct cut_out_stream *data;
+
+    if (src == NULL || stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (size == 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+
+    r = iso_file_source_stat(src, &info);
+    if (r < 0) {
+        return r;
+    }
+    if (!S_ISREG(info.st_mode)) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (offset > info.st_size) {
+        return ISO_FILE_OFFSET_TOO_BIG;
+    }
+    
+    /* check for read access to contents */
+    r = iso_file_source_access(src);
+    if (r < 0) {
+        return r;
+    }
+
+    str = malloc(sizeof(IsoStream));
+    if (str == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    data = malloc(sizeof(struct cut_out_stream));
+    if (data == NULL) {
+        free(str);
+        return ISO_OUT_OF_MEM;
+    }
+
+    /* take a new ref to IsoFileSource */
+    data->src = src;
+    iso_file_source_ref(src);
+    
+    data->offset = offset;
+    data->size = MIN(info.st_size - offset, size);
+    
+    /* get the id numbers */
+    data->dev_id = (dev_t) 0;
+    data->ino_id = cut_out_serial_id++;
+
+    str->refcount = 1;
+    str->data = data;
+    str->class = &cut_out_stream_class;
+
+    *stream = str;
+    return ISO_SUCCESS;
+}
+
 
 
 typedef struct
@@ -231,7 +419,7 @@ int mem_open(IsoStream *stream)
     }
     data = (MemStreamData*)stream->data;
     if (data->offset != -1) {
-        return ISO_FILE_ALREADY_OPENNED;
+        return ISO_FILE_ALREADY_OPENED;
     }
     data->offset = 0;
     return ISO_SUCCESS;
@@ -246,7 +434,7 @@ int mem_close(IsoStream *stream)
     }
     data = (MemStreamData*)stream->data;
     if (data->offset == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     data->offset = -1;
     return ISO_SUCCESS;
@@ -275,7 +463,7 @@ int mem_read(IsoStream *stream, void *buf, size_t count)
     data = stream->data;
     
     if (data->offset == -1) {
-        return ISO_FILE_NOT_OPENNED;
+        return ISO_FILE_NOT_OPENED;
     }
     
     if (data->offset >= data->size) {
@@ -400,7 +588,12 @@ off_t iso_stream_get_size(IsoStream *stream)
 inline
 int iso_stream_read(IsoStream *stream, void *buf, size_t count)
 {
-    return stream->class->read(stream, buf, count);
+    int ret;
+
+    ret= stream->class->read(stream, buf, count);
+    if(ret<0)
+        return ISO_FILE_READ_ERROR;
+    return ret;
 }
 
 inline
