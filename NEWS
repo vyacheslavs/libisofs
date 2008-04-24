@@ -1,9 +1,10 @@
-== unknown ==
+== Thu Apr 24 2008 ==
 
 Libisofs v0.6.4
 ===============
 
--
+- Lots of bugfixes
+- Exposed IsoStream
 
 == Fri Feb 22 2008 ==
 
