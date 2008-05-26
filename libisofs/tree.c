@@ -938,6 +938,7 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
     while (component) {
         if (n->type != LIBISO_DIR) {
             n = NULL;
+            result = 0;
             break;
         }
         dir = (IsoDir *)n;
