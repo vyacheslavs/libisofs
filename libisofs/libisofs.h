@@ -2494,6 +2494,16 @@ int iso_file_get_sort_weight(IsoFile *file);
 off_t iso_file_get_size(IsoFile *file);
 
 /**
+ * Get the device id (major/minor numbers) of the given block or
+ * character device file. The result is undefined for other kind
+ * of special files, of first be sure iso_node_get_mode() returns either
+ * S_IFBLK or S_IFCHR.
+ *
+ * @since 0.6.6
+ */
+dev_t iso_special_get_dev(IsoSpecial *special);
+
+/**
  * Get the IsoStream that represents the contents of the given IsoFile.
  * 
  * If you open() the stream, it should be close() before image generation.
