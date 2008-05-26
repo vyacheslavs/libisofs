@@ -414,6 +414,6 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
     }
 
     st->st_rdev = (dev_t)((dev_t)iso_read_bb(pn->data.PN.high, 4, NULL) << 32)
-                  || (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
+                  | (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
     return ISO_SUCCESS;
 }
