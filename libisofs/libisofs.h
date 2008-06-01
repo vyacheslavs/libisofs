@@ -1224,30 +1224,44 @@ int iso_write_opts_set_appendable(IsoWriteOpts *opts, int appendable);
 int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
 
 /**
- * Sets the buffer where to store the descriptors that need to be written
- * at the beginning of a overwriteable media to grow the image. 
- * 
- * @param overwrite
- *      When not NULL, it should point to a buffer of at least 64KiB, where 
- *      libisofs will write the contents that should be written at the 
- *      beginning of a overwriteable media, to grow the image. The growing 
- *      of an image is a way, used by first time in growisofs by Andy Polyakov,
- *      to allow the appending of new data to non-multisession media, such 
- *      as DVD+RW, in the same way you append a new session to a multisession 
- *      disc, i.e., without need to write again the contents of the previous 
- *      image.   
- * 
- * Note that if you want this kind of image growing, you will also need to
- * set appendable to "1" and provide a valid ms_block after the previous
+ * Sets the buffer where to store the descriptors which shall to be written
+ * at the beginning of an overwriteable media to point to the newly written
  * image.
- * 
- * You should initialize the buffer either with 0s, or with the contents of 
- * the first blocks of the image you're growing. In most cases, 0 is good 
- * enought. 
- * 
- * If you don't need this information, for example because you're creating a
- * new image from scratch of because you will create an image for a true
- * multisession media, just don't set this buffer or set it to NULL.
+ * This is needed if the write start address of the image is not 0.
+ * In this case the first 64 KiB of the media have to be overwritten
+ * by the buffer content after the session was written and the buffer
+ * was updated by libisofs. Otherwise the new session would not be
+ * found by operating system function mount() or by libisoburn.
+ * (One could still mount that session if its start address is known.)
+ *
+ * If you do not need this information, for example because you are creating a
+ * new image for LBA 0 or because you will create an image for a true
+ * multisession media, just do not use this call or set buffer to NULL.
+ *
+ * Use cases:
+ *
+ * - Together with iso_write_opts_set_appendable(opts, 1) the buffer serves
+ *   for the growing of an image as done in growisofs by Andy Polyakov.
+ *   This allows appending of a new session to non-multisession media, such
+ *   as DVD+RW. The new session will refer to the data of previous sessions
+ *   on the same media.
+ *   libisoburn emulates multisession appendability on overwriteable media
+ *   and disk files by performing this use case.
+ *
+ * - Together with iso_write_opts_set_appendable(opts, 0) the buffer allows
+ *   to write the first session on overwriteable media to start addresses
+ *   other than 0.
+ *   libisoburn in most cases writes the first session on overwriteable media
+ *   and disk files to LBA 32 in order to preserve its descriptors from the
+ *   subsequent overwriting by the descriptor buffer of later sessions.
+ *
+ * @param buffer
+ *      When not NULL, it should point to at least 64KiB of memory, where
+ *      libisofs will install the contents that shall be written at the
+ *      beginning of overwriteable media.
+ *      You should initialize the buffer either with 0s, or with the contents
+ *      of the first 32 blocks of the image you are growing. In most cases,
+ *      0 is good enought.
  *
  * @since 0.6.2
  */
@@ -2492,6 +2506,16 @@ int iso_file_get_sort_weight(IsoFile *file);
  * @since 0.6.2
  */
 off_t iso_file_get_size(IsoFile *file);
+
+/**
+ * Get the device id (major/minor numbers) of the given block or
+ * character device file. The result is undefined for other kind
+ * of special files, of first be sure iso_node_get_mode() returns either
+ * S_IFBLK or S_IFCHR.
+ *
+ * @since 0.6.6
+ */
+dev_t iso_special_get_dev(IsoSpecial *special);
 
 /**
  * Get the IsoStream that represents the contents of the given IsoFile.

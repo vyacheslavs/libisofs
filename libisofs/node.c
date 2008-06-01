@@ -907,6 +907,19 @@ IsoStream *iso_file_get_stream(IsoFile *file)
 }
 
 /**
+ * Get the device id (major/minor numbers) of the given block or
+ * character device file. The result is undefined for other kind
+ * of special files, of first be sure iso_node_get_mode() returns either
+ * S_IFBLK or S_IFCHR.
+ *
+ * @since 0.6.6
+ */
+dev_t iso_special_get_dev(IsoSpecial *special)
+{
+    return special->dev;
+}
+
+/**
  * Get the block lba of a file node, if it was imported from an old image.
  * 
  * @param file
