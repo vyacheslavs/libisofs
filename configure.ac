@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [0.6.4], [http://libburnia-project.org])
+AC_INIT([libisofs], [0.6.6], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
