@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -90,10 +90,10 @@ size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
 /**
  * Computes the total size of all directory entries of a single dir,
  * acording to ECMA-119 6.8.1.1
- * 
+ *
  * This also take into account the size needed for RR entries and
  * SUSP continuation areas (SUSP, 5.1).
- * 
+ *
  * @param ce
  *      Will be filled with the size needed for Continuation Areas
  * @return
@@ -131,10 +131,10 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
             len += dirent_len;
         }
     }
-    
+
     /*
-     * The size of a dir is always a multiple of block size, as we must add 
-     * the size of the unused space after the last directory record 
+     * The size of a dir is always a multiple of block size, as we must add
+     * the size of the unused space after the last directory record
      * (ECMA-119, 6.8.1.3)
      */
     len = ROUND_UP(len, BLOCK_SIZE);
@@ -222,24 +222,26 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
 
 /**
  * Write a single directory record (ECMA-119, 9.1)
- * 
+ *
  * @param file_id
  *     if >= 0, we use it instead of the filename (for "." and ".." entries).
  * @param len_fi
  *     Computed length of the file identifier. Total size of the directory
  *     entry will be len + 33 + padding if needed (ECMA-119, 9.1.12)
  * @param info
- *     SUSP entries for the given directory record. It will be NULL for the 
- *     root directory record in the PVD (ECMA-119, 8.4.18) (in order to 
+ *     SUSP entries for the given directory record. It will be NULL for the
+ *     root directory record in the PVD (ECMA-119, 8.4.18) (in order to
  *     distinguish it from the "." entry in the root directory)
  */
 static
 void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
-                          uint8_t *buf, size_t len_fi, struct susp_info *info)
+                          uint8_t *buf, size_t len_fi, struct susp_info *info,
+                          int extent)
 {
     uint32_t len;
     uint32_t block;
     uint8_t len_dr; /*< size of dir entry without SUSP fields */
+	int multi_extend = 0;
     uint8_t *name = (file_id >= 0) ? (uint8_t*)&file_id
             : (uint8_t*)node->iso_name;
 
@@ -260,12 +262,21 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
         len = node->info.dir->len;
         block = node->info.dir->block;
     } else if (node->type == ECMA119_FILE) {
-        len = iso_file_src_get_size(node->info.file);
-        block = node->info.file->block;
+        off_t size = iso_file_src_get_size(node->info.file)
+                     - ((off_t)0xFFFFF800) * (off_t)extent; /* bytes in another extent */
+        if (size > (off_t) 0xffffffff) {
+            /* 2097151 is the number of blocks needed to store 4 GB - 2048 */
+            block = node->info.file->block + extent * 2097151;
+            len = 0xFFFFF800;
+            multi_extend = 1;
+        } else {
+            len = (uint32_t) size;
+            block = node->info.file->block;
+        }
     } else {
-        /* 
-         * for nodes other than files and dirs, we set both 
-         * len and block to 0 
+        /*
+         * for nodes other than files and dirs, we set both
+         * len and block to 0
          */
         len = 0;
         block = 0;
@@ -281,7 +292,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
     iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
-    rec->flags[0] = (node->type == ECMA119_DIR) ? 2 : 0;
+    rec->flags[0] = ((node->type == ECMA119_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
 
@@ -365,7 +376,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     iso_lsb(vol.l_path_table_pos, t->l_path_table_pos, 4);
     iso_msb(vol.m_path_table_pos, t->m_path_table_pos, 4);
 
-    write_one_dir_record(t, t->root, 0, vol.root_dir_record, 1, NULL);
+    write_one_dir_record(t, t->root, 0, vol.root_dir_record, 1, NULL, 0);
 
     strncpy_pad((char*)vol.vol_set_id, volset_id, 128);
     strncpy_pad((char*)vol.publisher_id, pub_id, 128);
@@ -410,14 +421,14 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     /* initialize buffer with 0s */
     memset(buffer, 0, BLOCK_SIZE);
 
-    /* 
+    /*
      * set susp_info to 0's, this way code for both plain ECMA-119 and
      * RR is very similar
      */
     memset(&info, 0, sizeof(struct susp_info));
     if (t->rockridge) {
         /* initialize the ce_block, it might be needed */
-        info.ce_block = dir->info.dir->block + DIV_UP(dir->info.dir->len, 
+        info.ce_block = dir->info.dir->block + DIV_UP(dir->info.dir->len,
                                                       BLOCK_SIZE);
     }
 
@@ -429,7 +440,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         }
     }
     len = 34 + info.suf_len;
-    write_one_dir_record(t, dir, 0, buf, 1, &info);
+    write_one_dir_record(t, dir, 0, buf, 1, &info, 0);
     buf += len;
 
     if (t->rockridge) {
@@ -439,40 +450,57 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         }
     }
     len = 34 + info.suf_len;
-    write_one_dir_record(t, dir, 1, buf, 1, &info);
+    write_one_dir_record(t, dir, 1, buf, 1, &info, 0);
     buf += len;
 
     for (i = 0; i < dir->info.dir->nchildren; i++) {
         Ecma119Node *child = dir->info.dir->children[i];
 
-        /* compute len of directory entry */
-        fi_len = strlen(child->iso_name);
-        len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
-        if (need_version_number(t, child)) {
-            len += 2;
-        }
+        int extent = 0;
+        do {
 
-        /* get the SUSP fields if rockridge is enabled */
-        if (t->rockridge) {
-            ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
-            if (ret < 0) {
-                return ret;
+            /* compute len of directory entry */
+            fi_len = strlen(child->iso_name);
+            len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
+            if (need_version_number(t, child)) {
+                len += 2;
             }
-            len += info.suf_len;
-        }
 
-        if ( (buf + len - buffer) > BLOCK_SIZE) {
-            /* dir doesn't fit in current block */
-            ret = iso_write(t, buffer, BLOCK_SIZE);
-            if (ret < 0) {
-                return ret;
+            /* get the SUSP fields if rockridge is enabled */
+            if (t->rockridge) {
+                ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
+                if (ret < 0) {
+                    return ret;
+                }
+                len += info.suf_len;
             }
-            memset(buffer, 0, BLOCK_SIZE);
-            buf = buffer;
-        }
-        /* write the directory entry in any case */
-        write_one_dir_record(t, child, -1, buf, fi_len, &info);
-        buf += len;
+
+            if ( (buf + len - buffer) > BLOCK_SIZE) {
+                /* dir doesn't fit in current block */
+                ret = iso_write(t, buffer, BLOCK_SIZE);
+                if (ret < 0) {
+                    return ret;
+                }
+                memset(buffer, 0, BLOCK_SIZE);
+                buf = buffer;
+            }
+            /* write the directory entry in any case */
+            write_one_dir_record(t, child, -1, buf, fi_len, &info, extent);
+            buf += len;
+
+            if (child->type == ECMA119_FILE) {
+                /* check if file is too big and need more extents */
+                off_t size = iso_file_src_get_size(child->info.file)
+                             - ((off_t)0xFFFFF800) * (off_t)extent;
+                if (size > (off_t) 0xffffffff) {
+                    extent++;
+                } else {
+                    break;
+                }
+            } else {
+                break; /* we only have a single extent */
+            }
+        } while(1); /* loop for each extend */
     }
 
     /* write the last block */
@@ -709,7 +737,7 @@ int pad_writer_write_data(IsoImageWriter *writer)
         return ISO_ASSERT_FAILURE;
     }
     t = writer->target;
-    
+
     if (t->pad_blocks == 0) {
         return ISO_SUCCESS;
     }
@@ -820,7 +848,7 @@ void *write_function(void *arg)
         iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED, 0, NULL);
     } else {
         /* image write error */
-        iso_msg_submit(target->image->id, ISO_WRITE_ERROR, res, 
+        iso_msg_submit(target->image->id, ISO_WRITE_ERROR, res,
                    "Image write error");
     }
     iso_ring_buffer_writer_close(target->buffer, 1);
@@ -855,7 +883,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->iso1999 = opts->iso1999;
     target->always_gmt = opts->always_gmt;
     target->ino = 0;
-    target->omit_version_numbers = opts->omit_version_numbers 
+    target->omit_version_numbers = opts->omit_version_numbers
                                  | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;
     target->allow_longer_paths = opts->allow_longer_paths;
@@ -882,7 +910,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->appendable = opts->appendable;
 
     target->replace_timestamps = opts->replace_timestamps ? 1 : 0;
-    target->timestamp = opts->replace_timestamps == 2 ? 
+    target->timestamp = opts->replace_timestamps == 2 ?
                         opts->timestamp : target->now;
 
     /* el-torito? */
@@ -909,10 +937,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         return ISO_OUT_OF_MEM;
     }
 
-    /* 
+    /*
      * 2. Based on those options, create needed writers: iso, joliet...
      * Each writer inits its structures and stores needed info into
-     * target. 
+     * target.
      * If the writer needs an volume descriptor, it increments image
      * current block.
      * Finally, create Writer for files.
@@ -944,7 +972,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (ret < 0) {
         goto target_cleanup;
     }
-    
+
     /* create writer for El-Torito */
     if (target->eltorito) {
         ret = eltorito_writer_create(target);
@@ -952,7 +980,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
-    
+
     /* create writer for Joliet structure */
     if (target->joliet) {
         ret = joliet_writer_create(target);
@@ -960,7 +988,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
-    
+
     /* create writer for ISO 9660:1999 structure */
     if (target->iso1999) {
         ret = iso1999_writer_create(target);
@@ -970,11 +998,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
 
     voldesc_size = target->curblock - target->ms_block - 16;
-    
+
     /* Volume Descriptor Set Terminator */
     target->curblock++;
 
-    /* 
+    /*
      * Create the writer for possible padding to ensure that in case of image
      * growing we can safety overwrite the first 64 KiB of image.
      */
@@ -990,7 +1018,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
 
     /*
-     * 3. 
+     * 3.
      * Call compute_data_blocks() in each Writer.
      * That function computes the size needed by its structures and
      * increments image current block propertly.
@@ -1130,14 +1158,14 @@ static void bs_free_data(struct burn_source *bs)
     if (st < 4) {
         /* forces writer to stop if it is still running */
         iso_ring_buffer_reader_close(target->buffer, 0);
-    
+
         /* wait until writer thread finishes */
         pthread_join(target->wthread, NULL);
         iso_msg_debug(target->image->id, "Writer thread joined");
     }
-    
-    iso_msg_debug(target->image->id, 
-                  "Ring buffer was %d times full and %d times empty", 
+
+    iso_msg_debug(target->image->id,
+                  "Ring buffer was %d times full and %d times empty",
                   iso_ring_buffer_get_times_full(target->buffer),
                   iso_ring_buffer_get_times_empty(target->buffer));
 
@@ -1153,9 +1181,9 @@ int bs_cancel(struct burn_source *bs)
     Ecma119Image *target = (Ecma119Image*)bs->data;
 
     st = iso_ring_buffer_get_status(bs, &cap, &free);
-    
+
     if (free == cap && (st == 2 || st == 3)) {
-        /* image was already consumed */ 
+        /* image was already consumed */
         iso_ring_buffer_reader_close(target->buffer, 0);
     } else {
         iso_msg_debug(target->image->id, "Reader thread being cancelled");
@@ -1176,7 +1204,7 @@ int bs_set_size(struct burn_source *bs, off_t size)
 {
     Ecma119Image *target = (Ecma119Image*)bs->data;
 
-    /* 
+    /*
      * just set the value to be returned by get_size. This is not used at
      * all by libisofs, it is here just for helping libburn to correctly pad
      * the image if needed.
@@ -1235,12 +1263,12 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
     if (ret > 0 && (target->total_size != (off_t) 0)){
         unsigned int kbw, kbt;
         int percent;
-        
+
         target->bytes_written += (off_t) count;
         kbw = (unsigned int) (target->bytes_written >> 10);
         kbt = (unsigned int) (target->total_size >> 10);
         percent = (kbw * 100) / kbt;
-        
+
         /* only report in 5% chunks */
         if (percent >= target->percent_written + 5) {
             iso_msg_debug(target->image->id, "Processed %u of %u KB (%d %%)",
@@ -1248,26 +1276,26 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
             target->percent_written = percent;
         }
     }
-    
+
     return ret;
 }
 
 int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 {
     IsoWriteOpts *wopts;
-    
+
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
     if (profile < 0 || profile > 2) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     wopts = calloc(1, sizeof(IsoWriteOpts));
     if (wopts == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    
+
     switch (profile) {
     case 0:
         wopts->level = 1;
@@ -1305,7 +1333,7 @@ void iso_write_opts_free(IsoWriteOpts *opts)
     if (opts == NULL) {
         return;
     }
-    
+
     free(opts->output_charset);
     free(opts);
 }
@@ -1315,7 +1343,7 @@ int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level)
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    if (level != 1 && level != 2) {
+    if (level != 1 && level != 2 && level != 3) {
         return ISO_WRONG_ARG_VALUE;
     }
     opts->level = level;
