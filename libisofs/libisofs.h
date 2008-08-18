@@ -108,6 +108,17 @@ enum IsoNodeType {
 #define ISO_NODE(n) ((IsoNode*)n)
 
 /**
+ * File section in an old image.
+ *
+ * @since 0.6.8
+ */
+struct iso_file_section
+{
+    uint32_t block;
+    uint32_t size;
+};
+
+/**
  * Context for iterate on directory children.
  * @see iso_dir_get_children()
  *

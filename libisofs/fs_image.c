@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -48,8 +48,8 @@
  */
 struct iso_read_opts
 {
-    /** 
-     * Block where the image begins, usually 0, can be different on a 
+    /**
+     * Block where the image begins, usually 0, can be different on a
      * multisession disc.
      */
     uint32_t block;
@@ -58,18 +58,18 @@ struct iso_read_opts
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
 
-    /** 
-     * When both Joliet and RR extensions are present, the RR tree is used. 
-     * If you prefer using Joliet, set this to 1. 
+    /**
+     * When both Joliet and RR extensions are present, the RR tree is used.
+     * If you prefer using Joliet, set this to 1.
      */
-    unsigned int preferjoliet : 1; 
-    
+    unsigned int preferjoliet : 1;
+
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
     mode_t dir_mode; /**< Default mode when no RR (only permissions) */
     mode_t file_mode;
     /* TODO #00024 : option to convert names to lower case for iso reading */
-    
+
     /**
      * Input charset for RR file names. NULL to use default locale charset.
      */
@@ -78,14 +78,14 @@ struct iso_read_opts
 
 /**
  * Return information for image.
- * Both size, hasRR and hasJoliet will be filled by libisofs with suitable 
+ * Both size, hasRR and hasJoliet will be filled by libisofs with suitable
  * values.
  */
 struct iso_read_image_features
 {
-    /** 
-     * Will be filled with the size (in 2048 byte block) of the image, as 
-     * reported in the PVM. 
+    /**
+     * Will be filled with the size (in 2048 byte block) of the image, as
+     * reported in the PVM.
      */
     uint32_t size;
 
@@ -95,9 +95,9 @@ struct iso_read_image_features
     /** It will be set to 1 if Joliet extensions are present, to 0 if not. */
     unsigned int hasJoliet :1;
 
-    /** 
+    /**
      * It will be set to 1 if the image is an ISO 9660:1999, i.e. it has
-     * a version 2 Enhanced Volume Descriptor. 
+     * a version 2 Enhanced Volume Descriptor.
      */
     unsigned int hasIso1999 :1;
 
@@ -107,8 +107,8 @@ struct iso_read_image_features
 
 static int ifs_fs_open(IsoImageFilesystem *fs);
 static int ifs_fs_close(IsoImageFilesystem *fs);
-static int iso_file_source_new_ifs(IsoImageFilesystem *fs, 
-           IsoFileSource *parent, struct ecma119_dir_record *record, 
+static int iso_file_source_new_ifs(IsoImageFilesystem *fs,
+           IsoFileSource *parent, struct ecma119_dir_record *record,
            IsoFileSource **src);
 
 /** unique identifier for each image */
@@ -130,14 +130,14 @@ typedef struct
 {
     /** DataSource from where data will be read */
     IsoDataSource *src;
-    
+
     /** unique id for the each image (filesystem instance) */
     unsigned int id;
 
-    /** 
+    /**
      * Counter of the times the filesystem has been openned still pending of
-     * close. It is used to keep track of when we need to actually open or 
-     * close the IsoDataSource. 
+     * close. It is used to keep track of when we need to actually open or
+     * close the IsoDataSource.
      */
     unsigned int open_count;
 
@@ -151,7 +151,7 @@ typedef struct
     char *input_charset; /**< Input charset for RR names */
     char *local_charset; /**< For RR names, will be set to the locale one */
 
-    /** 
+    /**
      * Will be filled with the block lba of the extend for the root directory
      * of the hierarchy that will be read, either from the PVD (ISO, RR) or
      * from the SVD (Joliet)
@@ -177,14 +177,14 @@ typedef struct
     uint32_t evd_root_block;
 
     /**
-     * If we need to read RR extensions. i.e., if the image contains RR 
-     * extensions, and the user wants to read them. 
+     * If we need to read RR extensions. i.e., if the image contains RR
+     * extensions, and the user wants to read them.
      */
     enum read_rr_ext rr;
 
     /**
-     * Bytes skipped within the System Use field of a directory record, before 
-     * the beginning of the SUSP system user entries. See IEEE 1281, SUSP. 5.3. 
+     * Bytes skipped within the System Use field of a directory record, before
+     * the beginning of the SUSP system user entries. See IEEE 1281, SUSP. 5.3.
      */
     uint8_t len_skp;
 
@@ -206,10 +206,10 @@ typedef struct
      * 0 no RR extension, 1 RRIP 1.10, 2 RRIP 1.12
      */
     enum read_rr_ext rr_version;
-    
+
     /** If Joliet extensions are available on image */
     unsigned int joliet : 1;
-    
+
     /** If ISO 9660:1999 is available on image */
     unsigned int iso1999 : 1;
 
@@ -236,18 +236,23 @@ struct image_fs_data
 {
     IsoImageFilesystem *fs; /**< reference to the image it belongs to */
     IsoFileSource *parent; /**< reference to the parent (NULL if root) */
-    
+
     struct stat info; /**< filled struct stat */
     char *name; /**< name of this file */
-    
-    uint32_t block; /**< block of the extend */
+
+    /**
+     * Location of file extents.
+     */
+    struct iso_file_section *sections;
+    int nsections;
+
     unsigned int opened : 2; /**< 0 not opened, 1 opened file, 2 opened dir */
-    
+
     /* info for content reading */
-    struct 
+    struct
     {
         /**
-         * - For regular files, once opened it points to a temporary data 
+         * - For regular files, once opened it points to a temporary data
          *   buffer of 2048 bytes.
          * - For dirs, once opened it points to a IsoFileSource* array with
          *   its children
@@ -285,7 +290,7 @@ char* ifs_get_path(IsoFileSource *src)
 {
     ImageFileSourceData *data;
     data = src->data;
-    
+
     if (data->parent == NULL) {
         return strdup("");
     } else {
@@ -324,15 +329,15 @@ static
 int ifs_stat(IsoFileSource *src, struct stat *info)
 {
     ImageFileSourceData *data;
-        
+
     if (src == NULL || info == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
     }
 
     data = (ImageFileSourceData*)src->data;
-    
+
     if (S_ISLNK(data->info.st_mode)) {
-        /* TODO #00012 : support follow symlinks on image filesystem */ 
+        /* TODO #00012 : support follow symlinks on image filesystem */
         return ISO_FILE_BAD_PATH;
     }
     *info = data->info;
@@ -349,7 +354,7 @@ int ifs_access(IsoFileSource *src)
 /**
  * Read all directory records in a directory, and creates an IsoFileSource for
  * each of them, storing them in the data field of the IsoFileSource for the
- * given dir. 
+ * given dir.
  */
 static
 int read_dir(ImageFileSourceData *data)
@@ -372,7 +377,8 @@ int read_dir(ImageFileSourceData *data)
     fs = data->fs;
     fsdata = fs->data;
 
-    block = data->block;
+    /* a dir has always a single extent */
+    block = data->sections[0].block;
     ret = fsdata->src->read_block(fsdata->src, block, buffer);
     if (ret < 0) {
         return ret;
@@ -393,9 +399,9 @@ int read_dir(ImageFileSourceData *data)
 
         record = (struct ecma119_dir_record *)(buffer + pos);
         if (pos == 2048 || record->len_dr[0] == 0) {
-            /* 
+            /*
              * The directory entries are splitted in several blocks
-             * read next block 
+             * read next block
              */
             ret = fsdata->src->read_block(fsdata->src, ++block, buffer);
             if (ret < 0) {
@@ -415,12 +421,12 @@ int read_dir(ImageFileSourceData *data)
         /*
          * For a extrange reason, mkisofs relocates directories under
          * a RR_MOVED dir. It seems that it is only used for that purposes,
-         * and thus it should be removed from the iso tree before 
+         * and thus it should be removed from the iso tree before
          * generating a new image with libisofs, that don't uses it.
          */
         if (data->parent == NULL && record->len_fi[0] == 8
             && !strncmp((char*)record->file_id, "RR_MOVED", 8)) {
-            
+
             iso_msg_debug(fsdata->msgid, "Skipping RR_MOVE entry.");
 
             tlen += record->len_dr[0];
@@ -429,16 +435,26 @@ int read_dir(ImageFileSourceData *data)
         }
 
         /*
-         * We pass a NULL parent instead of dir, to prevent the circular 
+         * We pass a NULL parent instead of dir, to prevent the circular
          * reference from child to parent.
          */
         ret = iso_file_source_new_ifs(fs, NULL, record, &child);
         if (ret < 0) {
+            if (child) {
+                /*
+                 * This can only happen with multi-extent files.
+                 */
+                ImageFileSourceData *ifsdata = child->data;
+                free(ifsdata->sections);
+                free(ifsdata->name);
+                free(ifsdata);
+                free(child);
+            }
             return ret;
         }
 
         /* add to the child list */
-        if (ret != 0) {
+        if (ret == 1) {
             struct child_list *node;
             node = malloc(sizeof(struct child_list));
             if (node == NULL) {
@@ -453,8 +469,9 @@ int read_dir(ImageFileSourceData *data)
             node->next = data->data.content;
             node->file = child;
             data->data.content = node;
+            child = NULL;
         }
-        
+
         tlen += record->len_dr[0];
         pos += record->len_dr[0];
     }
@@ -467,7 +484,7 @@ int ifs_open(IsoFileSource *src)
 {
     int ret;
     ImageFileSourceData *data;
-    
+
     if (src == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -476,29 +493,29 @@ int ifs_open(IsoFileSource *src)
     if (data->opened) {
         return ISO_FILE_ALREADY_OPENED;
     }
-    
+
     if (S_ISDIR(data->info.st_mode)) {
         /* ensure fs is openned */
         ret = data->fs->open(data->fs);
         if (ret < 0) {
             return ret;
         }
-        
-        /* 
-         * Cache all directory entries. 
+
+        /*
+         * Cache all directory entries.
          * This can waste more memory, but improves as disc is read in much more
          * sequencially way, thus reducing jump between tracks on disc
          */
         ret = read_dir(data);
         data->fs->close(data->fs);
-        
+
         if (ret < 0) {
             /* free probably allocated children */
             child_list_free((struct child_list*)data->data.content);
         } else {
             data->opened = 2;
         }
-        
+
         return ret;
     } else if (S_ISREG(data->info.st_mode)) {
         /* ensure fs is openned */
@@ -523,20 +540,20 @@ static
 int ifs_close(IsoFileSource *src)
 {
     ImageFileSourceData *data;
-    
+
     if (src == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
     }
     data = (ImageFileSourceData*)src->data;
-    
+
     if (!data->opened) {
         return ISO_FILE_NOT_OPENED;
     }
-    
+
     if (data->opened == 2) {
-        /* 
+        /*
          * close a dir, free all pending pre-allocated children.
-         * not that we don't need to close the filesystem, it was already 
+         * not that we don't need to close the filesystem, it was already
          * closed
          */
         child_list_free((struct child_list*) data->data.content);
@@ -552,19 +569,89 @@ int ifs_close(IsoFileSource *src)
         /* TODO only dirs and files supported for now */
         return ISO_ERROR;
     }
-    
+
     return ISO_SUCCESS;
+}
+
+/**
+ * Computes the block where the given offset should start.
+ */
+static
+uint32_t block_from_offset(int nsections, struct iso_file_section *sections,
+                           off_t offset)
+{
+    int section = 0;
+    off_t bytes = 0;
+
+    do {
+        if ( (offset - bytes) < (off_t) sections[section].size ) {
+            return sections[section].block + (offset - bytes) / BLOCK_SIZE;
+        } else {
+            bytes += (off_t) sections[section].size;
+            section++;
+        }
+
+    } while(section < nsections);
+    return 0; /* should never happen */
+}
+
+/**
+ * Get the size available for reading on the corresponding block
+ */
+static
+uint32_t size_available(int nsections, struct iso_file_section *sections,
+                           off_t offset)
+{
+    int section = 0;
+    off_t bytes = 0;
+
+    do {
+        if ( (offset - bytes) < (off_t) sections[section].size ) {
+            uint32_t curr_section_offset = (uint32_t)(offset - bytes);
+            uint32_t curr_section_left = sections[section].size - curr_section_offset;
+            uint32_t available = BLOCK_SIZE - curr_section_offset % BLOCK_SIZE;
+            return MIN(curr_section_left, available);
+        } else {
+            bytes += (off_t) sections[section].size;
+            section++;
+        }
+
+    } while(section < nsections);
+    return 0; /* should never happen */
+}
+
+/**
+ * Get the block offset for reading the given file offset
+ */
+static
+uint32_t block_offset(int nsections, struct iso_file_section *sections,
+                      off_t offset)
+{
+    int section = 0;
+    off_t bytes = 0;
+
+
+    do {
+        if ( (offset - bytes) < (off_t) sections[section].size ) {
+            return (uint32_t)(offset - bytes) % BLOCK_SIZE;
+        } else {
+            bytes += (off_t) sections[section].size;
+            section++;
+        }
+
+    } while(section < nsections);
+    return 0; /* should never happen */
 }
 
 /**
  * Attempts to read up to count bytes from the given source into
  * the buffer starting at buf.
- * 
- * The file src must be open() before calling this, and close() when no 
+ *
+ * The file src must be open() before calling this, and close() when no
  * more needed. Not valid for dirs. On symlinks it reads the destination
  * file.
- * 
- * @return 
+ *
+ * @return
  *     number of bytes read, 0 if EOF, < 0 on error
  *      Error codes:
  *         ISO_FILE_ERROR
@@ -580,7 +667,7 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
     int ret;
     ImageFileSourceData *data;
     uint32_t read = 0;
-    
+
     if (src == NULL || src->data == NULL || buf == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -588,43 +675,44 @@ int ifs_read(IsoFileSource *src, void *buf, size_t count)
         return ISO_WRONG_ARG_VALUE;
     }
     data = (ImageFileSourceData*)src->data;
-    
+
     if (!data->opened) {
         return ISO_FILE_NOT_OPENED;
     } else if (data->opened != 1) {
         return ISO_FILE_IS_DIR;
     }
-    
+
     while (read < count && data->data.offset < data->info.st_size) {
         size_t bytes;
         uint8_t *orig;
-        
-        if (data->data.offset % BLOCK_SIZE == 0) {
+
+        if (block_offset(data->nsections, data->sections, data->data.offset) == 0) {
             /* we need to buffer next block */
             uint32_t block;
             _ImageFsData *fsdata;
-            
+
             if (data->data.offset >= data->info.st_size) {
                 /* EOF */
                 break;
             }
             fsdata = data->fs->data;
-            block = data->block + (data->data.offset / BLOCK_SIZE);
-            ret = fsdata->src->read_block(fsdata->src, block, 
+            block = block_from_offset(data->nsections, data->sections,
+                                      data->data.offset);
+            ret = fsdata->src->read_block(fsdata->src, block,
                                           data->data.content);
             if (ret < 0) {
                 return ret;
             }
         }
-        
+
         /* how much can I read */
-        bytes = MIN(BLOCK_SIZE - (data->data.offset % BLOCK_SIZE), 
+        bytes = MIN(size_available(data->nsections, data->sections, data->data.offset),
                     count - read);
         if (data->data.offset + (off_t)bytes > data->info.st_size) {
              bytes = data->info.st_size - data->data.offset;
         }
         orig = data->data.content;
-        orig += data->data.offset % BLOCK_SIZE;
+        orig += block_offset(data->nsections, data->sections, data->data.offset);
         memcpy((uint8_t*)buf + read, orig, bytes);
         read += bytes;
         data->data.offset += (off_t)bytes;
@@ -643,9 +731,9 @@ off_t ifs_lseek(IsoFileSource *src, off_t offset, int flag)
     if (offset < (off_t)0) {
         return (off_t)ISO_WRONG_ARG_VALUE;
     }
-    
+
     data = src->data;
-    
+
     if (!data->opened) {
         return (off_t)ISO_FILE_NOT_OPENED;
     } else if (data->opened != 1) {
@@ -666,17 +754,22 @@ off_t ifs_lseek(IsoFileSource *src, off_t offset, int flag)
     default:
         return (off_t)ISO_WRONG_ARG_VALUE;
     }
-    
-    if (data->data.offset % BLOCK_SIZE != 0) {
+
+    /*
+     * We check for block_offset != 0 because if it is already 0, the block
+     * will be read from image in the read function
+     */
+    if (block_offset(data->nsections, data->sections, data->data.offset) != 0) {
         /* we need to buffer the block */
         uint32_t block;
         _ImageFsData *fsdata;
-        
+
         if (data->data.offset < data->info.st_size) {
             int ret;
             fsdata = data->fs->data;
-            block = data->block + (data->data.offset / BLOCK_SIZE);
-            ret = fsdata->src->read_block(fsdata->src, block, 
+            block = block_from_offset(data->nsections, data->sections,
+                                      data->data.offset);
+            ret = fsdata->src->read_block(fsdata->src, block,
                                           data->data.content);
             if (ret < 0) {
                 return (off_t)ret;
@@ -691,31 +784,31 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
 {
     ImageFileSourceData *data, *cdata;
     struct child_list *children;
-    
+
     if (src == NULL || src->data == NULL || child == NULL) {
         return ISO_NULL_POINTER;
     }
     data = (ImageFileSourceData*)src->data;
-    
+
     if (!data->opened) {
         return ISO_FILE_NOT_OPENED;
     } else if (data->opened != 2) {
         return ISO_FILE_IS_NOT_DIR;
     }
-    
+
     /* return the first child and free it */
     if (data->data.content == NULL) {
         return 0; /* EOF */
     }
-    
+
     children = (struct child_list*)data->data.content;
     *child = children->file;
     cdata = (ImageFileSourceData*)(*child)->data;
-    
+
     /* set the ref to the parent */
     cdata->parent = src;
     iso_file_source_ref(src);
-    
+
     /* free the first element of the list */
     data->data.content = children->next;
     free(children);
@@ -726,14 +819,14 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
 /**
  * Read the destination of a symlink. You don't need to open the file
  * to call this.
- * 
- * @param buf 
- *     allocated buffer of at least bufsiz bytes. 
+ *
+ * @param buf
+ *     allocated buffer of at least bufsiz bytes.
  *     The dest. will be copied there, and it will be NULL-terminated
  * @param bufsiz
  *     characters to be copied. Destination link will be truncated if
  *     it is larger than given size. This include the \0 character.
- * @return 
+ * @return
  *     1 on success, < 0 on error
  *      Error codes:
  *         ISO_FILE_ERROR
@@ -743,7 +836,7 @@ int ifs_readdir(IsoFileSource *src, IsoFileSource **child)
  *         ISO_OUT_OF_MEM
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
- * 
+ *
  */
 static
 int ifs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
@@ -751,30 +844,30 @@ int ifs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
     char *dest;
     size_t len;
     ImageFileSourceData *data;
-    
+
     if (src == NULL || buf == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     if (bufsiz <= 0) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     data = (ImageFileSourceData*)src->data;
-    
+
     if (!S_ISLNK(data->info.st_mode)) {
         return ISO_FILE_IS_NOT_SYMLINK;
     }
-    
+
     dest = (char*)data->data.content;
     len = strlen(dest);
     if (bufsiz <= len) {
         len = bufsiz - 1;
     }
-    
+
     strncpy(buf, dest, len);
     buf[len] = '\0';
-    
+
     return ISO_SUCCESS;
 }
 
@@ -811,11 +904,13 @@ void ifs_free(IsoFileSource *src)
     if (data->parent != NULL) {
         iso_file_source_unref(data->parent);
     }
+
+    free(data->sections);
     free(data->name);
     free(data);
 }
 
-IsoFileSourceIface ifs_class = { 
+IsoFileSourceIface ifs_class = {
     0, /* version */
     ifs_get_path,
     ifs_get_name,
@@ -857,9 +952,9 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
             /* fallback */
         }
     }
-    
+
     /* we reach here when the charset conversion is not needed or has failed */
-    
+
     name = malloc(len + 1);
     if (name == NULL) {
         return NULL;
@@ -870,14 +965,18 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
 }
 
 /**
- * 
+ *
+ * @param src
+ *      if not-NULL, it points to a multi-extent file returned by a previous
+ *      call to this function.
  * @return
+ *      2 node is still incomplete (multi-extent)
  *      1 success, 0 record ignored (not an error, can be a relocated dir),
  *      < 0 error
  */
 static
-int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent, 
-                            struct ecma119_dir_record *record, 
+int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
+                            struct ecma119_dir_record *record,
                             IsoFileSource **src)
 {
     int ret;
@@ -886,37 +985,28 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     _ImageFsData *fsdata;
     IsoFileSource *ifsrc = NULL;
     ImageFileSourceData *ifsdata = NULL;
-    
+
     int namecont = 0; /* 1 if found a NM with CONTINUE flag */
     char *name = NULL;
 
-    /* 1 if found a SL with CONTINUE flag, 
+    /* 1 if found a SL with CONTINUE flag,
      * 2 if found a component with continue flag */
-    int linkdestcont = 0; 
+    int linkdestcont = 0;
     char *linkdest = NULL;
-    
+
     uint32_t relocated_dir = 0;
-    
+
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
 
     fsdata = (_ImageFsData*)fs->data;
-    
+
     memset(&atts, 0, sizeof(struct stat));
-    
+
     /*
      * First of all, check for unsupported ECMA-119 features
      */
-
-    /* check for unsupported multiextend */
-    if (record->flags[0] & 0x80) {
-        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
-                      "Unsupported image. This image makes use of Multi-Extend"
-                      " features, that are not supported at this time. If you "
-                      "need support for that, please request us this feature.");
-        return ISO_UNSUPPORTED_ECMA119;
-    }
 
     /* check for unsupported interleaved mode */
     if (record->file_unit_size[0] || record->interleave_gap_size[0]) {
@@ -927,7 +1017,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
               "Please contact libisofs developers, so we can fix this.");
         return ISO_UNSUPPORTED_ECMA119;
     }
-    
+
     /*
      * Check for extended attributes, that are not supported. Note that even
      * if we don't support them, it is easy to ignore them.
@@ -939,32 +1029,107 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         return ISO_UNSUPPORTED_ECMA119;
     }
 
-    /* TODO #00013 : check for unsupported flags when reading a dir record */ 
-    
+    /* TODO #00013 : check for unsupported flags when reading a dir record */
+
+    /*
+     * If src is not-NULL, it refers to more extents of this file. We ensure
+     * name matches, otherwise it means we are dealing with wrong image
+     */
+    if (*src != NULL) {
+        ImageFileSourceData* data = (*src)->data;
+        char* new_name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
+        if (new_name == NULL) {
+            iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
+                          "Can't retrieve file name");
+            return ISO_WRONG_ECMA119;
+        }
+        if (strcmp(new_name, data->name)) {
+            iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
+                          "Multi-extent file lacks last entry.");
+            free(new_name);
+            return ISO_WRONG_ECMA119;
+        }
+        free(new_name);
+    }
+
+    /* check for multi-extent */
+    if (record->flags[0] & 0x80) {
+        iso_msg_debug(fsdata->msgid, "Found multi-extent file");
+
+        /*
+         * Directory entries can only have one section (ECMA-119, 6.8.1)
+         */
+        if (record->flags[0] & 0x02) {
+            iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
+                          "Directories with more than one section are not allowed.");
+            return ISO_WRONG_ECMA119;
+        }
+
+        if (*src == NULL) {
+            ifsdata = calloc(1, sizeof(ImageFileSourceData));
+            if (ifsdata == NULL) {
+                ret = ISO_OUT_OF_MEM;
+                goto ifs_cleanup;
+            }
+            ifsrc = calloc(1, sizeof(IsoFileSource));
+            if (ifsrc == NULL) {
+                ret = ISO_OUT_OF_MEM;
+                goto ifs_cleanup;
+            }
+            ifsrc->data = ifsdata;
+            ifsdata->name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
+            if (ifsdata->name == NULL) {
+                iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
+                              "Can't retrieve file name");
+                ret = ISO_WRONG_ECMA119;
+                goto ifs_cleanup;
+            }
+
+            *src = ifsrc;
+        } else {
+            ifsdata = (*src)->data;
+        }
+
+        /* store current extent */
+        ifsdata->sections = realloc(ifsdata->sections,
+                    (1 + ifsdata->nsections) * sizeof(struct iso_file_section));
+        if (ifsdata->sections == NULL) {
+            free(ifsdata->name);
+            ret = ISO_OUT_OF_MEM;
+            goto ifs_cleanup;
+        }
+        ifsdata->sections[ifsdata->nsections].block = iso_read_bb(record->block, 4, NULL);
+        ifsdata->sections[ifsdata->nsections].size = iso_read_bb(record->length, 4, NULL);
+
+        ifsdata->info.st_size += (off_t) ifsdata->sections[ifsdata->nsections].size;
+        ifsdata->nsections++;
+        return 2;
+    }
+
     /*
      * The idea is to read all the RR entries (if we want to do that and RR
-     * extensions exist on image), storing the info we want from that. 
+     * extensions exist on image), storing the info we want from that.
      * Then, we need some sanity checks.
      * Finally, we select what kind of node it is, and set values properly.
      */
-    
+
     if (fsdata->rr) {
         struct susp_sys_user_entry *sue;
         SuspIterator *iter;
-        
 
-        iter = susp_iter_new(fsdata->src, record, fsdata->len_skp, 
+
+        iter = susp_iter_new(fsdata->src, record, fsdata->len_skp,
                              fsdata->msgid);
         if (iter == NULL) {
             return ISO_OUT_OF_MEM;
         }
-        
+
         while ((ret = susp_iter_next(iter, &sue)) > 0) {
-            
+
             /* ignore entries from different version */
             if (sue->version[0] != 1)
-                continue; 
-            
+                continue;
+
             if (SUSP_SIG(sue, 'P', 'X')) {
                 ret = read_rr_PX(sue, &atts);
                 if (ret < 0) {
@@ -1008,7 +1173,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                                  "Invalid SL entry");
                 }
             } else if (SUSP_SIG(sue, 'R', 'E')) {
-                /* 
+                /*
                  * this directory entry refers to a relocated directory.
                  * We simply ignore it, as it will be correctly handled
                  * when found the CL
@@ -1020,8 +1185,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 /*
                  * This entry is a placeholder for a relocated dir.
                  * We need to ignore other entries, with the exception of NM.
-                 * Then we create a directory node that represents the 
-                 * relocated dir, and iterate over its children. 
+                 * Then we create a directory node that represents the
+                 * relocated dir, and iterate over its children.
                  */
                 relocated_dir = iso_read_bb(sue->data.CL.child_loc, 4, NULL);
                 if (relocated_dir == 0) {
@@ -1044,7 +1209,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 /* TODO I've seen this RR on mkisofs images. what's this? */
                 continue;
             } else if (SUSP_SIG(sue, 'S', 'P')) {
-                /* 
+                /*
                  * Ignore this, to prevent the hint message, if we are dealing
                  * with root node (SP is only valid in "." of root node)
                  */
@@ -1056,7 +1221,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 }
                 continue;
             } else if (SUSP_SIG(sue, 'E', 'R')) {
-                /* 
+                /*
                  * Ignore this, to prevent the hint message, if we are dealing
                  * with root node (ER is only valid in "." of root node)
                  */
@@ -1072,11 +1237,11 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
             }
         }
-        
+
         susp_iter_free(iter);
-        
+
         /* check for RR problems */
-        
+
         if (ret < 0) {
             /* error was already submitted above */
             iso_msg_debug(fsdata->msgid, "Error parsing RR entries");
@@ -1095,12 +1260,12 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     "Incomplete link destination, last SL entry continues");
             }
         }
-        
+
         if (ret < 0) {
             free(name);
             return ret;
         }
-           
+
         /* convert name to needed charset */
         if (strcmp(fsdata->input_charset, fsdata->local_charset) && name) {
             /* we need to convert name charset */
@@ -1111,7 +1276,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 /* its just a hint message */
                 ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
                                  ret, "Charset conversion error. Can't "
-                                 "convert %s from %s to %s", name, 
+                                 "convert %s from %s to %s", name,
                                  fsdata->input_charset, fsdata->local_charset);
                 free(newname);
                 if (ret < 0) {
@@ -1123,17 +1288,17 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 name = newname;
             }
         }
-        
-        /* convert link destination to needed charset */ 
+
+        /* convert link destination to needed charset */
         if (strcmp(fsdata->input_charset, fsdata->local_charset) && linkdest) {
             /* we need to convert name charset */
             char *newlinkdest = NULL;
-            ret = strconv(linkdest, fsdata->input_charset, 
+            ret = strconv(linkdest, fsdata->input_charset,
                           fsdata->local_charset, &newlinkdest);
             if (ret < 0) {
                 ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
                                  ret, "Charset conversion error. Can't "
-                                 "convert %s from %s to %s", name, 
+                                 "convert %s from %s to %s", name,
                                  fsdata->input_charset, fsdata->local_charset);
                 free(newlinkdest);
                 if (ret < 0) {
@@ -1145,7 +1310,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 linkdest = newlinkdest;
             }
         }
-        
+
     } else {
         /* RR extensions are not read / used */
         atts.st_gid = fsdata->gid;
@@ -1156,14 +1321,14 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             atts.st_mode = S_IFREG | fsdata->file_mode;
         }
     }
-    
-    /* 
+
+    /*
      * if we haven't RR extensions, or no NM entry is present,
      * we use the name in directory record
      */
     if (!name) {
         size_t len;
-        
+
         if (record->len_fi[0] == 1 && record->file_id[0] == 0) {
             /* "." entry, we can call this for root node, so... */
             if (!(atts.st_mode & S_IFDIR)) {
@@ -1177,12 +1342,12 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                               "Can't retrieve file name");
             }
-            
+
             /* remove trailing version number */
             len = strlen(name);
             if (len > 2 && name[len-2] == ';' && name[len-1] == '1') {
                 if (len > 3 && name[len-3] == '.') {
-                    /* 
+                    /*
                      * the "." is mandatory, so in most cases is included only
                      * for standard compliance
                      */
@@ -1195,25 +1360,25 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     }
 
     if (relocated_dir) {
-        
+
         /*
          * We are dealing with a placeholder for a relocated dir.
-         * Thus, we need to read attributes for this directory from the "." 
+         * Thus, we need to read attributes for this directory from the "."
          * entry of the relocated dir.
          */
         uint8_t buffer[BLOCK_SIZE];
-        
+
         ret = fsdata->src->read_block(fsdata->src, relocated_dir, buffer);
         if (ret < 0) {
             return ret;
         }
-        
+
         ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
                                       buffer, src);
         if (ret <= 0) {
             return ret;
         }
-        
+
         /* but the real name is the name of the placeholder */
         ifsdata = (ImageFileSourceData*) (*src)->data;
         ifsdata->name = name;
@@ -1231,8 +1396,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             atts.st_nlink = 1;
         }
     }
-    
-    /* 
+
+    /*
      * if we haven't RR extensions, or a needed TF time stamp is not present,
      * we use plain iso recording time
      */
@@ -1246,15 +1411,15 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     if (atts.st_mtime == (time_t) 0) {
         atts.st_mtime = recorded;
     }
-    
+
     /* the size is read from iso directory record */
     atts.st_size = iso_read_bb(record->length, 4, NULL);
-    
+
     /* Fill last entries */
     atts.st_dev = fsdata->id;
     atts.st_blksize = BLOCK_SIZE;
     atts.st_blocks = DIV_UP(atts.st_size, BLOCK_SIZE);
-    
+
     /* TODO #00014 : more sanity checks to ensure dir record info is valid */
     if (S_ISLNK(atts.st_mode) && (linkdest == NULL)) {
         ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
@@ -1262,19 +1427,26 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         free(name);
         return ret;
     }
-    
+
     /* ok, we can now create the file source */
-    ifsdata = calloc(1, sizeof(ImageFileSourceData));
-    if (ifsdata == NULL) {
-        ret = ISO_OUT_OF_MEM;
-        goto ifs_cleanup;
+    if (*src == NULL) {
+        ifsdata = calloc(1, sizeof(ImageFileSourceData));
+        if (ifsdata == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto ifs_cleanup;
+        }
+        ifsrc = calloc(1, sizeof(IsoFileSource));
+        if (ifsrc == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto ifs_cleanup;
+        }
+    } else {
+        ifsdata = (*src)->data;
+        ifsrc = (*src);
+        free(ifsdata->name); /* we will assign a new one */
+        atts.st_size += (off_t)ifsdata->info.st_size;
     }
-    ifsrc = calloc(1, sizeof(IsoFileSource));
-    if (ifsrc == NULL) {
-        ret = ISO_OUT_OF_MEM;
-        goto ifs_cleanup;
-    }
-    
+
     /* fill data */
     ifsdata->fs = fs;
     iso_filesystem_ref(fs);
@@ -1284,19 +1456,30 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     }
     ifsdata->info = atts;
     ifsdata->name = name;
-    ifsdata->block = iso_read_bb(record->block, 4, NULL);
-    
+
+    /* save extents */
+    ifsdata->sections = realloc(ifsdata->sections,
+                (1 + ifsdata->nsections) * sizeof(struct iso_file_section));
+    if (ifsdata->sections == NULL) {
+        free(ifsdata->name);
+        ret = ISO_OUT_OF_MEM;
+        goto ifs_cleanup;
+    }
+    ifsdata->sections[ifsdata->nsections].block = iso_read_bb(record->block, 4, NULL);
+    ifsdata->sections[ifsdata->nsections].size = iso_read_bb(record->length, 4, NULL);
+    ifsdata->nsections++;
+
     if (S_ISLNK(atts.st_mode)) {
         ifsdata->data.content = linkdest;
     }
-    
+
     ifsrc->class = &ifs_class;
     ifsrc->data = ifsdata;
     ifsrc->refcount = 1;
-    
+
     *src = ifsrc;
     return ISO_SUCCESS;
-    
+
 ifs_cleanup: ;
     free(name);
     free(linkdest);
@@ -1332,6 +1515,7 @@ int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
     }
 
     /* get root attributes from "." entry */
+    *root = NULL;
     ret = iso_file_source_new_ifs((IsoImageFilesystem*)fs, NULL,
                                    (struct ecma119_dir_record*) buffer, root);
 
@@ -1341,7 +1525,7 @@ int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
 
 /**
  * Find a file inside a node.
- * 
+ *
  * @param file
  *     it is not modified if requested file is not found
  * @return
@@ -1383,7 +1567,7 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
     if (fs == NULL || fs->data == NULL || path == NULL || file == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     if (path[0] != '/') {
         /* only absolute paths supported */
         return ISO_FILE_BAD_PATH;
@@ -1396,7 +1580,7 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
     if (ret < 0) {
         return ret;
     }
-    
+
     ret = ifs_get_root(fs, &src);
     if (ret < 0) {
         return ret;
@@ -1414,11 +1598,11 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
         ret = ISO_OUT_OF_MEM;
         goto get_path_exit;
     }
-    
+
     component = strtok_r(ptr, "/", &brk_info);
     while (component) {
         IsoFileSource *child = NULL;
-        
+
         ImageFileSourceData *fdata;
         fdata = src->data;
         if (!S_ISDIR(fdata->info.st_mode)) {
@@ -1431,7 +1615,7 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
         if (ret <= 0) {
             break;
         }
-        
+
         src = child;
         component = strtok_r(NULL, "/", &brk_info);
     }
@@ -1529,13 +1713,13 @@ void ifs_fs_free(IsoFilesystem *fs)
 }
 
 /**
- * Read the SUSP system user entries of the "." entry of the root directory, 
+ * Read the SUSP system user entries of the "." entry of the root directory,
  * indentifying when Rock Ridge extensions are being used.
- * 
+ *
  * @return
  *      1 success, 0 ignored, < 0 error
  */
-static 
+static
 int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 {
     int ret;
@@ -1548,10 +1732,10 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
     if (ret < 0) {
         return ret;
     }
-    
+
     /* record will be the "." directory entry for the root record */
     record = (struct ecma119_dir_record *)buffer;
-    
+
     /*
      * TODO #00015 : take care of CD-ROM XA discs when reading SP entry
      * SUSP specification claims that for CD-ROM XA the SP entry
@@ -1563,7 +1747,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
     if (iter == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    
+
     /* first entry must be an SP system use entry */
     ret = susp_iter_next(iter, &sue);
     if (ret < 0) {
@@ -1575,7 +1759,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
         susp_iter_free(iter);
         return ISO_SUCCESS;
     }
-    
+
     /* it is a SP system use entry */
     if (sue->version[0] != 1 || sue->data.SP.be[0] != 0xBE
         || sue->data.SP.ef[0] != 0xEF) {
@@ -1585,9 +1769,9 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                               "SUSP SP system use entry seems to be wrong. "
                               "Ignoring Rock Ridge Extensions.");
     }
-    
+
     iso_msg_debug(data->msgid, "SUSP/RR is being used.");
-    
+
     /*
      * The LEN_SKP field, defined in IEEE 1281, SUSP. 5.3, specifies the
      * number of bytes to be skipped within each System Use field.
@@ -1595,13 +1779,13 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
      * feature is easy...
      */
     data->len_skp = sue->data.SP.len_skp[0];
-    
+
     /*
      * Ok, now search for ER entry.
      * Just notice that the attributes for root dir are read elsewhere.
-     * 
-     * TODO #00016 : handle non RR ER entries 
-     * 
+     *
+     * TODO #00016 : handle non RR ER entries
+     *
      * if several ER are present, we need to identify the position of
      * what refers to RR, and then look for corresponding ES entry in
      * each directory record. I have not implemented this (it's not used,
@@ -1609,13 +1793,13 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
      * the iterator, transparently for the rest of the code.
      */
     while ((ret = susp_iter_next(iter, &sue)) > 0) {
-        
+
         /* ignore entries from different version */
         if (sue->version[0] != 1)
-            continue; 
-        
+            continue;
+
         if (SUSP_SIG(sue, 'E', 'R')) {
-               
+
             if (data->rr_version) {
                 ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
                     "More than one ER has found. This is not supported. "
@@ -1626,23 +1810,23 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                 }
             }
 
-            /* 
+            /*
              * it seems that Rock Ridge can be identified with any
-             * of the following 
+             * of the following
              */
-            if ( sue->data.ER.len_id[0] == 10 && 
+            if ( sue->data.ER.len_id[0] == 10 &&
                  !strncmp((char*)sue->data.ER.ext_id, "RRIP_1991A", 10) ) {
-                
-                iso_msg_debug(data->msgid, 
+
+                iso_msg_debug(data->msgid,
                               "Suitable Rock Ridge ER found. Version 1.10.");
                 data->rr_version = RR_EXT_110;
-                
-            } else if ( (sue->data.ER.len_id[0] == 10 && 
-                    !strncmp((char*)sue->data.ER.ext_id, "IEEE_P1282", 10)) 
-                 || (sue->data.ER.len_id[0] == 9 && 
+
+            } else if ( (sue->data.ER.len_id[0] == 10 &&
+                    !strncmp((char*)sue->data.ER.ext_id, "IEEE_P1282", 10))
+                 || (sue->data.ER.len_id[0] == 9 &&
                     !strncmp((char*)sue->data.ER.ext_id, "IEEE_1282", 9)) ) {
-                 
-                iso_msg_debug(data->msgid, 
+
+                iso_msg_debug(data->msgid,
                               "Suitable Rock Ridge ER found. Version 1.12.");
                 data->rr_version = RR_EXT_112;
             } else {
@@ -1656,13 +1840,13 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
             }
         }
     }
-    
-    susp_iter_free(iter);   
-    
-    if (ret < 0) { 
+
+    susp_iter_free(iter);
+
+    if (ret < 0) {
         return ret;
     }
-    
+
     return ISO_SUCCESS;
 }
 
@@ -1711,9 +1895,9 @@ int read_pvm(_ImageFsData *data, uint32_t block)
 
     /*
      * TODO #00017 : take advantage of other atts of PVD
-     * PVD has other things that could be interesting, but that don't have a 
-     * member in IsoImage, such as creation date. In a multisession disc, we 
-     * could keep the creation date and update the modification date, for 
+     * PVD has other things that could be interesting, but that don't have a
+     * member in IsoImage, such as creation date. In a multisession disc, we
+     * could keep the creation date and update the modification date, for
      * example.
      */
 
@@ -1736,30 +1920,30 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     if (ret < 0) {
         return ret;
     }
-    
+
     ve = (struct el_torito_validation_entry*)buffer;
-    
+
     /* check if it is a valid catalog (TODO: check also the checksum)*/
-    if ( (ve->header_id[0] != 1) || (ve->key_byte1[0] != 0x55) 
+    if ( (ve->header_id[0] != 1) || (ve->key_byte1[0] != 0x55)
          || (ve->key_byte2[0] != 0xAA) ) {
-            
+
         return iso_msg_submit(data->msgid, ISO_WRONG_EL_TORITO, 0,
                       "Wrong or damaged El-Torito Catalog. El-Torito info "
                       "will be ignored.");
     }
-    
+
     /* check for a valid platform */
     if (ve->platform_id[0] != 0) {
         return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 0,
                      "Unsupported El-Torito platform. Only 80x86 is "
                      "supported. El-Torito info will be ignored.");
     }
-    
+
     /* ok, once we are here we assume it is a valid catalog */
-    
+
     /* parse the default entry */
     entry = (struct el_torito_default_entry *)(buffer + 32);
-    
+
     data->eltorito = 1;
     data->bootable = entry->boot_indicator[0] ? 1 : 0;
     data->type = entry->boot_media_type[0];
@@ -1804,14 +1988,14 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
 
     /* get an id for the filesystem */
     data->id = ++fs_dev_id;
-    
+
     /* fill data from opts */
     data->gid = opts->gid;
     data->uid = opts->uid;
     data->file_mode = opts->file_mode & ~S_IFMT;
     data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
-    
+
     setlocale(LC_CTYPE, "");
     data->local_charset = strdup(nl_langinfo(CODESET));
     if (data->local_charset == NULL) {
@@ -1858,12 +2042,12 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
 
                 /* some sanity checks */
                 if (strncmp((char*)vol->std_identifier, "CD001", 5)
-                    || vol->vol_desc_version[0] != 1 
-                    || strncmp((char*)vol->boot_sys_id, 
+                    || vol->vol_desc_version[0] != 1
+                    || strncmp((char*)vol->boot_sys_id,
                                "EL TORITO SPECIFICATION", 23)) {
 
-                    ret = iso_msg_submit(data->msgid, 
-                          ISO_UNSUPPORTED_EL_TORITO, 0, 
+                    ret = iso_msg_submit(data->msgid,
+                          ISO_UNSUPPORTED_EL_TORITO, 0,
                           "Unsupported Boot Vol. Desc. Only El-Torito "
                           "Specification, Version 1.0 Volume "
                           "Descriptors are supported. Ignoring boot info");
@@ -1884,14 +2068,14 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             {
                 struct ecma119_sup_vol_desc *sup;
                 struct ecma119_dir_record *root;
-                
+
                 sup = (struct ecma119_sup_vol_desc*)buffer;
-                if (sup->esc_sequences[0] == 0x25 && 
+                if (sup->esc_sequences[0] == 0x25 &&
                     sup->esc_sequences[1] == 0x2F &&
                     (sup->esc_sequences[2] == 0x40 ||
                      sup->esc_sequences[2] == 0x43 ||
                      sup->esc_sequences[2] == 0x45) ) {
-                    
+
                     /* it's a Joliet Sup. Vol. Desc. */
                     iso_msg_debug(data->msgid, "Found Joliet extensions");
                     data->joliet = 1;
@@ -1901,7 +2085,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     /* TODO #00020 : handle RR info in Joliet tree */
                 } else if (sup->vol_desc_version[0] == 2) {
                     /*
-                     * It is an Enhanced Volume Descriptor, image is an 
+                     * It is an Enhanced Volume Descriptor, image is an
                      * ISO 9660:1999
                      */
                     iso_msg_debug(data->msgid, "Found ISO 9660:1999");
@@ -1919,7 +2103,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             }
             break;
         case 255:
-            /* 
+            /*
              * volume set terminator
              * ignore, as it's checked in loop end condition
              */
@@ -1940,7 +2124,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     if (ret < 0) {
         goto fs_cleanup;
     }
-    
+
     /* user doesn't want to read RR extensions */
     if (opts->norock) {
         data->rr = RR_EXT_NO;
@@ -1992,7 +2176,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         ret = ISO_OUT_OF_MEM;
         goto fs_cleanup;
     }
-    
+
     /* and finally return. Note that we keep the DataSource opened */
 
     *fs = ifs;
@@ -2034,9 +2218,10 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         {
             /* source is a regular file */
             _ImageFsData *fsdata = data->fs->data;
-            
-            if (fsdata->eltorito && data->block == fsdata->catblock) {
-                
+
+            /* El-Torito images have only one section */
+            if (fsdata->eltorito && data->sections[0].block == fsdata->catblock) {
+
                 if (image->bootcat->node != NULL) {
                     ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
                                  "More than one catalog node has been found. "
@@ -2047,7 +2232,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                     }
                     iso_node_unref((IsoNode*)image->bootcat->node);
                 }
-                
+
                 /* we create a placeholder for the catalog instead of
                  * a regular file */
                 new = calloc(1, sizeof(IsoBoot));
@@ -2056,7 +2241,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                     free(name);
                     return ret;
                 }
-                
+
                 /* and set the image node */
                 image->bootcat->node = (IsoBoot*)new;
                 new->type = LIBISO_BOOT;
@@ -2064,7 +2249,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             } else {
                 IsoStream *stream;
                 IsoFile *file;
-                
+
                 ret = iso_file_source_stream_new(src, &stream);
                 if (ret < 0) {
                     free(name);
@@ -2079,22 +2264,22 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                     iso_stream_unref(stream);
                     return ISO_OUT_OF_MEM;
                 }
-    
-                /* the msblock is taken from the image */
-                file->msblock = data->block;
-                
-                /* 
+
+                /* mark file as from old session */
+                file->from_old_session = 1;
+
+                /*
                  * and we set the sort weight based on the block on image, to
                  * improve performance on image modifying.
-                 */ 
-                file->sort_weight = INT_MAX - data->block;
-    
+                 */
+                file->sort_weight = INT_MAX - data->sections[0].block;
+
                 file->stream = stream;
                 file->node.type = LIBISO_FILE;
                 new = (IsoNode*) file;
                 new->refcount = 0;
-                
-                if (fsdata->eltorito && data->block == fsdata->imgblock) {
+
+                if (fsdata->eltorito && data->sections[0].block == fsdata->imgblock) {
                     /* it is boot image node */
                     if (image->bootcat->image->image != NULL) {
                         ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
@@ -2217,7 +2402,7 @@ int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
 
 /**
  * Create a file source to access the El-Torito boot image, when it is not
- * accessible from the ISO filesystem. 
+ * accessible from the ISO filesystem.
  */
 static
 int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
@@ -2227,31 +2412,31 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
     _ImageFsData *fsdata;
     IsoFileSource *ifsrc = NULL;
     ImageFileSourceData *ifsdata = NULL;
-    
+
     if (fs == NULL || fs->data == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
 
     fsdata = (_ImageFsData*)fs->data;
-    
+
     memset(&atts, 0, sizeof(struct stat));
     atts.st_mode = S_IFREG;
     atts.st_ino = fsdata->imgblock; /* not the best solution, but... */
     atts.st_nlink = 1;
 
-    /* 
+    /*
      * this is the greater problem. We don't know the size. For now, we
      * just use a single block of data. In a future, maybe we could figure out
      * a better idea. Another alternative is to use several blocks, that way
-     * is less probable that we throw out valid data.  
+     * is less probable that we throw out valid data.
      */
     atts.st_size = (off_t)BLOCK_SIZE;
-    
+
     /* Fill last entries */
     atts.st_dev = fsdata->id;
     atts.st_blksize = BLOCK_SIZE;
     atts.st_blocks = DIV_UP(atts.st_size, BLOCK_SIZE);
-    
+
     /* ok, we can now create the file source */
     ifsdata = calloc(1, sizeof(ImageFileSourceData));
     if (ifsdata == NULL) {
@@ -2263,22 +2448,31 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
         ret = ISO_OUT_OF_MEM;
         goto boot_fs_cleanup;
     }
-    
+
+    ifsdata->sections = malloc(sizeof(struct iso_file_section));
+    if (ifsdata->sections == NULL) {
+        ret = ISO_OUT_OF_MEM;
+        goto boot_fs_cleanup;
+    }
+
     /* fill data */
     ifsdata->fs = fs;
     iso_filesystem_ref(fs);
     ifsdata->parent = NULL;
     ifsdata->info = atts;
     ifsdata->name = NULL;
-    ifsdata->block = fsdata->imgblock;
+
+    ifsdata->sections[0].block = fsdata->imgblock;
+    ifsdata->sections[0].size = BLOCK_SIZE;
+    ifsdata->nsections = 1;
 
     ifsrc->class = &ifs_class;
     ifsrc->data = ifsdata;
     ifsrc->refcount = 1;
-    
+
     *src = ifsrc;
     return ISO_SUCCESS;
-    
+
 boot_fs_cleanup: ;
     free(ifsdata);
     free(ifsrc);
@@ -2287,7 +2481,7 @@ boot_fs_cleanup: ;
 
 
 int iso_image_import(IsoImage *image, IsoDataSource *src,
-                     struct iso_read_opts *opts, 
+                     struct iso_read_opts *opts,
                      IsoReadImageFeatures **features)
 {
     int ret;
@@ -2298,37 +2492,37 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     IsoFileSource *newroot;
     _ImageFsData *data;
     struct el_torito_boot_catalog *oldbootcat;
-    
+
     if (image == NULL || src == NULL || opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     ret = iso_image_filesystem_new(src, opts, image->id, &fs);
     if (ret < 0) {
         return ret;
     }
     data = fs->data;
-    
+
     /* get root from filesystem */
     ret = fs->get_root(fs, &newroot);
     if (ret < 0) {
         return ret;
     }
-    
+
     /* backup image filesystem, builder and root */
     fsback = image->fs;
     blback = image->builder;
     oldroot = image->root;
     oldbootcat = image->bootcat; /* could be NULL */
-    
+
     image->bootcat = NULL;
-    
+
     /* create new builder */
     ret = iso_image_builder_new(blback, &image->builder);
     if (ret < 0) {
         goto import_revert;
     }
-    
+
     image->fs = fs;
 
     /* create new root, and set root attributes from source */
@@ -2348,12 +2542,12 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         image->root->node.mtime = info.st_mtime;
         image->root->node.ctime = info.st_ctime;
     }
-    
+
     /* if old image has el-torito, add a new catalog */
     if (data->eltorito) {
         struct el_torito_boot_catalog *catalog;
         ElToritoBootImage *boot_image= NULL;
-        
+
         boot_image = calloc(1, sizeof(ElToritoBootImage));
         if (boot_image == NULL) {
             ret = ISO_OUT_OF_MEM;
@@ -2364,7 +2558,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         boot_image->partition_type = data->partition_type;
         boot_image->load_seg = data->load_seg;
         boot_image->load_size = data->load_size;
-        
+
         catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
         if (catalog == NULL) {
             ret = ISO_OUT_OF_MEM;
@@ -2399,9 +2593,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 goto import_revert;
             }
             image->bootcat->image->image = (IsoFile*)node;
-            
+
             /* warn about hidden images */
-            iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0, 
+            iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
                            "Found hidden El-Torito image. Its size could not "
                            "be figure out, so image modify or boot image "
                            "patching may lead to bad results.");
@@ -2420,7 +2614,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     }
 
     iso_node_builder_unref(image->builder);
-    
+
     /* free old root */
     iso_node_unref((IsoNode*)oldroot);
 
@@ -2450,7 +2644,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         (*features)->hasElTorito = data->eltorito;
         (*features)->size = data->nblocks;
     }
-    
+
     ret = ISO_SUCCESS;
     goto import_cleanup;
 
@@ -2467,11 +2661,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     /* recover backed fs and builder */
     image->fs = fsback;
     image->builder = blback;
-    
+
     iso_file_source_unref(newroot);
     fs->close(fs);
     iso_filesystem_unref(fs);
-    
+
     return ret;
 }
 
@@ -2533,19 +2727,19 @@ const char *iso_image_fs_get_biblio_file_id(IsoImageFilesystem *fs)
 int iso_read_opts_new(IsoReadOpts **opts, int profile)
 {
     IsoReadOpts *ropts;
-    
+
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
     if (profile != 0) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     ropts = calloc(1, sizeof(IsoReadOpts));
     if (ropts == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    
+
     ropts->file_mode = 0444;
     ropts->dir_mode = 0555;
     *opts = ropts;
@@ -2557,7 +2751,7 @@ void iso_read_opts_free(IsoReadOpts *opts)
     if (opts == NULL) {
         return;
     }
-    
+
     free(opts->input_charset);
     free(opts);
 }
@@ -2656,7 +2850,7 @@ void iso_read_image_features_destroy(IsoReadImageFeatures *f)
 }
 
 /**
- * Get the size (in 2048 byte block) of the image, as reported in the PVM. 
+ * Get the size (in 2048 byte block) of the image, as reported in the PVM.
  */
 uint32_t iso_read_image_features_get_size(IsoReadImageFeatures *f)
 {
@@ -2681,7 +2875,7 @@ int iso_read_image_features_has_joliet(IsoReadImageFeatures *f)
 
 /**
  * Whether the image is recorded according to ISO 9660:1999, i.e. it has
- * a version 2 Enhanced Volume Descriptor. 
+ * a version 2 Enhanced Volume Descriptor.
  */
 int iso_read_image_features_has_iso1999(IsoReadImageFeatures *f)
 {
