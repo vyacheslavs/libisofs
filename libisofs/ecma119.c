@@ -296,8 +296,11 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
 
-    /* and finally write the SUSP fields */
-    if (info != NULL) {
+    /*
+     * and finally write the SUSP fields. On a multi-extent file, they are only
+     * needed in the last extent.
+     */
+    if (info != NULL && multi_extend == 0) {
         rrip_write_susp_fields(t, info, buf + len_dr);
     }
 }
