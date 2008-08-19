@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -61,18 +61,18 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
         }
     } else {
         if (img->max_37_char_filenames) {
-            isoname = iso_r_fileid(ascii_name, 36, relaxed, 
+            isoname = iso_r_fileid(ascii_name, 36, relaxed,
                                    img->no_force_dots ? 0 : 1);
         } else if (img->iso_level == 1) {
             if (relaxed) {
-                isoname = iso_r_fileid(ascii_name, 11, relaxed, 
+                isoname = iso_r_fileid(ascii_name, 11, relaxed,
                                        img->no_force_dots ? 0 : 1);
             } else {
                 isoname = iso_1_fileid(ascii_name);
             }
         } else {
             if (relaxed) {
-                isoname = iso_r_fileid(ascii_name, 30, relaxed, 
+                isoname = iso_r_fileid(ascii_name, 30, relaxed,
                                        img->no_force_dots ? 0 : 1);
             } else {
                 isoname = iso_2_fileid(ascii_name);
@@ -84,7 +84,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
         *name = isoname;
         return ISO_SUCCESS;
     } else {
-        /* 
+        /*
          * only possible if mem error, as check for empty names is done
          * in public tree
          */
@@ -129,7 +129,7 @@ int create_dir(Ecma119Image *img, IsoDir *iso, Ecma119Node **node)
     if (children == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    
+
     dir_info = calloc(1, sizeof(struct ecma119_dir_info));
     if (dir_info == NULL) {
         free(children);
@@ -162,9 +162,12 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 
     size = iso_stream_get_size(iso->stream);
     if (size > (off_t)0xffffffff) {
-        return iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
+        char *ipath = iso_tree_get_node_path(ISO_NODE(iso));
+        ret = iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
                               "File \"%s\" can't be added to image because "
-                              "is greater than 4GB", iso->node.name);
+                              "is greater than 4GB", ipath);
+        free(ipath);
+        return ret;
     }
 
     ret = iso_file_src_create(img, iso, &src);
@@ -174,9 +177,9 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
 
     ret = create_ecma119_node(img, (IsoNode*)iso, node);
     if (ret < 0) {
-        /* 
+        /*
          * the src doesn't need to be freed, it is free together with
-         * the Ecma119Image 
+         * the Ecma119Image
          */
         return ret;
     }
@@ -203,9 +206,9 @@ int create_boot_cat(Ecma119Image *img, IsoBoot *iso, Ecma119Node **node)
 
     ret = create_ecma119_node(img, (IsoNode*)iso, node);
     if (ret < 0) {
-        /* 
+        /*
          * the src doesn't need to be freed, it is free together with
-         * the Ecma119Image 
+         * the Ecma119Image
          */
         return ret;
     }
@@ -267,10 +270,10 @@ void ecma119_node_free(Ecma119Node *node)
 }
 
 /**
- * 
- * @return 
+ *
+ * @return
  *      1 success, 0 node ignored,  < 0 error
- * 
+ *
  */
 static
 int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
@@ -296,15 +299,21 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
     if (!image->rockridge) {
         if ((iso->type == LIBISO_DIR && depth > 8) && !image->allow_deep_paths) {
-            free(iso_name);
+            char *ipath = iso_tree_get_node_path(iso);
             return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                          "File \"%s\" can't be added, because directory depth "
-                         "is greater than  8.", iso->name);
-        } else if (max_path > 255 && !image->allow_longer_paths) {
+                         "is greater than 8.", ipath);
             free(iso_name);
-            return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
+            free(ipath);
+            return ret;
+        } else if (max_path > 255 && !image->allow_longer_paths) {
+            char *ipath = iso_tree_get_node_path(iso);
+            ret = iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                          "File \"%s\" can't be added, because path length "
-                         "is greater than 255 characters", iso->name);
+                         "is greater than 255 characters", ipath);
+            free(iso_name);
+            free(ipath);
+            return ret;
         }
     }
 
@@ -317,19 +326,23 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = create_symlink(image, (IsoSymlink*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
+            char *ipath = iso_tree_get_node_path(iso);
             ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
-                "File \"%s\" ignored. Symlinks need RockRidge extensions.", 
-                iso->name);
+                "File \"%s\" ignored. Symlinks need RockRidge extensions.",
+                ipath);
+            free(ipath);
         }
         break;
     case LIBISO_SPECIAL:
         if (image->rockridge) {
             ret = create_special(image, (IsoSpecial*)iso, &node);
         } else {
-            /* symlinks are only supported when RR is enabled */
+            /* special files are only supported when RR is enabled */
+            char *ipath = iso_tree_get_node_path(iso);
             ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
-                "File \"%s\" ignored. Special files need RockRidge extensions.", 
-                iso->name);
+                "File \"%s\" ignored. Special files need RockRidge extensions.",
+                ipath);
+            free(ipath);
         }
         break;
     case LIBISO_BOOT:
@@ -338,8 +351,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         } else {
             /* log and ignore */
             ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
-                "El-Torito catalog found on a image without El-Torito.", 
-                iso->name);
+                "El-Torito catalog found on a image without El-Torito.");
         }
         break;
     case LIBISO_DIR:
@@ -430,9 +442,9 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
 
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
-    
+
     /* a hash table will temporary hold the names, for fast searching */
-    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash, 
+    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
                             (compare_function_t)strcmp, &table);
     if (ret < 0) {
         return ret;
@@ -463,7 +475,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
         }
 
         /*
-         * A max of 7 characters is good enought, it allows handling up to 
+         * A max of 7 characters is good enought, it allows handling up to
          * 9,999,999 files with same name. We can increment this to
          * max_name_len, but the int_pow() function must then be modified
          * to return a bigger integer.
@@ -480,8 +492,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
             dot = strrchr(full_name, '.');
             if (dot != NULL && children[i]->type != ECMA119_DIR) {
 
-                /* 
-                 * File (not dir) with extension 
+                /*
+                 * File (not dir) with extension
                  * Note that we don't need to check for placeholders, as
                  * tree reparent happens later, so no placeholders can be
                  * here at this time.
@@ -491,26 +503,26 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                 name = full_name;
                 ext = dot + 1;
 
-                /* 
+                /*
                  * For iso level 1 we force ext len to be 3, as name
-                 * can't grow on the extension space 
+                 * can't grow on the extension space
                  */
                 extlen = (max_file_len == 12) ? 3 : strlen(ext);
                 max = max_file_len - extlen - 1 - digits;
                 if (max <= 0) {
                     /* this can happen if extension is too long */
                     if (extlen + max > 3) {
-                        /* 
+                        /*
                          * reduce extension len, to give name an extra char
-                         * note that max is negative or 0 
+                         * note that max is negative or 0
                          */
                         extlen = extlen + max - 1;
                         ext[extlen] = '\0';
                         max = max_file_len - extlen - 1 - digits;
                     } else {
-                        /* 
+                        /*
                          * error, we don't support extensions < 3
-                         * This can't happen with current limit of digits. 
+                         * This can't happen with current limit of digits.
                          */
                         ret = ISO_ERROR;
                         goto mangle_cleanup;
@@ -572,7 +584,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                     children[k]->iso_name = new;
                     iso_htable_add(table, new, new);
 
-                    /* 
+                    /*
                      * if we change a name we need to sort again children
                      * at the end
                      */
@@ -603,7 +615,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
     }
 
     ret = ISO_SUCCESS;
-    
+
 mangle_cleanup : ;
     iso_htable_destroy(table, NULL);
     return ret;
@@ -658,7 +670,7 @@ int mangle_tree(Ecma119Image *img, int recurse)
 /**
  * Create a new ECMA-119 node representing a placeholder for a relocated
  * dir.
- * 
+ *
  * See IEEE P1282, section 4.1.5 for details
  */
 static
@@ -672,10 +684,10 @@ int create_placeholder(Ecma119Node *parent, Ecma119Node *real,
         return ISO_OUT_OF_MEM;
     }
 
-    /* 
+    /*
      * TODO
-     * If real is a dir, while placeholder is a file, ISO name restricctions 
-     * are different, what to do? 
+     * If real is a dir, while placeholder is a file, ISO name restricctions
+     * are different, what to do?
      */
     ret->iso_name = strdup(real->iso_name);
     if (ret->iso_name == NULL) {
@@ -708,10 +720,10 @@ size_t max_child_name_len(Ecma119Node *dir)
 }
 
 /**
- * Relocates a directory, as specified in Rock Ridge Specification 
+ * Relocates a directory, as specified in Rock Ridge Specification
  * (see IEEE P1282, section 4.1.5). This is needed when the number of levels
  * on a directory hierarchy exceeds 8, or the length of a path is higher
- * than 255 characters, as specified in ECMA-119, section 6.8.2.1 
+ * than 255 characters, as specified in ECMA-119, section 6.8.2.1
  */
 static
 int reparent(Ecma119Node *child, Ecma119Node *parent)
@@ -743,7 +755,7 @@ int reparent(Ecma119Node *child, Ecma119Node *parent)
     /* add the child to its new parent */
     child->parent = parent;
     parent->info.dir->nchildren++;
-    parent->info.dir->children = realloc(parent->info.dir->children, 
+    parent->info.dir->children = realloc(parent->info.dir->children,
                                  sizeof(void*) * parent->info.dir->nchildren);
     parent->info.dir->children[parent->info.dir->nchildren - 1] = child;
     return ISO_SUCCESS;
@@ -754,7 +766,7 @@ int reparent(Ecma119Node *child, Ecma119Node *parent)
  *  - the depth is at most 8
  *  - each path length is at most 255 characters
  * This restriction is imposed by ECMA-119 specification (ECMA-119, 6.8.2.1).
- * 
+ *
  * @param dir
  *      Dir we are currently processing
  * @param level
@@ -778,9 +790,9 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
             return ret;
         }
 
-        /* 
+        /*
          * we are appended to the root's children now, so there is no
-         * need to recurse (the root will hit us again) 
+         * need to recurse (the root will hit us again)
          */
     } else {
         size_t i;
@@ -831,7 +843,7 @@ int ecma119_tree_create(Ecma119Image *img)
             return ret;
         }
 
-        /* 
+        /*
          * and we need to remangle the root directory, as the function
          * above could insert new directories into the root.
          * Note that recurse = 0, as we don't need to recurse.

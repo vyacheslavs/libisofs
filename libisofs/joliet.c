@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -47,7 +47,7 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
         *name = jname;
         return ISO_SUCCESS;
     } else {
-        /* 
+        /*
          * only possible if mem error, as check for empty names is done
          * in public tree
          */
@@ -112,10 +112,13 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
+            char *ipath = iso_tree_get_node_path(iso);
             free(joliet);
-            return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
+            ret = iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
                          "File \"%s\" can't be added to image because is "
-                         "greater than 4GB", iso->name);
+                         "greater than 4GB", ipath);
+            free(ipath);
+            return ret;
         }
 
         ret = iso_file_src_create(t, file, &src);
@@ -152,7 +155,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
 
 /**
  * Create the low level Joliet tree from the high level ISO tree.
- * 
+ *
  * @return
  *      1 success, 0 file ignored, < 0 error
  */
@@ -177,14 +180,17 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
     }
     max_path = pathlen + 1 + (jname ? ucslen(jname) * 2 : 0);
     if (!t->joliet_longer_paths && max_path > 240) {
-        free(jname);
+        char *ipath = iso_tree_get_node_path(iso);
         /*
          * Wow!! Joliet is even more restrictive than plain ISO-9660,
          * that allows up to 255 bytes!!
          */
-        return iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG, 0,
+        ret = iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                      "File \"%s\" can't be added to Joliet tree, because "
-                     "its path length is larger than 240", iso->name);
+                     "its path length is larger than 240", ipath);
+        free(jname);
+        free(ipath);
+        return ret;
     }
 
     switch (iso->type) {
@@ -226,15 +232,19 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         } else {
             /* log and ignore */
             ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                "El-Torito catalog found on a image without El-Torito.", 
-                iso->name);
+                "El-Torito catalog found on a image without El-Torito.");
         }
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                     "Can't add %s to Joliet tree. This kind of files can only"
-                     " be added to a Rock Ridget tree. Skipping.", iso->name);
+        {
+            char *ipath = iso_tree_get_node_path(iso);
+            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
+                 "Can't add %s to Joliet tree. %s can only be added to a "
+                 "Rock Ridget tree.", ipath, (iso->type == LIBISO_SYMLINK ?
+                                             "Symlinks" : "Special files"));
+            free(ipath);
+        }
         break;
     default:
         /* should never happen */
@@ -257,12 +267,12 @@ cmp_node(const void *f1, const void *f2)
     return ucscmp(f->name, g->name);
 }
 
-static 
+static
 void sort_tree(JolietNode *root)
 {
     size_t i;
 
-    qsort(root->info.dir->children, root->info.dir->nchildren, 
+    qsort(root->info.dir->children, root->info.dir->nchildren,
           sizeof(void*), cmp_node);
     for (i = 0; i < root->info.dir->nchildren; i++) {
         JolietNode *child = root->info.dir->children[i];
@@ -287,23 +297,23 @@ int joliet_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
     uint16_t *ucsnumber;
     char fmt[16];
     char *nstr = alloca(digits + 1);
-    
+
     sprintf(fmt, "%%0%dd", digits);
     sprintf(nstr, fmt, number);
-    
+
     ret = str2ucs("ASCII", nstr, &ucsnumber);
     if (ret < 0) {
         return ret;
     }
-    
+
     /* copy name */
     pos = ucslen(src);
     ucsncpy(dest, src, pos);
-    
+
     /* copy number */
     ucsncpy(dest + pos, ucsnumber, digits);
     pos += digits;
-    
+
     if (ext[0] != (uint16_t)0) {
         size_t extlen = ucslen(ext);
         dest[pos++] = (uint16_t)0x2E00; /* '.' in big endian UCS */
@@ -326,9 +336,9 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
 
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
-    
+
     /* a hash table will temporary hold the names, for fast searching */
-    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash, 
+    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
                             (compare_function_t)ucscmp, &table);
     if (ret < 0) {
         return ret;
@@ -349,7 +359,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
         int digits = 1; /* characters to change per name */
 
         /* first, find all child with same name */
-        while (j + 1 < nchildren && 
+        while (j + 1 < nchildren &&
                 !cmp_node_name(children + i, children + j + 1)) {
             ++j;
         }
@@ -359,7 +369,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
         }
 
         /*
-         * A max of 7 characters is good enought, it allows handling up to 
+         * A max of 7 characters is good enought, it allows handling up to
          * 9,999,999 files with same name.
          */
         while (digits < 8) {
@@ -374,7 +384,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
             dot = ucsrchr(full_name, '.');
             if (dot != NULL && children[i]->type != JOLIET_DIR) {
 
-                /* 
+                /*
                  * File (not dir) with extension
                  */
                 int extlen;
@@ -387,17 +397,17 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
                 if (max <= 0) {
                     /* this can happen if extension is too long */
                     if (extlen + max > 3) {
-                        /* 
+                        /*
                          * reduce extension len, to give name an extra char
-                         * note that max is negative or 0 
+                         * note that max is negative or 0
                          */
                         extlen = extlen + max - 1;
                         ext[extlen] = 0;
                         max = 66 - extlen - 1 - digits;
                     } else {
-                        /* 
+                        /*
                          * error, we don't support extensions < 3
-                         * This can't happen with current limit of digits. 
+                         * This can't happen with current limit of digits.
                          */
                         ret = ISO_ERROR;
                         goto mangle_cleanup;
@@ -455,7 +465,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
                     children[k]->name = new;
                     iso_htable_add(table, new, new);
 
-                    /* 
+                    /*
                      * if we change a name we need to sort again children
                      * at the end
                      */
@@ -486,7 +496,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     }
 
     ret = ISO_SUCCESS;
-    
+
 mangle_cleanup : ;
     iso_htable_destroy(table, NULL);
     return ret;
@@ -521,7 +531,7 @@ int joliet_tree_create(Ecma119Image *t)
 {
     int ret;
     JolietNode *root;
-    
+
     if (t == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -534,7 +544,7 @@ int joliet_tree_create(Ecma119Image *t)
         }
         return ret;
     }
-    
+
     /* the Joliet tree is stored in Ecma119Image target */
     t->joliet_root = root;
 
@@ -590,10 +600,10 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
             len += dirent_len;
         }
     }
-    
+
     /*
-     * The size of a dir is always a multiple of block size, as we must add 
-     * the size of the unused space after the last directory record 
+     * The size of a dir is always a multiple of block size, as we must add
+     * the size of the unused space after the last directory record
      * (ECMA-119, 6.8.1.3)
      */
     len = ROUND_UP(len, BLOCK_SIZE);
@@ -677,7 +687,7 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
 /**
  * Write a single directory record for Joliet. It is like (ECMA-119, 9.1),
  * but file identifier is stored in UCS.
- * 
+ *
  * @param file_id
  *     if >= 0, we use it instead of the filename (for "." and ".." entries).
  * @param len_fi
@@ -716,9 +726,9 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
         len = iso_file_src_get_size(node->info.file);
         block = node->info.file->block;
     } else {
-        /* 
-         * for nodes other than files and dirs, we set both 
-         * len and block to 0 
+        /*
+         * for nodes other than files and dirs, we set both
+         * len and block to 0
          */
         len = 0;
         block = 0;
@@ -748,19 +758,19 @@ void ucsncpy_pad(uint16_t *dest, const uint16_t *src, size_t max)
 {
     char *cdest, *csrc;
     size_t len, i;
-    
+
     cdest = (char*)dest;
     csrc = (char*)src;
-    
+
     if (src != NULL) {
         len = MIN(ucslen(src) * 2, max);
     } else {
         len = 0;
     }
-    
+
     for (i = 0; i < len; ++i)
         cdest[i] = csrc[i];
-    
+
     for (i = len; i < max; i += 2) {
         cdest[i] = '\0';
         cdest[i + 1] = ' ';
@@ -805,7 +815,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     memcpy(vol.std_identifier, "CD001", 5);
     vol.vol_desc_version[0] = 1;
     ucsncpy_pad((uint16_t*)vol.volume_id, vol_id, 32);
-    
+
     /* make use of UCS-2 Level 3 */
     memcpy(vol.esc_sequences, "%/E", 3);
 
@@ -822,7 +832,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     ucsncpy_pad((uint16_t*)vol.vol_set_id, volset_id, 128);
     ucsncpy_pad((uint16_t*)vol.publisher_id, pub_id, 128);
     ucsncpy_pad((uint16_t*)vol.data_prep_id, data_id, 128);
-    
+
     ucsncpy_pad((uint16_t*)vol.system_id, system_id, 32);
 
     ucsncpy_pad((uint16_t*)vol.application_id, application_id, 128);

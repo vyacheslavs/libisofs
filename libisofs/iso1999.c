@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -32,7 +32,7 @@ int get_iso1999_name(Ecma119Image *t, const char *str, char **fname)
         *fname = NULL;
         return ISO_SUCCESS;
     }
-    
+
     if (!strcmp(t->input_charset, t->output_charset)) {
         /* no conversion needed */
         name = strdup(str);
@@ -50,14 +50,14 @@ int get_iso1999_name(Ecma119Image *t, const char *str, char **fname)
             name = strdup(str);
         }
     }
-    
+
     /* ISO 9660:1999 7.5.1 */
     if (strlen(name) > 207) {
         name[207] = '\0';
     }
-    
+
     *fname = name;
-    
+
     return ISO_SUCCESS;
 }
 
@@ -118,11 +118,13 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
 
         size = iso_stream_get_size(file->stream);
         if (size > (off_t)0xffffffff) {
-            free(n);
-            return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
+            char *ipath = iso_tree_get_node_path(iso);
+            ret = iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
                          "File \"%s\" can't be added to image because is "
-                         "greater than 4GB", iso->name);
-            return 0;
+                         "greater than 4GB", ipath);
+            free(n);
+            free(ipath);
+            return ret;
         }
 
         ret = iso_file_src_create(t, file, &src);
@@ -159,7 +161,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
 
 /**
  * Create the low level ISO 9660:1999 tree from the high level ISO tree.
- * 
+ *
  * @return
  *      1 success, 0 file ignored, < 0 error
  */
@@ -185,10 +187,13 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
 
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name): 0);
     if (!t->allow_longer_paths && max_path > 255) {
-        free(iso_name);
-        return iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG, 0,
+        char *ipath = iso_tree_get_node_path(iso);
+        ret = iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                      "File \"%s\" can't be added to ISO 9660:1999 tree, "
-                     "because its path length is larger than 255", iso->name);
+                     "because its path length is larger than 255", ipath);
+        free(iso_name);
+        free(ipath);
+        return ret;
     }
 
     switch (iso->type) {
@@ -230,16 +235,19 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
         } else {
             /* log and ignore */
             ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                "El-Torito catalog found on a image without El-Torito.", 
-                iso->name);
+                "El-Torito catalog found on a image without El-Torito.");
         }
         break;
     case LIBISO_SYMLINK:
     case LIBISO_SPECIAL:
-        ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
+        {
+            char *ipath = iso_tree_get_node_path(iso);
+            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
                      "Can't add %s to ISO 9660:1999 tree. This kind of files "
-                     "can only be added to a Rock Ridget tree. Skipping.", 
-                     iso->name);
+                     "can only be added to a Rock Ridget tree. Skipping.",
+                     ipath);
+            free(ipath);
+        }
         break;
     default:
         /* should never happen */
@@ -269,15 +277,15 @@ cmp_node(const void *f1, const void *f2)
 }
 
 /**
- * Sort the entries inside an ISO 9660:1999 directory, according to 
- * ISO 9660:1999, 9.3 
+ * Sort the entries inside an ISO 9660:1999 directory, according to
+ * ISO 9660:1999, 9.3
  */
-static 
+static
 void sort_tree(Iso1999Node *root)
 {
     size_t i;
 
-    qsort(root->info.dir->children, root->info.dir->nchildren, 
+    qsort(root->info.dir->children, root->info.dir->nchildren,
           sizeof(void*), cmp_node);
     for (i = 0; i < root->info.dir->nchildren; i++) {
         Iso1999Node *child = root->info.dir->children[i];
@@ -297,9 +305,9 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
 
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
-    
+
     /* a hash table will temporary hold the names, for fast searching */
-    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash, 
+    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
                             (compare_function_t)strcmp, &table);
     if (ret < 0) {
         return ret;
@@ -320,7 +328,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
         int digits = 1; /* characters to change per name */
 
         /* first, find all child with same name */
-        while (j + 1 < nchildren && 
+        while (j + 1 < nchildren &&
                !cmp_node(children + i, children + j + 1)) {
             ++j;
         }
@@ -330,7 +338,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
         }
 
         /*
-         * A max of 7 characters is good enought, it allows handling up to 
+         * A max of 7 characters is good enought, it allows handling up to
          * 9,999,999 files with same name.
          */
         while (digits < 8) {
@@ -345,7 +353,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
             dot = strrchr(full_name, '.');
             if (dot != NULL && children[i]->type != ISO1999_DIR) {
 
-                /* 
+                /*
                  * File (not dir) with extension.
                  */
                 int extlen;
@@ -358,17 +366,17 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
                 if (max <= 0) {
                     /* this can happen if extension is too long */
                     if (extlen + max > 3) {
-                        /* 
+                        /*
                          * reduce extension len, to give name an extra char
-                         * note that max is negative or 0 
+                         * note that max is negative or 0
                          */
                         extlen = extlen + max - 1;
                         ext[extlen] = '\0';
                         max = 207 - extlen - 1 - digits;
                     } else {
-                        /* 
+                        /*
                          * error, we don't support extensions < 3
-                         * This can't happen with current limit of digits. 
+                         * This can't happen with current limit of digits.
                          */
                         ret = ISO_ERROR;
                         goto mangle_cleanup;
@@ -428,7 +436,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
                     children[k]->name = new;
                     iso_htable_add(table, new, new);
 
-                    /* 
+                    /*
                      * if we change a name we need to sort again children
                      * at the end
                      */
@@ -459,7 +467,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
     }
 
     ret = ISO_SUCCESS;
-    
+
 mangle_cleanup : ;
     iso_htable_destroy(table, NULL);
     return ret;
@@ -494,7 +502,7 @@ int iso1999_tree_create(Ecma119Image *t)
 {
     int ret;
     Iso1999Node *root;
-    
+
     if (t == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -507,7 +515,7 @@ int iso1999_tree_create(Ecma119Image *t)
         }
         return ret;
     }
-    
+
     /* the ISO 9660:1999 tree is stored in Ecma119Image target */
     t->iso1999_root = root;
 
@@ -559,10 +567,10 @@ size_t calc_dir_size(Ecma119Image *t, Iso1999Node *dir)
             len += dirent_len;
         }
     }
-    
+
     /*
-     * The size of a dir is always a multiple of block size, as we must add 
-     * the size of the unused space after the last directory record 
+     * The size of a dir is always a multiple of block size, as we must add
+     * the size of the unused space after the last directory record
      * (ISO 9660:1999, 6.8.1.3)
      */
     len = ROUND_UP(len, BLOCK_SIZE);
@@ -626,7 +634,7 @@ int iso1999_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
 
     /* compute position of directories */
-    iso_msg_debug(t->image->id, 
+    iso_msg_debug(t->image->id,
                   "Computing position of ISO 9660:1999 dir structure");
     t->iso1999_ndirs = 0;
     calc_dir_pos(t, t->iso1999_root);
@@ -647,7 +655,7 @@ int iso1999_writer_compute_data_blocks(IsoImageWriter *writer)
 
 /**
  * Write a single directory record (ISO 9660:1999, 9.1).
- * 
+ *
  * @param file_id
  *     if >= 0, we use it instead of the filename (for "." and ".." entries).
  * @param len_fi
@@ -677,9 +685,9 @@ void write_one_dir_record(Ecma119Image *t, Iso1999Node *node, int file_id,
         len = iso_file_src_get_size(node->info.file);
         block = node->info.file->block;
     } else {
-        /* 
-         * for nodes other than files and dirs, we set both 
-         * len and block to 0 
+        /*
+         * for nodes other than files and dirs, we set both
+         * len and block to 0
          */
         len = 0;
         block = 0;
@@ -701,14 +709,14 @@ void write_one_dir_record(Ecma119Image *t, Iso1999Node *node, int file_id,
 }
 
 /**
- * Write the enhanced volume descriptor (ISO/IEC 9660:1999, 8.5) 
+ * Write the enhanced volume descriptor (ISO/IEC 9660:1999, 8.5)
  */
 static
 int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
 {
     IsoImage *image;
     Ecma119Image *t;
-    
+
     /* The enhanced volume descriptor is like the sup vol desc */
     struct ecma119_sup_vol_desc vol;
 
@@ -741,7 +749,7 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
 
     vol.vol_desc_type[0] = 2;
     memcpy(vol.std_identifier, "CD001", 5);
-    
+
     /* descriptor version is 2 (ISO/IEC 9660:1999, 8.5.2) */
     vol.vol_desc_version[0] = 2;
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
@@ -759,7 +767,7 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.vol_set_id, volset_id, 128);
     strncpy_pad((char*)vol.publisher_id, pub_id, 128);
     strncpy_pad((char*)vol.data_prep_id, data_id, 128);
-    
+
     strncpy_pad((char*)vol.system_id, system_id, 32);
 
     strncpy_pad((char*)vol.application_id, application_id, 128);
@@ -1000,7 +1008,7 @@ int iso1999_writer_create(Ecma119Image *target)
     writer->data = NULL;
     writer->target = target;
 
-    iso_msg_debug(target->image->id, 
+    iso_msg_debug(target->image->id,
                   "Creating low level ISO 9660:1999 tree...");
     ret = iso1999_tree_create(target);
     if (ret < 0) {
