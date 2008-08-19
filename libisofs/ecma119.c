@@ -119,11 +119,11 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         size_t remaining;
         int section, nsections;
         Ecma119Node *child = dir->info.dir->children[i];
-        size_t dirent_len = calc_dirent_len(t, child);
 
         nsections = (child->type == ECMA119_FILE) ? child->info.file->nsections : 1;
         for (section = 0; section < nsections; ++section) {
-            if (t->rockridge && section == nsections - 1) {
+            size_t dirent_len = calc_dirent_len(t, child);
+            if (t->rockridge) {
                 dirent_len += rrip_calc_len(t, child, 0, 255 - dirent_len, &ce_len);
                 *ce += ce_len;
             }
@@ -294,10 +294,9 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->len_fi[0] = len_fi;
 
     /*
-     * and finally write the SUSP fields. On a multi-extent file, they are only
-     * needed in the last extent.
+     * and finally write the SUSP fields.
      */
-    if (info != NULL && multi_extend == 0) {
+    if (info != NULL) {
         rrip_write_susp_fields(t, info, buf + len_dr);
     }
 }
@@ -457,18 +456,19 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         int section, nsections;
         Ecma119Node *child = dir->info.dir->children[i];
 
-        /* compute len of directory entry */
         fi_len = strlen(child->iso_name);
-        len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
-        if (need_version_number(t, child)) {
-            len += 2;
-        }
 
         nsections = (child->type == ECMA119_FILE) ? child->info.file->nsections : 1;
         for (section = 0; section < nsections; ++section) {
 
+            /* compute len of directory entry */
+            len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
+            if (need_version_number(t, child)) {
+                len += 2;
+            }
+
             /* get the SUSP fields if rockridge is enabled */
-            if (t->rockridge && section == nsections - 1) {
+            if (t->rockridge) {
                 ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
                 if (ret < 0) {
                     return ret;
