@@ -68,13 +68,30 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
     /* fill key and other atts */
     fsrc->prev_img = file->from_old_session;
-    if (file->from_old_session) {
+    if (file->from_old_session && img->appendable) {
+        /*
+         * On multisession discs we keep file sections from old image.
+         */
         int ret = iso_file_get_old_image_sections(file, &(fsrc->nsections),
                                                   &(fsrc->sections), 0);
         if (ret < 0) {
             free(fsrc);
             return ISO_OUT_OF_MEM;
         }
+    } else {
+
+        /*
+         * For new files, or for image copy, we compute our own file sections.
+         * Block and size of each section will be filled later.
+         */
+        off_t section_size = iso_stream_get_size(file->stream);
+        if (section_size > (off_t) MAX_ISO_FILE_SECTION_SIZE) {
+            fsrc->nsections = DIV_UP(section_size - (off_t) MAX_ISO_FILE_SECTION_SIZE,
+                                     (off_t)ISO_EXTENT_SIZE) + 1;
+        } else {
+            fsrc->nsections = 1;
+        }
+        fsrc->sections = calloc(fsrc->nsections, sizeof(struct iso_file_section));
     }
     fsrc->sort_weight = file->sort_weight;
     fsrc->stream = file->stream;
@@ -187,15 +204,6 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
         IsoFileSrc *file = filelist[i];
 
         off_t section_size = iso_stream_get_size(file->stream);
-        if (section_size > (off_t) MAX_ISO_FILE_SECTION_SIZE) {
-            file->nsections = DIV_UP(iso_stream_get_size(file->stream)
-                                     - (off_t) MAX_ISO_FILE_SECTION_SIZE,
-                                     (off_t)ISO_EXTENT_SIZE) + 1;
-        } else {
-            file->nsections = 1;
-        }
-        file->sections = realloc(file->sections, file->nsections *
-                                 sizeof(struct iso_file_section));
         for (extent = 0; extent < file->nsections - 1; ++extent) {
             file->sections[extent].block = t->curblock + extent *
                         (ISO_EXTENT_SIZE / BLOCK_SIZE);
@@ -207,8 +215,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
          * final section
          */
         file->sections[extent].block = t->curblock + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
-        file->sections[extent].size = section_size;
-        section_size -= (off_t) ISO_EXTENT_SIZE;
+        file->sections[extent].size = (uint32_t)section_size;
 
         t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }
