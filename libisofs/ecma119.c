@@ -1289,7 +1289,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->level = 1;
         break;
     case 1:
-        wopts->level = 2;
+        wopts->level = 3;
         wopts->rockridge = 1;
         break;
     case 2:

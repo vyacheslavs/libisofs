@@ -922,7 +922,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  *        start point from which to set your custom options.
  *     ---> 1 [BACKUP]
  *        POSIX compatibility for backup. Simple settings, ISO level is set to
- *        2 and RR extensions are enabled. Useful for backup purposes.
+ *        3 and RR extensions are enabled. Useful for backup purposes.
  *     ---> 2 [DISTRIBUTION]
  *        Setting for information distribution. Both RR and Joliet are enabled
  *        to maximize compatibility with most systems. Permissions are set to
