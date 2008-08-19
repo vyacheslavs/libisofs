@@ -588,12 +588,7 @@ off_t iso_stream_get_size(IsoStream *stream)
 inline
 int iso_stream_read(IsoStream *stream, void *buf, size_t count)
 {
-    int ret;
-
-    ret= stream->class->read(stream, buf, count);
-    if(ret<0)
-        return ISO_FILE_READ_ERROR;
-    return ret;
+    return stream->class->read(stream, buf, count);
 }
 
 inline
