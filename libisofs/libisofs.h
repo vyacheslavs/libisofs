@@ -247,7 +247,7 @@ struct iso_data_source
      * underlying resources.
      *
      * @return
-     *      1 if success, < 0 on error
+     *      1 if success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*open)(IsoDataSource *src);
 
@@ -256,7 +256,7 @@ struct iso_data_source
      * open().
      *
      * @return
-     *      1 if success, < 0 on error
+     *      1 if success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*close)(IsoDataSource *src);
 
@@ -269,7 +269,7 @@ struct iso_data_source
      *     Buffer where the data will be written. It should have at least
      *     2048 bytes.
      * @return
-     *      1 if success, < 0 on error
+     *      1 if success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*read_block)(IsoDataSource *src, uint32_t lba, uint8_t *buffer);
 
@@ -369,7 +369,7 @@ struct iso_filesystem
      * Get the root of a filesystem.
      *
      * @return
-     *    1 on success, < 0 on error
+     *    1 on success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*get_root)(IsoFilesystem *fs, IsoFileSource **root);
 
@@ -377,7 +377,7 @@ struct iso_filesystem
      * Retrieve a file from its absolute path inside the filesystem.
      *
      * @return
-     *     1 success, < 0 error
+     *     1 success, < 0 error (has to be a valid libisofs error code)
      *      Error codes:
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
@@ -412,7 +412,7 @@ struct iso_filesystem
      * it is a good idea to open it previously, to prevent several open/close
      * operations to occur.
      *
-     * @return 1 on success, < 0 on error
+     * @return 1 on success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*open)(IsoFilesystem *fs);
 
@@ -421,7 +421,7 @@ struct iso_filesystem
      * call this function if you have previously open() it.
      * Note that you can open()/close() a filesystem several times.
      *
-     * @return 1 on success, < 0 on error
+     * @return 1 on success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*close)(IsoFilesystem *fs);
 
@@ -468,7 +468,7 @@ struct IsoFileSource_Iface
      * Get information about the file. It is equivalent to lstat(2).
      *
      * @return
-     *    1 success, < 0 error
+     *    1 success, < 0 error (has to be a valid libisofs error code)
      *      Error codes:
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
@@ -504,7 +504,8 @@ struct IsoFileSource_Iface
      * are what the above functions return.
      *
      * @return
-     *     1 if process has read access, < 0 on error
+     *     1 if process has read access, < 0 on error (has to be a valid
+     *     libisofs error code)
      *      Error codes:
      *         ISO_FILE_ACCESS_DENIED
      *         ISO_FILE_BAD_PATH
@@ -517,7 +518,7 @@ struct IsoFileSource_Iface
 
     /**
      * Opens the source.
-     * @return 1 on success, < 0 on error
+     * @return 1 on success, < 0 on error (has to be a valid libisofs error code)
      *      Error codes:
      *         ISO_FILE_ALREADY_OPENED
      *         ISO_FILE_ACCESS_DENIED
@@ -548,7 +549,8 @@ struct IsoFileSource_Iface
      * file.
      *
      * @return
-     *     number of bytes read, 0 if EOF, < 0 on error
+     *     number of bytes read, 0 if EOF, < 0 on error (has to be a valid
+     *     libisofs error code)
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
@@ -574,7 +576,8 @@ struct IsoFileSource_Iface
      * @param child
      *     pointer to be filled with the given child. Undefined on error or OEF
      * @return
-     *     1 on success, 0 if EOF (no more children), < 0 on error
+     *     1 on success, 0 if EOF (no more children), < 0 on error (has to be
+     *     a valid libisofs error code)
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
@@ -595,7 +598,7 @@ struct IsoFileSource_Iface
      *     characters to be copied. Destination link will be truncated if
      *     it is larger than given size. This include the \0 character.
      * @return
-     *     1 on success, < 0 on error
+     *     1 on success, < 0 on error (has to be a valid libisofs error code)
      *      Error codes:
      *         ISO_FILE_ERROR
      *         ISO_NULL_POINTER
@@ -712,13 +715,14 @@ struct IsoStream_Iface
      *
      * @return
      *     1 on success, 2 file greater than expected, 3 file smaller than
-     *     expected, < 0 on error
+     *     expected, < 0 on error (has to be a valid libisofs error code)
      */
     int (*open)(IsoStream *stream);
 
     /**
      * Close the Stream.
-     * @return 1 on success, < 0 on error
+     * @return
+     *     1 on success, < 0 on error (has to be a valid libisofs error code)
      */
     int (*close)(IsoStream *stream);
 
@@ -736,7 +740,8 @@ struct IsoStream_Iface
      * more needed.
      *
      * @return
-     *     number of bytes read, 0 if EOF, < 0 on error
+     *     number of bytes read, 0 if EOF, < 0 on error (has to be a valid
+     *     libisofs error code)
      */
     int (*read)(IsoStream *stream, void *buf, size_t count);
 
@@ -749,7 +754,8 @@ struct IsoStream_Iface
      * between the two reads.
      *
      * @return
-     *     1 if stream is repeatable, 0 if not, < 0 on error
+     *     1 if stream is repeatable, 0 if not,
+     *     < 0 on error (has to be a valid libisofs error code)
      */
     int (*is_repeatable)(IsoStream *stream);
 
