@@ -241,7 +241,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     uint32_t len;
     uint32_t block;
     uint8_t len_dr; /*< size of dir entry without SUSP fields */
-	int multi_extend = 0;
+    int multi_extend = 0;
     uint8_t *name = (file_id >= 0) ? (uint8_t*)&file_id
             : (uint8_t*)node->iso_name;
 
@@ -262,17 +262,9 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
         len = node->info.dir->len;
         block = node->info.dir->block;
     } else if (node->type == ECMA119_FILE) {
-        off_t size = iso_file_src_get_size(node->info.file)
-                     - ((off_t)0xFFFFF800) * (off_t)extent; /* bytes in another extent */
-        if (size > (off_t) 0xffffffff) {
-            /* 2097151 is the number of blocks needed to store 4 GB - 2048 */
-            block = node->info.file->block + extent * 2097151;
-            len = 0xFFFFF800;
-            multi_extend = 1;
-        } else {
-            len = (uint32_t) size;
-            block = node->info.file->block;
-        }
+        block = node->info.file->sections[extent].block;
+        len = node->info.file->sections[extent].size;
+        multi_extend = (node->info.file->nsections - 1 == extent) ? 0 : 1;
     } else {
         /*
          * for nodes other than files and dirs, we set both
@@ -457,26 +449,27 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
     buf += len;
 
     for (i = 0; i < dir->info.dir->nchildren; i++) {
+        int section, nsections;
         Ecma119Node *child = dir->info.dir->children[i];
 
-        int extent = 0;
-        do {
+        /* compute len of directory entry */
+        fi_len = strlen(child->iso_name);
+        len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
+        if (need_version_number(t, child)) {
+            len += 2;
+        }
 
-            /* compute len of directory entry */
-            fi_len = strlen(child->iso_name);
-            len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
-            if (need_version_number(t, child)) {
-                len += 2;
+        /* get the SUSP fields if rockridge is enabled */
+        if (t->rockridge) {
+            ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
+            if (ret < 0) {
+                return ret;
             }
+            len += info.suf_len;
+        }
 
-            /* get the SUSP fields if rockridge is enabled */
-            if (t->rockridge) {
-                ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
-                if (ret < 0) {
-                    return ret;
-                }
-                len += info.suf_len;
-            }
+        nsections = (child->type == ECMA119_FILE) ? child->info.file->nsections : 1;
+        for (section = 0; section < nsections; ++section) {
 
             if ( (buf + len - buffer) > BLOCK_SIZE) {
                 /* dir doesn't fit in current block */
@@ -488,22 +481,9 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
                 buf = buffer;
             }
             /* write the directory entry in any case */
-            write_one_dir_record(t, child, -1, buf, fi_len, &info, extent);
+            write_one_dir_record(t, child, -1, buf, fi_len, &info, section);
             buf += len;
-
-            if (child->type == ECMA119_FILE) {
-                /* check if file is too big and need more extents */
-                off_t size = iso_file_src_get_size(child->info.file)
-                             - ((off_t)0xFFFFF800) * (off_t)extent;
-                if (size > (off_t) 0xffffffff) {
-                    extent++;
-                } else {
-                    break;
-                }
-            } else {
-                break; /* we only have a single extent */
-            }
-        } while(1); /* loop for each extend */
+        }
     }
 
     /* write the last block */

@@ -1,19 +1,19 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
 /*
  * Synchronized ring buffer, works with a writer thread and a read thread.
- * 
+ *
  * TODO #00010 : optimize ring buffer
  *  - write/read at the end of buffer requires a second mutex_lock, even if
  *    there's enought space/data at the beginning
  *  - pre-buffer for writes < BLOCK_SIZE
- * 
+ *
  */
 
 #include "buffer.h"
@@ -30,13 +30,13 @@
 struct iso_ring_buffer
 {
     uint8_t *buf;
-    
+
     /*
      * Max number of bytes in buffer
      */
     size_t cap;
 
-    /* 
+    /*
      * Number of bytes available.
      */
     size_t size;
@@ -45,11 +45,11 @@ struct iso_ring_buffer
     size_t rpos;
     size_t wpos;
 
-    /* 
+    /*
      * flags to report if read or writer threads ends execution
-     * 0 not finished, 1 finished ok, 2 finish with error 
+     * 0 not finished, 1 finished ok, 2 finish with error
      */
-    unsigned int rend :2; 
+    unsigned int rend :2;
     unsigned int wend :2;
 
     /* just for statistical purposes */
@@ -63,9 +63,9 @@ struct iso_ring_buffer
 
 /**
  * Create a new buffer.
- * 
+ *
  * The created buffer should be freed with iso_ring_buffer_free()
- * 
+ *
  * @param size
  *     Number of blocks in buffer. You should supply a number >= 32, otherwise
  *     size will be ignored and 32 will be used by default, which leads to a
@@ -85,14 +85,14 @@ int iso_ring_buffer_new(size_t size, IsoRingBuffer **rbuf)
     if (buffer == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    
+
     buffer->cap = (size > 32 ? size : 32) * BLOCK_SIZE;
     buffer->buf = malloc(buffer->cap);
     if (buffer->buf == NULL) {
         free(buffer);
         return ISO_OUT_OF_MEM;
     }
-    
+
     buffer->size = 0;
     buffer->wpos = 0;
     buffer->rpos = 0;
@@ -126,7 +126,7 @@ void iso_ring_buffer_free(IsoRingBuffer *buf)
 /**
  * Write count bytes into buffer. It blocks until all bytes where written or
  * reader close the buffer.
- * 
+ *
  * @param buf
  *      the buffer
  * @param data
@@ -189,7 +189,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
  * bytes has been read. If the writer finishes before outputting enought
  * bytes, 0 (EOF) is returned, the number of bytes already read remains
  * unknown.
- * 
+ *
  * @return
  *      1 success, 0 EOF, < 0 error
  */
@@ -252,7 +252,7 @@ void iso_ring_buffer_writer_close(IsoRingBuffer *buf, int error)
 void iso_ring_buffer_reader_close(IsoRingBuffer *buf, int error)
 {
     pthread_mutex_lock(&buf->mutex);
-    
+
     if (buf->rend) {
         /* reader already closed */
         pthread_mutex_unlock(&buf->mutex);
@@ -285,9 +285,9 @@ unsigned int iso_ring_buffer_get_times_empty(IsoRingBuffer *buf)
 
 /**
  * Get the status of the buffer used by a burn_source.
- * 
+ *
  * @param b
- *      A burn_source previously obtained with 
+ *      A burn_source previously obtained with
  *      iso_image_create_burn_source().
  * @param size
  *      Will be filled with the total size of the buffer, in bytes
@@ -302,7 +302,7 @@ unsigned int iso_ring_buffer_get_times_empty(IsoRingBuffer *buf)
  *           6="ended"     : consumption has ended without input error
  *           7="aborted"   : consumption has ended after input error
  */
-int iso_ring_buffer_get_status(struct burn_source *b, size_t *size, 
+int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
                                size_t *free_bytes)
 {
     int ret;
@@ -311,7 +311,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
         return ISO_NULL_POINTER;
     }
     buf = ((Ecma119Image*)(b->data))->buffer;
-    
+
     /* get mutex */
     pthread_mutex_lock(&buf->mutex);
     if (size) {
@@ -322,7 +322,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
     }
 
     ret = (buf->rend ? 4 : 0) + (buf->wend + 1);
-    
+
     pthread_mutex_unlock(&buf->mutex);
     return ret;
 }

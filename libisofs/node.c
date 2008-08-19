@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -16,12 +16,12 @@
 #include <limits.h>
 
 struct dir_iter_data
-{   
+{
     /* points to the last visited child, to NULL before start */
     IsoNode *pos;
-    
+
     /* Some control flags.
-     * bit 0 -> 1 if next called, 0 reseted at start or on deletion 
+     * bit 0 -> 1 if next called, 0 reseted at start or on deletion
      */
     int flag;
 };
@@ -74,7 +74,7 @@ void iso_node_unref(IsoNode *node)
             IsoExtendedInfo *info = node->xinfo;
             while (info != NULL) {
                 IsoExtendedInfo *tmp = info->next;
-                
+
                 /* free extended info */
                 info->process(info->data, 1);
                 free(info);
@@ -87,17 +87,17 @@ void iso_node_unref(IsoNode *node)
 }
 
 /**
- * Add extended information to the given node. Extended info allows 
+ * Add extended information to the given node. Extended info allows
  * applications (and libisofs itself) to add more information to an IsoNode.
  * You can use this facilities to associate new information with a given
  * node.
- * 
+ *
  * Each node keeps a list of added extended info, meaning you can add several
  * extended info data to each node. Each extended info you add is identified
  * by the proc parameter, a pointer to a function that knows how to manage
  * the external info data. Thus, in order to add several types of extended
  * info, you need to define a "proc" function for each type.
- * 
+ *
  * @param node
  *      The node where to add the extended info
  * @param proc
@@ -125,7 +125,7 @@ int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data)
         }
         pos = pos->next;
     }
-    
+
     info = malloc(sizeof(IsoExtendedInfo));
     if (info == NULL) {
         return ISO_OUT_OF_MEM;
@@ -140,8 +140,8 @@ int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data)
 /**
  * Remove the given extended info (defined by the proc function) from the
  * given node.
- * 
- * @return 
+ *
+ * @return
  *      1 on success, 0 if node does not have extended info of the requested
  *      type, < 0 on error
  */
@@ -152,14 +152,14 @@ int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc)
     if (node == NULL || proc == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     prev = NULL;
     pos = node->xinfo;
     while (pos != NULL) {
         if (pos->process == proc) {
             /* this is the extended info we want to remove */
             pos->process(pos->data, 1);
-            
+
             if (prev != NULL) {
                 prev->next = pos->next;
             } else {
@@ -172,17 +172,17 @@ int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc)
         pos = pos->next;
     }
     /* requested xinfo not found */
-    return 0; 
+    return 0;
 }
 
 /**
  * Get the given extended info (defined by the proc function) from the
  * given node.
- * 
+ *
  * @param data
  *      Will be filled with the extended info corresponding to the given proc
  *      function
- * @return 
+ * @return
  *      1 on success, 0 if node does not have extended info of the requested
  *      type, < 0 on error
  */
@@ -193,7 +193,7 @@ int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data)
     if (node == NULL || proc == NULL || data == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     pos = node->xinfo;
     while (pos != NULL) {
         if (pos->process == proc) {
@@ -204,7 +204,7 @@ int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data)
         pos = pos->next;
     }
     /* requested xinfo not found */
-    return 0;  
+    return 0;
 }
 
 /**
@@ -217,7 +217,7 @@ enum IsoNodeType iso_node_get_type(IsoNode *node)
 
 /**
  * Set the name of a node.
- * 
+ *
  * @param name  The name in UTF-8 encoding
  */
 int iso_node_set_name(IsoNode *node, const char *name)
@@ -228,7 +228,7 @@ int iso_node_set_name(IsoNode *node, const char *name)
         /* you can't change name of the root node */
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     /* check if the name is valid */
     if (!iso_node_is_valid_name(name)) {
         return ISO_WRONG_ARG_VALUE;
@@ -272,10 +272,10 @@ const char *iso_node_get_name(const IsoNode *node)
 }
 
 /**
- * Set the permissions for the node. This attribute is only useful when 
+ * Set the permissions for the node. This attribute is only useful when
  * Rock Ridge extensions are enabled.
- * 
- * @param mode 
+ *
+ * @param mode
  *     bitmask with the permissions of the node, as specified in 'man 2 stat'.
  *     The file type bitfields will be ignored, only file permissions will be
  *     modified.
@@ -285,15 +285,15 @@ void iso_node_set_permissions(IsoNode *node, mode_t mode)
     node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
 }
 
-/** 
- * Get the permissions for the node 
+/**
+ * Get the permissions for the node
  */
 mode_t iso_node_get_permissions(const IsoNode *node)
 {
     return node->mode & ~S_IFMT;
 }
 
-/** 
+/**
  * Get the mode of the node, both permissions and file type, as specified in
  * 'man 2 stat'.
  */
@@ -303,7 +303,7 @@ mode_t iso_node_get_mode(const IsoNode *node)
 }
 
 /**
- * Set the user id for the node. This attribute is only useful when 
+ * Set the user id for the node. This attribute is only useful when
  * Rock Ridge extensions are enabled.
  */
 void iso_node_set_uid(IsoNode *node, uid_t uid)
@@ -320,7 +320,7 @@ uid_t iso_node_get_uid(const IsoNode *node)
 }
 
 /**
- * Set the group id for the node. This attribute is only useful when 
+ * Set the group id for the node. This attribute is only useful when
  * Rock Ridge extensions are enabled.
  */
 void iso_node_set_gid(IsoNode *node, gid_t gid)
@@ -336,7 +336,7 @@ gid_t iso_node_get_gid(const IsoNode *node)
     return node->gid;
 }
 
-/** 
+/**
  * Set the time of last modification of the file
  */
 void iso_node_set_mtime(IsoNode *node, time_t time)
@@ -344,7 +344,7 @@ void iso_node_set_mtime(IsoNode *node, time_t time)
     node->mtime = time;
 }
 
-/** 
+/**
  * Get the time of last modification of the file
  */
 time_t iso_node_get_mtime(const IsoNode *node)
@@ -352,7 +352,7 @@ time_t iso_node_get_mtime(const IsoNode *node)
     return node->mtime;
 }
 
-/** 
+/**
  * Set the time of last access to the file
  */
 void iso_node_set_atime(IsoNode *node, time_t time)
@@ -360,24 +360,24 @@ void iso_node_set_atime(IsoNode *node, time_t time)
     node->atime = time;
 }
 
-/** 
- * Get the time of last access to the file 
+/**
+ * Get the time of last access to the file
  */
 time_t iso_node_get_atime(const IsoNode *node)
 {
     return node->atime;
 }
 
-/** 
- * Set the time of last status change of the file 
+/**
+ * Set the time of last status change of the file
  */
 void iso_node_set_ctime(IsoNode *node, time_t time)
 {
     node->ctime = time;
 }
 
-/** 
- * Get the time of last status change of the file 
+/**
+ * Get the time of last status change of the file
  */
 time_t iso_node_get_ctime(const IsoNode *node)
 {
@@ -397,21 +397,21 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs)
  * the node, so you don't need to free it, it will be automatically freed
  * when the dir is deleted. Of course, if you want to keep using the node
  * after the dir life, you need to iso_node_ref() it.
- * 
- * @param dir 
+ *
+ * @param dir
  *     the dir where to add the node
- * @param child 
+ * @param child
  *     the node to add. You must ensure that the node hasn't previously added
  *     to other dir, and that the node name is unique inside the child.
  *     Otherwise this function will return a failure, and the child won't be
  *     inserted.
  * @param replace
  *     if the dir already contains a node with the same name, whether to
- *     replace or not the old node with this. 
+ *     replace or not the old node with this.
  * @return
  *     number of nodes in dir if succes, < 0 otherwise
  */
-int iso_dir_add_node(IsoDir *dir, IsoNode *child, 
+int iso_dir_add_node(IsoDir *dir, IsoNode *child,
                      enum iso_replace_mode replace)
 {
     IsoNode **pos;
@@ -423,7 +423,7 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child,
         return ISO_WRONG_ARG_VALUE;
     }
 
-    /* 
+    /*
      * check if child is already added to another dir, or if child
      * is the root node, where parent == itself
      */
@@ -437,17 +437,17 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child,
 
 /**
  * Locate a node inside a given dir.
- * 
+ *
  * @param name
  *     The name of the node
  * @param node
- *     Location for a pointer to the node, it will filled with NULL if the dir 
+ *     Location for a pointer to the node, it will filled with NULL if the dir
  *     doesn't have a child with the given name.
  *     The node will be owned by the dir and shouldn't be unref(). Just call
  *     iso_node_ref() to get your own reference to the node.
  *     Note that you can pass NULL is the only thing you want to do is check
  *     if a node with such name already exists on dir.
- * @return 
+ * @return
  *     1 node found, 0 child has no such node, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir or name are NULL
@@ -476,7 +476,7 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
 
 /**
  * Get the number of children of a directory.
- * 
+ *
  * @return
  *     >= 0 number of items, < 0 error
  *     Possible errors:
@@ -497,12 +497,12 @@ int iter_next(IsoDirIter *iter, IsoNode **node)
     if (iter == NULL || node == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     data = iter->data;
-    
+
     /* clear next flag */
     data->flag &= ~0x01;
-    
+
     if (data->pos == NULL) {
         /* we are at the beginning */
         data->pos = iter->dir->children;
@@ -529,12 +529,12 @@ int iter_next(IsoDirIter *iter, IsoNode **node)
             data->pos = data->pos->next;
         }
     }
-    
+
     /* ok, take a ref to the current position, to prevent internal errors
      * if deleted somewhere */
     iso_node_ref(data->pos);
     data->flag |= 0x01; /* set next flag */
-    
+
     /* return pointed node */
     *node = data->pos;
     return ISO_SUCCESS;
@@ -542,7 +542,7 @@ int iter_next(IsoDirIter *iter, IsoNode **node)
 
 /**
  * Check if there're more children.
- * 
+ *
  * @return
  *     1 dir has more elements, 0 no, < 0 error
  *     Possible errors:
@@ -589,8 +589,8 @@ static IsoNode** iso_dir_find_node(IsoDir *dir, IsoNode *node)
  * The child is not freed, so you will become the owner of the node. Later
  * you can add the node to another dir (calling iso_dir_add_node), or free
  * it if you don't need it (with iso_node_unref).
- * 
- * @return 
+ *
+ * @return
  *     1 on success, < 0 error
  */
 int iso_node_take(IsoNode *node)
@@ -610,10 +610,10 @@ int iso_node_take(IsoNode *node)
         /* should never occur */
         return ISO_ASSERT_FAILURE;
     }
-    
+
     /* notify iterators just before remove */
-    iso_notify_dir_iters(node, 0); 
-    
+    iso_notify_dir_iters(node, 0);
+
     *pos = node->next;
     node->parent = NULL;
     node->next = NULL;
@@ -626,8 +626,8 @@ int iso_node_take(IsoNode *node)
  * If you want to keep the child alive, you need to iso_node_ref() it
  * before this call, but in that case iso_node_take() is a better
  * alternative.
- * 
- * @return 
+ *
+ * @return
  *     1 on success, < 0 error
  */
 int iso_node_remove(IsoNode *node)
@@ -644,10 +644,10 @@ int iso_node_remove(IsoNode *node)
  * Get the parent of the given iso tree node. No extra ref is added to the
  * returned directory, you must take your ref. with iso_node_ref() if you
  * need it.
- * 
+ *
  * If node is the root node, the same node will be returned as its parent.
- * 
- * This returns NULL if the node doesn't pertain to any tree 
+ *
+ * This returns NULL if the node doesn't pertain to any tree
  * (it was removed/take).
  */
 IsoDir *iso_node_get_parent(IsoNode *node)
@@ -663,20 +663,20 @@ int iter_take(IsoDirIter *iter)
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     data = iter->data;
-    
+
     if (!(data->flag & 0x01)) {
         return ISO_ERROR; /* next not called or end of dir */
     }
-    
+
     if (data->pos == NULL) {
         return ISO_ASSERT_FAILURE;
     }
-    
+
     /* clear next flag */
     data->flag &= ~0x01;
-    
+
     return iso_node_take(data->pos);
 }
 
@@ -686,13 +686,13 @@ int iter_remove(IsoDirIter *iter)
     int ret;
     IsoNode *pos;
     struct dir_iter_data *data;
-    
+
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
     data = iter->data;
     pos = data->pos;
-    
+
     ret = iter_take(iter);
     if (ret == ISO_SUCCESS) {
         /* remove node */
@@ -706,8 +706,8 @@ void iter_notify_child_taken(IsoDirIter *iter, IsoNode *node)
     IsoNode *pos, *pre;
     struct dir_iter_data *data;
     data = iter->data;
-    
-    if (data->pos == node) { 
+
+    if (data->pos == node) {
         pos = iter->dir->children;
         pre = NULL;
         while (pos != NULL && pos != data->pos) {
@@ -717,10 +717,10 @@ void iter_notify_child_taken(IsoDirIter *iter, IsoNode *node)
         if (pos == NULL || pos != data->pos) {
             return;
         }
-        
+
         /* dispose iterator reference */
         iso_node_unref(data->pos);
-        
+
         if (pre == NULL) {
             /* node is a first position */
             iter->dir->children = pos->next;
@@ -766,7 +766,7 @@ int iso_dir_get_children(const IsoDir *dir, IsoDirIter **iter)
     data->pos = NULL;
     data->flag = 0x00;
     it->data = data;
-    
+
     if (iso_dir_iter_register(it) < 0) {
         free(it);
         return ISO_OUT_OF_MEM;
@@ -808,7 +808,7 @@ int iso_dir_iter_take(IsoDirIter *iter)
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
-    return iter->class->take(iter); 
+    return iter->class->take(iter);
 }
 
 int iso_dir_iter_remove(IsoDirIter *iter)
@@ -816,7 +816,7 @@ int iso_dir_iter_remove(IsoDirIter *iter)
     if (iter == NULL) {
         return ISO_NULL_POINTER;
     }
-    return iter->class->remove(iter); 
+    return iter->class->remove(iter);
 }
 
 /**
@@ -851,13 +851,13 @@ int iso_symlink_set_dest(IsoSymlink *link, const char *dest)
 /**
  * Sets the order in which a node will be written on image. High weihted files
  * will be written first, so in a disc them will be written near the center.
- * 
- * @param node 
- *      The node which weight will be changed. If it's a dir, this function 
- *      will change the weight of all its children. For nodes other that dirs 
+ *
+ * @param node
+ *      The node which weight will be changed. If it's a dir, this function
+ *      will change the weight of all its children. For nodes other that dirs
  *      or regular files, this function has no effect.
- * @param w 
- *      The weight as a integer number, the greater this value is, the 
+ * @param w
+ *      The weight as a integer number, the greater this value is, the
  *      closer from the begining of image the file will be written.
  */
 void iso_node_set_sort_weight(IsoNode *node, int w)
@@ -881,8 +881,8 @@ int iso_file_get_sort_weight(IsoFile *file)
     return file->sort_weight;
 }
 
-/** 
- * Get the size of the file, in bytes 
+/**
+ * Get the size of the file, in bytes
  */
 off_t iso_file_get_size(IsoFile *file)
 {
@@ -891,9 +891,9 @@ off_t iso_file_get_size(IsoFile *file)
 
 /**
  * Get the IsoStream that represents the contents of the given IsoFile.
- * 
+ *
  * If you open() the stream, it should be close() before image generation.
- * 
+ *
  * @return
  *      The IsoStream. No extra ref is added, so the IsoStream belong to the
  *      IsoFile, and it may be freed together with it. Add your own ref with
@@ -908,7 +908,7 @@ IsoStream *iso_file_get_stream(IsoFile *file)
 
 /**
  * Get the block lba of a file node, if it was imported from an old image.
- * 
+ *
  * @param file
  *      The file
  * @param lba
@@ -917,31 +917,39 @@ IsoStream *iso_file_get_stream(IsoFile *file)
  *      Reserved for future usage, submit 0
  * @return
  *      1 if lba is valid (file comes from old image), 0 if file was newly
- *      added, i.e. it does not come from an old image, < 0 error 
+ *      added, i.e. it does not come from an old image, < 0 error
  *
  * @since 0.6.4
  */
 int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag)
 {
+    int ret;
+    int section_count;
+    struct iso_file_section *sections;
     if (file == NULL || lba == NULL) {
         return ISO_NULL_POINTER;
     }
-    if (flag != 0) {
+    ret = iso_file_get_old_image_sections(file, &section_count, &sections, flag);
+    if (ret <= 0) {
+        return ret;
+    }
+    if (section_count != 1) {
+        free(sections);
         return ISO_WRONG_ARG_VALUE;
     }
-    if (file->msblock != 0) {
-        *lba = file->msblock;
-        return 1;
-    }
+    *lba = sections[0].block;
+    free(sections);
     return 0;
 }
 
+
+
 /*
  * Like iso_file_get_old_image_lba(), but take an IsoNode.
- * 
+ *
  * @return
  *      1 if lba is valid (file comes from old image), 0 if file was newly
- *      added, i.e. it does not come from an old image, 2 node type has no 
+ *      added, i.e. it does not come from an old image, 2 node type has no
  *      LBA (no regular file), < 0 error
  *
  * @since 0.6.4
@@ -960,7 +968,7 @@ int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag)
 
 /**
  * Check if a given name is valid for an iso node.
- * 
+ *
  * @return
  *     1 if yes, 0 if not
  */
@@ -990,7 +998,7 @@ int iso_node_is_valid_name(const char *name)
 
 /**
  * Check if a given path is valid for the destination of a link.
- * 
+ *
  * @return
  *     1 if yes, 0 if not
  */
@@ -1008,18 +1016,18 @@ int iso_node_is_valid_link_dest(const char *dest)
     if (dest[0] == '\0' || strlen(dest) > PATH_MAX) {
         return 0;
     }
-    
+
     /* check that all components are valid */
     if (!strcmp(dest, "/")) {
         /* "/" is a valid component */
         return 1;
     }
-    
+
     ptr = strdup(dest);
     if (ptr == NULL) {
         return 0;
     }
-    
+
     ret = 1;
     component = strtok_r(ptr, "/", &brk_info);
     while (component) {
@@ -1041,13 +1049,13 @@ void iso_dir_find(IsoDir *dir, const char *name, IsoNode ***pos)
     *pos = &(dir->children);
     while (**pos != NULL && strcmp((**pos)->name, name) < 0) {
         *pos = &((**pos)->next);
-    } 
+    }
 }
 
 int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos)
 {
     IsoNode **node;
-    
+
     iso_dir_find(dir, name, &node);
     if (pos) {
         *pos = node;
@@ -1055,7 +1063,7 @@ int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos)
     return (*node != NULL && !strcmp((*node)->name, name)) ? 1 : 0;
 }
 
-int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos, 
+int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
                    enum iso_replace_mode replace)
 {
     if (*pos != NULL && !strcmp((*pos)->name, node->name)) {
@@ -1087,7 +1095,7 @@ int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
             /* CAN'T HAPPEN */
             return ISO_ASSERT_FAILURE;
         }
-        
+
         /* if we are reach here we have to replace */
         node->next = (*pos)->next;
         (*pos)->parent = NULL;
@@ -1117,7 +1125,7 @@ struct iter_reg_node *iter_reg = NULL;
 
 /**
  * Add a new iterator to the registry. The iterator register keeps track of
- * all iterators being used, and are notified when directory structure 
+ * all iterators being used, and are notified when directory structure
  * changes.
  */
 int iso_dir_iter_register(IsoDirIter *iter)
@@ -1150,7 +1158,7 @@ void iso_dir_iter_unregister(IsoDirIter *iter)
     }
 }
 
-void iso_notify_dir_iters(IsoNode *node, int flag) 
+void iso_notify_dir_iters(IsoNode *node, int flag)
 {
     struct iter_reg_node *pos = iter_reg;
     while (pos != NULL) {
@@ -1184,11 +1192,11 @@ int iso_node_new_root(IsoDir **root)
 int iso_node_new_dir(char *name, IsoDir **dir)
 {
     IsoDir *new;
-    
+
     if (dir == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     /* check if the name is valid */
     if (!iso_node_is_valid_name(name)) {
         return ISO_WRONG_ARG_VALUE;
@@ -1209,11 +1217,11 @@ int iso_node_new_dir(char *name, IsoDir **dir)
 int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
 {
     IsoFile *new;
-    
+
     if (file == NULL || name == NULL || stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     /* check if the name is valid */
     if (!iso_node_is_valid_name(name)) {
         return ISO_WRONG_ARG_VALUE;
@@ -1236,16 +1244,16 @@ int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
 int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link)
 {
     IsoSymlink *new;
-    
+
     if (link == NULL || name == NULL || dest == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     /* check if the name is valid */
     if (!iso_node_is_valid_name(name)) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     /* check if destination is valid */
     if (!iso_node_is_valid_link_dest(dest)) {
         /* guard against null or empty dest */
@@ -1265,18 +1273,18 @@ int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link)
     return ISO_SUCCESS;
 }
 
-int iso_node_new_special(char *name, mode_t mode, dev_t dev, 
+int iso_node_new_special(char *name, mode_t mode, dev_t dev,
                          IsoSpecial **special)
 {
     IsoSpecial *new;
-    
+
     if (special == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
     if (S_ISLNK(mode) || S_ISREG(mode) || S_ISDIR(mode)) {
         return ISO_WRONG_ARG_VALUE;
     }
-    
+
     /* check if the name is valid */
     if (!iso_node_is_valid_name(name)) {
         return ISO_WRONG_ARG_VALUE;

@@ -61,20 +61,28 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
     iso_stream_get_id(file->stream, &fs_id, &dev_id, &ino_id);
 
-    fsrc = malloc(sizeof(IsoFileSrc));
+    fsrc = calloc(1, sizeof(IsoFileSrc));
     if (fsrc == NULL) {
         return ISO_OUT_OF_MEM;
     }
 
     /* fill key and other atts */
-    fsrc->prev_img = file->msblock ? 1 : 0;
-    fsrc->block = file->msblock;
+    fsrc->prev_img = file->from_old_session;
+    if (file->from_old_session) {
+        int ret = iso_file_get_old_image_sections(file, &(fsrc->nsections),
+                                                  &(fsrc->sections), 0);
+        if (ret < 0) {
+            free(fsrc);
+            return ISO_OUT_OF_MEM;
+        }
+    }
     fsrc->sort_weight = file->sort_weight;
     fsrc->stream = file->stream;
 
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
     if (ret <= 0) {
+        free(fsrc->sections);
         free(fsrc);
         return ret;
     }
@@ -117,6 +125,7 @@ int iso_file_src_add(Ecma119Image *img, IsoFileSrc *new, IsoFileSrc **src)
 void iso_file_src_free(void *node)
 {
     iso_stream_unref(((IsoFileSrc*)node)->stream);
+    free(((IsoFileSrc*)node)->sections);
     free(node);
 }
 
@@ -174,8 +183,31 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* fill block value */
     for (i = 0; i < size; ++i) {
+        int extent = 0;
         IsoFileSrc *file = filelist[i];
-        file->block = t->curblock;
+
+        off_t section_size = iso_stream_get_size(file->stream);
+        if (section_size > (off_t) 0xffffffff) {
+            file->nsections = DIV_UP(iso_stream_get_size(file->stream)
+                                     - (off_t) 0xffffffff, (off_t)0xFFFFF800) + 1;
+        } else {
+            file->nsections = 1;
+        }
+        file->sections = realloc(file->sections, file->nsections *
+                                 sizeof(struct iso_file_section));
+        for (extent = 0; extent < file->nsections - 1; ++extent) {
+            file->sections[extent].block = t->curblock + extent * 2097151;
+            file->sections[extent].size = 0xFFFFF800;
+            section_size -= (off_t) 0xFFFFF800;
+        }
+
+        /*
+         * final section
+         */
+        file->sections[extent].block = t->curblock + extent * 2097151;
+        file->sections[extent].size = section_size;
+        section_size -= (off_t) 0xFFFFF800;
+
         t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }
 
