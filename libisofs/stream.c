@@ -602,6 +602,7 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
         FSrcStreamData *data = stream->data;
         char *path = iso_file_source_get_path(data->src);
         strncpy(name, path, PATH_MAX);
+        free(path);
     } else if (!strncmp(type, "boot", 4)) {
         strcpy(name, "BOOT CATALOG");
     } else if (!strncmp(type, "mem ", 4)) {
