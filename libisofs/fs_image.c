@@ -2889,3 +2889,54 @@ int iso_read_image_features_has_eltorito(IsoReadImageFeatures *f)
 {
     return f->hasElTorito;
 }
+
+
+/**
+ * Get the start addresses and the sizes of the data extents of a file node
+ * if it was imported from an old image.
+ *
+ * @param file
+ *      The file
+ * @param section_count
+ *      Returns the number of extent entries in sections arrays
+ * @param sections
+ *      Returns the array of file sections. Apply free() to dispose it.
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if there are valid extents (file comes from old image),
+ *      0 if file was newly added, i.e. it does not come from an old image,
+ *      < 0 error
+ */
+int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
+                                   struct iso_file_section **sections,
+                                   int flag)
+{
+    if (file == NULL || section_count == NULL || sections == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (flag != 0) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (file->from_old_session != 0) {
+
+        /*
+         * When file is from old session, we retrieve the original IsoFileSource
+         * to get the sections. This break encapsultation, but safes memory as
+         * we don't need to store the sections in the IsoFile node.
+         */
+        FSrcStreamData *data = file->stream->data;
+        ImageFileSourceData *ifsdata = data->src->data;
+
+        *section_count = ifsdata->nsections;
+        *sections = malloc(ifsdata->nsections *
+                                sizeof(struct iso_file_section));
+        if (*sections == NULL) {
+            return ISO_OUT_OF_MEM;
+        }
+        memcpy(*sections, ifsdata->sections,
+               ifsdata->nsections * sizeof(struct iso_file_section));
+        return 1;
+    }
+    return 0;
+}

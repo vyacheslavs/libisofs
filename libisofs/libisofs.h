@@ -2533,8 +2533,34 @@ IsoStream *iso_file_get_stream(IsoFile *file);
  *      added, i.e. it does not come from an old image, < 0 error
  *
  * @since 0.6.4
+ *
+ * @deprecated Use iso_file_get_old_image_sections(), as this function does
+ *             not work with multi-extend files.
  */
 int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag);
+
+/**
+ * Get the start addresses and the sizes of the data extents of a file node
+ * if it was imported from an old image.
+ *
+ * @param file
+ *      The file
+ * @param section_count
+ *      Returns the number of extent entries in sections arrays
+ * @param sections
+ *      Returns the array of file sections. Apply free() to dispose it.
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if there are valid extents (file comes from old image),
+ *      0 if file was newly added, i.e. it does not come from an old image,
+ *      < 0 error
+ *
+ * @since 0.6.8
+ */
+int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
+                                   struct iso_file_section **sections,
+                                   int flag);
 
 /*
  * Like iso_file_get_old_image_lba(), but take an IsoNode.
