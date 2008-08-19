@@ -549,14 +549,19 @@ size_t calc_dir_size(Ecma119Image *t, Iso1999Node *dir)
 
     for (i = 0; i < dir->info.dir->nchildren; ++i) {
         size_t remaining;
+        int section, nsections;
         Iso1999Node *child = dir->info.dir->children[i];
         size_t dirent_len = calc_dirent_len(t, child);
-        remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
-        if (dirent_len > remaining) {
-            /* child directory entry doesn't fit on block */
-            len += remaining + dirent_len;
-        } else {
-            len += dirent_len;
+
+        nsections = (child->type == ISO1999_FILE) ? child->info.file->nsections : 1;
+        for (section = 0; section < nsections; ++section) {
+            remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
+            if (dirent_len > remaining) {
+                /* child directory entry doesn't fit on block */
+                len += remaining + dirent_len;
+            } else {
+                len += dirent_len;
+            }
         }
     }
 
