@@ -187,26 +187,28 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
         IsoFileSrc *file = filelist[i];
 
         off_t section_size = iso_stream_get_size(file->stream);
-        if (section_size > (off_t) 0xffffffff) {
+        if (section_size > (off_t) MAX_ISO_FILE_SECTION_SIZE) {
             file->nsections = DIV_UP(iso_stream_get_size(file->stream)
-                                     - (off_t) 0xffffffff, (off_t)0xFFFFF800) + 1;
+                                     - (off_t) MAX_ISO_FILE_SECTION_SIZE,
+                                     (off_t)ISO_EXTENT_SIZE) + 1;
         } else {
             file->nsections = 1;
         }
         file->sections = realloc(file->sections, file->nsections *
                                  sizeof(struct iso_file_section));
         for (extent = 0; extent < file->nsections - 1; ++extent) {
-            file->sections[extent].block = t->curblock + extent * 2097151;
-            file->sections[extent].size = 0xFFFFF800;
-            section_size -= (off_t) 0xFFFFF800;
+            file->sections[extent].block = t->curblock + extent *
+                        (ISO_EXTENT_SIZE / BLOCK_SIZE);
+            file->sections[extent].size = ISO_EXTENT_SIZE;
+            section_size -= (off_t) ISO_EXTENT_SIZE;
         }
 
         /*
          * final section
          */
-        file->sections[extent].block = t->curblock + extent * 2097151;
+        file->sections[extent].block = t->curblock + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
         file->sections[extent].size = section_size;
-        section_size -= (off_t) 0xFFFFF800;
+        section_size -= (off_t) ISO_EXTENT_SIZE;
 
         t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }

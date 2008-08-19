@@ -111,7 +111,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
         IsoFile *file = (IsoFile*) iso;
 
         size = iso_stream_get_size(file->stream);
-        if (size > (off_t)0xffffffff && t->iso_level != 3) {
+        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && t->iso_level != 3) {
             free(joliet);
             return iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
                          "File \"%s\" can't be added to image because is "

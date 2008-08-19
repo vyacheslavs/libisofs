@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -17,6 +17,18 @@
 #include <pthread.h>
 
 #define BLOCK_SIZE      2048
+
+/*
+ * Maximum file section size. Set to 4GB - 1 =  0xffffffff
+ */
+#define MAX_ISO_FILE_SECTION_SIZE   0xffffffff
+
+/*
+ * When a file need to be splitted in several sections, the maximum size
+ * of such sections, but the last one. Set to a multiple of BLOCK_SIZE.
+ * Default to 4GB - 2048 = 0xFFFFF800
+ */
+#define ISO_EXTENT_SIZE             0xFFFFF800
 
 /**
  * Holds the options for the image generation.
@@ -33,11 +45,11 @@ struct iso_write_opts {
     /* allways write timestamps in GMT */
     unsigned int always_gmt :1;
 
-    /* 
+    /*
      * Relaxed constraints. Setting any of these to 1 break the specifications,
-     * but it is supposed to work on most moderns systems. Use with caution. 
+     * but it is supposed to work on most moderns systems. Use with caution.
      */
-    
+
     /**
      * Omit the version number (";1") at the end of the ISO-9660 identifiers.
      * Version numbers are usually not used.
@@ -45,7 +57,7 @@ struct iso_write_opts {
     unsigned int omit_version_numbers :1;
 
     /**
-     * Allow ISO-9660 directory hierarchy to be deeper than 8 levels. 
+     * Allow ISO-9660 directory hierarchy to be deeper than 8 levels.
      */
     unsigned int allow_deep_paths :1;
 
@@ -64,30 +76,30 @@ struct iso_write_opts {
 
     /**
      * ISO-9660 forces filenames to have a ".", that separates file name from
-     * extension. libisofs adds it if original filename doesn't has one. Set 
+     * extension. libisofs adds it if original filename doesn't has one. Set
      * this to 1 to prevent this behavior
      */
     unsigned int no_force_dots :1;
-    
+
     /**
-     * Allow lowercase characters in ISO-9660 filenames. By default, only 
-     * uppercase characters, numbers and a few other characters are allowed. 
+     * Allow lowercase characters in ISO-9660 filenames. By default, only
+     * uppercase characters, numbers and a few other characters are allowed.
      */
     unsigned int allow_lowercase :1;
-    
+
     /**
      * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
      * that "/" and "\0" characters are never allowed, even in RR names.
      */
     unsigned int allow_full_ascii :1;
-    
+
     /**
      * Allow all characters to be part of Volume and Volset identifiers on
      * the Primary Volume Descriptor. This breaks ISO-9660 contraints, but
      * should work on modern systems.
      */
     unsigned int relaxed_vol_atts :1;
-    
+
     /**
      * Allow paths in the Joliet tree to have more than 240 characters.
      */
@@ -102,7 +114,7 @@ struct iso_write_opts {
      * If 0, the corresponding attribute will be kept as setted in the IsoNode.
      * Unless you have changed it, it corresponds to the value on disc, so it
      * is suitable for backup purposes. If set to 1, the corresponding attrib.
-     * will be changed by a default suitable value. Finally, if you set it to 
+     * will be changed by a default suitable value. Finally, if you set it to
      * 2, the attrib. will be changed with the value specified in the options
      * below. Note that for mode attributes, only the permissions are set, the
      * file type remains unchanged.
@@ -133,62 +145,62 @@ struct iso_write_opts {
 
     /**
      * This flags control the type of the image to create. Libisofs support
-     * two kind of images: stand-alone and appendable. 
-     * 
+     * two kind of images: stand-alone and appendable.
+     *
      * A stand-alone image is an image that is valid alone, and that can be
      * mounted by its own. This is the kind of image you will want to create
      * in most cases. A stand-alone image can be burned in an empty CD or DVD,
      * or write to an .iso file for future burning or distribution.
-     * 
+     *
      * On the other side, an appendable image is not self contained, it refers
      * to serveral files that are stored outside the image. Its usage is for
-     * multisession discs, where you add data in a new session, while the 
-     * previous session data can still be accessed. In those cases, the old 
+     * multisession discs, where you add data in a new session, while the
+     * previous session data can still be accessed. In those cases, the old
      * data is not written again. Instead, the new image refers to it, and thus
      * it's only valid when appended to the original. Note that in those cases
      * the image will be written after the original, and thus you will want
-     * to use a ms_block greater than 0. 
-     * 
-     * Note that if you haven't import a previous image (by means of 
+     * to use a ms_block greater than 0.
+     *
+     * Note that if you haven't import a previous image (by means of
      * iso_image_import()), the image will always be a stand-alone image, as
      * there is no previous data to refer to.
      */
     unsigned int appendable : 1;
-    
+
     /**
      * Start block of the image. It is supposed to be the lba where the first
      * block of the image will be written on disc. All references inside the
      * ISO image will take this into account, thus providing a mountable image.
-     * 
-     * For appendable images, that are written to a new session, you should 
+     *
+     * For appendable images, that are written to a new session, you should
      * pass here the lba of the next writable address on disc.
-     * 
-     * In stand alone images this is usually 0. However, you may want to 
+     *
+     * In stand alone images this is usually 0. However, you may want to
      * provide a different ms_block if you don't plan to burn the image in the
      * first session on disc, such as in some CD-Extra disc whether the data
-     * image is written in a new session after some audio tracks. 
+     * image is written in a new session after some audio tracks.
      */
     uint32_t ms_block;
 
     /**
-     * When not NULL, it should point to a buffer of at least 64KiB, where 
+     * When not NULL, it should point to a buffer of at least 64KiB, where
      * libisofs will write the contents that should be written at the beginning
      * of a overwriteable media, to grow the image. The growing of an image is
      * a way, used by first time in growisofs by Andy Polyakov, to allow the
      * appending of new data to non-multisession media, such as DVD+RW, in the
      * same way you append a new session to a multisession disc, i.e., without
-     * need to write again the contents of the previous image.   
-     * 
+     * need to write again the contents of the previous image.
+     *
      * Note that if you want this kind of image growing, you will also need to
      * set appendable to "1" and provide a valid ms_block after the previous
      * image.
-     * 
-     * You should initialize the buffer either with 0s, or with the contents of 
-     * the first blocks of the image you're growing. In most cases, 0 is good 
+     *
+     * You should initialize the buffer either with 0s, or with the contents of
+     * the first blocks of the image you're growing. In most cases, 0 is good
      * enought.
      */
     uint8_t *overwrite;
-    
+
     /**
      * Size, in number of blocks, of the FIFO buffer used between the writer
      * thread and the burn_source. You have to provide at least a 32 blocks
@@ -228,13 +240,13 @@ struct ecma119_image
     unsigned int no_force_dots :1;
     unsigned int allow_lowercase :1;
     unsigned int allow_full_ascii :1;
-    
+
     unsigned int relaxed_vol_atts : 1;
-    
+
     /** Allow paths on Joliet tree to be larger than 240 bytes */
     unsigned int joliet_longer_paths :1;
 
-    /* 
+    /*
      * Mode replace. If one of these flags is set, the correspodent values are
      * replaced with values below.
      */
@@ -251,7 +263,7 @@ struct ecma119_image
     time_t timestamp;
 
     /**
-     *  if sort files or not. Sorting is based of the weight of each file 
+     *  if sort files or not. Sorting is based of the weight of each file
      */
     int sort_files;
 
@@ -282,7 +294,7 @@ struct ecma119_image
      */
     uint32_t curblock;
 
-    /* 
+    /*
      * number of dirs in ECMA-119 tree, computed together with dir position,
      * and needed for path table computation in a efficient way
      */
@@ -290,7 +302,7 @@ struct ecma119_image
     uint32_t path_table_size;
     uint32_t l_path_table_pos;
     uint32_t m_path_table_pos;
-    
+
     /*
      * Joliet related information
      */
@@ -299,7 +311,7 @@ struct ecma119_image
     uint32_t joliet_path_table_size;
     uint32_t joliet_l_path_table_pos;
     uint32_t joliet_m_path_table_pos;
-    
+
     /*
      * ISO 9660:1999 related information
      */
@@ -308,7 +320,7 @@ struct ecma119_image
     uint32_t iso1999_path_table_size;
     uint32_t iso1999_l_path_table_pos;
     uint32_t iso1999_m_path_table_pos;
-    
+
     /*
      * El-Torito related information
      */
@@ -322,10 +334,10 @@ struct ecma119_image
      * data. These padding blocks are added by libisofs to improve the handling
      * of image growing. The idea is that the first blocks in the image are
      * overwritten with the volume descriptors of the new image. These first
-     * blocks usually correspond to the volume descriptors and directory 
-     * structure of the old image, and can be safety overwritten. However, 
-     * with very small images they might correspond to valid data. To ensure 
-     * this never happens, what we do is to add padding bytes, to ensure no 
+     * blocks usually correspond to the volume descriptors and directory
+     * structure of the old image, and can be safety overwritten. However,
+     * with very small images they might correspond to valid data. To ensure
+     * this never happens, what we do is to add padding bytes, to ensure no
      * file data is written in the first 64 KiB, that are the bytes we usually
      * overwrite.
      */
