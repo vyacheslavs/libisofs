@@ -117,18 +117,23 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
 
     for (i = 0; i < dir->info.dir->nchildren; ++i) {
         size_t remaining;
+        int section, nsections;
         Ecma119Node *child = dir->info.dir->children[i];
         size_t dirent_len = calc_dirent_len(t, child);
-        if (t->rockridge) {
-            dirent_len += rrip_calc_len(t, child, 0, 255 - dirent_len, &ce_len);
-            *ce += ce_len;
-        }
-        remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
-        if (dirent_len > remaining) {
-            /* child directory entry doesn't fit on block */
-            len += remaining + dirent_len;
-        } else {
-            len += dirent_len;
+
+        nsections = (child->type == ECMA119_FILE) ? child->info.file->nsections : 1;
+        for (section = 0; section < nsections; ++section) {
+            if (t->rockridge && section == nsections - 1) {
+                dirent_len += rrip_calc_len(t, child, 0, 255 - dirent_len, &ce_len);
+                *ce += ce_len;
+            }
+            remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
+            if (dirent_len > remaining) {
+                /* child directory entry doesn't fit on block */
+                len += remaining + dirent_len;
+            } else {
+                len += dirent_len;
+            }
         }
     }
 
@@ -459,17 +464,17 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
             len += 2;
         }
 
-        /* get the SUSP fields if rockridge is enabled */
-        if (t->rockridge) {
-            ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
-            if (ret < 0) {
-                return ret;
-            }
-            len += info.suf_len;
-        }
-
         nsections = (child->type == ECMA119_FILE) ? child->info.file->nsections : 1;
         for (section = 0; section < nsections; ++section) {
+
+            /* get the SUSP fields if rockridge is enabled */
+            if (t->rockridge && section == nsections - 1) {
+                ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
+                if (ret < 0) {
+                    return ret;
+                }
+                len += info.suf_len;
+            }
 
             if ( (buf + len - buffer) > BLOCK_SIZE) {
                 /* dir doesn't fit in current block */
