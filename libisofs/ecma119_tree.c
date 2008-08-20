@@ -161,7 +161,7 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
     off_t size;
 
     size = iso_stream_get_size(iso->stream);
-    if (size > (off_t)0xffffffff) {
+    if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && img->iso_level != 3) {
         char *ipath = iso_tree_get_node_path(ISO_NODE(iso));
         ret = iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
                               "File \"%s\" can't be added to image because "

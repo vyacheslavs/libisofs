@@ -39,7 +39,7 @@ print_type(mode_t mode)
     case S_IFREG: printf("[R] "); break;
     case S_IFBLK: printf("[B] "); break;
     case S_IFDIR: printf("[D] "); break;
-    case S_IFIFO: printf("[F] "); break; 
+    case S_IFIFO: printf("[F] "); break;
     }
 }
 
@@ -51,6 +51,7 @@ print_file_src(IsoFileSource *file)
     iso_file_source_lstat(file, &info);
     print_type(info.st_mode);
     print_permissions(info.st_mode);
+    printf(" %10llu ", info.st_size);
     //printf(" {%ld,%ld} ", (long)info.st_dev, (long)info.st_ino);
     name = iso_file_source_get_name(file);
     printf(" %s", name);
@@ -116,7 +117,7 @@ int main(int argc, char **argv)
 
     iso_init();
     iso_set_msgs_severities("NEVER", "ALL", "");
-    
+
     result = iso_data_source_new_from_file(argv[1], &src);
     if (result < 0) {
         printf ("Error creating data source\n");
@@ -134,10 +135,10 @@ int main(int argc, char **argv)
         printf ("Error creating filesystem\n");
         return 1;
     }
-    
+
     printf("\nVOLUME INFORMATION\n");
     printf("==================\n\n");
-    
+
     printf("Vol. id: %s\n", iso_image_fs_get_volume_id(fs));
     printf("Publisher: %s\n", iso_image_fs_get_publisher_id(fs));
     printf("Data preparer: %s\n", iso_image_fs_get_data_preparer_id(fs));
@@ -149,7 +150,7 @@ int main(int argc, char **argv)
 
     printf("\nDIRECTORY TREE\n");
     printf("==============\n");
-    
+
     result = fs->get_root(fs, &root);
     if (result < 0) {
         printf ("Can't get root %d\n", result);
@@ -158,7 +159,7 @@ int main(int argc, char **argv)
     //print_file_src(root);
     print_dir(root, 0);
     iso_file_source_unref(root);
-    
+
     fs->close(fs);
     iso_filesystem_unref((IsoFilesystem*)fs);
     iso_data_source_unref(src);

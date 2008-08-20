@@ -108,6 +108,17 @@ enum IsoNodeType {
 #define ISO_NODE(n) ((IsoNode*)n)
 
 /**
+ * File section in an old image.
+ *
+ * @since 0.6.8
+ */
+struct iso_file_section
+{
+    uint32_t block;
+    uint32_t size;
+};
+
+/**
  * Context for iterate on directory children.
  * @see iso_dir_get_children()
  *
@@ -917,7 +928,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  *        start point from which to set your custom options.
  *     ---> 1 [BACKUP]
  *        POSIX compatibility for backup. Simple settings, ISO level is set to
- *        2 and RR extensions are enabled. Useful for backup purposes.
+ *        3 and RR extensions are enabled. Useful for backup purposes.
  *     ---> 2 [DISTRIBUTION]
  *        Setting for information distribution. Both RR and Joliet are enabled
  *        to maximize compatibility with most systems. Permissions are set to
@@ -943,6 +954,7 @@ void iso_write_opts_free(IsoWriteOpts *opts);
  *      -> 1 for higher compatibility with old systems. With this level
  *      filenames are restricted to 8.3 characters.
  *      -> 2 to allow up to 31 filename characters.
+ *      -> 3 to allow files greater than 4GB
  * @return
  *      1 success, < 0 error
  *
@@ -2551,8 +2563,34 @@ IsoStream *iso_file_get_stream(IsoFile *file);
  *      added, i.e. it does not come from an old image, < 0 error
  *
  * @since 0.6.4
+ *
+ * @deprecated Use iso_file_get_old_image_sections(), as this function does
+ *             not work with multi-extend files.
  */
 int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag);
+
+/**
+ * Get the start addresses and the sizes of the data extents of a file node
+ * if it was imported from an old image.
+ *
+ * @param file
+ *      The file
+ * @param section_count
+ *      Returns the number of extent entries in sections array.
+ * @param sections
+ *      Returns the array of file sections. Apply free() to dispose it.
+ * @param flag
+ *      Reserved for future usage, submit 0
+ * @return
+ *      1 if there are valid extents (file comes from old image),
+ *      0 if file was newly added, i.e. it does not come from an old image,
+ *      < 0 error
+ *
+ * @since 0.6.8
+ */
+int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
+                                   struct iso_file_section **sections,
+                                   int flag);
 
 /*
  * Like iso_file_get_old_image_lba(), but take an IsoNode.

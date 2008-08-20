@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 #ifndef LIBISO_NODE_H_
@@ -22,12 +22,12 @@
 
 /**
  * The extended information is a way to attach additional information to each
- * IsoNode. External applications may want to use this extension system to 
+ * IsoNode. External applications may want to use this extension system to
  * store application speficic information related to each node. On the other
  * side, libisofs may make use of this struct to attach information to nodes in
  * some particular, uncommon, cases, without incrementing the size of the
  * IsoNode struct.
- * 
+ *
  * It is implemented like a chained list.
  */
 typedef struct iso_extended_info IsoExtendedInfo;
@@ -37,23 +37,23 @@ struct iso_extended_info {
      * Next struct in the chain. NULL if it is the last item
      */
     IsoExtendedInfo *next;
-    
+
     /**
      * Function to handle this particular extended information. The function
      * pointer acts as an identifier for the type of the information. Structs
      * with same information type must use the same function.
-     * 
+     *
      * @param data
      *     Attached data
      * @param flag
-     *     What to do with the data. At this time the following values are 
+     *     What to do with the data. At this time the following values are
      *     defined:
      *      -> 1 the data must be freed
      * @return
      *     1
      */
     iso_node_xinfo_func process;
-    
+
     /**
      * Pointer to information specific data.
      */
@@ -61,15 +61,15 @@ struct iso_extended_info {
 };
 
 /**
- * 
+ *
  */
 struct Iso_Node
 {
     /*
      * Initilized to 1, originally owned by user, until added to another node.
-     * Then it is owned by the parent node, so the user must take his own ref 
+     * Then it is owned by the parent node, so the user must take his own ref
      * if needed. With the exception of the creation functions, none of the
-     * other libisofs functions that return an IsoNode increment its 
+     * other libisofs functions that return an IsoNode increment its
      * refcount. This is responsablity of the client, if (s)he needs it.
      */
     int refcount;
@@ -115,14 +115,11 @@ struct Iso_File
 {
     IsoNode node;
 
-    /**
-     * Location of a file extent in a ms disc, 0 for newly added file
-     */
-    uint32_t msblock;
+    unsigned int from_old_session : 1;
 
-    /** 
+    /**
      * It sorts the order in which the file data is written to the CD image.
-     * Higher weighting files are written at the beginning of image 
+     * Higher weighting files are written at the beginning of image
      */
     int sort_weight;
     IsoStream *stream;
@@ -143,18 +140,18 @@ struct Iso_Special
 
 struct iso_dir_iter_iface
 {
-    
+
     int (*next)(IsoDirIter *iter, IsoNode **node);
 
     int (*has_next)(IsoDirIter *iter);
 
     void (*free)(IsoDirIter *iter);
-    
+
     int (*take)(IsoDirIter *iter);
 
     int (*remove)(IsoDirIter *iter);
-    
-    /** 
+
+    /**
      * This is called just before remove a node from a directory. The iterator
      * may want to update its internal state according to this.
      */
@@ -167,37 +164,37 @@ struct iso_dir_iter_iface
 struct Iso_Dir_Iter
 {
     struct iso_dir_iter_iface *class;
-    
+
     /* the directory this iterator iterates over */
     IsoDir *dir;
-    
+
     void *data;
 };
 
 int iso_node_new_root(IsoDir **root);
 
 /**
- * Create a new IsoDir. Attributes, uid/gid, timestamps, etc are set to 
+ * Create a new IsoDir. Attributes, uid/gid, timestamps, etc are set to
  * default (0) values. You must set them.
- * 
+ *
  * @param name
- *      Name for the node. It is not strdup() so you shouldn't use this 
- *      reference when this function returns successfully. NULL is not 
+ *      Name for the node. It is not strdup() so you shouldn't use this
+ *      reference when this function returns successfully. NULL is not
  *      allowed.
  * @param dir
- *      
+ *
  * @return
  *      1 on success, < 0 on error.
  */
 int iso_node_new_dir(char *name, IsoDir **dir);
 
 /**
- * Create a new file node. Attributes, uid/gid, timestamps, etc are set to 
+ * Create a new file node. Attributes, uid/gid, timestamps, etc are set to
  * default (0) values. You must set them.
- * 
+ *
  * @param name
- *      Name for the node. It is not strdup() so you shouldn't use this 
- *      reference when this function returns successfully. NULL is not 
+ *      Name for the node. It is not strdup() so you shouldn't use this
+ *      reference when this function returns successfully. NULL is not
  *      allowed.
  * @param stream
  *      Source for file contents. The reference is taken by the node,
@@ -210,14 +207,14 @@ int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file);
 /**
  * Creates a new IsoSymlink node. Attributes, uid/gid, timestamps, etc are set
  * to default (0) values. You must set them.
- * 
+ *
  * @param name
- *      name for the new symlink. It is not strdup() so you shouldn't use this 
- *      reference when this function returns successfully. NULL is not 
+ *      name for the new symlink. It is not strdup() so you shouldn't use this
+ *      reference when this function returns successfully. NULL is not
  *      allowed.
  * @param dest
- *      destination of the link. It is not strdup() so you shouldn't use this 
- *      reference when this function returns successfully. NULL is not 
+ *      destination of the link. It is not strdup() so you shouldn't use this
+ *      reference when this function returns successfully. NULL is not
  *      allowed.
  * @param link
  *      place where to store a pointer to the newly created link.
@@ -231,22 +228,22 @@ int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link);
  * an special file is a block device, a character device, a FIFO (named pipe)
  * or a socket. You can choose the specific kind of file you want to add
  * by setting mode propertly (see man 2 stat).
- * 
- * Note that special files are only written to image when Rock Ridge 
+ *
+ * Note that special files are only written to image when Rock Ridge
  * extensions are enabled. Moreover, a special file is just a directory entry
  * in the image tree, no data is written beyond that.
- * 
- * Owner and hidden atts are taken from parent. You can modify any of them 
+ *
+ * Owner and hidden atts are taken from parent. You can modify any of them
  * later.
- * 
+ *
  * @param name
- *      name for the new special file. It is not strdup() so you shouldn't use 
- *      this reference when this function returns successfully. NULL is not 
+ *      name for the new special file. It is not strdup() so you shouldn't use
+ *      this reference when this function returns successfully. NULL is not
  *      allowed.
  * @param mode
  *      file type and permissions for the new node. Note that you can't
  *      specify any kind of file here, only special types are allowed. i.e,
- *      S_IFSOCK, S_IFBLK, S_IFCHR and S_IFIFO are valid types; S_IFLNK, 
+ *      S_IFSOCK, S_IFBLK, S_IFCHR and S_IFIFO are valid types; S_IFLNK,
  *      S_IFREG and S_IFDIR aren't.
  * @param dev
  *      device ID, equivalent to the st_rdev field in man 2 stat.
@@ -255,12 +252,12 @@ int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link);
  * @return
  *     1 on success, < 0 otherwise
  */
-int iso_node_new_special(char *name, mode_t mode, dev_t dev, 
+int iso_node_new_special(char *name, mode_t mode, dev_t dev,
                          IsoSpecial **special);
 
 /**
  * Check if a given name is valid for an iso node.
- * 
+ *
  * @return
  *     1 if yes, 0 if not
  */
@@ -268,7 +265,7 @@ int iso_node_is_valid_name(const char *name);
 
 /**
  * Check if a given path is valid for the destination of a link.
- * 
+ *
  * @return
  *     1 if yes, 0 if not
  */
@@ -276,7 +273,7 @@ int iso_node_is_valid_link_dest(const char *dest);
 
 /**
  * Find the position where to insert a node
- * 
+ *
  * @param dir
  *      A valid dir. It can't be NULL
  * @param name
@@ -288,7 +285,7 @@ void iso_dir_find(IsoDir *dir, const char *name, IsoNode ***pos);
 
 /**
  * Check if a node with the given name exists in a dir.
- * 
+ *
  * @param dir
  *      A valid dir. It can't be NULL
  * @param name
@@ -303,26 +300,26 @@ int iso_dir_exists(IsoDir *dir, const char *name, IsoNode ***pos);
 
 /**
  * Inserts a given node in a dir, at the specified position.
- * 
+ *
  * @param dir
  *     Dir where to insert. It can't be NULL
  * @param node
  *     The node to insert. It can't be NULL
  * @param pos
  *     Position where the node will be inserted. It is a pointer previously
- *     obtained with a call to iso_dir_exists() or iso_dir_find(). 
+ *     obtained with a call to iso_dir_exists() or iso_dir_find().
  *     It can't be NULL.
- * @param replace 
+ * @param replace
  *     Whether to replace an old node with the same name with the new node.
  * @return
- *     If success, number of children in dir. < 0 on error  
+ *     If success, number of children in dir. < 0 on error
  */
-int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos, 
+int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
                    enum iso_replace_mode replace);
 
 /**
  * Add a new iterator to the registry. The iterator register keeps track of
- * all iterators being used, and are notified when directory structure 
+ * all iterators being used, and are notified when directory structure
  * changes.
  */
 int iso_dir_iter_register(IsoDirIter *iter);

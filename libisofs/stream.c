@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -18,16 +18,6 @@
 ino_t serial_id = (ino_t)1;
 ino_t mem_serial_id = (ino_t)1;
 ino_t cut_out_serial_id = (ino_t)1;
-
-typedef struct
-{
-    IsoFileSource *src;
-
-    /* key for file identification inside filesystem */
-    dev_t dev_id;
-    ino_t ino_id;
-    off_t size; /**< size of this file */
-} FSrcStreamData;
 
 static
 int fsrc_open(IsoStream *stream)
@@ -116,7 +106,7 @@ void fsrc_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 {
     FSrcStreamData *data;
     IsoFilesystem *fs;
-    
+
     data = (FSrcStreamData*)stream->data;
     fs = iso_file_source_get_filesystem(data->src);
 
@@ -164,7 +154,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     if (S_ISDIR(info.st_mode)) {
         return ISO_FILE_IS_DIR;
     }
-    
+
     /* check for read access to contents */
     r = iso_file_source_access(src);
     if (r < 0) {
@@ -184,7 +174,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     /* take the ref to IsoFileSource */
     data->src = src;
     data->size = info.st_size;
-    
+
     /* get the id numbers */
     {
         IsoFilesystem *fs;
@@ -193,7 +183,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
 
         fs_id = fs->get_id(fs);
         if (fs_id == 0) {
-            /* 
+            /*
              * the filesystem implementation is unable to provide valid
              * st_dev and st_ino fields. Use serial_id.
              */
@@ -232,11 +222,11 @@ int cut_out_open(IsoStream *stream)
     struct stat info;
     IsoFileSource *src;
     struct cut_out_stream *data;
-    
+
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     data = stream->data;
     src = data->src;
     ret = iso_file_source_stat(data->src, &info);
@@ -247,7 +237,7 @@ int cut_out_open(IsoStream *stream)
     if (ret < 0) {
         return ret;
     }
-    
+
     {
         off_t ret;
         if (data->offset > info.st_size) {
@@ -310,7 +300,7 @@ void cut_out_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 {
     FSrcStreamData *data;
     IsoFilesystem *fs;
-    
+
     data = (FSrcStreamData*)stream->data;
     fs = iso_file_source_get_filesystem(data->src);
 
@@ -339,7 +329,7 @@ IsoStreamIface cut_out_stream_class = {
     cut_out_free
 };
 
-int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size, 
+int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
                            IsoStream **stream)
 {
     int r;
@@ -364,7 +354,7 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
     if (offset > info.st_size) {
         return ISO_FILE_OFFSET_TOO_BIG;
     }
-    
+
     /* check for read access to contents */
     r = iso_file_source_access(src);
     if (r < 0) {
@@ -384,10 +374,10 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
     /* take a new ref to IsoFileSource */
     data->src = src;
     iso_file_source_ref(src);
-    
+
     data->offset = offset;
     data->size = MIN(info.st_size - offset, size);
-    
+
     /* get the id numbers */
     data->dev_id = (dev_t) 0;
     data->ino_id = cut_out_serial_id++;
@@ -461,15 +451,15 @@ int mem_read(IsoStream *stream, void *buf, size_t count)
         return ISO_WRONG_ARG_VALUE;
     }
     data = stream->data;
-    
+
     if (data->offset == -1) {
         return ISO_FILE_NOT_OPENED;
     }
-    
+
     if (data->offset >= data->size) {
         return 0; /* EOF */
     }
-    
+
     len = MIN(count, data->size - data->offset);
     memcpy(buf, data->buf + data->offset, len);
     data->offset += len;
@@ -517,7 +507,7 @@ IsoStreamIface mem_stream_class = {
 /**
  * Create a stream for reading from a arbitrary memory buffer.
  * When the Stream refcount reach 0, the buffer is free(3).
- * 
+ *
  * @return
  *      1 sucess, < 0 error
  */
@@ -607,11 +597,12 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 void iso_stream_get_file_name(IsoStream *stream, char *name)
 {
     char *type = stream->class->type;
-    
+
     if (!strncmp(type, "fsrc", 4)) {
         FSrcStreamData *data = stream->data;
         char *path = iso_file_source_get_path(data->src);
         strncpy(name, path, PATH_MAX);
+        free(path);
     } else if (!strncmp(type, "boot", 4)) {
         strcpy(name, "BOOT CATALOG");
     } else if (!strncmp(type, "mem ", 4)) {

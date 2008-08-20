@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -61,20 +61,45 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
     iso_stream_get_id(file->stream, &fs_id, &dev_id, &ino_id);
 
-    fsrc = malloc(sizeof(IsoFileSrc));
+    fsrc = calloc(1, sizeof(IsoFileSrc));
     if (fsrc == NULL) {
         return ISO_OUT_OF_MEM;
     }
 
     /* fill key and other atts */
-    fsrc->prev_img = file->msblock ? 1 : 0;
-    fsrc->block = file->msblock;
+    fsrc->prev_img = file->from_old_session;
+    if (file->from_old_session && img->appendable) {
+        /*
+         * On multisession discs we keep file sections from old image.
+         */
+        int ret = iso_file_get_old_image_sections(file, &(fsrc->nsections),
+                                                  &(fsrc->sections), 0);
+        if (ret < 0) {
+            free(fsrc);
+            return ISO_OUT_OF_MEM;
+        }
+    } else {
+
+        /*
+         * For new files, or for image copy, we compute our own file sections.
+         * Block and size of each section will be filled later.
+         */
+        off_t section_size = iso_stream_get_size(file->stream);
+        if (section_size > (off_t) MAX_ISO_FILE_SECTION_SIZE) {
+            fsrc->nsections = DIV_UP(section_size - (off_t) MAX_ISO_FILE_SECTION_SIZE,
+                                     (off_t)ISO_EXTENT_SIZE) + 1;
+        } else {
+            fsrc->nsections = 1;
+        }
+        fsrc->sections = calloc(fsrc->nsections, sizeof(struct iso_file_section));
+    }
     fsrc->sort_weight = file->sort_weight;
     fsrc->stream = file->stream;
 
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
     if (ret <= 0) {
+        free(fsrc->sections);
         free(fsrc);
         return ret;
     }
@@ -84,12 +109,12 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
 /**
  * Add a given IsoFileSrc to the given image target.
- * 
- * The IsoFileSrc will be cached in a tree to prevent the same file for 
+ *
+ * The IsoFileSrc will be cached in a tree to prevent the same file for
  * being written several times to image. If you call again this function
  * with a node that refers to the same source file, the previously
  * created one will be returned.
- * 
+ *
  * @param img
  *      The image where this file is to be written
  * @param new
@@ -97,7 +122,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
  * @param src
  *      Will be filled with a pointer to the IsoFileSrc really present in
  *      the tree. It could be different than new if the same file already
- *      exists in the tree. 
+ *      exists in the tree.
  * @return
  *      1 on success, 0 if file already exists on tree, < 0 error
  */
@@ -108,7 +133,7 @@ int iso_file_src_add(Ecma119Image *img, IsoFileSrc *new, IsoFileSrc **src)
     if (img == NULL || new == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
-    
+
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, new, (void**)src);
     return ret;
@@ -117,6 +142,7 @@ int iso_file_src_add(Ecma119Image *img, IsoFileSrc *new, IsoFileSrc **src)
 void iso_file_src_free(void *node)
 {
     iso_stream_unref(((IsoFileSrc*)node)->stream);
+    free(((IsoFileSrc*)node)->sections);
     free(node);
 }
 
@@ -160,7 +186,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     } else {
         inc_item = NULL;
     }
-    
+
     /* store the filesrcs in a array */
     filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files, inc_item, &size);
     if (filelist == NULL) {
@@ -174,8 +200,23 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* fill block value */
     for (i = 0; i < size; ++i) {
+        int extent = 0;
         IsoFileSrc *file = filelist[i];
-        file->block = t->curblock;
+
+        off_t section_size = iso_stream_get_size(file->stream);
+        for (extent = 0; extent < file->nsections - 1; ++extent) {
+            file->sections[extent].block = t->curblock + extent *
+                        (ISO_EXTENT_SIZE / BLOCK_SIZE);
+            file->sections[extent].size = ISO_EXTENT_SIZE;
+            section_size -= (off_t) ISO_EXTENT_SIZE;
+        }
+
+        /*
+         * final section
+         */
+        file->sections[extent].block = t->curblock + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
+        file->sections[extent].size = (uint32_t)section_size;
+
         t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }
 
@@ -259,22 +300,17 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     i = 0;
     while ((file = filelist[i++]) != NULL) {
 
-        /*
-         * TODO WARNING
-         * when we allow files greater than 4GB, current DIV_UP implementation
-         * can overflow!!
-         */
         uint32_t nblocks = DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
 
         res = filesrc_open(file);
         iso_stream_get_file_name(file->stream, name);
         if (res < 0) {
-            /* 
+            /*
              * UPS, very ugly error, the best we can do is just to write
              * 0's to image
              */
             iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
-            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res, 
+            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
                       "File \"%s\" can't be opened. Filling with 0s.", name);
             if (res < 0) {
                 return res; /* aborted due to error severity */
@@ -290,7 +326,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             continue;
         } else if (res > 1) {
             iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
-            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0, 
+            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
                       "Size of file \"%s\" has changed. It will be %s", name,
                       (res == 2 ? "truncated" : "padded with 0's"));
             if (res < 0) {
@@ -338,7 +374,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             if (res < 0) {
                 return res; /* aborted due error severity */
             }
-            
+
             /* fill with 0s */
             iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
                            "Filling with 0");

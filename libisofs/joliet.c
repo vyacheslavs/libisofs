@@ -111,7 +111,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
         IsoFile *file = (IsoFile*) iso;
 
         size = iso_stream_get_size(file->stream);
-        if (size > (off_t)0xffffffff) {
+        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && t->iso_level != 3) {
             char *ipath = iso_tree_get_node_path(iso);
             free(joliet);
             ret = iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
@@ -590,14 +590,19 @@ size_t calc_dir_size(Ecma119Image *t, JolietNode *dir)
 
     for (i = 0; i < dir->info.dir->nchildren; ++i) {
         size_t remaining;
+        int section, nsections;
         JolietNode *child = dir->info.dir->children[i];
         size_t dirent_len = calc_dirent_len(t, child);
-        remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
-        if (dirent_len > remaining) {
-            /* child directory entry doesn't fit on block */
-            len += remaining + dirent_len;
-        } else {
-            len += dirent_len;
+
+        nsections = (child->type == JOLIET_FILE) ? child->info.file->nsections : 1;
+        for (section = 0; section < nsections; ++section) {
+            remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
+            if (dirent_len > remaining) {
+                /* child directory entry doesn't fit on block */
+                len += remaining + dirent_len;
+            } else {
+                len += dirent_len;
+            }
         }
     }
 
@@ -696,11 +701,12 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
  */
 static
 void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
-                          uint8_t *buf, size_t len_fi)
+                          uint8_t *buf, size_t len_fi, int extent)
 {
     uint32_t len;
     uint32_t block;
     uint8_t len_dr; /*< size of dir entry */
+    int multi_extend = 0;
     uint8_t *name = (file_id >= 0) ? (uint8_t*)&file_id
             : (uint8_t*)node->name;
 
@@ -723,8 +729,9 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
         len = node->info.dir->len;
         block = node->info.dir->block;
     } else if (node->type == JOLIET_FILE) {
-        len = iso_file_src_get_size(node->info.file);
-        block = node->info.file->block;
+        block = node->info.file->sections[extent].block;
+        len = node->info.file->sections[extent].size;
+        multi_extend = (node->info.file->nsections - 1 == extent) ? 0 : 1;
     } else {
         /*
          * for nodes other than files and dirs, we set both
@@ -744,7 +751,7 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
     iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
-    rec->flags[0] = (node->type == JOLIET_DIR) ? 2 : 0;
+    rec->flags[0] = ((node->type == JOLIET_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
 }
@@ -827,7 +834,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     iso_lsb(vol.l_path_table_pos, t->joliet_l_path_table_pos, 4);
     iso_msb(vol.m_path_table_pos, t->joliet_m_path_table_pos, 4);
 
-    write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1);
+    write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1, 0);
 
     ucsncpy_pad((uint16_t*)vol.vol_set_id, volset_id, 128);
     ucsncpy_pad((uint16_t*)vol.publisher_id, pub_id, 128);
@@ -874,12 +881,13 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
     memset(buffer, 0, BLOCK_SIZE);
 
     /* write the "." and ".." entries first */
-    write_one_dir_record(t, dir, 0, buf, 1);
+    write_one_dir_record(t, dir, 0, buf, 1, 0);
     buf += 34;
-    write_one_dir_record(t, dir, 1, buf, 1);
+    write_one_dir_record(t, dir, 1, buf, 1, 0);
     buf += 34;
 
     for (i = 0; i < dir->info.dir->nchildren; i++) {
+        int section, nsections;
         JolietNode *child = dir->info.dir->children[i];
 
         /* compute len of directory entry */
@@ -889,18 +897,23 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
             len += 4;
         }
 
-        if ( (buf + len - buffer) > BLOCK_SIZE) {
-            /* dir doesn't fit in current block */
-            ret = iso_write(t, buffer, BLOCK_SIZE);
-            if (ret < 0) {
-                return ret;
+        nsections = (child->type == JOLIET_FILE) ? child->info.file->nsections : 1;
+
+        for (section = 0; section < nsections; ++section) {
+
+            if ( (buf + len - buffer) > BLOCK_SIZE) {
+                /* dir doesn't fit in current block */
+                ret = iso_write(t, buffer, BLOCK_SIZE);
+                if (ret < 0) {
+                    return ret;
+                }
+                memset(buffer, 0, BLOCK_SIZE);
+                buf = buffer;
             }
-            memset(buffer, 0, BLOCK_SIZE);
-            buf = buffer;
+            /* write the directory entry in any case */
+            write_one_dir_record(t, child, -1, buf, fi_len, section);
+            buf += len;
         }
-        /* write the directory entry in any case */
-        write_one_dir_record(t, child, -1, buf, fi_len);
-        buf += len;
     }
 
     /* write the last block */
