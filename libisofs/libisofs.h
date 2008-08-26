@@ -280,7 +280,11 @@ struct iso_data_source
      *     Buffer where the data will be written. It should have at least
      *     2048 bytes.
      * @return
-     *      1 if success, < 0 on error (has to be a valid libisofs error code)
+     *      1 if success,
+     *    < 0 if error. This function has to emit a valid libisofs error code.
+     *        Predifined (but not mandatory) for this purpose are:
+     *          ISO_DATA_SOURCE_SORRY ,   ISO_DATA_SOURCE_MISHAP,
+     *          ISO_DATA_SOURCE_FAILURE , ISO_DATA_SOURCE_FATAL
      */
     int (*read_block)(IsoDataSource *src, uint32_t lba, uint8_t *buffer);
 
@@ -867,7 +871,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  */
 #define iso_lib_header_version_major  0
 #define iso_lib_header_version_minor  6
-#define iso_lib_header_version_micro  6
+#define iso_lib_header_version_micro  7
 
 /**
  * Usage discussion:
@@ -3899,5 +3903,17 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /** El-Torito image is hidden (WARNING,HIGH, -335) */
 #define ISO_EL_TORITO_HIDDEN            0xD030FEB1
+
+/** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
+#define ISO_DATA_SOURCE_SORRY     0xE030FCFF
+
+/** Read error occured with IsoDataSource (MISHAP,HIGH, -513) */
+#define ISO_DATA_SOURCE_MISHAP    0xE430FCFF
+
+/** Read error occured with IsoDataSource (FAILURE,HIGH, -513) */
+#define ISO_DATA_SOURCE_FAILURE   0xE830FCFF
+
+/** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
+#define ISO_DATA_SOURCE_FATAL     0xF030FCFF
 
 #endif /*LIBISO_LIBISOFS_H_*/

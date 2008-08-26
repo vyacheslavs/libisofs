@@ -204,6 +204,11 @@ const char *iso_error_to_msg(int errcode)
         return "Image write cancelled";
     case ISO_EL_TORITO_HIDDEN:
         return "El-Torito image is hidden";
+    case ISO_DATA_SOURCE_SORRY:
+    case ISO_DATA_SOURCE_MISHAP:
+    case ISO_DATA_SOURCE_FAILURE:
+    case ISO_DATA_SOURCE_FATAL:
+        return "Read error occured with IsoDataSource";
     default:
         return "Unknown error";
     }
