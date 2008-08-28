@@ -60,7 +60,7 @@ struct hard_disc_mbr {
  */
 void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment)
 {
-    if (bootimg->type != ELTORITO_NO_EMUL)
+    if (bootimg->type != 0)
         return;
     bootimg->load_seg = segment;
 }
@@ -72,7 +72,7 @@ void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment)
  */
 void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors)
 {
-    if (bootimg->type != ELTORITO_NO_EMUL)
+    if (bootimg->type != 0)
         return;
     bootimg->load_size = sectors;
 }
@@ -94,6 +94,33 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg)
 void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg)
 {
     bootimg->isolinux = 1;
+}
+
+/* TODO getter for boot image properties should be exposed
+ * useful when reading discs */
+int el_torito_get_boot_media_type(const ElToritoBootImage *bootimg)
+{
+    if (bootimg) {
+        switch (bootimg->type) {
+        case 1:
+        case 2:
+        case 3:
+            return ELTORITO_FLOPPY_EMUL;
+            break;
+        case 4:
+            return ELTORITO_HARD_DISC_EMUL;
+            break;
+        case 0:
+            return ELTORITO_NO_EMUL;
+            break;
+        default:
+            /* should never happen */
+            return ISO_ASSERT_FAILURE;
+            break;
+        }
+    } else {
+        return ISO_WRONG_ARG_VALUE;
+    }
 }
 
 static
