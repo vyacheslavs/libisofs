@@ -807,9 +807,12 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
         offset += 4;
     }
     if (offset != imgsize) {
-        /* file length not multiple of 4 */
-        return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
-            "Unexpected isolinux image length. Patch might not work.");
+        /*
+         * file length not multiple of 4
+         * empty space in isofs is padded with zero;
+         * assume same for last dword
+         */
+        checksum += iso_read_lsb(buf + offset, imgsize - offset);
     }
 
     /* patch boot info table */
