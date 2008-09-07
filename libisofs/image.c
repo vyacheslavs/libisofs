@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * 
- * This file is part of the libisofs project; you can redistribute it and/or 
- * modify it under the terms of the GNU General Public License version 2 as 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
@@ -17,9 +17,9 @@
 
 /**
  * Create a new image, empty.
- * 
+ *
  * The image will be owned by you and should be unref() when no more needed.
- * 
+ *
  * @param name
  *     Name of the image. This will be used as volset_id and volume_id.
  * @param image
@@ -85,7 +85,7 @@ void iso_image_ref(IsoImage *image)
 
 /**
  * Decrements the reference couting of the given image.
- * If it reaches 0, the image is free, together with its tree nodes (whether 
+ * If it reaches 0, the image is free, together with its tree nodes (whether
  * their refcount reach 0 too, of course).
  */
 void iso_image_unref(IsoImage *image)
@@ -125,7 +125,7 @@ void iso_image_unref(IsoImage *image)
  * Attach user defined data to the image. Use this if your application needs
  * to store addition info together with the IsoImage. If the image already
  * has data attached, the old data will be freed.
- * 
+ *
  * @param data
  *      Pointer to application defined data that will be attached to the
  *      image. You can pass NULL to remove any already attached data.
@@ -139,7 +139,7 @@ int iso_image_attach_data(IsoImage *image, void *data, void (*give_up)(void*))
     if (image == NULL || (data != NULL && free == NULL)) {
         return ISO_NULL_POINTER;
     }
-    
+
     if (image->user_data != NULL) {
         /* free previously attached data */
         if (image->user_data_free) {
@@ -148,7 +148,7 @@ int iso_image_attach_data(IsoImage *image, void *data, void (*give_up)(void*))
         image->user_data = NULL;
         image->user_data_free = NULL;
     }
-    
+
     if (data != NULL) {
         image->user_data = data;
         image->user_data_free = give_up;
@@ -274,4 +274,37 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image)
 int iso_image_get_msg_id(IsoImage *image)
 {
     return image->id;
+}
+
+static
+int dir_update_size(IsoImage *image, IsoDir *dir)
+{
+    IsoNode *pos;
+    pos = dir->children;
+    while (pos) {
+        int ret = 1;
+        if (pos->type == LIBISO_FILE) {
+            ret = iso_stream_update_size(ISO_FILE(pos)->stream);
+        } else if (pos->type == LIBISO_DIR) {
+            /* recurse */
+            ret = dir_update_size(image, ISO_DIR(pos));
+        }
+        if (ret < 0) {
+            ret = iso_msg_submit(image->id, ret, 0, NULL);
+            if (ret < 0) {
+                return ret; /* cancel due error threshold */
+            }
+        }
+        pos = pos->next;
+    }
+    return ISO_SUCCESS;
+}
+
+int iso_image_update_sizes(IsoImage *image)
+{
+    if (image == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    return dir_update_size(image, image->root);
 }

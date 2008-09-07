@@ -713,7 +713,12 @@ extern ino_t serial_id;
  */
 struct IsoStream_Iface
 {
-    /* reserved for future usage, set to 0 */
+    /*
+     * Current version of the interface, set to 1.
+     *
+     * -version 1 (since 0.6.8)
+     *    update_size() added.
+     */
     int version;
 
     /**
@@ -743,7 +748,8 @@ struct IsoStream_Iface
 
     /**
      * Get the size (in bytes) of the stream. This function should always
-     * return the same size, even if the underlying source size changes.
+     * return the same size, even if the underlying source size changes,
+     * unless you call update_size() method.
      */
     off_t (*get_size)(IsoStream *stream);
 
@@ -785,6 +791,21 @@ struct IsoStream_Iface
      * Use iso_stream_unref() instead.
      */
     void (*free)(IsoStream *stream);
+
+    /**
+     * Updates the size of the IsoStream with the current size of the
+     * underlying source. After calling this, get_size() will return
+     * the new size. This should never be called after
+     * iso_image_create_burn_source() was called and the image was not
+     * completely written. To update the size of all files before written the
+     * image, you may want to call iso_image_update_sizes() just before
+     * iso_image_create_burn_source().
+     *
+     * @return
+     *     1 if ok, < 0 on error (has to be a valid libisofs error code)
+     * @since 0.6.8
+     */
+    int (*update_size)(IsoStream *stream);
 };
 
 /**
@@ -1317,6 +1338,20 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  */
 int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src);
+
+/**
+ * Update the sizes of all files added to image.
+ *
+ * This may be called just before iso_image_create_burn_source() to force
+ * libisofs to check the file sizes again (they're already checked when added
+ * to IsoImage). It is useful if you have changed some files after adding then
+ * to the image.
+ *
+ * @return
+ *    1 on success, < 0 on error
+ * @since 0.6.8
+ */
+int iso_image_update_sizes(IsoImage *image);
 
 /**
  * Creates an IsoReadOpts for reading an existent image. You should set the
@@ -3660,7 +3695,8 @@ int iso_stream_close(IsoStream *stream);
 
 /**
  * Get the size of a given stream. This function should always return the same
- * size, even if the underlying source size changes.
+ * size, even if the underlying source size changes, unless you call
+ * iso_stream_update_size().
  *
  * @return
  *      IsoStream size in bytes
@@ -3698,6 +3734,17 @@ int iso_stream_read(IsoStream *stream, void *buf, size_t count);
  * @since 0.6.4
  */
 int iso_stream_is_repeatable(IsoStream *stream);
+
+/**
+ * Updates the size of the IsoStream with the current size of the
+ * underlying source.
+ *
+ * @return
+ *     1 if ok, < 0 on error (has to be a valid libisofs error code),
+ *     0 if the IsoStream does not support this function.
+ * @since 0.6.8
+ */
+int iso_stream_update_size(IsoStream *stream);
 
 /**
  * Get an unique identifier for a given IsoStream.

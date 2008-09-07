@@ -124,8 +124,28 @@ void fsrc_free(IsoStream *stream)
     free(data);
 }
 
+static
+int fsrc_update_size(IsoStream *stream)
+{
+    int ret;
+    struct stat info;
+    IsoFileSource *src;
+
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    src = ((FSrcStreamData*)stream->data)->src;
+    ret = iso_file_source_stat(src, &info);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ((FSrcStreamData*)stream->data)->size = info.st_size;
+    return ISO_SUCCESS;
+}
+
 IsoStreamIface fsrc_stream_class = {
-    0,
+    1, /* update_size is defined for this stream */
     "fsrc",
     fsrc_open,
     fsrc_close,
@@ -133,7 +153,8 @@ IsoStreamIface fsrc_stream_class = {
     fsrc_read,
     fsrc_is_repeatable,
     fsrc_get_id,
-    fsrc_free
+    fsrc_free,
+    fsrc_update_size
 };
 
 int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
@@ -317,6 +338,9 @@ void cut_out_free(IsoStream *stream)
     free(data);
 }
 
+/*
+ * TODO update cut out streams to deal with update_size(). Seems hard.
+ */
 IsoStreamIface cut_out_stream_class = {
     0,
     "cout",
@@ -585,6 +609,13 @@ inline
 int iso_stream_is_repeatable(IsoStream *stream)
 {
     return stream->class->is_repeatable(stream);
+}
+
+inline
+int iso_stream_update_size(IsoStream *stream)
+{
+    IsoStreamIface* class = stream->class;
+    return (class->version >= 1) ? class->update_size(stream) : 0;
 }
 
 inline

@@ -91,7 +91,7 @@ int main(int argc, char **argv)
             break;
         }
     }
-	
+
     if (argc < 2) {
         printf ("Please pass directory from which to build ISO\n");
         usage(argv);
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
         usage(argv);
         return 1;
     }
-    
+
     fd = fopen(argv[optind+1], "w");
     if (!fd) {
         err(1, "error opening output file");
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
         return 1;
     }
     iso_set_msgs_severities("NEVER", "ALL", "");
-    
+
     result = iso_image_new(volid, &image);
     if (result < 0) {
         printf ("Error creating image\n");
@@ -125,13 +125,13 @@ int main(int argc, char **argv)
     iso_tree_set_ignore_special(image, 0);
     iso_set_abort_severity("SORRY");
     /*iso_tree_set_report_callback(image, callback);*/
-    
+
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[optind]);
     if (result < 0) {
         printf ("Error adding directory %d\n", result);
         return 1;
     }
-    
+
     if (boot_img) {
         /* adds El-Torito boot info. Tunned for isolinux */
         ElToritoBootImage *bootimg;
@@ -154,22 +154,22 @@ int main(int argc, char **argv)
     iso_write_opts_set_rockridge(opts, rr);
     iso_write_opts_set_joliet(opts, j);
     iso_write_opts_set_iso1999(opts, iso1999);
-    
+
     result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
         printf ("Cant create image, error %d\n", result);
         return 1;
     }
-    
+
     iso_write_opts_free(opts);
-    
+
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         fwrite(buf, 1, 2048, fd);
     }
     fclose(fd);
     burn_src->free_data(burn_src);
     free(burn_src);
-    
+
     iso_image_unref(image);
     iso_finish();
 	return 0;
