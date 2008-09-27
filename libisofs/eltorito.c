@@ -726,8 +726,8 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
 
     /* fill fields */
     file->prev_img = 0; /* TODO allow copy of old img catalog???? */
-    file->nsections = 0; /* to be filled later */
-    file->sections = NULL;
+    file->nsections = 1;
+    file->sections = calloc(1, sizeof(struct iso_file_section));
     file->sort_weight = 1000; /* slightly high */
     file->stream = stream;
 
