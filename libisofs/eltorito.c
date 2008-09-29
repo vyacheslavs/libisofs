@@ -743,42 +743,6 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
 
 /******************* EL-TORITO WRITER *******************************/
 
-static
-int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
-{
-    /* nothing to do, the files are written by the file writer */
-    return ISO_SUCCESS;
-}
-
-/**
- * Write the Boot Record Volume Descriptor (ECMA-119, 8.2)
- */
-static
-int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
-{
-    Ecma119Image *t;
-    struct el_torito_boot_catalog *cat;
-    struct ecma119_boot_rec_vol_desc vol;
-
-    if (writer == NULL) {
-        return ISO_NULL_POINTER;
-    }
-
-    t = writer->target;
-    cat = t->catalog;
-
-    iso_msg_debug(t->image->id, "Write El-Torito boot record");
-
-    memset(&vol, 0, sizeof(struct ecma119_boot_rec_vol_desc));
-    vol.vol_desc_type[0] = 0;
-    memcpy(vol.std_identifier, "CD001", 5);
-    vol.vol_desc_version[0] = 1;
-    memcpy(vol.boot_sys_id, "EL TORITO SPECIFICATION", 23);
-    iso_lsb(vol.boot_catalog, t->cat->sections[0].block, 4);
-
-    return iso_write(t, &vol, sizeof(struct ecma119_boot_rec_vol_desc));
-}
-
 /**
  * Patch an isolinux boot image.
  *
@@ -826,7 +790,7 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
 }
 
 static
-int eltorito_writer_write_data(IsoImageWriter *writer)
+int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     /*
      * We have nothing to write, but if we need to patch an isolinux image,
@@ -877,6 +841,42 @@ int eltorito_writer_write_data(IsoImageWriter *writer)
         t->bootimg->stream = new;
         iso_stream_unref(original);
     }
+    return ISO_SUCCESS;
+}
+
+/**
+ * Write the Boot Record Volume Descriptor (ECMA-119, 8.2)
+ */
+static
+int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
+{
+    Ecma119Image *t;
+    struct el_torito_boot_catalog *cat;
+    struct ecma119_boot_rec_vol_desc vol;
+
+    if (writer == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    t = writer->target;
+    cat = t->catalog;
+
+    iso_msg_debug(t->image->id, "Write El-Torito boot record");
+
+    memset(&vol, 0, sizeof(struct ecma119_boot_rec_vol_desc));
+    vol.vol_desc_type[0] = 0;
+    memcpy(vol.std_identifier, "CD001", 5);
+    vol.vol_desc_version[0] = 1;
+    memcpy(vol.boot_sys_id, "EL TORITO SPECIFICATION", 23);
+    iso_lsb(vol.boot_catalog, t->cat->sections[0].block, 4);
+
+    return iso_write(t, &vol, sizeof(struct ecma119_boot_rec_vol_desc));
+}
+
+static
+int eltorito_writer_write_data(IsoImageWriter *writer)
+{
+    /* nothing to do, the files are written by the file writer */
     return ISO_SUCCESS;
 }
 
