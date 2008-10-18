@@ -52,6 +52,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/joliet.c \
 	libisofs/eltorito.h \
 	libisofs/eltorito.c \
+	libisofs/make_isohybrid_mbr.c \
 	libisofs/iso1999.h \
 	libisofs/iso1999.c \
 	libisofs/data_source.c
