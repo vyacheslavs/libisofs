@@ -98,7 +98,7 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
      84: Gets size of image in bytes.
      89:
      */
-    imgsize = ((off_t) img_blocks) * (off_t) 2048;
+    imgsize = ((off_t) *img_blocks) * (off_t) 2048;
 
     /*
      90: Computes $padding, size of padded image and number $c of
