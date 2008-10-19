@@ -19,6 +19,7 @@
 #include "messages.h"
 #include "rockridge.h"
 #include "util.h"
+#include "system_area.h"
 
 #include "libburn/libburn.h"
 
@@ -784,10 +785,14 @@ void *write_function(void *arg)
     target->bytes_written = (off_t) 0;
     target->percent_written = 0;
 
-    /* Write System Area, 16 blocks of zeros (ECMA-119, 6.2.1) */
-    memset(buf, 0, BLOCK_SIZE);
-    for (i = 0; i < 16; ++i) {
-        res = iso_write(target, buf, BLOCK_SIZE);
+    /* Write System Area (ECMA-119, 6.2.1) */
+    {
+        uint8_t sa[16 * BLOCK_SIZE];
+        res = iso_write_system_area(target, sa);
+        if (res < 0) {
+            goto write_error;
+        }
+        res = iso_write(target, sa, 16 * BLOCK_SIZE);
         if (res < 0) {
             goto write_error;
         }
@@ -1052,6 +1057,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
                               "Error writing overwrite volume descriptors");
                 goto target_cleanup;
             }
+        }
+
+        /* write the system area */
+        ret = iso_write_system_area(target, opts->overwrite);
+        if (ret < 0) {
+            iso_msg_debug(target->image->id,
+                          "Error writing system area to overwrite buffer");
+            goto target_cleanup;
         }
 
         /* skip the first 16 blocks (system area) */

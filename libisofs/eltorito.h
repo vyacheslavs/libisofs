@@ -35,7 +35,12 @@ struct el_torito_boot_image {
     IsoFile *image;
 
     unsigned int bootable:1; /**< If the entry is bootable. */
-    unsigned int isolinux:1; /**< If the image will be patched */
+    /**
+     * isolinux options
+     * bit 0 -> whether to patch image
+     * bit 1 -> whether to create isolinux image
+     */
+    unsigned int isolinux_options:2;
     unsigned char type; /**< The type of image */
     unsigned char partition_type; /**< type of partition for HD-emul images */
     short load_seg; /**< Load segment for the initial boot image. */
@@ -99,22 +104,5 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src);
  * Create a writer for el-torito information.
  */
 int eltorito_writer_create(Ecma119Image *target);
-
-/*
- * Create a MBR for an isohybrid enabled ISOLINUX boot image.
- *
- * It is assumed that the caller has verified the readiness of the boot image
- * by checking for 0xfb 0xc0 0x78 0x70 at bytes 0x40 to 0x43 of isolinux.bin.
- *
- * @param bin_lba    The predicted LBA of isolinux.bin within the emerging ISO.
- * @param img_blocks The predicted number of 2048 byte blocks in the ISO.
- *                   It will get rounded up to full MBs and that many blocks
- *                   must really be written as ISO 9660 image.
- * @param mbr        A buffer of at least 512 bytes to take the result which is
- *                   to be written as the very beginning of the ISO.
- * @param flag    unused yet, submit 0
- * @return  <0 = fatal, 0 = failed , 1 = ok , 2 = ok with size warning
- */
-int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
 
 #endif /* LIBISO_ELTORITO_H */
