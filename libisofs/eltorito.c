@@ -93,7 +93,34 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg)
  */
 void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg)
 {
-    bootimg->isolinux = 1;
+    bootimg->isolinux_options |= 0x01;
+}
+
+
+/**
+ * Specifies options for IsoLinux boot images. This should only be used with
+ * isolinux boot images.
+ *
+ * @param options
+ *        bitmask style flag. The following values are defined:
+ *
+ *        bit 0 -> 1 to path the image, 0 to not
+ *                 Patching the image involves the writting of a 56 bytes
+ *                 boot information table at offset 8 of the boot image file.
+ *                 The original boot image file won't be modified. This is needed
+ *                 to allow isolinux images to be bootable.
+ *        bit 1 -> 1 to generate an hybrid image, 0 to not
+ *                 An hybrid image is a boot image that boots from either CD/DVD
+ *                 media or from USB sticks. For that, you should use an isolinux
+ *                 image that supports hybrid mode. Recent images support this.
+ * @return
+ *      1 if success, < 0 on error
+ * @since 0.6.12
+ */
+int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag)
+{
+    bootimg->isolinux_options = (options & 0x03);
+    return ISO_SUCCESS;
 }
 
 /* TODO getter for boot image properties should be exposed
@@ -805,7 +832,7 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t = writer->target;
 
-    if (t->catalog->image->isolinux) {
+    if (t->catalog->image->isolinux_options & 0x01) {
         /* we need to patch the image */
         size_t size;
         uint8_t *buf;
@@ -928,7 +955,7 @@ int eltorito_writer_create(Ecma119Image *target)
     target->bootimg = src;
 
     /* if we have selected to patch the image, it needs to be copied always */
-    if (target->catalog->image->isolinux) {
+    if (target->catalog->image->isolinux_options & 0x01) {
         src->prev_img = 0;
     }
 

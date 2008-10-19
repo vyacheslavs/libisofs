@@ -1865,8 +1865,33 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
  * This is needed for isolinux boot images.
  *
  * @since 0.6.2
+ * @deprecated Use el_torito_set_isolinux_options() instead
  */
 void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
+
+/**
+ * Specifies options for IsoLinux boot images. This should only be used with
+ * isolinux boot images.
+ *
+ * @param options
+ *        bitmask style flag. The following values are defined:
+ *
+ *        bit 0 -> 1 to path the image, 0 to not
+ *                 Patching the image involves the writting of a 56 bytes
+ *                 boot information table at offset 8 of the boot image file.
+ *                 The original boot image file won't be modified. This is needed
+ *                 to allow isolinux images to be bootable.
+ *        bit 1 -> 1 to generate an hybrid image, 0 to not
+ *                 An hybrid image is a boot image that boots from either CD/DVD
+ *                 media or from USB sticks. For that, you should use an isolinux
+ *                 image that supports hybrid mode. Recent images support this.
+ * @param flag
+ *        Reserved for future usage, set to 0.
+ * @return
+ *      1 success, < 0 on error
+ * @since 0.6.12
+ */
+int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag);
 
 /**
  * Increments the reference counting of the given node.
