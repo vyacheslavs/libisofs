@@ -6,6 +6,7 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 #include <stdlib.h>
+#include <sys/types.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>

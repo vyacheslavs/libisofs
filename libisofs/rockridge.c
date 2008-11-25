@@ -205,6 +205,7 @@ int rrip_add_PN(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 {
     IsoSpecial *node;
     uint8_t *PN;
+    int high_shift= 0;
 
     node = (IsoSpecial*)n->node;
     if (node->node.type != LIBISO_SPECIAL) {
@@ -222,6 +223,15 @@ int rrip_add_PN(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PN[2] = 20;
     PN[3] = 1;
     iso_bb(&PN[4], node->dev >> 32, 4);
+
+    /* (dev_t >> 32) causes compiler warnings on FreeBSD.
+       RRIP 1.10 4.1.2 prescribes PN "Dev_t High" to be 0 on 32 bit dev_t.
+    */
+    if (sizeof(node->dev) > 4) {
+        high_shift = 32;
+        iso_bb(&PN[4], node->dev >> high_shift, 4);
+    } else
+        iso_bb(&PN[4], 0, 4);
     iso_bb(&PN[12], node->dev & 0xffffffff, 4);
     return susp_append(t, susp, PN);
 }
