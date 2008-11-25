@@ -1206,7 +1206,10 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                                      "Sparse files not supported.");
                 break;
             } else if (SUSP_SIG(sue, 'R', 'R')) {
-                /* TODO I've seen this RR on mkisofs images. what's this? */
+                /* This was an optional flag byte in RRIP 1.09 which told the
+                   reader what other RRIP fields to expect.
+                   mkisofs emits it. We don't.
+                */
                 continue;
             } else if (SUSP_SIG(sue, 'S', 'P')) {
                 /*
@@ -1385,13 +1388,41 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         return ISO_SUCCESS;
     }
 
+    /* ts Nov 25 2008: TODO
+       This seems not fully consistent with read_rr_PX() which decides
+       by (px->len_sue[0] == 44) whether an inode number is present or not.
+       What if read_rr_PX finds a PX of length 36 in a IEEE_1282 image ?
+       It is illegal but could confuse the image by duplicate inode numbers.
+
+       Regrettably it is not enough to just use single default numbers.
+       If only one number misses in the image, then all would need to be
+       defaulted by the following iso_global_inode code.
+
+       Why do duplicate inode numbers confuse the file lengths, anyway ?
+       (See ticket 144)
+    */
     if (fsdata->rr != RR_EXT_112) {
         /*
          * Only RRIP 1.12 provides valid inode numbers. If not, it is not easy
          * to generate those serial numbers, and we use extend block instead.
          * It BREAKS POSIX SEMANTICS, but its suitable for our needs
          */
+
+#define Libisofs_patch_ticket_144 yes
+#ifdef Libisofs_patch_ticket_144
+        /* Trying to ensure unique inode numbers */
+        {
+            static ino_t iso_global_inode= 0;
+
+            if(iso_global_inode <= 0)
+                iso_global_inode= 1;
+            atts.st_ino = iso_global_inode++;
+        }
+#else
+        /* Ticket 144: This produces duplicate numbers with empty files.
+        */
         atts.st_ino = (ino_t) iso_read_bb(record->block, 4, NULL);
+#endif
         if (fsdata->rr == 0) {
             atts.st_nlink = 1;
         }
