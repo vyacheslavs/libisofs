@@ -615,7 +615,11 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     *ce = 0;
 
     /* PX and TF, we are sure they always fit in SUA */
-    su_size = 44 + 26;
+    if (!t->rrip_version_1_10) {
+        su_size = 44 + 26;
+    } else {
+        su_size = 36 + 26;
+    }
 
     if (n->type == ECMA119_DIR) {
         if (n->info.dir->real_parent != NULL) {
