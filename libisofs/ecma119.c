@@ -317,8 +317,8 @@ char *get_relaxed_vol_id(Ecma119Image *t, const char *name)
             return str;
         }
         iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, ret,
-                  "Charset conversion error. Can't convert %s from %s to %s",
-                  name, t->input_charset, t->output_charset);
+                  "Charset conversion error. Cannot convert from %s to %s",
+                  t->input_charset, t->output_charset);
     }
     return strdup(name);
 }
@@ -912,6 +912,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* default to locale charset */
     setlocale(LC_CTYPE, "");
+
     target->input_charset = strdup(nl_langinfo(CODESET));
     if (target->input_charset == NULL) {
         iso_image_unref(src);

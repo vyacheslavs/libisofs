@@ -109,7 +109,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_ASSERT_FAILURE:
         return "Internal programming error. Please report this bug";
     case ISO_NULL_POINTER:
-        return "NULL pointer as value for an arg. that doesn't allow NULL";
+        return "NULL pointer as value for an arg. that does not allow NULL";
     case ISO_OUT_OF_MEM:
         return "Memory allocation error";
     case ISO_INTERRUPTED:
@@ -117,7 +117,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_WRONG_ARG_VALUE:
         return "Invalid parameter value";
     case ISO_THREAD_ERROR:
-        return "Can't create a needed thread";
+        return "Cannot create a needed thread";
     case ISO_WRITE_ERROR:
         return "Write error";
     case ISO_BUF_READ_ERROR:
@@ -155,7 +155,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_FILE_IS_NOT_SYMLINK:
         return "Not symlink used where a symlink is expected";
     case ISO_FILE_SEEK_ERROR:
-        return "Can't seek to specified location";
+        return "Cannot seek to specified location";
     case ISO_FILE_IGNORED:
         return "File not supported in ECMA-119 tree and thus ignored";
     case ISO_FILE_TOO_BIG:
@@ -163,15 +163,15 @@ const char *iso_error_to_msg(int errcode)
     case ISO_FILE_CANT_WRITE:
         return "File read error during image creation";
     case ISO_FILENAME_WRONG_CHARSET:
-        return "Can't convert filename to requested charset";
+        return "Cannot convert filename to requested charset";
     case ISO_FILE_CANT_ADD:
-        return "File can't be added to the tree";
+        return "File cannot be added to the tree";
     case ISO_FILE_IMGPATH_WRONG:
         return "File path break specification constraints and will be ignored";
     case ISO_CHARSET_CONV_ERROR:
         return "Charset conversion error";
     case ISO_MANGLE_TOO_MUCH_FILES:
-        return "Too much files to mangle, can't guarantee unique file names";
+        return "Too much files to mangle, cannot guarantee unique file names";
     case ISO_WRONG_PVD:
         return "Wrong or damaged Primary Volume Descriptor";
     case ISO_WRONG_RR:
@@ -187,7 +187,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_UNSUPPORTED_EL_TORITO:
         return "Unsupported El-Torito feature";
     case ISO_ISOLINUX_CANT_PATCH:
-        return "Can't patch isolinux boot image";
+        return "Cannot patch isolinux boot image";
     case ISO_UNSUPPORTED_SUSP:
         return "Unsupported SUSP feature";
     case ISO_WRONG_RR_WARN:

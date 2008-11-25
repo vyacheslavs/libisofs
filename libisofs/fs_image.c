@@ -944,8 +944,8 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
             return name;
         } else {
             ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET, ret,
-                "Charset conversion error. Can't convert %s from %s to %s",
-                str, fsdata->input_charset, fsdata->local_charset);
+                "Charset conversion error. Cannot convert from %s to %s",
+                fsdata->input_charset, fsdata->local_charset);
             if (ret < 0) {
                 return NULL; /* aborted */
             }
@@ -1275,8 +1275,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             if (ret < 0) {
                 /* its just a hint message */
                 ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
-                                 ret, "Charset conversion error. Can't "
-                                 "convert %s from %s to %s", name,
+                                 ret, "Charset conversion error. Cannot "
+                                 "convert from %s to %s",
                                  fsdata->input_charset, fsdata->local_charset);
                 free(newname);
                 if (ret < 0) {
@@ -1297,8 +1297,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                           fsdata->local_charset, &newlinkdest);
             if (ret < 0) {
                 ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
-                                 ret, "Charset conversion error. Can't "
-                                 "convert %s from %s to %s", name,
+                                 ret, "Charset conversion error. Cannot "
+                                 "convert from %s to %s",
                                  fsdata->input_charset, fsdata->local_charset);
                 free(newlinkdest);
                 if (ret < 0) {
