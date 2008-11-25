@@ -1230,10 +1230,16 @@ int iso_write_opts_set_default_timestamp(IsoWriteOpts *opts, time_t timestamp);
  * Whether to always record timestamps in GMT.
  *
  * By default, libisofs stores local time information on image. You can set
- * this to always store timestamps in GMT. This is useful if you want to hide
- * your timezone, or you live in a timezone that can't be represented in
- * ECMA-119. These are timezones whose offset from GMT is greater than +13
- * hours, lower than -12 hours, or not a multiple of 15 minutes.
+ * this to always store timestamps converted to GMT. This prevents any
+ * discrimination of the timezone of the image preparer by the image reader.
+ *
+ * It is useful if you want to hide your timezone, or you live in a timezone
+ * that can't be represented in ECMA-119. These are timezones with an offset
+ * from GMT greater than +13 hours, lower than -12 hours, or not a multiple
+ * of 15 minutes.
+ * Negative timezones (west of GMT) can trigger bugs in some operating systems
+ * which typically appear in mounted ISO images as if the timezone shift from
+ * GMT was applied twice (e.g. in New York 22:36 becomes 17:36).
  *
  * @since 0.6.2
  */
@@ -1351,8 +1357,13 @@ int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
 int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
 
 /**
- * Create a burn_source to actually write the image. That burn_source can be
- * used with libburn as a data source for a track.
+ * Create a burn_source and a thread which immediately begins to generate
+ * the image. That burn_source can be used with libburn as a data source
+ * for a track. For its public declaration see libburn.h.
+ *
+ * If image generation shall be aborted by the application program, then
+ * the .cancel() method of the burn_source must be called to end the
+ * generation thread:  burn_src->cancel(burn_src);
  *
  * @param image
  *     The image to write.
