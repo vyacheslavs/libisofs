@@ -11,13 +11,44 @@
 #include <sys/time.h>
 
 /* This code stems from syslinux-3.72/utils/isohybrid, a perl script
- under GPL which is Copyright 2002-2008 H. Peter Anvin.
- Line numbers in comments refer to the lines of that script.
- It has been analyzed and re-written in C language 2008 by Thomas Schmitt.
- As soon as it is part of a libisofs test version, H. Peter Anvin will
- be asked about his own copyright claims and/or license tolerance in
- respect to this C code.
- */
+under GPL which is Copyright 2002-2008 H. Peter Anvin.
+
+Line numbers in comments refer to the lines of that script.
+It has been analyzed and re-written in C language 2008 by Thomas Schmitt,
+and is now under the licenses to which H.Peter Anvin agreed:
+
+ http://syslinux.zytor.com/archives/2008-November/011105.html
+ Date: Mon, 10 Nov 2008 08:36:46 -0800
+ From: H. Peter Anvin <hpa@zytor.com>
+ I hereby give permission for this code, translated to the C language, to
+ be released under either the LGPL or the MIT/ISC/2-clause BSD licenses
+ or both, at your option.
+ Sincerely, H. Peter Anvin
+
+In the context of libisofs this code derives its matching open source
+license from above stem licenses, typically from LGPL.
+In case its generosity is needed, here is the 2-clause BSD license:
+
+make_isohybrid_mbr.c is copyright 2002-2008 H. Peter Anvin
+                              and 2008 libburnia project.
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+THIS SOFTWARE IS PROVIDED `AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+THE PROVIDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
 
 /* A helper function. One could replace it by one or two macros. */
 static int lsb_to_buf(char **wpt, int value, int bits, int flag)
