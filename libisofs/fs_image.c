@@ -1012,8 +1012,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     if (record->file_unit_size[0] || record->interleave_gap_size[0]) {
         iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
               "Unsupported image. This image has at least one file recorded "
-              "in interleaved mode. We don't support this mode, as we think "
-              "it's not used. If you're reading this, then we're wrong :) "
+              "in interleaved mode. We do not support this mode, as we think "
+              "it is not used. If you are reading this, then we are wrong :) "
               "Please contact libisofs developers, so we can fix this.");
         return ISO_UNSUPPORTED_ECMA119;
     }
@@ -1040,7 +1040,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         char* new_name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
         if (new_name == NULL) {
             iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
-                          "Can't retrieve file name");
+                          "Cannot retrieve file name");
             return ISO_WRONG_ECMA119;
         }
         if (strcmp(new_name, data->name)) {
@@ -1080,7 +1080,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             ifsdata->name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
             if (ifsdata->name == NULL) {
                 iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
-                              "Can't retrieve file name");
+                              "Cannot retrieve file name");
                 ret = ISO_WRONG_ECMA119;
                 goto ifs_cleanup;
             }
@@ -1343,7 +1343,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
             if (name == NULL) {
                 return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
-                              "Can't retrieve file name");
+                              "Cannot retrieve file name");
             }
 
             /* remove trailing version number */
