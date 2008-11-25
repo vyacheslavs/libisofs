@@ -228,7 +228,6 @@ int rrip_add_PN(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PN[1] = 'N';
     PN[2] = 20;
     PN[3] = 1;
-    iso_bb(&PN[4], node->dev >> 32, 4);
 
     /* (dev_t >> 32) causes compiler warnings on FreeBSD.
        RRIP 1.10 4.1.2 prescribes PN "Dev_t High" to be 0 on 32 bit dev_t.
