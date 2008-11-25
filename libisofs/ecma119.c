@@ -911,9 +911,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->catalog = src->bootcat;
 
     /* default to locale charset */
+    /* ??? ts Nov 25 2008 :
+       Shouldn't this go to library initialization or even to app ?
+    */
     setlocale(LC_CTYPE, "");
 
-    target->input_charset = strdup(nl_langinfo(CODESET));
+    target->input_charset = strdup(iso_get_local_charset(0));
+
     if (target->input_charset == NULL) {
         iso_image_unref(src);
         free(target);

@@ -1996,8 +1996,12 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
 
+    /* ??? ts Nov 25 2008 :
+       Shouldn't this go to library initialization or even to app ?
+    */
     setlocale(LC_CTYPE, "");
-    data->local_charset = strdup(nl_langinfo(CODESET));
+
+    data->local_charset = strdup(iso_get_local_charset(0));
     if (data->local_charset == NULL) {
         ret = ISO_OUT_OF_MEM;
         goto fs_cleanup;

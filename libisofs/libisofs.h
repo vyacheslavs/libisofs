@@ -836,6 +836,36 @@ int iso_init();
 void iso_finish();
 
 /**
+ * Override the reply of libc function nl_langinfo(CODESET) which may or may
+ * not give the name of the character set which is in effect for your
+ * environment. So this call can compensate for inconsistent terminal setups.
+ * Another use case is to choose UTF-8 as intermediate character set for a
+ * conversion from an exotic input character set to an exotic output set.
+ *
+ * @param name
+ *     Name of the character set to be assumed as "local" one.
+ * @param flag
+ *     Unused yet. Submit 0.
+ * @return
+ *     1 indicates success, <=0 failure
+ *
+ * @since 0.6.12
+ */
+int iso_set_local_charset(char *name, int flag);
+
+/**
+ * Obtain the local charset as currently assumed by libisofs.
+ * The result points to internal memory. It is volatile and must not be
+ * altered.
+ *
+ * @param flag
+ *     Unused yet. Submit 0.
+ *
+ * @since 0.6.12
+ */
+char *iso_get_local_charset(int flag);
+
+/**
  * Create a new image, empty.
  *
  * The image will be owned by you and should be unref() when no more needed.

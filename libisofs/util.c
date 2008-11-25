@@ -40,6 +40,30 @@ int int_pow(int base, int power)
     return result;
 }
 
+/* This static variable can override the locale's charset by its getter
+   function which should be used whenever the local character set name
+   is to be inquired. I.e. instead of calling nl_langinfo(CODESET) directly.
+   If the variable is empty then it forwards nl_langinfo(CODESET).
+*/
+static char libisofs_local_charset[4096]= {""};
+
+/* API function */
+int iso_set_local_charset(char *name, int flag)
+{
+    if(strlen(name) >= sizeof(libisofs_local_charset))
+        return(0);
+    strcpy(libisofs_local_charset, name);
+    return 1;
+}
+
+/* API function */
+char *iso_get_local_charset(int flag)
+{
+   if(libisofs_local_charset[0])
+     return libisofs_local_charset;
+   return nl_langinfo(CODESET);
+}
+
 int strconv(const char *str, const char *icharset, const char *ocharset,
             char **output)
 {
@@ -1219,8 +1243,13 @@ char *ucs2str(const char *buf, size_t len)
     out = alloca(outbytes);
 
     /* convert to local charset */
+
+    /* ??? ts Nov 25 2008 :
+       Shouldn't this go to library initialization or even to app ?
+    */
     setlocale(LC_CTYPE, "");
-    conv = iconv_open(nl_langinfo(CODESET), "UCS-2BE");
+
+    conv = iconv_open(iso_get_local_charset(0), "UCS-2BE");
     if (conv == (iconv_t)(-1)) {
         return NULL;
     }
