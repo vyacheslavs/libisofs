@@ -48,7 +48,13 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         img_blocks = t->curblock;
         ret = make_isohybrid_mbr(t->bootimg->sections[0].block, &img_blocks, (char*)buf, 0);
 
+/* 
+        API description of el_torito_set_isolinux_options() prescribes
+        to pad to full MB.
+        So this is not urgent any more :
+
         // FIXME the new img_blocks size should be taken into account
+*/
 
         if (ret != 1) {
             /* error, it should never happen */

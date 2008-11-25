@@ -1935,14 +1935,16 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
  *        bitmask style flag. The following values are defined:
  *
  *        bit 0 -> 1 to path the image, 0 to not
- *                 Patching the image involves the writting of a 56 bytes
+ *                 Patching the image involves the writing of a 56 bytes
  *                 boot information table at offset 8 of the boot image file.
- *                 The original boot image file won't be modified. This is needed
- *                 to allow isolinux images to be bootable.
- *        bit 1 -> 1 to generate an hybrid image, 0 to not
- *                 An hybrid image is a boot image that boots from either CD/DVD
- *                 media or from USB sticks. For that, you should use an isolinux
- *                 image that supports hybrid mode. Recent images support this.
+ *                 The original boot image file will not be modified. This is
+ *                 needed to allow isolinux images to be bootable.
+ *        bit 1 -> 1 to generate an hybrid image with MBR, 0 to not
+ *                 An hybrid image is a boot image that boots from either
+ *                 CD/DVD media or from disk-like media, e.g. USB stick.
+ *                 For that you need isolinux.bin from SYSLINUX 3.72 or later.
+ *                 IMPORTANT: The application has to take care that the image
+ *                            on media gets padded up to the next full MB.
  * @param flag
  *        Reserved for future usage, set to 0.
  * @return
