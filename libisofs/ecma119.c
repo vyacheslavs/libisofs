@@ -853,6 +853,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters;
     Ecma119Image *target;
+    int el_torito_writer_index = -1;
 
     /* 1. Allocate target and copy opts there */
     target = calloc(1, sizeof(Ecma119Image));
@@ -977,6 +978,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (ret < 0) {
             goto target_cleanup;
         }
+        el_torito_writer_index = target->nwriters - 1;
     }
 
     /* create writer for Joliet structure */
@@ -1023,11 +1025,28 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
      */
     for (i = 0; i < target->nwriters; ++i) {
         IsoImageWriter *writer = target->writers[i];
+
+#define Libisofs_patch_ticket_145 yes
+#ifdef Libisofs_patch_ticket_145
+        /* Delaying boot image patching until new LBA is known */
+        if (i == el_torito_writer_index)
+    continue;
+#endif
         ret = writer->compute_data_blocks(writer);
         if (ret < 0) {
             goto target_cleanup;
         }
     }
+#ifdef Libisofs_patch_ticket_145
+    /* Now perform delayed image patching */
+    if (el_torito_writer_index >= 0) {
+        IsoImageWriter *writer = target->writers[el_torito_writer_index];
+        ret = writer->compute_data_blocks(writer);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
+    }
+#endif /* Libisofs_patch_ticket_145 */
 
     /* create the ring buffer */
     ret = iso_ring_buffer_new(opts->fifo_size, &target->buffer);
