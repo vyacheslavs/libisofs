@@ -1148,6 +1148,15 @@ int iso_write_opts_set_relaxed_vol_atts(IsoWriteOpts *opts, int allow);
 int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
 
 /**
+ * Write Rock Ridge info as of specification RRIP-1.10 rather than RRIP-1.12:
+ * signature "RRIP_1991A" rather than "IEEE_1282", field PX without file
+ * serial number.
+ *
+ * @since 0.6.12
+ */
+int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers);
+
+/**
  * Whether to sort files based on their weight.
  *
  * @see iso_node_set_sort_weight

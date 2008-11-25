@@ -94,13 +94,19 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 
     PX[0] = 'P';
     PX[1] = 'X';
-    PX[2] = 44;
+    if (!t->rrip_version_1_10) {
+        PX[2] = 44;
+    } else {
+        PX[2] = 36;
+    }
     PX[3] = 1;
     iso_bb(&PX[4], px_get_mode(t, n), 4);
     iso_bb(&PX[12], n->nlink, 4);
     iso_bb(&PX[20], px_get_uid(t, n), 4);
     iso_bb(&PX[28], px_get_gid(t, n), 4);
-    iso_bb(&PX[36], n->ino, 4);
+    if (!t->rrip_version_1_10) {
+        iso_bb(&PX[36], n->ino, 4);
+    }
 
     return susp_append(t, susp, PX);
 }
@@ -467,24 +473,69 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 static
 int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
 {
-    unsigned char *ER = malloc(182);
-    if (ER == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
+    unsigned char *ER;
 
-    ER[0] = 'E';
-    ER[1] = 'R';
-    ER[2] = 182;
-    ER[3] = 1;
-    ER[4] = 9;
-    ER[5] = 72;
-    ER[6] = 93;
-    ER[7] = 1;
-    memcpy(&ER[8], "IEEE_1282", 9);
-    memcpy(&ER[17], "THE IEEE 1282 PROTOCOL PROVIDES SUPPORT FOR POSIX "
-        "FILE SYSTEM SEMANTICS.", 72);
-    memcpy(&ER[89], "PLEASE CONTACT THE IEEE STANDARDS DEPARTMENT, "
-        "PISCATAWAY, NJ, USA FOR THE 1282 SPECIFICATION.", 93);
+    if (!t->rrip_version_1_10) {
+        /*
+        According to RRIP 1.12 this is the future form:
+        4.3 "Specification of the ER System Use Entry Values for RRIP"
+        talks of "IEEE_P1282" in each of the three strings and finally states
+        "Note: Upon adoption as an IEEE standard, these lengths will each
+         decrease by 1."
+        So "IEEE_P1282" would be the new form, "RRIP_1991A" is the old form.
+        */
+        ER = malloc(182);
+        if (ER == NULL) {
+            return ISO_OUT_OF_MEM;
+        }
+    
+        ER[0] = 'E';
+        ER[1] = 'R';
+        ER[2] = 182;
+        ER[3] = 1;
+        ER[4] = 9;
+        ER[5] = 72;
+        ER[6] = 93;
+        ER[7] = 1;
+        memcpy(&ER[8], "IEEE_1282", 9);
+        memcpy(&ER[17], "THE IEEE 1282 PROTOCOL PROVIDES SUPPORT FOR POSIX "
+            "FILE SYSTEM SEMANTICS.", 72);
+        memcpy(&ER[89], "PLEASE CONTACT THE IEEE STANDARDS DEPARTMENT, "
+            "PISCATAWAY, NJ, USA FOR THE 1282 SPECIFICATION.", 93);
+    } else {
+        /*
+        RRIP 1.09 and 1.10: 
+        4.3 Specification of the ER System Use Field Values for RRIP
+        The Extension Version number for the version of the RRIP defined herein
+        shall be 1. The content of the Extension Identifier field shall be
+        "RRIP_1991A". The Identifier Length shall be 10. The recommended
+        content of the Extension Descriptor shall be "THE ROCK RIDGE
+        INTERCHANGE PROTOCOL PROVIDES SUPPORT FOR POSIX FILE SYSTEM SEMANTICS."
+        The corresponding Description Length is 84.
+        The recommended content of the Extension Source shall be "PLEASE
+        CONTACT DISC PUBLISHER FOR SPECIFICATION SOURCE.  SEE PUBLISHER
+        IDENTIFIER IN PRIMARY VOLUME DESCRIPTOR FOR CONTACT INFORMATION."
+        The corresponding Source Length is 135.
+        */
+
+        ER = malloc(237);
+        if (ER == NULL) {
+            return ISO_OUT_OF_MEM;
+        }
+
+        ER[0] = 'E';
+        ER[1] = 'R';
+        ER[2] = 237;
+        ER[3] = 1;
+        ER[4] = 10;
+        ER[5] = 84;
+        ER[6] = 135;
+        ER[7] = 1;
+
+        memcpy(&ER[8], "RRIP_1991A", 10);
+        memcpy(&ER[18], "THE ROCK RIDGE INTERCHANGE PROTOCOL PROVIDES SUPPORT FOR POSIX FILE SYSTEM SEMANTICS", 84);
+        memcpy(&ER[102], "PLEASE CONTACT DISC PUBLISHER FOR SPECIFICATION SOURCE.  SEE PUBLISHER IDENTIFIER IN PRIMARY VOLUME DESCRIPTOR FOR CONTACT INFORMATION.", 135);
+    }
 
     /** This always goes to continuation area */
     return susp_append_ce(t, susp, ER);

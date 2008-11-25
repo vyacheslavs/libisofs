@@ -105,6 +105,13 @@ struct iso_write_opts {
      */
     unsigned int joliet_longer_paths :1;
 
+    /**
+     * Write Rock Ridge info as of specification RRIP-1.10 rather than
+     * RRIP-1.12: signature "RRIP_1991A" rather than "IEEE_1282",
+     *            field PX without file serial number
+     */
+    unsigned int rrip_version_1_10 :1;
+
     /** If files should be sorted based on their weight. */
     unsigned int sort_files :1;
 
@@ -245,6 +252,9 @@ struct ecma119_image
 
     /** Allow paths on Joliet tree to be larger than 240 bytes */
     unsigned int joliet_longer_paths :1;
+
+    /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
+    unsigned int rrip_version_1_10 :1;
 
     /*
      * Mode replace. If one of these flags is set, the correspodent values are

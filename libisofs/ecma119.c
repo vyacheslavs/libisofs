@@ -887,6 +887,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->allow_full_ascii = opts->allow_full_ascii;
     target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
+    target->rrip_version_1_10 = opts->rrip_version_1_10;
     target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
@@ -1480,6 +1481,15 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow)
         return ISO_NULL_POINTER;
     }
     opts->joliet_longer_paths = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->rrip_version_1_10 = oldvers ? 1 : 0;
     return ISO_SUCCESS;
 }
 
