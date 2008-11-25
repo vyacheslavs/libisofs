@@ -252,6 +252,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
             : (uint8_t*)node->iso_name;
 
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
+    IsoNode *iso;
 
     len_dr = 33 + len_fi + (len_fi % 2 ? 0 : 1);
 
@@ -289,7 +290,14 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
-    iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+    if(t->dir_rec_mtime) {
+        iso= node->node;
+        iso_datetime_7(rec->recording_time,
+                       t->replace_timestamps ? t->timestamp : iso->mtime,
+                       t->always_gmt);
+    } else {
+        iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+    }
     rec->flags[0] = ((node->type == ECMA119_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, 1, 2);
     rec->len_fi[0] = len_fi;
@@ -888,6 +896,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->rrip_version_1_10 = opts->rrip_version_1_10;
+    target->dir_rec_mtime = opts->dir_rec_mtime;
     target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
@@ -1490,6 +1499,15 @@ int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers)
         return ISO_NULL_POINTER;
     }
     opts->rrip_version_1_10 = oldvers ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_dir_rec_mtime(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->dir_rec_mtime = allow ? 1 : 0;
     return ISO_SUCCESS;
 }
 

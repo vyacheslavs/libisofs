@@ -112,6 +112,15 @@ struct iso_write_opts {
      */
     unsigned int rrip_version_1_10 :1;
 
+    /**
+     * Store as ECMA-119 Directory Record timestamp the mtime of the source
+     * rather than the image creation time. (The ECMA-119 prescription seems
+     * to expect that we do have a creation timestamp with the source.
+     * mkisofs writes mtimes and the result seems more suitable if mounted
+     * without Rock Ridge support.)
+     */
+    unsigned int dir_rec_mtime :1;
+
     /** If files should be sorted based on their weight. */
     unsigned int sort_files :1;
 
@@ -255,6 +264,9 @@ struct ecma119_image
 
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;
+
+    /* Store in ECMA-119 timestamp mtime of source */
+    unsigned int dir_rec_mtime :1;
 
     /*
      * Mode replace. If one of these flags is set, the correspodent values are

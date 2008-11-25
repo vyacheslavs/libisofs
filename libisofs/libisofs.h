@@ -1157,6 +1157,14 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
 int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers);
 
 /**
+ * Store as ECMA-119 Directory Record timestamp the mtime of the source
+ * rather than the image creation time.
+ *
+ * @since 0.6.12
+ */
+int iso_write_opts_set_dir_rec_mtime(IsoWriteOpts *opts, int allow);
+
+/**
  * Whether to sort files based on their weight.
  *
  * @see iso_node_set_sort_weight
