@@ -470,8 +470,9 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
                      parameters t, susp, data may be NULL in this case
 */
 static
-int aaip_add_AA(Ecma119Image *t, struct susp_info *susp, uint8_t *data,
-                size_t num_data, size_t *sua_free, size_t *ce_len, int flag)
+int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
+                uint8_t *data, size_t num_data,
+                size_t *sua_free, size_t *ce_len, int flag)
 {
     int ret, done = 0;
     uint8_t *aapt;
@@ -578,6 +579,40 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
     /** This always goes to continuation area */
     return susp_append_ce(t, susp, ER);
 }
+
+
+static
+int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, char aa[2], int flag)
+{
+    unsigned char *AA;
+
+    AA = malloc(160);
+    if (AA == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    
+    AA[0] = 'E';
+    AA[1] = 'R';
+    AA[2] = 160;
+    AA[3] = 1;
+    AA[4] = 9;
+    AA[5] = 81;
+    AA[6] = 62;
+    AA[7] = 1;
+    memcpy(AA + 8, "AAIP_0002", 9);
+    AA[17] = aa[0];
+    AA[18] = aa[1];
+    memcpy(AA + 19,
+           " PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
+           " IN ISO 9660 IMAGES", 79);
+    memcpy(AA + 98,
+           "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG",
+           62);
+
+    /** This always goes to continuation area */
+    return susp_append_ce(t, susp, AA);
+}
+
 
 /**
  * Add a CE System Use Entry to the given tree node. A "CE" is used to add
@@ -829,7 +864,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
 	/* let the expert decide where to add num_aapt */
         sua_free = space - su_size;
-        aaip_add_AA(NULL, NULL, aapt, num_aapt, &sua_free, ce, 1);
+        aaip_add_AA(NULL, NULL, NULL, num_aapt, &sua_free, ce, 1);
         su_size = space - sua_free;
 
 #endif /* Libisofs_with_aaiP */
@@ -845,14 +880,22 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
              * ER needs a Continuation Area, thus we also need a CE entry
              */
             su_size += 7 + 28; /* SP + CE */
-            *ce = 182; /* ER */
+            *ce = 182; /* ER of RRIP */
 
 #ifdef Libisofs_with_aaiP
 
-            /* >>> account for the ER entry of AAIP */;
+#ifdef Libisofs_with_aaip_dummY
+
+#else /* Libisofs_with_aaip_dummY */
+
+            *ce += 160; /* ER of AAIP */
+
+#endif /* ! Libisofs_with_aaip_dummY */
+
+            /* >>> if AAIP is enabled */
+                /* >>> *ce += 160; */; /* ER of AAIP */
 
 #endif /* Libisofs_with_aaiP */
-
 
         }
     }
@@ -915,6 +958,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     uint8_t *aapt;
     size_t num_aapt= 0;
 #endif
+    size_t aaip_er_len= 0;
 
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
@@ -1289,7 +1333,24 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * ER needs a Continuation Area, thus we also need a CE entry.
              * Note that SP entry was already added above
              */
-            ret = susp_add_CE(t, 182, info); /* 182 is ER length */
+
+#ifdef Libisofs_with_aaiP
+
+#ifdef Libisofs_with_aaip_dummY
+
+             aaip_er_len = 160;
+            
+#else /* Libisofs_with_aaip_dummY */
+
+            /* >>> if AAIP is enabled */
+                /* aaip_er_len = 160; */
+
+#endif /* ! Libisofs_with_aaip_dummY */
+
+#endif /* Libisofs_with_aaiP */
+
+            ret = susp_add_CE(t, 182 + aaip_er_len, info);
+                                                    /* 182 is RRIP-ER length */
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
@@ -1300,7 +1361,19 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
 #ifdef Libisofs_with_aaiP
 
-            /* >>> write the ER entry of AAIP : aaip_add_ER() */;
+#ifdef Libisofs_with_aaip_dummY
+
+            ret = aaip_add_ER(t, info, "AA", 0);
+            if (ret < 0) {
+                goto add_susp_cleanup;
+            }
+            
+#else /* Libisofs_with_aaip_dummY */
+
+            /* >>> if AAIP is enabled */
+                /* >>> write the ER entry of AAIP : aaip_add_ER() */;
+
+#endif /* ! Libisofs_with_aaip_dummY */
 
 #endif /* Libisofs_with_aaiP */
 
