@@ -264,4 +264,14 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont);
  */
 int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 
+
+/* ts A90112 : Enable experiments about EA and ACL
+*/
+#define Libisofs_with_aaiP yes
+
+/* ts A90112
+   <<< write dummy AAIP fields with any node
+*/
+#define Libisofs_with_aaip_dummY yes
+
 #endif /* LIBISO_ROCKRIDGE_H */

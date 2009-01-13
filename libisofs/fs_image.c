@@ -1235,9 +1235,33 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                                   "than '.' entry of root node");
                 }
                 continue;
+
+
+#ifdef Libisofs_with_aaiP
+
+            } else if (SUSP_SIG(sue, 'A', 'A')) {
+
+                ret = ISO_SUCCESS;
+/* >>> ts A90112
+                ret = read_susp_AA(sue, &aa, &aacont);
+*/
+                if (ret < 0) {
+                    /* notify and continue */
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
+                                 "Invalid NM entry");
+                }
+
+
+#endif /* Libisofs_with_aaiP */
+
+
             } else {
+
+/* ts A90112 : this message is inflationary
                 ret = iso_msg_submit(fsdata->msgid, ISO_SUSP_UNHANDLED, 0,
                     "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
+*/;
+
             }
         }
 

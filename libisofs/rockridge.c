@@ -16,6 +16,7 @@
 
 #include <string.h>
 
+
 static
 int susp_append(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 {
@@ -460,6 +461,39 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
     return ret;
 }
 
+
+#ifdef Libisofs_with_aaiP
+
+/* ts A90112 */
+static
+int susp_add_AA(Ecma119Image *t, struct susp_info *susp, uint8_t *data,
+                size_t num_data, size_t *sua_free, size_t *ce_len, int flag)
+{
+    int ret, done = 0;
+    uint8_t *aapt;
+
+    if (*sua_free < num_data || *ce_len > 0) {
+        *ce_len += num_data;
+        *sua_free = 0;
+    } else {
+        *sua_free -= num_data;
+    }
+    for (aapt = data; !done; aapt += aapt[2]) {
+        done = !(aapt[4] & 1);
+        if (*ce_len > 0) {
+            ret = susp_append_ce(t, susp, aapt);
+        } else {
+            ret = susp_append(t, susp, aapt);
+        }
+        if (ret == -1)
+            return ret;
+    }
+    return ISO_SUCCESS;
+}
+
+#endif /* Libisofs_with_aaiP */
+
+
 /**
  * Add a SUSP "ER" System Use Entry to identify the Rock Ridge specification.
  * 
@@ -834,6 +868,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     char *name = NULL;
     char *dest = NULL;
 
+#ifdef Libisofs_with_aaiP
+    /* ts A90112 */
+    uint8_t *aapt;
+    size_t num_aapt= 0;
+#endif
+
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -1152,6 +1192,45 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
 
+#ifdef Libisofs_with_aaiP
+/* ts A90112 */
+#ifdef Libisofs_with_aaip_dummY
+
+{
+        static uint8_t dummy_aa[28]= {
+            'A', 'A',  28,   1,   0,
+             0,   0,
+             0,  19,  0x16,
+                      0x2E,   4, 'l', 'i', 's', 'a',
+                      0x34, 
+                      0x4E,   7, 't', 'o', 'o', 'l', 'i', 'e', 's',
+                      0x54, 
+                      0x64
+        };
+
+        num_aapt = 28;
+        aapt = malloc(num_aapt);
+        memcpy(aapt, dummy_aa, num_aapt);
+
+        ret = susp_add_AA(t, info, aapt, num_aapt, &sua_free, &ce_len, 0);
+
+}
+
+#else /* Libisofs_with_aaip_dummY */
+
+        /* >>> obtain aapt and num_aapt from node */;
+        aapt = NULL;
+        num_aapt = 0;
+        ret = ISO_SUCCESS;
+
+#endif /* ! Libisofs_with_aaip_dummY */
+
+        if (ret < 0) {
+            goto add_susp_cleanup;
+        }
+
+#endif /* Libisofs_with_aaiP */
+
     } else {
 
         /* "." or ".." entry */
@@ -1178,6 +1257,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
     }
+
 
     /*
      * The System Use field inside the directory record must be padded if
