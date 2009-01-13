@@ -465,8 +465,12 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 #ifdef Libisofs_with_aaiP
 
 /* ts A90112 */
+/*
+   @param flag bit0= only account sizes in sua_free resp. ce_len
+                     parameters t, susp, data may be NULL in this case
+*/
 static
-int susp_add_AA(Ecma119Image *t, struct susp_info *susp, uint8_t *data,
+int aaip_add_AA(Ecma119Image *t, struct susp_info *susp, uint8_t *data,
                 size_t num_data, size_t *sua_free, size_t *ce_len, int flag)
 {
     int ret, done = 0;
@@ -474,10 +478,11 @@ int susp_add_AA(Ecma119Image *t, struct susp_info *susp, uint8_t *data,
 
     if (*sua_free < num_data || *ce_len > 0) {
         *ce_len += num_data;
-        *sua_free = 0;
     } else {
         *sua_free -= num_data;
     }
+    if (flag & 1)
+        return ISO_SUCCESS;
     for (aapt = data; !done; aapt += aapt[2]) {
         done = !(aapt[4] & 1);
         if (*ce_len > 0) {
@@ -640,6 +645,12 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 {
     size_t su_size;
 
+#ifdef Libisofs_with_aaiP
+    /* ts A90112 */
+    uint8_t *aapt;
+    size_t num_aapt = 0, sua_free = 0;
+#endif
+
     /* space min is 255 - 33 - 37 = 185
      * At the same time, it is always an odd number, but we need to pad it
      * propertly to ensure the length of a directory record is a even number
@@ -800,6 +811,29 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
             }
 
         }
+
+#ifdef Libisofs_with_aaiP
+/* ts A90112 */
+        aapt = NULL;
+
+#ifdef Libisofs_with_aaip_dummY
+
+        num_aapt = 28;
+
+#else /* Libisofs_with_aaip_dummY */
+
+        /* >>> obtain num_aapt from node */;
+        num_aapt = 0;
+
+#endif /* ! Libisofs_with_aaip_dummY */
+
+	/* let the expert decide where to add num_aapt */
+        sua_free = space - su_size;
+        aaip_add_AA(NULL, NULL, aapt, num_aapt, &sua_free, ce, 1);
+        su_size = space - sua_free;
+
+#endif /* Libisofs_with_aaiP */
+
     } else {
 
         /* "." or ".." entry */
@@ -812,6 +846,14 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
              */
             su_size += 7 + 28; /* SP + CE */
             *ce = 182; /* ER */
+
+#ifdef Libisofs_with_aaiP
+
+            /* >>> account for the ER entry of AAIP */;
+
+#endif /* Libisofs_with_aaiP */
+
+
         }
     }
 
@@ -1212,7 +1254,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         aapt = malloc(num_aapt);
         memcpy(aapt, dummy_aa, num_aapt);
 
-        ret = susp_add_AA(t, info, aapt, num_aapt, &sua_free, &ce_len, 0);
+        ret = aaip_add_AA(t, info, aapt, num_aapt, &sua_free, &ce_len, 0);
 
 }
 
@@ -1255,6 +1297,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
+
+#ifdef Libisofs_with_aaiP
+
+            /* >>> write the ER entry of AAIP : aaip_add_ER() */;
+
+#endif /* Libisofs_with_aaiP */
+
         }
     }
 
