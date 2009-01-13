@@ -1855,6 +1855,9 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
         if (SUSP_SIG(sue, 'E', 'R')) {
 
+#ifndef Libisofs_with_aaiP
+            /* ts A90113 : this warning is not appropriate any more */
+
             if (data->rr_version) {
                 ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
                     "More than one ER has found. This is not supported. "
@@ -1864,6 +1867,8 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                     break;
                 }
             }
+
+#endif /* ! Libisofs_with_aaiP */
 
             /*
              * it seems that Rock Ridge can be identified with any
@@ -1884,11 +1889,25 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                 iso_msg_debug(data->msgid,
                               "Suitable Rock Ridge ER found. Version 1.12.");
                 data->rr_version = RR_EXT_112;
+
+#ifdef Libisofs_with_aaiP
+/* ts A90113 */
+
+            } else if ( (sue->data.ER.len_id[0] == 9 &&
+                    !strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9)) ) {
+
+                iso_msg_debug(data->msgid,
+                              "Arbitrary Attribute ER found. Version 0.2.");
+
+                /* >>> register the presence of AAIP and the signature word */;
+
+#endif /* Libisofs_with_aaiP */
+
             } else {
                 ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
-                    "Not Rock Ridge ER found.\n"
-                    "That will be ignored, but can cause problems in "
-                    "image reading. Please notify us about this");
+                    "Non-Rock-Ridge ER found.\n"
+                    "It will be ignored, but can cause problems in "
+                    "image reading. Please notify us about this.");
                 if (ret < 0) {
                     break;
                 }

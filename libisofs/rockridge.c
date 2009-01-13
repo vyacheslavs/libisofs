@@ -848,7 +848,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
         }
 
 #ifdef Libisofs_with_aaiP
-/* ts A90112 */
+        /* ts A90112 */
         aapt = NULL;
 
 #ifdef Libisofs_with_aaip_dummY
@@ -883,6 +883,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
             *ce = 182; /* ER of RRIP */
 
 #ifdef Libisofs_with_aaiP
+            /* ts A90113 */
 
 #ifdef Libisofs_with_aaip_dummY
 
@@ -1335,6 +1336,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              */
 
 #ifdef Libisofs_with_aaiP
+             /* ts A90113 */
 
 #ifdef Libisofs_with_aaip_dummY
 
@@ -1363,6 +1365,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
 #ifdef Libisofs_with_aaip_dummY
 
+            /* ts A90113 */
             ret = aaip_add_ER(t, info, "AA", 0);
             if (ret < 0) {
                 goto add_susp_cleanup;
