@@ -1,0 +1,381 @@
+
+/*
+
+ Arbitrary Attribute Interchange Protocol , AAIP version 0.2
+ Demonstration program for encoding and decoding EA and ACL.
+
+ See http://libburnia-project.org/wiki/AAIP
+ or  doc/susp_aaip_0_2.txt
+
+ test/aaip_0.2.h - Public declarations
+
+*/
+
+#ifndef Aaip_h_is_includeD
+#define Aaip_h_is_includeD yes
+
+
+/* --------------------------------- Encoder ---------------------------- */
+
+/* Convert an array of Arbitrary Attributes into a series of AAIP fields.
+   @param aa_name       The 2 byte SUSP Signature Word of the fields
+   @param num_attrs     Number of attributes
+   @param names         Array of pointers to 0 terminated name strings
+   @param value_lengths Array of byte lengths for each value
+   @param values        Array of pointers to the value bytes
+   @param result_len    Number of bytes in the resulting SUSP field string
+   @param result        *result will point to the start of the result string.
+                        This is malloc() memory which needs to be freed when
+                        no longer needed 
+   @param flag          Bitfield for control purposes
+                        bit0= set CONTINUE bit of last AA field to 1
+   @return              >0 is the number of SUSP fields generated,
+                        0 means error 
+*/
+unsigned int aaip_encode(char aa_name[2],
+                         unsigned int num_attrs, char **names,
+                         size_t *value_lengths, char **values, 
+                         size_t *result_len, unsigned char **result, int flag);
+
+
+/* ------ ACL representation ------ */
+
+/* Convert an ACL from long text form into the value of an Arbitrary
+   Attribute. According to AAIP 0.2 this value is to be stored together with
+   an empty name.
+   @param acl_text      The ACL in long text form
+   @param result_len    Number of bytes in the resulting value
+   @param result        *result will point to the start of the result string.
+                        This is malloc() memory which needs to be freed when
+                        no longer needed
+   @param flag          Bitfield for control purposes
+                        bit0= count only
+                        bit1= use numeric qualifiers rather than names
+   @return              >0 means ok
+                        0 means error
+*/
+int aaip_encode_acl(char *acl_text,
+                    size_t *result_len, unsigned char **result, int flag);
+
+
+/* ------ OS interface ------ */
+
+/* Obtain the ACL of the given file in long text form.
+   @param path          Path to the file
+   @param text          Will hold the result. This is a managed object which
+                        finally has to be freed by a call to this function
+                        with bit15 of flag.
+   @param flag          Bitfield for control purposes
+                        bit0=  obtain default ACL rather than access ACL
+                        bit15= free text and return 1
+   @return              > 0 ok
+                        -1  failure of system ACL service (see errno)
+*/
+int aaip_get_acl_text(char *path, char **text, int flag);
+
+
+/* Obtain the Extended Attributes and/or the ACLs of the given file in a form
+   that is ready for aaip_encode(). The returned data objects finally have
+   to be freed by a call with flag bit 15.
+   @param path          Path to the file
+   @param num_attrs     Will return the number of name-value pairs
+   @param names         Will return an array of pointers to 0-terminated names
+   @param value_lengths Will return an arry with the lenghts of values
+   @param values        Will return an array of pointers to 8-bit values
+   @param flag          Bitfield for control purposes
+                        bit0=  obtain ACLs (access and eventually default) via
+                               system ACL API and encode 
+                        bit1=  use numeric ACL qualifiers rather than names
+                        bit2=  do not obtain attributes other than ACLs
+                        bit3=  do not ignore eventual ACL attribute
+                               (e.g. system.posix_acl_access)
+                        bit15= free memory of names, value_lengths, values
+   @return              >0  ok
+                        <=0 error
+*/
+int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
+                       size_t **value_lengths, char ***values, int flag);
+
+
+/* --------------------------------- Decoder ---------------------------- */
+
+/*
+   The AAIP decoder offers several levels of abstraction of which the
+   lower two avoid the use of dynamic memory. It provides a stateful decoding
+   context with a small buffer which delivers results to caller provided
+   memory locations.
+
+   The lowest level is the stream-like Component Level Interface. It allows
+   to decode very many very long attributes.
+ 
+   Next is the Pair Level Interface which delivers to fixly sized storage for
+   name and value. It allows to decode very many attributes. 
+
+   The List Level Interface uses dynamic memory allocation to provide arrays
+   of names, values and value lengths. It is intended for moderately sized
+   attribute lists but may also be used as alternative to Pair Level.
+*/
+
+
+/* The AAIP decoder context.
+*/
+struct aaip_state;
+
+
+/* Obtain the size in bytes of an aaip_state object.
+*/
+size_t aaip_sizeof_aaip_state(void);
+
+
+/* Initialize a AAIP decoder context.
+   This has to be done before the first AA field of a node is processed.
+   The caller has to provide the storage of the struct aaip_state.
+   @param aaip          The AAIP decoder context to be initialized
+   @param aa_name       The Signature Word (advised is "AA")
+   @param flag          Bitfield for control purposes
+                        submit 0
+   @return <=0 error , >0 ok
+*/
+int aaip_init_aaip_state(struct aaip_state *aaip, char aa_name[2], int flag);
+
+
+/* -------------------------  Component Level Interface  ------------------- */
+/* 
+   Provides support for unlimited component size but demands the caller
+   to have a growing storage facility resp. to do own oversize handling.
+
+   This interface expects moderatly sized input pieces and will hand out
+   moderately sized result pieces. The number of transactions is virtually
+   unlimited. 
+*/
+
+/* Submit small data chunk for decoding.
+   The return value will tell whether data are pending for being fetched.
+   @param aaip          The AAIP decoder context
+   @param data          Not more than 2048 bytes input for the decoder
+   @param num_data      Number of bytes in data
+                        0 inquires the buffer status avoiding replies <= 0
+   @param ready_bytes   Number of decoded bytes ready for delivery
+   @param flag          Bitfield for control purposes
+   @return             -1= non-AA field detected
+                           *ready_bytes gives number of consumed bytes in data
+                        0= cannot accept data because buffer full
+                        1= no component record complete, submit more data
+                        2= component record complete, may be delivered
+                        3= component complete, may be delivered
+                        4= no component available, no more data expected, done
+*/
+int aaip_submit_data(struct aaip_state *aaip,
+                     unsigned char *data, size_t num_data,
+                     size_t *ready_bytes, int flag);
+
+
+/* Fetch the available part of current component.
+   The return value will tell whether it belongs to name or to value and
+   whether that name or value is completed now.
+   @param aaip          The AAIP decoder context
+   @param result        Has to point to storage for the component data
+   @param result_size   Gives the amount of provided result storage
+   @param num_result    Will tell the number of fetched result bytes
+   @param flag          Bitfield for control purposes
+                        bit0= discard data rather than copying to result
+   @return -2 = insufficient result_size
+           -1 = no data ready for delivery
+            0 = result holds the final part of a name
+            1 = result holds an intermediate part of a name
+            2 = result holds the final part of a value
+            3 = result holds an intermediate part of a value
+*/
+int aaip_fetch_data(struct aaip_state *aaip,
+                    char *result, size_t result_size, size_t *num_result,
+                    int flag);
+
+
+/* Skip the current component and eventually the following value component.
+   This has to be called if fetching of a component shall be aborted
+   but the next component resp. pair shall be fetchable again.
+   aaip_submit_data() will not indicate readiness for fetching until all
+   bytes of the skipped components are submitted. Those bytes get discarded.
+   @param aaip          The AAIP decoder context
+   @param flag          Bitfield for control purposes
+                        bit0= do not skip value if current component is name
+   @return              <=0 error , 1= now in skip state, 2= not in skip state
+*/
+int aaip_skip_component(struct aaip_state *aaip, int flag);
+
+
+/* -------------------------  Pair Level Interface  ------------------------ */
+/*
+   Provides support for names and values of limited size. The limits are
+   given by the caller who has to provide the storage for name and value.
+
+   This interface expects moderatly sized input pieces.
+   The number of input transcations is virtually unlimited.
+   The number of pair transactions after aaip_init() should be limited
+   to 4 billion.
+*/
+
+
+/* Accept raw input data and collect a pair of name and value.
+   The return value will indicate whether the pair is complete, whether more
+   pairs are complete or whether more data are desired. No input data will be
+   accepted as long as complete pairs are pending. The end of the attribute
+   list will be indicated.
+   @param aaip          The AAIP decoder context
+   @param data          The raw data to decode
+   @param num_data      Number of data bytes provided
+   @param consumed      Returns the number of consumed data bytes
+   @param name          Buffer to build the name string
+   @param name_size     Maximum number of bytes in name
+   @param name_fill     Holds the current buffer fill of name
+   @param value         Buffer to build the value string
+   @param value_size    Maximum number of bytes in value
+   @param value_fill    Holds the current buffer fill of value
+   @param flag          Bitfield for control purposes - submit 0 for now
+   @return <0 error
+            0 data not accepted, first fetch pending pairs with num_data == 0
+            1 name and value are not valid yet, submit more data
+            2 name and value are valid, submit more data
+            3 name and value are valid, pairs pending, fetch with num_data == 0
+            4 name and value are valid, no more data expected
+            5 name and value are not valid, no more data expected
+
+*/
+int aaip_decode_pair(struct aaip_state *aaip,
+                     unsigned char *data, size_t num_data, size_t *consumed,
+                     char *name, size_t name_size, size_t *name_fill,
+                     char *value, size_t value_size, size_t *value_fill,
+                     int flag);
+
+
+/* Inquire the number of pairs which were skipped because being oversized.
+   @param aaip          The AAIP decoder context
+   @param flag          Bitfield for control purposes - submit 0 for now
+   @return The number of pairs skipped since aaip_init()
+*/
+unsigned int aaip_get_pairs_skipped(struct aaip_state *aaip, int flag);
+
+
+/* -------------------------  List Level Interface  ------------------------ */
+/*
+   Provides support for names and values of limited size. The limits are
+   given for total memory consumption and for number of attributes.
+
+   Iterated decoding is supported as long as no single attribute exceeds
+   the memory limit.
+*/
+
+/* Accept raw input data and collect arrays of name pointers, value lengths
+   and value pointers. A handle object will emerge which finally has to be
+   be freed by a call with bit 15.
+   @param handle        The decoding context.
+                        It will be created by this call with flag bit 0 or if
+                        *handle == NULL. This handle has to be the same as long
+                        as decoding goes on and finally has to be freed by a
+                        call with bit15.
+   @param aa_name       The Signature Word (advised is "AA")
+   @param memory_limit  Maximum number of bytes to allocate
+   @param num_attr_limit  Maximum number of name-value pairs to allocate
+   @param data          The raw data to decode
+   @param num_data      Number of data bytes provided
+   @param consumed      Returns the number of consumed data bytes
+   @param flag          Bitfield for control purposes
+                        bit0=  this is the first call for a file object
+                        bit15= end decoding :
+                               Free handle and its intermediate list memory.
+   @return <=0 error
+             1 not complete yet, submit more data
+             2 arrays are complete, call aaip_get_decoded_attrs()
+             3 limit exceeded, not complete yet, call with bit15 and give up
+             4 limit exceeded, call aaip_get_decoded_attrs() and try again
+*/
+int aaip_decode_attrs(struct aaip_state **handle, char aa_name[2],
+                      size_t memory_limit, size_t num_attr_limit,
+                      unsigned char *data, size_t num_data, size_t *consumed, 
+                      int flag);
+
+
+/* Obtain the resulting attributes when aaip_decode_attrs() indicates to
+   be done or to have the maximum possible amount of result ready.
+   The returned data objects get detached from handle making it ready for
+   the next round of decoding with possibly a different input source. The
+   returned data objects finally have to be freed by a call with flag bit 15.
+   @param handle        The decoding context created by aaip_decode_attrs()
+   @param num_attrs     Will return the number of name-value pairs
+   @param names         Will return an array of pointers to 0-terminated names
+   @param value_lengths Will return an arry with the lenghts of values
+   @param values        Will return an array of pointers to 8-bit values
+   @param flag          Bitfield for control purposes
+                        bit15= free memory of names, value_lengths, values
+*/
+int aaip_get_decoded_attrs(struct aaip_state **handle, size_t *num_attrs,
+                         char ***names, size_t **value_lengths, char ***values,
+                         int flag);
+
+
+/* ------ ACL representation ------ */
+
+/* Convert an AAIP 0.2 ACL attribute value into the long text form of ACL.
+   @param data          The raw data to decode
+   @param num_data      Number of data bytes provided
+   @param consumed      Returns the number of consumed data bytes
+   @param acl_text      Will be filled with ACL long text form
+   @param acl_text_size Maximum number of bytes to be written to acl_text
+   @param acl_text_fill Will return the number of bytes in acl_text
+   @param flag          Bitfield for control purposes
+                        bit0= count only, do not really produce bytes:
+                               acl_text will not be touched,
+                               acl_text_size will be ignored,
+                               *acl_text_fill will return the counted number
+                        bit1= expected is a default ACL (see return value 2)
+   @return              1 success
+                        2 success, begin of default/access ACL encountered,
+                          submit data + *consumed for access/default ACL
+                       -1 error with reading of qualifier
+                       -2 error with writing of ACL text line
+                       -3 version mismatch
+                       -4 unknown tag type encountered
+*/
+int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
+                    char *acl_text, size_t acl_text_size,
+                    size_t *acl_text_fill, int flag);
+
+
+/* ------ OS interface ------ */
+
+/* Set the ACL of the given file to a given list in long text form.
+   @param path          Path to the file
+   @param text          The input text (0 terminated, ACL long text form)
+   @param flag          Bitfield for control purposes
+                        bit0=  set default ACL rather than access ACL
+   @return              > 0 ok
+                        -1  failure of system ACL service (see errno)
+*/
+int aaip_set_acl_text(char *path, char *text, int flag);
+
+
+/* Bring the given attributes and/or ACLs into effect with the given file.
+   @param path          Path to the file
+   @param num_attrs     Number of attributes
+   @param names         Array of pointers to 0 terminated name strings
+   @param value_lengths Array of byte lengths for each attribute payload
+   @param values        Array of pointers to the attribute payload bytes
+   @param flag          Bitfield for control purposes
+                        bit0= decode and set ACLs
+                        bit1= first clear all existing attributes of the file
+                        bit2= do not set attributes other than ACLs
+                        bit3= do not ignore eventual ACL attribute
+                              (e.g. system.posix_acl_access)
+   @return              1 success
+                       -1 error memory allocation
+                       -2 error with decoding of ACL
+                       -3 error with setting ACL
+                       -4 error with setting attribute
+                       -5 error with deleting attributes
+
+*/
+int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
+                       size_t *value_lengths, char **values, int flag);
+
+#endif /* ! Aaip_h_is_includeD */
+
