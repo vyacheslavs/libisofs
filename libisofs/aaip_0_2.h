@@ -117,6 +117,17 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 */
 
 
+/* This function expects to get submitted a complete chain of AA fields and
+   determines its size by interpeting the SUSP structure..
+   @param aa_name       The Signature Word (advised is "AA") to be looked for
+   @param data          An arbitrary number of bytes beginning with the
+                        complete chain of AA fields. Trailing trash is ignored.
+   @param flag          Unused yet. Submit 0.
+   @return              The number of bytes of the AA field chain.
+*/
+size_t aaip_count_bytes(char aa_name[2], unsigned char *data, int flag);
+
+
 /* The AAIP decoder context.
 */
 struct aaip_state;

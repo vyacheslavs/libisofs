@@ -271,7 +271,7 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 
 /* ts A90112
    <<< write dummy AAIP fields with any node
+   # define Libisofs_with_aaip_dummY yes
 */
-#define Libisofs_with_aaip_dummY yes
 
 #endif /* LIBISO_ROCKRIDGE_H */
