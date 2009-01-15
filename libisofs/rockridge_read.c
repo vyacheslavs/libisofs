@@ -417,3 +417,54 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
                   | (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
     return ISO_SUCCESS;
 }
+
+
+#ifdef Libisofs_with_aaiP
+
+
+int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
+                 unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
+                 size_t *prev_field, int *is_done, int flag)
+{
+     unsigned char *aapt;
+
+     if (*is_done) {
+         return ISO_WRONG_RR;
+     }
+
+     /* Eventually create or grow storage */
+     if (*aa_size == 0 || *aa_string == 0) {
+         *aa_size = *aa_len + sue->len_sue[0];
+         *aa_string = calloc(*aa_size, 1);
+         *aa_len = 0;
+     } else if (*aa_len + sue->len_sue[0] > *aa_size) {
+         *aa_size += *aa_len + sue->len_sue[0];
+         *aa_string = realloc(*aa_string, *aa_size);
+     }
+     if (*aa_string == NULL)
+         return ISO_OUT_OF_MEM;
+
+     if (*aa_len > 0) {
+         /* Mark prev_field as being continued */
+         (*aa_string)[*prev_field + 4] = 1;
+     }
+
+     *prev_field = *aa_len;
+
+     /* Compose new SUSP header with signature aa[], cont == 0 */
+     aapt = *aa_string + *aa_len;
+     aapt[0] = aa[0];
+     aapt[1] = aa[1];
+     aapt[2] = sue->len_sue[0];
+     aapt[3] = 1;
+     aapt[4] = 0;
+     /* Append sue payload */
+     memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0]);
+
+     *is_done = sue->data.AA.flags[0] & 1;
+
+     return ISO_SUCCESS;
+}
+
+#endif /* Libisofs_with_aaiP */
+

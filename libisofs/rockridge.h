@@ -28,6 +28,17 @@
 
 #include "ecma119.h"
 
+
+/* ts A90112 : Enable experiments about EA and ACL
+*/
+#define Libisofs_with_aaiP yes
+
+/* ts A90112
+   <<< write dummy AAIP fields with any node
+   # define Libisofs_with_aaip_dummY yes
+*/
+
+
 #define SUSP_SIG(entry, a, b) ((entry->sig[0] == a) && (entry->sig[1] == b))
 
 /**
@@ -115,6 +126,18 @@ struct rr_SL {
     uint8_t comps[1];
 };
 
+
+#ifdef Libisofs_with_aaiP
+
+/** Arbitrary Attribute (AAIP, see doc/susp_aaip_0_2.txt) */
+struct rr_AA {
+    uint8_t flags[1];
+    uint8_t comps[1];
+};
+
+#endif /* Libisofs_with_aaiP */
+
+
 /**
  * Struct for a SUSP System User Entry (SUSP, 4.1)
  */
@@ -133,6 +156,11 @@ struct susp_sys_user_entry
         struct rr_NM NM;
         struct rr_CL CL;
         struct rr_SL SL;
+
+#ifdef Libisofs_with_aaiP
+        struct rr_AA AA;
+#endif /* Libisofs_with_aaiP */
+
     } data; /* 5 to 4+len_sue */
 };
 
@@ -265,13 +293,32 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont);
 int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 
 
-/* ts A90112 : Enable experiments about EA and ACL
-*/
-#define Libisofs_with_aaiP yes
+#ifdef Libisofs_with_aaiP
 
-/* ts A90112
-   <<< write dummy AAIP fields with any node
-   # define Libisofs_with_aaip_dummY yes
-*/
+/**
+ * Collects the AA field string from single AA fields.
+ * (see doc/susp_aaip_0_2.txt)
+ * @param aa          Signature of fields for inner representation. It will
+ *                    replace the signature of of the submitted SUSP field.
+ *                    Advised is "AA".
+ * @param aa_string   Storage location of the emerging string.
+ *                    Begin with *aa_string == NULL, or own malloc() storage.
+ * @param aa_size     Current allocated size of aa_string.
+ *                    Begin with *aa_size == 0, or own storage size.
+ * @param aa_len      Current occupied size of aa_string.
+ *                    Begin with *aa_len == 0
+ * @param prev_field  Returns the index of start of the previous field
+ *                    in the string.
+ * @param is_done     The current completion state of the AA field string.
+ *                    Fields will be ignored as soon as it is 1.
+ *                    Begin with *is_done == 0
+ * @param flag        Unused yet. Submit 0.
+ */
+int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
+                 unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
+                 size_t *prev_field, int *is_done, int flag);
+
+#endif
+
 
 #endif /* LIBISO_ROCKRIDGE_H */

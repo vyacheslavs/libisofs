@@ -29,7 +29,7 @@ Since the size of a SUSP field is limited to 255, multiple fields may be
 needed to describe one component. The CE mechanism of SUSP shall be used to
 address enough storage if needed.
 
-This SUSP field and the ER entry of AAIP shall only be present if the ER entry
+The SUSP field and the ER entry of AAIP shall only be present if the ER entry
 of RRIP is present.
 
 -------------------------------------------------------------------------------

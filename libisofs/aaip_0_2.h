@@ -118,7 +118,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
 
 /* This function expects to get submitted a complete chain of AA fields and
-   determines its size by interpeting the SUSP structure..
+   determines its size by interpeting the SUSP structure.
    @param aa_name       The Signature Word (advised is "AA") to be looked for
    @param data          An arbitrary number of bytes beginning with the
                         complete chain of AA fields. Trailing trash is ignored.

@@ -1346,7 +1346,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         /* Obtain AA field string from node
            and write it to directory entry or CE area.
         */
-        aapt = NULL;
         ret = ISO_SUCCESS;
         num_aapt = 0;
 

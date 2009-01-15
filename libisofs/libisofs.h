@@ -459,7 +459,12 @@ struct iso_filesystem
  */
 struct IsoFileSource_Iface
 {
-    /* reserved for future usage, set to 0 */
+    /* ts A90114 */
+    /**
+     * Tells the version of the interface:
+     * Version 0 provides functions up to (*lseek)().
+     * Version 1 additionally provides function *(get_aa_string)().
+     */
     int version;
 
     /**
@@ -654,12 +659,37 @@ struct IsoFileSource_Iface
      *      2 The offset is set to the size of the file plus offset bytes
      *        (SEEK_END).
      * @return
-     *      Absolute offset posistion on the file, or < 0 on error. Cast the
+     *      Absolute offset position of the file, or < 0 on error. Cast the
      *      returning value to int to get a valid libisofs error.
      *
      * @since 0.6.4
      */
     off_t (*lseek)(IsoFileSource *src, off_t offset, int flag);
+
+    /* Add-ons of .version 1 begin here */
+
+    /* ts A90114 */
+    /**
+     * Valid only if .version is > 0. See above.
+     * Get the AA string with encoded ACL and/or POSIX Extended Attributes.
+     * (Not to be confused with ECMA-119 Extended Attributes).
+     * @param flag       Bitfield for control purposes
+     *                   bit0= Transfer ownership of AA string data.
+     *                         src will free the eventual cached data and might
+     *                         not be able to produce it again.
+     * @param aa_string  Returns a pointer to the AA string data. If no AA
+     *                   string is available, *aa_string becomes NULL.
+     *                   The caller is responsible for finally calling free()
+     *                   on non-NULL results.
+     *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
+     *                    libisofs/aaip_0_2.h for encoding and decoding.)
+     * @return           1 means success (*aa_string == NULL is possible)
+     *                  <0 means failure and must b a valid libisofs error code
+     *                     (e.g. ISO_FILE_ERROR if no better one can be found).
+     * @since 0.6.14
+     */
+    unsigned char *(*get_aa_string)(IsoFileSource *src,
+                                     unsigned char **aa_string, int flag);
 
     /*
      * TODO #00004 Add a get_mime_type() function.

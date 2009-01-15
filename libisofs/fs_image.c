@@ -265,6 +265,20 @@ struct image_fs_data
          */
         off_t offset;
     } data;
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90114 */
+
+    /**
+     * malloc() storage for the string of AA fields which represent
+     *  POSIX Extended Attributes and ACLs. (Not to be confused with
+     *  ECMA-119 Extended Attributes.)
+     */
+    unsigned char *aa_string;
+
+#endif /* Libisofs_with_aaiP */
+
+
 };
 
 struct child_list
@@ -907,8 +921,27 @@ void ifs_free(IsoFileSource *src)
 
     free(data->sections);
     free(data->name);
+    
+#ifdef Libisofs_with_aaiP
+    /* ts A90115 */
+
+    if (data->aa_string != NULL)
+        free(data->aa_string);
+
+#endif /* Libisofs_with_aaiP */
+
     free(data);
 }
+
+
+#ifdef Libisofs_with_aaiP
+
+/* >>> unsigned char *(*get_aa_string)(IsoFileSource *src,
+                                     unsigned char **aa_string, int flag);
+*/
+
+#endif /* Libisofs_with_aaiP */
+
 
 IsoFileSourceIface ifs_class = {
     0, /* version */
@@ -996,6 +1029,16 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
     uint32_t relocated_dir = 0;
 
+#ifdef Libisofs_with_aaiP 
+
+    /* ts A90115 */
+    unsigned char *aa_string = NULL;
+    size_t aa_size = 0, aa_len = 0, prev_field = 0;
+    int aa_done = 0;
+
+#endif /* Libisofs_with_aaiP */
+
+
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -1025,7 +1068,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     if (record->len_xa[0]) {
         iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
               "Unsupported image. This image has at least one file with "
-              "Extended Attributes, that are not supported");
+              "ECMA-119 Extended Attributes, that are not supported");
         return ISO_UNSUPPORTED_ECMA119;
     }
 
@@ -1238,19 +1281,18 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
 
 #ifdef Libisofs_with_aaiP
+            /* ts A90115 */
 
             } else if (SUSP_SIG(sue, 'A', 'A')) {
 
-                ret = ISO_SUCCESS;
-/* >>> ts A90112
-                ret = read_susp_AA(sue, &aa, &aacont);
-*/
+                ret = read_aaip_AA(sue, "AA", &aa_string, &aa_size, &aa_len,
+                                   &prev_field, &aa_done, 0);
                 if (ret < 0) {
                     /* notify and continue */
                     ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid NM entry");
+                                 "Invalid AA entry");
+                    continue;
                 }
-
 
 #endif /* Libisofs_with_aaiP */
 
@@ -1511,6 +1553,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     }
     ifsdata->info = atts;
     ifsdata->name = name;
+
+#ifdef Libisofs_with_aaiP
+
+    ifsdata->aa_string = aa_string;
+
+#endif /* Libisofs_with_aaiP */
+
 
     /* save extents */
     ifsdata->sections = realloc(ifsdata->sections,
