@@ -666,7 +666,6 @@ int susp_add_SP(Ecma119Image *t, struct susp_info *susp)
 #ifdef Libisofs_with_aaiP
 /* ts A90114 */
 
-static
 int aaip_xinfo_func(void *data, int flag)
 {
     if (flag & 1) {

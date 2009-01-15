@@ -19,6 +19,10 @@
 #include "tree.h"
 #include "eltorito.h"
 
+#ifdef Libisofs_with_aaiP
+#include "aaip_0_2.h"
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
@@ -936,15 +940,38 @@ void ifs_free(IsoFileSource *src)
 
 #ifdef Libisofs_with_aaiP
 
-/* >>> unsigned char *(*get_aa_string)(IsoFileSource *src,
-                                     unsigned char **aa_string, int flag);
-*/
+static
+int ifs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
+{
+    size_t len;
+    ImageFileSourceData *data;
+
+    data = src->data;
+
+    if ((flag & 1) || data->aa_string == NULL) {
+        *aa_string = data->aa_string;
+        data->aa_string = NULL;
+    } else {
+        len = aaip_count_bytes((char *) data->aa_string, data->aa_string, 0);
+        *aa_string = calloc(len, 1);
+        if (*aa_string == NULL)
+            return ISO_OUT_OF_MEM;
+        memcpy(*aa_string, data->aa_string, len);
+    }
+    return 1;
+}
 
 #endif /* Libisofs_with_aaiP */
 
 
 IsoFileSourceIface ifs_class = {
+
+#ifdef Libisofs_with_aaiP
+    1, /* version */
+#else
     0, /* version */
+#endif
+
     ifs_get_path,
     ifs_get_name,
     ifs_lstat,
@@ -958,6 +985,12 @@ IsoFileSourceIface ifs_class = {
     ifs_get_filesystem,
     ifs_free,
     ifs_lseek
+
+#ifdef Libisofs_with_aaiP
+    ,
+    ifs_get_aa_string
+#endif
+
 };
 
 /**
@@ -2325,6 +2358,10 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     char *name;
     ImageFileSourceData *data;
 
+#ifdef Libisofs_with_aaiP
+    unsigned char *aa_string;
+#endif /* Libisofs_with_aaiP */
+
     if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -2493,8 +2530,21 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     new->parent = NULL;
     new->next = NULL;
-
     *node = new;
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90115 */
+
+    /* obtain ownership of eventual AA string */
+    ret = iso_file_source_get_aa_string(src, &aa_string, 1);
+    if (ret == 1 && aa_string != NULL) {
+        ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
+        if (ret < 0)
+            return ret;
+    }
+
+#endif /* Libisofs_with_aaiP */
+
     return ISO_SUCCESS;
 }
 

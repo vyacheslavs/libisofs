@@ -463,7 +463,9 @@ struct IsoFileSource_Iface
     /**
      * Tells the version of the interface:
      * Version 0 provides functions up to (*lseek)().
+     * @since 0.6.2
      * Version 1 additionally provides function *(get_aa_string)().
+     * @since 0.6.14
      */
     int version;
 
@@ -688,7 +690,7 @@ struct IsoFileSource_Iface
      *                     (e.g. ISO_FILE_ERROR if no better one can be found).
      * @since 0.6.14
      */
-    unsigned char *(*get_aa_string)(IsoFileSource *src,
+    int (*get_aa_string)(IsoFileSource *src,
                                      unsigned char **aa_string, int flag);
 
     /*
@@ -3649,6 +3651,29 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  * @since 0.6.2
  */
 int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
+
+
+/**
+ * Get the AA string with encoded ACL and/or POSIX Extended Attributes.
+ * (Not to be confused with ECMA-119 Extended Attributes).
+ * @param src        The file source object to be inquired.
+ * @param aa_string  Returns a pointer to the AA string data. If no AA
+ *                   string is available, *aa_string becomes NULL.
+ *                   The caller is responsible for finally calling free()
+ *                   on non-NULL results.
+ *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
+ *                    libisofs/aaip_0_2.h for encoding and decoding.)
+ * @param flag       Bitfield for control purposes
+ *                   bit0= Transfer ownership of AA string data.
+ *                         src will free the eventual cached data and might
+ *                         not be able to produce it again.
+ * @return           1 means success (*aa_string == NULL is possible)
+ *                  <0 means failure and must b a valid libisofs error code
+ *                     (e.g. ISO_FILE_ERROR if no better one can be found).
+ * @since 0.6.14
+ */
+int iso_file_source_get_aa_string(IsoFileSource *src,
+                                  unsigned char **aa_string, int flag);
 
 /**
  * Get the filesystem for this source. No extra ref is added, so you
