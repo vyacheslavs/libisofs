@@ -475,11 +475,11 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 */
 static
 int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
-                uint8_t *data, size_t num_data,
+                uint8_t **data, size_t num_data,
                 size_t *sua_free, size_t *ce_len, int flag)
 {
-    int ret, done = 0;
-    uint8_t *aapt;
+    int ret, done = 0, len;
+    uint8_t *aapt, *cpt;
 
     if (*sua_free < num_data || *ce_len > 0) {
         *ce_len += num_data;
@@ -488,16 +488,36 @@ int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
     }
     if (flag & 1)
         return ISO_SUCCESS;
-    for (aapt = data; !done; aapt += aapt[2]) {
-        done = !(aapt[4] & 1);
+    aapt = *data;
+    if (!(aapt[4] & 1)) {
+        /* Single field can be handed over directly */
         if (*ce_len > 0) {
             ret = susp_append_ce(t, susp, aapt);
         } else {
             ret = susp_append(t, susp, aapt);
         }
+        *data = NULL;
+        return ISO_SUCCESS;
+    }
+
+    /* Multiple fields have to be handed over as single field copies */
+    for (aapt = *data; !done; aapt += aapt[2]) {
+        done = !(aapt[4] & 1);
+        len = aapt[2];
+        cpt = calloc(aapt[2], 1);
+        if (cpt == NULL)
+            return ISO_OUT_OF_MEM;
+        memcpy(cpt, aapt, len);
+        if (*ce_len > 0) {
+            ret = susp_append_ce(t, susp, cpt);
+        } else {
+            ret = susp_append(t, susp, cpt);
+        }
         if (ret == -1)
             return ret;
     }
+    free(*data);
+    *data = NULL;
     return ISO_SUCCESS;
 }
 
@@ -1336,10 +1356,11 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         aapt = malloc(num_aapt);
         memcpy(aapt, dummy_aa, num_aapt);
 
-        ret = aaip_add_AA(t, info, aapt, num_aapt, &sua_free, &ce_len, 0);
+        ret = aaip_add_AA(t, info, &aapt, num_aapt, &sua_free, &ce_len, 0);
         if (ret < 0) {
             goto add_susp_cleanup;
         }
+        /* aapt is NULL now and the memory is owned by t */
 }
 
 #else /* Libisofs_with_aaip_dummY */
@@ -1364,11 +1385,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                         goto add_susp_cleanup;
                     }
                     memcpy(aapt, xipt, num_aapt);
-                    ret = aaip_add_AA(t, info, aapt, num_aapt,
+                    ret = aaip_add_AA(t, info, &aapt, num_aapt,
                                       &sua_free, &ce_len, 0);
                     if (ret < 0) {
                         goto add_susp_cleanup;
                     }
+                    /* aapt is NULL now and the memory is owned by t */
                 }
             }
         }
