@@ -6,6 +6,9 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
+/* ts A90116 : libisofs.h eventually defines aaip_xinfo_func */
+#include "libisofs.h"
+
 #include "builder.h"
 #include "node.h"
 #include "fsource.h"
@@ -85,6 +88,10 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     struct stat info;
     IsoNode *new;
     char *name;
+
+#ifdef Libisofs_with_aaiP
+    unsigned char *aa_string;
+#endif /* Libisofs_with_aaiP */
 
     if (builder == NULL || src == NULL || node == NULL) {
         return ISO_NULL_POINTER;
@@ -175,6 +182,24 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     iso_node_set_uid(new, info.st_uid);
 
     *node = new;
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90115 */
+
+    /* obtain ownership of eventual AA string */
+    ret = iso_file_source_get_aa_string(src, &aa_string, 1);
+    if (ret == 1 && aa_string != NULL) {
+
+        /* >>> change field signatures to eventual libisofs non-"AA" setting */;
+          /* (for now everything is "AA" anyway) */
+
+        ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
+        if (ret < 0)
+            return ret;
+    }
+
+#endif /* Libisofs_with_aaiP */
+
     return ISO_SUCCESS;
 }
 

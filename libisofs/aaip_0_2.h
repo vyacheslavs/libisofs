@@ -116,16 +116,28 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    attribute lists but may also be used as alternative to Pair Level.
 */
 
+/* Operations on complete AA field strings which need no decoder context.
+   These function expect to get submitted a complete chain of AA fields.
+*/
 
-/* This function expects to get submitted a complete chain of AA fields and
-   determines its size by interpeting the SUSP structure.
-   @param aa_name       The Signature Word (advised is "AA") to be looked for
+/* Determine the size of the AA string by interpreting the SUSP structure.
    @param data          An arbitrary number of bytes beginning with the
                         complete chain of AA fields. Trailing trash is ignored.
    @param flag          Unused yet. Submit 0.
    @return              The number of bytes of the AA field chain.
 */
-size_t aaip_count_bytes(char aa_name[2], unsigned char *data, int flag);
+size_t aaip_count_bytes(unsigned char *data, int flag);
+
+
+/* Set the Signature Words of all fields in the AA string to the given
+   two byte values.
+   @param aa_name       The Signature Word to be set (advised is "AA").
+   @param data          An arbitrary number of bytes beginning with the
+                        complete chain of AA fields. Trailing trash is ignored.
+   @param flag          Unused yet. Submit 0.
+   @return              1 means succes, <=0 means error
+*/
+int aaip_set_signature(char aa_name[2], unsigned char *data, int flag);
 
 
 /* The AAIP decoder context.

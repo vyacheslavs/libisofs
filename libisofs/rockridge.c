@@ -7,6 +7,9 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
+/* ts A90116 : libisofs.h eventually defines Libisofs_with_aaiP */
+#include "libisofs.h"
+
 #include "rockridge.h"
 #include "node.h"
 #include "ecma119_tree.h"
@@ -883,7 +886,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
             ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
             if (ret == 1) {
-               num_aapt = aaip_count_bytes("AA", (unsigned char *) xipt, 0);
+               num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
             }
         }
 
@@ -1353,7 +1356,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
             ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
             if (ret == 1) {
-                num_aapt = aaip_count_bytes("AA", (unsigned char *) xipt, 0);
+                num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
                 if (num_aapt > 0) {
                     aapt = malloc(num_aapt);
                     if (aapt == NULL) {

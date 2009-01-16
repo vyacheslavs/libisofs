@@ -681,10 +681,11 @@ struct IsoFileSource_Iface
      *                         not be able to produce it again.
      * @param aa_string  Returns a pointer to the AA string data. If no AA
      *                   string is available, *aa_string becomes NULL.
-     *                   The caller is responsible for finally calling free()
-     *                   on non-NULL results.
+     *                   Field signature will be "AA".
      *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
      *                    libisofs/aaip_0_2.h for encoding and decoding.)
+     *                   The caller is responsible for finally calling free()
+     *                   on non-NULL results.
      * @return           1 means success (*aa_string == NULL is possible)
      *                  <0 means failure and must b a valid libisofs error code
      *                     (e.g. ISO_FILE_ERROR if no better one can be found).
@@ -3659,10 +3660,11 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  * @param src        The file source object to be inquired.
  * @param aa_string  Returns a pointer to the AA string data. If no AA
  *                   string is available, *aa_string becomes NULL.
- *                   The caller is responsible for finally calling free()
- *                   on non-NULL results.
+ *                   Field signature will be "AA".
  *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
  *                    libisofs/aaip_0_2.h for encoding and decoding.)
+ *                   The caller is responsible for finally calling free()
+ *                   on non-NULL results.
  * @param flag       Bitfield for control purposes
  *                   bit0= Transfer ownership of AA string data.
  *                         src will free the eventual cached data and might
@@ -4102,5 +4104,27 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
 #define ISO_DATA_SOURCE_FATAL     0xF030FCFF
+
+
+/* --------------------------------- AAIP --------------------------------- */
+
+/* ts A90112 : Enable experiments about EA and ACL */
+#define Libisofs_with_aaiP yes
+
+/* ts A90112
+   <<< write dummy AAIP fields with any node
+   # define Libisofs_with_aaip_dummY yes
+*/
+
+
+#ifdef Libisofs_with_aaiP
+
+/**
+ * Function to identify and manage AA strings as xinfo of IsoNode
+ */
+int aaip_xinfo_func(void *data, int flag);
+
+#endif /* Libisofs_with_aaiP */
+
 
 #endif /*LIBISO_LIBISOFS_H_*/

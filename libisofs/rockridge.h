@@ -29,16 +29,6 @@
 #include "ecma119.h"
 
 
-/* ts A90112 : Enable experiments about EA and ACL
-*/
-#define Libisofs_with_aaiP yes
-
-/* ts A90112
-   <<< write dummy AAIP fields with any node
-   # define Libisofs_with_aaip_dummY yes
-*/
-
-
 #define SUSP_SIG(entry, a, b) ((entry->sig[0] == a) && (entry->sig[1] == b))
 
 /**

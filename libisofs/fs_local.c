@@ -10,8 +10,15 @@
  * Filesystem/FileSource implementation to access the local filesystem.
  */
 
+/* ts A90116 : libisofs.h eventually defines Libisofs_with_aaiP */
+#include "libisofs.h"
+
 #include "fsource.h"
 #include "util.h"
+
+#ifdef Libisofs_with_aaiP
+#include "aaip_0_2.h"
+#endif
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -466,8 +473,59 @@ void lfs_free(IsoFileSource *src)
     iso_filesystem_unref(lfs);
 }
 
+
+    
+#ifdef Libisofs_with_aaiP
+/* ts A90116 */
+
+static 
+int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
+{
+    unsigned int uret;
+    int ret;
+    size_t num_attrs = 0, *value_lengths = NULL, result_len;
+    char *path = NULL, **names = NULL, **values = NULL;
+    unsigned char *result = NULL;
+
+    *aa_string = NULL;
+    /* Obtain EAs and ACLs ("access" and "default"). ACLs encoded according
+       to AAIP ACL representation.
+    */ 
+    path = iso_file_source_get_path(src);
+    ret = aaip_get_attr_list(path, &num_attrs, &names,
+                             &value_lengths, &values, 1 | 2);
+    if (ret <= 0) {
+        ret = ISO_FILE_ERROR;
+        goto ex;
+    }
+    uret = aaip_encode("AA", (unsigned int) num_attrs, names,
+                       value_lengths, values, &result_len, &result, 0);
+    if (uret == 0) {
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
+    }
+    *aa_string = result;
+    ret = 1;
+ex:;
+    if (path != NULL)
+        free(path);
+    if (names != NULL || value_lengths != NULL || values != NULL)
+        aaip_get_attr_list(path, &num_attrs, &names, &value_lengths, &values,
+                           1 << 15); /* free memory */
+    return ret;
+}
+
+#endif /* Libisofs_with_aaiP */
+
+
 IsoFileSourceIface lfs_class = { 
+
+#ifdef Libisofs_with_aaiP
+    1, /* version */
+#else
     0, /* version */
+#endif
+
     lfs_get_path,
     lfs_get_name,
     lfs_lstat,
@@ -481,7 +539,14 @@ IsoFileSourceIface lfs_class = {
     lfs_get_filesystem,
     lfs_free,
     lfs_lseek
+
+#ifdef Libisofs_with_aaiP
+    ,
+    lfs_get_aa_string
+#endif
+
 };
+
 
 /**
  * 

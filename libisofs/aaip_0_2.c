@@ -478,7 +478,7 @@ struct aaip_state {
 /* ------- functions ------ */
 
 
-size_t aaip_count_bytes(char aa_name[2], unsigned char *data, int flag)
+size_t aaip_count_bytes(unsigned char *data, int flag)
 {
  int done = 0;
  unsigned char *aapt;
@@ -486,6 +486,20 @@ size_t aaip_count_bytes(char aa_name[2], unsigned char *data, int flag)
  for(aapt= data; !done; aapt += aapt[2])
    done = !(aapt[4] & 1);
  return((size_t) (aapt - data));
+}
+
+
+int aaip_set_signature(char aa_name[2], unsigned char *data, int flag)
+{
+ int done = 0;
+ unsigned char *aapt;
+
+ for(aapt= data; !done; aapt += aapt[2]) {
+   done = !(aapt[4] & 1);
+   aapt[0] = aa_name[0];
+   aapt[1] = aa_name[1];
+ }
+ return(1);
 }
 
 
