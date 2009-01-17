@@ -433,7 +433,7 @@ int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
      }
 
      /* Eventually create or grow storage */
-     if (*aa_size == 0 || *aa_string == 0) {
+     if (*aa_size == 0 || *aa_string == NULL) {
          *aa_size = *aa_len + sue->len_sue[0];
          *aa_string = calloc(*aa_size, 1);
          *aa_len = 0;
@@ -461,7 +461,8 @@ int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
      /* Append sue payload */
      memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0]);
 
-     *is_done = sue->data.AA.flags[0] & 1;
+     *aa_len += sue->len_sue[0];
+     *is_done = !(sue->data.AA.flags[0] & 1);
 
      return ISO_SUCCESS;
 }

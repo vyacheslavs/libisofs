@@ -10,6 +10,11 @@
 #include "node.h"
 #include "stream.h"
 
+#ifdef Libisofs_with_aaiP
+#include "aaip_0_2.h"
+#endif
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -1317,3 +1322,184 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
     *special = new;
     return ISO_SUCCESS;
 }
+
+
+/* ts A90116 */
+/* >>> describe
+
+   @param flag      bit15 = free memory
+*/
+int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
+              char ***names, size_t **value_lengths, char ***values, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    void *xipt;
+    struct aaip_state *aaip= NULL;
+    unsigned char *rpt, *aa_string;
+    size_t len, todo, consumed;
+    int is_done = 0, first_round= 1, ret;
+
+    if (flag & (1 << 15))
+        aaip_get_decoded_attrs(&aaip, num_attrs, names,
+                               value_lengths, values, 1 << 15);
+    *num_attrs = 0;
+    *names = NULL;
+    *value_lengths = NULL;
+    *values = NULL;
+    if (flag & (1 << 15))
+        return 1;
+
+    ret = iso_node_get_xinfo(node, aaip_xinfo_func, &xipt);
+    if (ret != 1)
+        return 1;
+
+    aa_string = rpt = (unsigned char *) xipt;
+    len = aaip_count_bytes(rpt, 0);
+    while (!is_done) {
+        todo = len - (rpt - aa_string);
+        if (todo > 2048)
+            todo = 2048;
+        if (todo == 0) {
+
+           /* >>> Out of data while still prompted to submit */;
+
+           /* >>> invent better error code */
+           return ISO_ERROR;
+        }
+        /* Allow 1 million bytes of memory consumption, 100,000 attributes */
+        ret = aaip_decode_attrs(&aaip, "AA", (size_t) 1000000, (size_t) 100000,
+                                rpt, todo, &consumed, first_round);
+        rpt+= consumed;
+        first_round= 0;
+        if (ret == 1)
+            continue;
+        if (ret == 2)
+             break;
+
+         /* >>> "aaip_decode_attrs() reports error */;
+
+         /* >>> invent better error code */
+         return ISO_ERROR;
+    }
+
+    if(rpt - aa_string != len) {
+
+         /* >>>  "aaip_decode_attrs() returns 2 but still bytes are left" */
+
+         /* >>> invent better error code */
+         return ISO_ERROR;
+    }
+
+    ret = aaip_get_decoded_attrs(&aaip, num_attrs, names,
+                                 value_lengths, values, 0);
+    if(ret != 1) {
+
+         /* >>> aaip_get_decoded_attrs() failed */;
+
+         return ISO_OUT_OF_MEM;
+    }
+
+#else /* Libisofs_with_aaiP */
+
+    *num_attrs = 0;
+    *names = NULL;
+    *value_lengths = NULL;
+    *values = NULL;
+
+#endif /* ! Libisofs_with_aaiP */
+
+    return 1;
+}
+
+
+/* ts A90116 */
+int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
+{
+    size_t num_attrs = 0, *value_lengths = NULL, i, consumed, text_fill = 0;
+    size_t v_len;
+    char **names = NULL, **values = NULL;
+    unsigned char *v_data;
+    int ret;
+
+    if (flag & (1 << 15)) {
+        if (*text != NULL)
+            free(*text);
+        *text = NULL;
+        return 1;
+    }
+
+#ifdef Libisofs_with_aaiP
+
+    *text = NULL;
+
+    ret = iso_node_get_attrs(node, &num_attrs, &names,
+                             &value_lengths, &values, 0);
+    if (ret < 0)
+        return ret;
+
+    for(i = 0; i < num_attrs; i++) {
+        if (names[i][0]) /* searching the empty name */
+            continue;
+
+        v_data = (unsigned char *) values[i];
+        v_len = value_lengths[i];
+
+        if (flag & 1) {
+            /* Skip "access" ACL and address "default" ACL instead */
+            ret = aaip_decode_acl(v_data, v_len,
+                                  &consumed, NULL, (size_t) 0, &text_fill, 1);
+            if (ret <= 0)
+                goto bad_decode;
+            if (ret != 2) {
+                ret = 0;
+                goto ex;
+            }
+            v_data += consumed;
+            v_len -= consumed;
+        }
+        
+        ret = aaip_decode_acl(v_data, v_len,
+                              &consumed, NULL, (size_t) 0, &text_fill, 1);
+        if (ret <= 0)
+            goto bad_decode;
+        if (text_fill == 0) {
+            ret = 0;
+            goto ex;
+        }
+        *text = calloc(text_fill, 1);
+        if (*text == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto ex;
+        }
+        ret = aaip_decode_acl(v_data, v_len,
+                              &consumed, *text, text_fill, &text_fill, 0);
+        if (ret <= 0)
+            goto bad_decode;
+        break;
+    }
+
+    ret = (*text != NULL);
+ex:;
+    iso_node_get_attrs(node, &num_attrs, &names,
+                       &value_lengths, &values, 1 << 15); /* free memory */
+    return ret;
+
+bad_decode:;
+
+    /* >>> something is wrong with the attribute value */;
+
+    /* >>> invent better error code */
+    ret = ISO_ERROR;
+    goto ex;
+
+#else /* Libisofs_with_aaiP */
+
+    *text = NULL;
+    return 0;
+
+#endif /* ! Libisofs_with_aaiP */
+
+}
+

@@ -4126,5 +4126,30 @@ int aaip_xinfo_func(void *data, int flag);
 
 #endif /* Libisofs_with_aaiP */
 
+/**
+ * Get an eventual ACL which is associated with the node.
+ * The result will be in "long" text form as of man acl resp. acl_to_text().
+ *
+ * @param node
+ *      The node that is to be inquired.
+ * @param text
+ *      Will return a pointer to the eventual ACL text or NULL if the desired
+ *      ACL is not available. Call this funtion with flag bit15 to finally
+ *      release the memory occupied an ACL inquiry.
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0=  obtain "default" ACL rather than "access" ACL
+ *             (Linux directories can have a "default" ACL which influences
+ *              the permissions of newly created files.)
+ *      bit15= free memory and return 1
+ * @return
+ *      1 on success,
+ *      0 if the desire ACL type is not available
+ *      < 0 on error
+ *
+ * @since 0.6.14
+ */
+int iso_node_get_acl_text(IsoNode *node, char **text, int flag);
+
 
 #endif /*LIBISO_LIBISOFS_H_*/
