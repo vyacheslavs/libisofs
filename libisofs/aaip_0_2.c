@@ -18,7 +18,8 @@
 #include <pwd.h>
 #include <grp.h>
 
-/* <<< */
+/* <<<
+*/
 #define Aaip_encode_debuG 1
 
 #include "aaip_0_2.h"
@@ -91,6 +92,8 @@ unsigned int aaip_encode(char aa_name[2],
  *result= (unsigned char *) calloc(1, mem_size);
 #endif
 
+ if(*result == NULL)
+   return 0;
 
  /* Encode pairs into result */
  for(i= 0; i < num_attrs; i++) {
@@ -118,6 +121,14 @@ unsigned int aaip_encode(char aa_name[2],
  if(*result_len != mem_size) {
    fprintf(stderr, "aaip_encode(): MEMORY MISMATCH BY %d BYTES\n",
            (int) (mem_size - *result_len));
+ } else {
+   unsigned char *hpt;
+   hpt= malloc(*result_len);
+   if(hpt != NULL) {
+     memcpy(hpt, *result, *result_len);
+     free(*result);
+     *result= hpt;
+   }
  }
  ret= 0;
  for(i= 0; i < *result_len; i+= ((unsigned char *) (*result))[i + 2])
