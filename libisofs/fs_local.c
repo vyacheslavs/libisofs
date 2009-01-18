@@ -489,11 +489,13 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
 
     *aa_string = NULL;
     /* Obtain EAs and ACLs ("access" and "default"). ACLs encoded according
-       to AAIP ACL representation.
+       to AAIP ACL representation. Clean out st_mode ACL entries.
     */ 
     path = iso_file_source_get_path(src);
+
+    /* >>> make adjustable: bit4 = ignoring of st_mode ACL entries */
     ret = aaip_get_attr_list(path, &num_attrs, &names,
-                             &value_lengths, &values, 1 | 2);
+                             &value_lengths, &values, 1 | 2 | 16);
     if (ret <= 0) {
         ret = ISO_FILE_ERROR;
         goto ex;

@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include <sys/acl.h>
 
@@ -27,6 +28,9 @@
                         with bit15 of flag.
    @param flag          Bitfield for control purposes
                         bit0=  obtain default ACL rather than access ACL
+                        bit4=  do not return entries which match the st_mode
+                               permissions. If no other ACL entries exist:
+                               set *text = NULL and return 2
                         bit15= free text and return 1
    @return              > 0 ok
                         -1  failure of system ACL service (see errno)
@@ -34,6 +38,8 @@
 int aaip_get_acl_text(char *path, char **text, int flag)
 {
  acl_t acl= NULL;
+ struct stat stbuf;
+ int ret;
 
  if(flag & (1 << 15)) {
    if(*text != NULL)
@@ -55,6 +61,16 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  acl_free(acl);
  if(*text == NULL)
    return(-1);
+ if(flag & 16) {
+   ret= stat(path, &stbuf);
+   if(ret != -1)
+     aaip_cleanout_st_mode(*text, stbuf.st_mode, 0);
+   if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
+     acl_free(text);
+     *text= NULL;
+     return(2);
+   }
+ }
  return(1);
 }
 
@@ -74,6 +90,8 @@ int aaip_get_acl_text(char *path, char **text, int flag)
                         bit0=  obtain ACL (access and eventually default)
                         bit1=  use numeric ACL qualifiers rather than names
                         bit2=  do not encode attributes other than ACL
+                        bit3=  -reserved-
+                        bit4=  do not return st_mode permissions in ACL.
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
                         <=0 error
@@ -118,9 +136,11 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
  if(flag & 1) { /* Obtain ACL */
    /* access-ACL */
-   ret= aaip_get_acl_text(path, &acl_text, 0);
+   ret= aaip_get_acl_text(path, &acl_text, flag & 16);
    if(ret <= 0)
      goto ex;
+   if(ret == 2)
+     {ret= 1; goto ex;} /* empty ACL / only st_mode info was found in ACL */
    ret= aaip_encode_acl(acl_text, &a_acl_len, &a_acl, flag & 2);
    if(ret <= 0)
      goto ex;

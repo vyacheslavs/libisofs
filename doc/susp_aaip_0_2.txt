@@ -330,4 +330,9 @@ SUSP 1.12 ftp://ftp.ymi.com/pub/rockridge/susp112.ps
 RRIP 1.12 ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
 (especially field SL)
 
+-------------------------------------------------------------------------------
+Pending considerations:
+
+- shall "AA" be fixely defined as signature ?
+
 

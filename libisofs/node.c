@@ -1421,7 +1421,8 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
     size_t v_len;
     char **names = NULL, **values = NULL;
     unsigned char *v_data;
-    int ret;
+    int ret, from_posix= 0;
+    mode_t st_mode;
 
     if (flag & (1 << 15)) {
         if (*text != NULL)
@@ -1468,7 +1469,7 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
             ret = 0;
             goto ex;
         }
-        *text = calloc(text_fill, 1);
+        *text = calloc(text_fill + 32, 1); /* 32 for aaip_update_acl_st_mode */
         if (*text == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto ex;
@@ -1479,8 +1480,21 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
             goto bad_decode;
         break;
     }
+    
+    if (*text == NULL && !(flag & 16)) {
+        from_posix = 1;
+        *text = calloc(32, 1); /* 32 for aaip_update_acl_st_mode */
+    }
+    if (*text != NULL) {
+        st_mode = iso_node_get_permissions(node);
+        aaip_add_acl_st_mode(*text, st_mode, 0);
+        text_fill = strlen(*text);
+    }
 
-    ret = (*text != NULL);
+    if (text == NULL)
+        ret = 0;
+    else
+        ret = 1 + from_posix;
 ex:;
     iso_node_get_attrs(node, &num_attrs, &names,
                        &value_lengths, &values, 1 << 15); /* free memory */

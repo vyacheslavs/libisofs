@@ -4141,9 +4141,12 @@ int aaip_xinfo_func(void *data, int flag);
  *      bit0=  obtain "default" ACL rather than "access" ACL
  *             (Linux directories can have a "default" ACL which influences
  *              the permissions of newly created files.)
+ *      bit4=  if no ACL available: return *text == NULL
+               else: produce ACL from PROSIX permissions
  *      bit15= free memory and return 1
  * @return
- *      1 on success,
+ *      2 ACL produced from POSIX permissions
+ *      1 ACL was read from node
  *      0 if the desire ACL type is not available
  *      < 0 on error
  *

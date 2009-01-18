@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/stat.h>
 
 /* <<<
 */
@@ -422,6 +423,121 @@ group_by_name:;
  }
 
  return(count);
+}
+
+
+/* Remove the entries user::??? , group::??? , other::??? , other:??? 
+   from an ACL in long text form if they match the bits in st_mode.
+   @param flag       bit0= do not remove entries, only determine return value
+*/
+int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag)
+{
+ char *rpt, *wpt, *npt, *cpt;
+ mode_t m;
+ int overriders= 0;
+
+ for(npt= wpt= rpt= acl_text; *npt != 0; rpt= npt + 1) {
+   npt= strchr(rpt, '\n');
+   if(npt == NULL)
+     npt= rpt + strlen(rpt);
+   if(strncmp(rpt, "user::", 6) == 0 && npt - rpt == 9) {
+     cpt= rpt + 6;
+     m= 0;
+     if(cpt[0] == 'r')
+       m|= S_IRUSR;
+     if(cpt[1] == 'w')
+       m|= S_IWUSR;
+     if(cpt[2] == 'x')
+       m|= S_IXUSR;
+     if((st_mode & S_IRWXU) == (m & S_IRWXU)) {
+       overriders|= 32;
+ continue;
+     }
+     overriders|= 4;
+   }
+   if(strncmp(rpt, "group::", 7) == 0 && npt - rpt == 10) {
+     cpt= rpt + 7;
+     m= 0;
+     if(cpt[0] == 'r')
+       m|= S_IRGRP;
+     if(cpt[1] == 'w')
+       m|= S_IWGRP;
+     if(cpt[2] == 'x')
+       m|= S_IXGRP;
+     if((st_mode & S_IRWXG) == (m & S_IRWXG)) {
+       overriders|= 16;
+ continue;
+     }
+     overriders|= 2;
+   }
+   if(strncmp(rpt, "other::", 7) == 0 && npt - rpt == 10) {
+     cpt= rpt + 7;
+others_st_mode:;
+     m= 0;
+     if(cpt[0] == 'r')
+       m|= S_IROTH;
+     if(cpt[1] == 'w')
+       m|= S_IWOTH;
+     if(cpt[2] == 'x')
+       m|= S_IXOTH;
+     if((st_mode & S_IRWXO) == (m & S_IRWXO)) {
+       overriders|= 8;
+ continue;
+     }
+     overriders|= 1;
+   }
+   if(strncmp(rpt, "other:", 6) == 0 && npt - rpt == 9) {
+     cpt= rpt + 7;
+     goto others_st_mode;
+   }
+   if(wpt == rpt) {
+     wpt= npt + 1;
+ continue;
+   }
+   if(!(flag & 1))
+     memmove(wpt, rpt, 1 + npt - rpt);
+   wpt+= 1 + npt - rpt;
+ }
+ if(!(flag & 1)) {
+   if(wpt == acl_text)
+     *wpt= 0;
+   else if(*(wpt - 1) != 0)
+     *wpt= 0;
+ }
+ return(overriders);
+}
+
+
+/* Important: acl_text must provide 32 bytes more than its current length !
+*/
+int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag)
+{
+ char *wpt;
+ int overriders= 0;
+
+ overriders = aaip_cleanout_st_mode(acl_text, st_mode, 1);
+ if(!(overriders & (4 | 32))) {
+   wpt= acl_text + strlen(acl_text);
+   sprintf(wpt, "user::%c%c%c\n",
+           st_mode & S_IRUSR ? 'r' : '-',
+           st_mode & S_IWUSR ? 'w' : '-',
+           st_mode & S_IXUSR ? 'x' : '-');
+ }
+ if(!(overriders & (2 | 16))) {
+   wpt= acl_text + strlen(acl_text);
+   sprintf(wpt, "group::%c%c%c\n",
+         st_mode & S_IRGRP ? 'r' : '-',
+         st_mode & S_IWGRP ? 'w' : '-',
+         st_mode & S_IXGRP ? 'x' : '-');
+ }
+ if(!(overriders & (1 | 8))) {
+   wpt= acl_text + strlen(acl_text);
+   sprintf(wpt, "other::%c%c%c\n",
+         st_mode & S_IROTH ? 'r' : '-',
+         st_mode & S_IWOTH ? 'w' : '-',
+         st_mode & S_IXOTH ? 'x' : '-');
+ }
+ return(1); 
 }
 
 

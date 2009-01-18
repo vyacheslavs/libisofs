@@ -58,6 +58,44 @@ int aaip_encode_acl(char *acl_text,
                     size_t *result_len, unsigned char **result, int flag);
 
 
+/* Remove the entries of type "user::" , "group::" , "other::" , "other:"
+   from an ACL in long text form if they match the bits in st_mode.
+   @param acl_text   The text to be shortened
+   @param st_mode    The component of struct stat which shall take the
+                     removed information. The caller should submit the st_mode
+                     variable which holds permissions as indicated by ECMA-119
+                     and RRIP data.
+   @param flag       bit0= do not remove entries, only determine return value
+   @return           <0  failure
+                     >=0 tells in six bits which tag types are present.
+                         The first three tell which types deviate from the
+                         corresponding st_mode settings:
+                         bit0= "other::" overrides S_IRWXO
+                         bit1= "group::" overrides S_IRWXG
+                         bit2= "user::"  overrides S_IRWXU       
+                         The second three tell which types comply with st_mode:
+                         bit3= "other::" matches S_IRWXO
+                         bit4= "group::" matches S_IRWXG
+                         bit5= "user::"  matches S_IRWXU       
+                         Given the nature of ACLs all 64 combinations are
+                         possible although some show inner contradictions.
+*/
+int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag);
+
+
+/* Append entries of type "user::" , "group::" , "other::" representing the
+   permission bits in st_mode if those tag types are not present in the ACL
+   text.
+   @param acl_text   The text to be made longer. It must offer 33 bytes more
+                     storage space than its length when it is submitted.
+   @param st_mode    The component of struct stat which shall provide the
+                     permission information.
+   @param flag       Unused yet. Submit 0.
+   @return           <0 failure
+*/
+int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag);
+
+
 /* ------ OS interface ------ */
 
 /* Obtain the ACL of the given file in long text form.
@@ -67,9 +105,13 @@ int aaip_encode_acl(char *acl_text,
                         with bit15 of flag.
    @param flag          Bitfield for control purposes
                         bit0=  obtain default ACL rather than access ACL
+                        bit4=  do not return entries which match the st_mode 
+                               permissions. If no other ACL entries exist:
+                               set *text = NULL and return 2
                         bit15= free text and return 1
-   @return              > 0 ok
-                        -1  failure of system ACL service (see errno)
+   @return               1 ok
+                         2 only st_mode permissions exist and bit 4 is set
+                        -1 failure of system ACL service (see errno)
 */
 int aaip_get_acl_text(char *path, char **text, int flag);
 
@@ -89,6 +131,7 @@ int aaip_get_acl_text(char *path, char **text, int flag);
                         bit2=  do not obtain attributes other than ACLs
                         bit3=  do not ignore eventual ACL attribute
                                (e.g. system.posix_acl_access)
+                        bit4=  do not return st_mode permissions in ACL.
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
                         <=0 error
