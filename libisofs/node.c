@@ -1517,3 +1517,19 @@ bad_decode:;
 
 }
 
+
+int iso_local_set_acl_text(char *disk_path, char *text, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+ return aaip_set_acl_text(disk_path, text, flag);
+
+#else /* Libisofs_with_aaiP */
+
+ return 0;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+

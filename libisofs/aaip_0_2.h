@@ -414,8 +414,9 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
    @param text          The input text (0 terminated, ACL long text form)
    @param flag          Bitfield for control purposes
                         bit0=  set default ACL rather than access ACL
-   @return              > 0 ok
-                        -1  failure of system ACL service (see errno)
+   @return              >0 ok
+                         0 no ACL manipulation adapter available
+                        -1 failure of system ACL service (see errno)
 */
 int aaip_set_acl_text(char *path, char *text, int flag);
 

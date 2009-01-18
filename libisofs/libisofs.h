@@ -4141,8 +4141,8 @@ int aaip_xinfo_func(void *data, int flag);
  *      bit0=  obtain "default" ACL rather than "access" ACL
  *             (Linux directories can have a "default" ACL which influences
  *              the permissions of newly created files.)
- *      bit4=  if no ACL available: return *text == NULL
-               else: produce ACL from PROSIX permissions
+ *      bit4=  if no ACL is available: return *text == NULL
+               else:                   produce ACL from POSIX permissions
  *      bit15= free memory and return 1
  * @return
  *      2 ACL produced from POSIX permissions
@@ -4153,6 +4153,19 @@ int aaip_xinfo_func(void *data, int flag);
  * @since 0.6.14
  */
 int iso_node_get_acl_text(IsoNode *node, char **text, int flag);
+
+
+/* Set the ACL of the given file in the local filesystem to a given list
+   in long text form.
+   @param disk_path     Path to the file
+   @param text          The input text (0 terminated, ACL long text form)
+   @param flag          Bitfield for control purposes
+                        bit0=  set default ACL rather than access ACL
+   @return              >0 ok
+                         0 no ACL manipulation adapter available
+                        -1 failure of system ACL service (see errno)
+*/
+int iso_local_set_acl_text(char *disk_path, char *text, int flag);
 
 
 #endif /*LIBISO_LIBISOFS_H_*/
