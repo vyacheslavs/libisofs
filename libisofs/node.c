@@ -309,7 +309,7 @@ void iso_node_set_permissions(IsoNode *node, mode_t mode)
 
 */
     /* >>> if the node has ACL info : */
-      /* >>> update ACL */
+      /* >>> update ACL */;
 
 #endif
 
