@@ -288,6 +288,31 @@ const char *iso_node_get_name(const IsoNode *node)
 void iso_node_set_permissions(IsoNode *node, mode_t mode)
 {
     node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
+
+#ifdef Libisofs_with_aaiP
+
+/* Linux man 5 acl says:
+     The permissions defined by ACLs are a superset of the permissions speci-
+     fied by the file permission bits. The permissions defined for the file
+     owner correspond to the permissions of the ACL_USER_OBJ entry.  The per-
+     missions defined for the file group correspond to the permissions of the
+     ACL_GROUP_OBJ entry, if the ACL has no ACL_MASK entry. If the ACL has an
+     ACL_MASK entry, then the permissions defined for the file group corre-
+     spond to the permissions of the ACL_MASK entry. The permissions defined
+     for the other class correspond to the permissions of the ACL_OTHER_OBJ
+     entry.
+
+     Modification of the file permission bits results in the modification of
+     the permissions in the associated ACL entries. Modification of the per-
+     missions in the ACL entries results in the modification of the file per-
+     mission bits.
+
+*/
+    /* >>> if the node has ACL info : */
+      /* >>> update ACL */
+
+#endif
+
 }
 
 /**
