@@ -429,6 +429,8 @@ group_by_name:;
 /* Remove the entries user::??? , group::??? , other::??? , other:??? 
    from an ACL in long text form if they match the bits in st_mode.
    @param flag       bit0= do not remove entries, only determine return value
+                     bit1= like bit0 but return immediately if non-st_mode
+                           ACL entry is found
 */
 int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag)
 {
@@ -454,8 +456,7 @@ int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag)
  continue;
      }
      overriders|= 4;
-   }
-   if(strncmp(rpt, "group::", 7) == 0 && npt - rpt == 10) {
+   } else if(strncmp(rpt, "group::", 7) == 0 && npt - rpt == 10) {
      cpt= rpt + 7;
      m= 0;
      if(cpt[0] == 'r')
@@ -469,8 +470,7 @@ int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag)
  continue;
      }
      overriders|= 2;
-   }
-   if(strncmp(rpt, "other::", 7) == 0 && npt - rpt == 10) {
+   } else if(strncmp(rpt, "other::", 7) == 0 && npt - rpt == 10) {
      cpt= rpt + 7;
 others_st_mode:;
      m= 0;
@@ -485,20 +485,23 @@ others_st_mode:;
  continue;
      }
      overriders|= 1;
-   }
-   if(strncmp(rpt, "other:", 6) == 0 && npt - rpt == 9) {
+   } else if(strncmp(rpt, "other:", 6) == 0 && npt - rpt == 9) {
      cpt= rpt + 7;
      goto others_st_mode;
+   } else if(*rpt != 0) {
+     overriders|= 64;
    }
+   if (flag & 2)
+     return overriders;
    if(wpt == rpt) {
      wpt= npt + 1;
  continue;
    }
-   if(!(flag & 1))
+   if(!(flag & 3))
      memmove(wpt, rpt, 1 + npt - rpt);
    wpt+= 1 + npt - rpt;
  }
- if(!(flag & 1)) {
+ if(!(flag & 3)) {
    if(wpt == acl_text)
      *wpt= 0;
    else if(*(wpt - 1) != 0)

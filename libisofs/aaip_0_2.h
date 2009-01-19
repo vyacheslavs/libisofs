@@ -66,8 +66,10 @@ int aaip_encode_acl(char *acl_text,
                      variable which holds permissions as indicated by ECMA-119
                      and RRIP data.
    @param flag       bit0= do not remove entries, only determine return value
+                     bit1= like bit0 but return immediately if a non-st_mode
+                           ACL entry is found
    @return           <0  failure
-                     >=0 tells in six bits which tag types are present.
+                     >=0 tells in its bits which tag types are present.
                          The first three tell which types deviate from the
                          corresponding st_mode settings:
                          bit0= "other::" overrides S_IRWXO
@@ -79,6 +81,7 @@ int aaip_encode_acl(char *acl_text,
                          bit5= "user::"  matches S_IRWXU       
                          Given the nature of ACLs all 64 combinations are
                          possible although some show inner contradictions.
+                         bit6= other ACL tag types are present
 */
 int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag);
 
@@ -105,9 +108,8 @@ int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag);
                         with bit15 of flag.
    @param flag          Bitfield for control purposes
                         bit0=  obtain default ACL rather than access ACL
-                        bit4=  do not return entries which match the st_mode 
-                               permissions. If no other ACL entries exist:
-                               set *text = NULL and return 2
+                        bit4=  set *text = NULL and return 2
+                               if the ACL matches st_mode permissions.
                         bit15= free text and return 1
    @return               1 ok
                          2 only st_mode permissions exist and bit 4 is set
@@ -131,7 +133,7 @@ int aaip_get_acl_text(char *path, char **text, int flag);
                         bit2=  do not obtain attributes other than ACLs
                         bit3=  do not ignore eventual ACL attribute
                                (e.g. system.posix_acl_access)
-                        bit4=  do not return st_mode permissions in ACL.
+                        bit4=  do not return trivial ACL that matches st_mode
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
                         <=0 error
