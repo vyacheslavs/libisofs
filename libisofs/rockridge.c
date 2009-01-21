@@ -1178,9 +1178,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
                 *ce += 160; /* ER of AAIP */
 
-#endif /* Libisofs_with_aaiP */
-
             }
+
+#endif /* Libisofs_with_aaiP */
 
         }
     }

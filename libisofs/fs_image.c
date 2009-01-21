@@ -1938,7 +1938,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
         if (SUSP_SIG(sue, 'E', 'R')) {
 
-#ifndef Libisofs_with_aaiP
+#ifndef Libisofs_with_aaiP_retro
             /* ts A90113 : this warning is not appropriate any more */
 
             if (data->rr_version) {
@@ -1951,7 +1951,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                 }
             }
 
-#endif /* ! Libisofs_with_aaiP */
+#endif /* ! Libisofs_with_aaiP_retro */
 
             /*
              * it seems that Rock Ridge can be identified with any

@@ -1429,10 +1429,19 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
 int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
+
+#ifdef Libisofs_with_aaiP
+
     int ret;
     size_t sret, result_len;
     unsigned char *result;
 
+    if (num_attrs == 0) {
+        ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
+        if (ret < 0)
+            return ret;
+        return 1;
+    }
     sret = aaip_encode("AA", num_attrs, names, value_lengths, values,
                        &result_len, &result, 0);
     if (sret == 0)
@@ -1451,8 +1460,19 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
         return ISO_ERROR;
     }
     return 1;
+
+#else /* Libisofs_with_aaiP */
+
+    /* >>> no support for attributes */
+
+    return ISO_ERROR;
+
+#endif /* ! Libisofs_with_aaiP */
+
 } 
 
+
+#ifdef Libisofs_with_aaiP
 
 static
 int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
@@ -1478,10 +1498,15 @@ int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
     return ret;
 }
 
+#endif /* ! Libisofs_with_aaiP */
+
 
 /* ts A90116 */
 int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
 {
+
+#ifdef Libisofs_with_aaiP
+
     size_t num_attrs = 0, *value_lengths = NULL, i, consumed, text_fill = 0;
     size_t v_len;
     char **names = NULL, **values = NULL;
@@ -1495,8 +1520,6 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
         *text = NULL;
         return 1;
     }
-
-#ifdef Libisofs_with_aaiP
 
     *text = NULL;
 
@@ -1574,6 +1597,9 @@ bad_decode:;
 /* ts A90119 */
 int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
 {
+
+#ifdef Libisofs_with_aaiP
+
     size_t num_attrs = 0, *value_lengths = NULL, i, consumed;
     size_t a_text_fill = 0, d_text_fill = 0;
     size_t v_len, acl_len= 0;
@@ -1584,8 +1610,6 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
     unsigned char *v_data, *acl= NULL;
     int ret;
     mode_t st_mode;
-
-#ifdef Libisofs_with_aaiP
 
     if (flag & 2) { /* want to update ACL by st_mode */
         st_mode = iso_node_get_permissions(node);
@@ -1652,7 +1676,7 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
             }
         }
         if (a_text != NULL || d_text != NULL)
-            ret = aaip_encode_both_acl(a_text, d_text, &acl_len, &acl, 0);
+            ret = aaip_encode_both_acl(a_text, d_text, &acl_len, &acl, 2);
         else
             ret = 1;
         if (ret <= 0) {
@@ -1680,9 +1704,9 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
         goto ex;
     }
     if (flag & 1)
-        ret = aaip_encode_both_acl(NULL, acl_text, &acl_len, &acl, 0);
+        ret = aaip_encode_both_acl(NULL, acl_text, &acl_len, &acl, 2);
     else
-        ret = aaip_encode_both_acl(acl_text, NULL, &acl_len, &acl, 0);
+        ret = aaip_encode_both_acl(acl_text, NULL, &acl_len, &acl, 2);
     if (ret <= 0) {
 
         /* >>> cannot encode */;
@@ -1750,7 +1774,7 @@ bad_decode:;
 
 #else /* Libisofs_with_aaiP */
 
-    if (text != NULL) {
+    if (acl_text != NULL) {
 
        /* >>> No ACL enabled in program code */;
 

@@ -4108,8 +4108,9 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /* --------------------------------- AAIP --------------------------------- */
 
-/* ts A90112 : Enable experiments about EA and ACL */
+/* ts A90112 : Enable experiments about EA and ACL
 #define Libisofs_with_aaiP yes
+*/
 
 /* ts A90112
    <<< write dummy AAIP fields with any node
