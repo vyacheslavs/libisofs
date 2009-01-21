@@ -62,6 +62,11 @@ struct iso_read_opts
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
 
+#ifdef Libisofs_with_aaiP
+    /* ts A90121 */
+    unsigned int noaaip : 1; /* Do not read AAIP extension for EA and ACL */
+#endif /* Libisofs_with_aaiP */
+
     /**
      * When both Joliet and RR extensions are present, the RR tree is used.
      * If you prefer using Joliet, set this to 1.
@@ -216,6 +221,21 @@ typedef struct
 
     /** If ISO 9660:1999 is available on image */
     unsigned int iso1999 : 1;
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90121 */
+
+    /** Whether AAIP info shall be loaded if it is present.
+     *  1 = yes , 0 = no
+     */
+    int aaip_load;
+
+    /** Whether AAIP is present. Version major.minor = major * 100 + minor
+     *  Value -1 means that no AAIP ER was detected yet.
+     */
+    int aaip_version;
+
+#endif /* ! Libisofs_with_aaiP */
 
     /**
      * Number of blocks of the volume, as reported in the PVM.
@@ -1317,7 +1337,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 #ifdef Libisofs_with_aaiP
             /* ts A90115 */
 
-            } else if (SUSP_SIG(sue, 'A', 'A')) {
+            } else if (SUSP_SIG(sue, 'A', 'A') && fsdata->aaip_load == 1) {
 
                 ret = read_aaip_AA(sue, "AA", &aa_string, &aa_size, &aa_len,
                                    &prev_field, &aa_done, 0);
@@ -1988,11 +2008,14 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
 #ifdef Libisofs_with_aaiP
 
-                /* >>> register the presence of AAIP and the signature word */;
+                data->aaip_version = 2;
+                if (!data->aaip_load)
+                    iso_msg_submit(data->msgid, ISO_DATA_AAIP_IGNORED, 0,
+       "Identifier for extension AAIP 0.2 found, but loading is not enabled.");
 
 #else /* Libisofs_with_aaiP */
 
-                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
+                iso_msg_submit(data->msgid, ISO_DATA_AAIP_IGNORED, 0,
                 "Identifier for future extension AAIP 0.2 found and ignored.");
 
 #endif /* ! Libisofs_with_aaiP */
@@ -2165,6 +2188,15 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->file_mode = opts->file_mode & ~S_IFMT;
     data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90121 */
+
+    data->aaip_load = !opts->noaaip;
+    data->aaip_version = -1;
+
+#endif /* Libisofs_with_aaiP */
+
 
     /* ??? ts Nov 25 2008 :
        Shouldn't this go to library initialization or even to app ?
@@ -2937,6 +2969,14 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
 
     ropts->file_mode = 0444;
     ropts->dir_mode = 0555;
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90121 */
+
+    ropts->noaaip= 1;
+
+#endif /* Libisofs_with_aaiP */
+
     *opts = ropts;
     return ISO_SUCCESS;
 }
@@ -2986,6 +3026,22 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999)
     opts->noiso1999 = noiso1999 ? 1 :0;
     return ISO_SUCCESS;
 }
+
+/* ts A90121 */
+int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+#ifdef Libisofs_with_aaiP
+    opts->noaaip = noaaip ? 1 : 0;
+#endif /* Libisofs_with_aaiP */
+
+    return ISO_SUCCESS;
+}
+
+
 
 int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet)
 {

@@ -1459,8 +1459,10 @@ int iso_image_update_sizes(IsoImage *image);
  *     Default profile for image reading. For now the following values are
  *     defined:
  *     ---> 0 [STANDARD]
- *         Suitable for most situations. All extension are read. When both
+ *         Suitable for most situations. Most extension are read. When both
  *         Joliet and RR extension are present, RR is used.
+ *         AAIP for ACL and POSIX Extended Attributes is not enabled by
+ *         default.
  * @return
  *      1 success, < 0 error
  *
@@ -1505,6 +1507,15 @@ int iso_read_opts_set_no_joliet(IsoReadOpts *opts, int nojoliet);
  * @since 0.6.2
  */
 int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
+
+/**
+ * Control reading of AAIP informations for ACL and POSIX Extended Attributes.
+ * @param noaaip     1 = do not read AAIP information
+ *                   0 = read AAIP information if available
+ *                   All other values are reserved.
+ * @since 0.6.14
+ */
+int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip);
 
 /**
  * Whether to prefer Joliet over RR. libisofs usually prefers RR over
@@ -4106,11 +4117,16 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_DATA_SOURCE_FATAL     0xF030FCFF
 
 
+/* ts A90121 */
+/** AAIP info is present in ISO image but will be ignored (NOTE, HIGH, -336) */
+#define ISO_DATA_AAIP_IGNORED     0xB030FEB1
+
+
 /* --------------------------------- AAIP --------------------------------- */
 
 /* ts A90112 : Enable experiments about EA and ACL
-#define Libisofs_with_aaiP yes
 */
+#define Libisofs_with_aaiP yes
 
 /* ts A90112
    <<< write dummy AAIP fields with any node
