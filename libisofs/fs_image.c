@@ -1333,10 +1333,14 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
             } else {
 
-/* ts A90112 : this message is inflationary
+#ifdef Libisofs_with_aaiP_retro
+/* ts A90112 : this message is inflationary */
+
                 ret = iso_msg_submit(fsdata->msgid, ISO_SUSP_UNHANDLED, 0,
                     "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
-*/;
+#else
+                ;
+#endif
 
             }
         }
@@ -1938,7 +1942,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
         if (SUSP_SIG(sue, 'E', 'R')) {
 
-#ifndef Libisofs_with_aaiP_retro
+#ifdef Libisofs_with_aaiP_retro
             /* ts A90113 : this warning is not appropriate any more */
 
             if (data->rr_version) {
@@ -1973,8 +1977,8 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                               "Suitable Rock Ridge ER found. Version 1.12.");
                 data->rr_version = RR_EXT_112;
 
-#ifdef Libisofs_with_aaiP
-/* ts A90113 */
+#ifndef Libisofs_with_aaiP_retro
+/* ts A90113 : tolerate AAIP ER even if not supported */
 
             } else if ( (sue->data.ER.len_id[0] == 9 &&
                     !strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9)) ) {
@@ -1982,9 +1986,18 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                 iso_msg_debug(data->msgid,
                               "Arbitrary Attribute ER found. Version 0.2.");
 
+#ifdef Libisofs_with_aaiP
+
                 /* >>> register the presence of AAIP and the signature word */;
 
-#endif /* Libisofs_with_aaiP */
+#else /* Libisofs_with_aaiP */
+
+                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
+                "Identifier for future extension AAIP 0.2 found and ignored.");
+
+#endif /* ! Libisofs_with_aaiP */
+
+#endif /* ! Libisofs_with_aaiP_retro */
 
             } else {
                 ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
