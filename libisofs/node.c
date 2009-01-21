@@ -290,26 +290,12 @@ void iso_node_set_permissions(IsoNode *node, mode_t mode)
     node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
 
 #ifdef Libisofs_with_aaiP
+    /* ts A90119 */
 
-/* Linux man 5 acl says:
-     The permissions defined by ACLs are a superset of the permissions speci-
-     fied by the file permission bits. The permissions defined for the file
-     owner correspond to the permissions of the ACL_USER_OBJ entry.  The per-
-     missions defined for the file group correspond to the permissions of the
-     ACL_GROUP_OBJ entry, if the ACL has no ACL_MASK entry. If the ACL has an
-     ACL_MASK entry, then the permissions defined for the file group corre-
-     spond to the permissions of the ACL_MASK entry. The permissions defined
-     for the other class correspond to the permissions of the ACL_OTHER_OBJ
-     entry.
+    /* If the node has ACL info : update ACL */;
+    iso_node_set_acl_text(node, "", 2);
 
-     Modification of the file permission bits results in the modification of
-     the permissions in the associated ACL entries. Modification of the per-
-     missions in the ACL entries results in the modification of the file per-
-     mission bits.
-
-*/
-    /* >>> if the node has ACL info : */
-      /* >>> update ACL */;
+    /* >>> actually iso_node_set_permissions() would need a return value now */
 
 #endif
 
@@ -1439,6 +1425,60 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
 }
 
 
+/* ts A90121 */
+int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
+                       size_t *value_lengths, char **values, int flag)
+{
+    int ret;
+    size_t sret, result_len;
+    unsigned char *result;
+
+    sret = aaip_encode("AA", num_attrs, names, value_lengths, values,
+                       &result_len, &result, 0);
+    if (sret == 0)
+        return ISO_OUT_OF_MEM;
+
+    ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
+    if (ret < 0)
+        return ret;
+    ret = iso_node_add_xinfo(node, aaip_xinfo_func, result);
+    if (ret < 0)
+        return ret;
+    if (ret == 0) {
+
+        /* >>> something is messed up with xinfo */;
+
+        return ISO_ERROR;
+    }
+    return 1;
+} 
+
+
+static
+int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
+                   char **text, size_t *text_fill, int flag)
+{
+    int ret;
+
+    ret = aaip_decode_acl(v_data, v_len,
+                          consumed, NULL, (size_t) 0, text_fill, 1);
+    if (ret <= 0)
+        return 0;
+    if (text_fill == 0)
+        return 0;
+    *text = calloc(*text_fill + 42, 1); /* 42 for aaip_update_acl_st_mode */
+    if (*text == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = aaip_decode_acl(v_data, v_len,
+                          consumed, *text, *text_fill, text_fill, 0);
+    if (ret <= 0) {
+        free(*text);
+        return 0;
+    }
+    return ret;
+}
+
+
 /* ts A90116 */
 int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
 {
@@ -1486,29 +1526,17 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
             v_len -= consumed;
         }
         
-        ret = aaip_decode_acl(v_data, v_len,
-                              &consumed, NULL, (size_t) 0, &text_fill, 1);
-        if (ret <= 0)
+        ret = iso_decode_acl(v_data, v_len, &consumed, text, &text_fill, 0);
+        if (ret == 0)
             goto bad_decode;
-        if (text_fill == 0) {
-            ret = 0;
+        if (ret < 0)
             goto ex;
-        }
-        *text = calloc(text_fill + 32, 1); /* 32 for aaip_update_acl_st_mode */
-        if (*text == NULL) {
-            ret = ISO_OUT_OF_MEM;
-            goto ex;
-        }
-        ret = aaip_decode_acl(v_data, v_len,
-                              &consumed, *text, text_fill, &text_fill, 0);
-        if (ret <= 0)
-            goto bad_decode;
         break;
     }
     
     if (*text == NULL && !(flag & 16)) {
         from_posix = 1;
-        *text = calloc(32, 1); /* 32 for aaip_update_acl_st_mode */
+        *text = calloc(42, 1); /* 42 for aaip_update_acl_st_mode */
     }
     if (*text != NULL) {
         st_mode = iso_node_get_permissions(node);
@@ -1543,6 +1571,199 @@ bad_decode:;
 }
 
 
+/* ts A90119 */
+int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
+{
+    size_t num_attrs = 0, *value_lengths = NULL, i, consumed;
+    size_t a_text_fill = 0, d_text_fill = 0;
+    size_t v_len, acl_len= 0;
+    char **names = NULL, **values = NULL, *a_text = NULL, *d_text = NULL;
+    char **new_names, **new_values;
+    size_t *new_value_lengths;
+    char **tpt;
+    unsigned char *v_data, *acl= NULL;
+    int ret;
+    mode_t st_mode;
+
+#ifdef Libisofs_with_aaiP
+
+    if (flag & 2) { /* want to update ACL by st_mode */
+        st_mode = iso_node_get_permissions(node);
+    } else {
+
+        /* >>> validate and rectify text */;
+
+    }
+
+    ret = iso_node_get_attrs(node, &num_attrs, &names,
+                             &value_lengths, &values, 0);
+    if (ret < 0)
+        return ret;
+
+    for(i = 0; i < num_attrs; i++) {
+        if (names[i][0]) /* searching the empty name */
+            continue;
+        v_data = (unsigned char *) values[i];
+        v_len = value_lengths[i];
+        /* "access" ACL */;
+        ret = iso_decode_acl(v_data, v_len, &consumed, &a_text, &a_text_fill,
+                             0);
+        if (ret == 0)
+            goto bad_decode;
+        if (ret < 0)
+            goto ex;
+        if (ret == 2) {
+            /* "default" ACL */;
+            v_data += consumed;
+            v_len -= consumed;
+            ret = iso_decode_acl(v_data, v_len, &consumed, &d_text,
+                                 &d_text_fill, 0);
+            if (ret == 0)
+                goto bad_decode;
+            if (ret < 0)
+                goto ex;
+        }
+
+        if (flag & 2) {
+            /* Update "access" ACL by st_mode */
+            if (a_text == NULL) {
+                ret = 1;
+                goto ex;
+            }
+            ret = aaip_cleanout_st_mode(a_text, &st_mode,  8);
+            if (ret < 0)
+                goto bad_decode;
+        } else {
+            if (flag & 1)
+                tpt = &d_text;
+            else
+                tpt = &a_text;
+            if (*tpt != NULL) {
+                free(*tpt);
+                *tpt = NULL;
+            }
+            if (acl_text != 0) {
+                *tpt = calloc(strlen(acl_text) + 1, 1);
+                if (*tpt == NULL) {
+                    ret = ISO_OUT_OF_MEM;
+                    goto ex;
+                }
+                memcpy(*tpt, acl_text, strlen(acl_text));
+            }
+        }
+        if (a_text != NULL || d_text != NULL)
+            ret = aaip_encode_both_acl(a_text, d_text, &acl_len, &acl, 0);
+        else
+            ret = 1;
+        if (ret <= 0) {
+            ret = ISO_OUT_OF_MEM;
+            goto ex;
+        }
+
+        /* replace variable value */;
+        if (values[i] != NULL)
+            free(values[i]);
+        values[i] = (char *) acl;
+        acl = NULL;
+        value_lengths[i] = acl_len;
+
+        /* Encode attributes and attach to node */
+        ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values,
+                                 0);
+        goto ex;
+    }
+
+    /* There is no ACL yet */
+    if ((flag & 2) || acl_text == NULL) {
+        /* thus no need to update ACL by st_mode or to delete ACL */
+        ret = 1;
+        goto ex;
+    }
+    if (flag & 1)
+        ret = aaip_encode_both_acl(NULL, acl_text, &acl_len, &acl, 0);
+    else
+        ret = aaip_encode_both_acl(acl_text, NULL, &acl_len, &acl, 0);
+    if (ret <= 0) {
+
+        /* >>> cannot encode */;
+
+        ret = ISO_ERROR;
+        goto ex;
+    }
+
+    /* Enlarge attribute list */
+    new_names = realloc(names, (num_attrs + 1) * sizeof(char *));
+    if (new_names == NULL) {
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
+    }
+    names = new_names;
+    new_values = realloc(values, (num_attrs + 1) * sizeof(char *));
+    if (new_values == NULL) {
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
+    }
+    values = new_values;
+    new_value_lengths = realloc(value_lengths,
+                                (num_attrs + 1) * sizeof(size_t));
+    if (new_value_lengths == NULL) {
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
+    }
+    value_lengths = new_value_lengths;
+
+    /* Set new ACL attribute */
+    names[num_attrs] = strdup("");
+    if (names[num_attrs] == NULL) {
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
+    }
+    values[num_attrs] = (char *) acl;
+    acl = NULL;
+    value_lengths[num_attrs] = acl_len;
+    num_attrs++;
+    
+    /* Encode attributes and attach to node */
+    ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values, 0);
+    if (ret < 0)
+        goto ex;
+
+    ret = 1;
+ex:;
+    iso_node_get_attrs(node, &num_attrs, &names,
+                       &value_lengths, &values, 1 << 15); /* free memory */
+    if (a_text != NULL)
+        free(a_text);
+    if (d_text != NULL)
+        free(d_text);
+    if(acl != NULL)
+       free(acl);
+    return ret;
+
+bad_decode:;
+
+    /* >>> something is wrong with the attribute value */;
+
+    /* >>> invent better error code */
+    ret = ISO_ERROR;
+    goto ex;
+
+#else /* Libisofs_with_aaiP */
+
+    if (text != NULL) {
+
+       /* >>> No ACL enabled in program code */;
+
+       return(0);
+    }
+    return (1);
+
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90118 */
 int iso_local_set_acl_text(char *disk_path, char *text, int flag)
 {
 

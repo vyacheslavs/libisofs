@@ -61,7 +61,7 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  if(flag & 16) {
    ret= stat(path, &stbuf);
    if(ret != -1) {
-     ret = aaip_cleanout_st_mode(*text, stbuf.st_mode, 2);
+     ret = aaip_cleanout_st_mode(*text, &(stbuf.st_mode), 2);
      if(!(ret & (7 | 64)))
        (*text)[0]= 0;
    }
@@ -99,9 +99,18 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  int ret, retry= 0;
  char *list= NULL;
  ssize_t list_size= 0, i, num_names= 0, value_ret;
- size_t a_acl_len= 0, d_acl_len= 0, acl_len= 0;
- unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
+ size_t acl_len= 0;
+ unsigned char *acl= NULL;
+
+#define Aaip_os_linux_use_both_acL yes
+
+#ifdef Aaip_os_linux_use_both_acL
+ char *a_acl_text= NULL, *d_acl_text= NULL;
+#else
  char *acl_text= NULL;
+ size_t a_acl_len= 0, d_acl_len= 0;
+ unsigned char *a_acl= NULL, *d_acl= NULL;
+#endif
 
  if(flag & (1 << 15)) { /* Free memory */
    if(*names != NULL)
@@ -177,6 +186,21 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  }
 
  if(flag & 1) { /* Obtain ACL */
+
+#ifdef Aaip_os_linux_use_both_acL
+
+   /* access-ACL */
+   aaip_get_acl_text(path, &a_acl_text, flag & 16);
+   aaip_get_acl_text(path, &d_acl_text, 1);
+   if(a_acl_text == NULL && d_acl_text == NULL)
+     {ret= 1; goto ex;}
+   ret= aaip_encode_both_acl(a_acl_text, d_acl_text,
+                             &acl_len, &acl, (flag & 2));
+   if(ret <= 0)
+     goto ex;
+
+#else /* Aaip_os_linux_use_both_acL */
+
    /* access-ACL */
    ret= aaip_get_acl_text(path, &acl_text, flag & 16);
    if(ret <= 0)
@@ -209,23 +233,39 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
      acl_len= a_acl_len;
    }
 
+#endif /* ! Aaip_os_linux_use_both_acL */
+
    /* Set as attribute with empty name */;
    (*names)[*num_attrs]= strdup("");
    if((*names)[*num_attrs] == NULL)
      {ret= -1; goto ex;}
    (*values)[*num_attrs]= (char *) acl;
+   acl= NULL;
    (*value_lengths)[*num_attrs]= acl_len;
    (*num_attrs)++;
  }
 
  ret= 1;
 ex:;
+#ifdef Aaip_os_linux_use_both_acL
+
+ if(a_acl_text != NULL)
+   aaip_get_acl_text("", &a_acl_text, 1 << 15); /* free */
+ if(d_acl_text != NULL)
+   aaip_get_acl_text("", &d_acl_text, 1 << 15); /* free */
+
+#else /* Aaip_os_linux_use_both_acL */
+
  if(a_acl != NULL)
    free(a_acl);
  if(d_acl != NULL)
    free(d_acl);
+ if(acl != NULL)
+   free(acl);
  if(acl_text != NULL)
    aaip_get_acl_text("", &acl_text, 1 << 15); /* free */
+
+#endif /* ! Aaip_os_linux_use_both_acL */
 
  if(ret <= 0 || (flag & (1 << 15))) {
    if(list != NULL)

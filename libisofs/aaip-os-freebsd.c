@@ -63,7 +63,7 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  if(flag & 16) {
    ret= stat(path, &stbuf);
    if(ret != -1) {
-     ret = aaip_cleanout_st_mode(*text, stbuf.st_mode, 2);
+     ret = aaip_cleanout_st_mode(*text, &(stbuf.st_mode), 2);
      if(!(ret & (7 | 64)))
        (*text)[0]= 0;
    }

@@ -32,10 +32,9 @@
    @return              >0 is the number of SUSP fields generated,
                         0 means error 
 */
-unsigned int aaip_encode(char aa_name[2],
-                         unsigned int num_attrs, char **names,
-                         size_t *value_lengths, char **values, 
-                         size_t *result_len, unsigned char **result, int flag);
+size_t aaip_encode(char aa_name[2], size_t num_attrs, char **names,
+                   size_t *value_lengths, char **values, 
+                   size_t *result_len, unsigned char **result, int flag);
 
 
 /* ------ ACL representation ------ */
@@ -58,38 +57,73 @@ int aaip_encode_acl(char *acl_text,
                     size_t *result_len, unsigned char **result, int flag);
 
 
-/* Remove the entries of type "user::" , "group::" , "other::" , "other:"
-   from an ACL in long text form if they match the bits in st_mode.
-   @param acl_text   The text to be shortened
-   @param st_mode    The component of struct stat which shall take the
-                     removed information. The caller should submit the st_mode
-                     variable which holds permissions as indicated by ECMA-119
-                     and RRIP data.
+/* Convert an "access" and "default" ACL from long text form into the value
+   of an Arbitrary Attribute. According to AAIP 0.2 this value is to be stored
+   together with an empty name.
+   @param a_acl_text    The "access" ACL in long text form.
+                        Submit NULL if there is no such ACL to be encoded.
+   @param d_acl_text    The "default" ACL in long text form.
+                        Submit NULL if there is no such ACL to be encoded.
+   @param result_len    Number of bytes in the resulting value
+   @param result        *result will point to the start of the result string.
+                        This is malloc() memory which needs to be freed when
+                        no longer needed
+   @param flag          Bitfield for control purposes
+                        bit0= count only
+                        bit1= use numeric qualifiers rather than names
+   @return              >0 means ok
+                        0 means error
+*/
+int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text,
+                         size_t *result_len, unsigned char **result, int flag);
+
+
+/* Analyze occurence of ACL tag types in long text form. If not disabled by
+   parameter flag remove the entries of type "user::" , "group::" , "other::" ,
+   or "other:" from an ACL in long text form if they match the bits in st_mode
+   as described by man 2 stat and man 5 acl.
+   @param acl_text   The text to be analyzed and eventually shortened.
+   @param st_mode    The component of struct stat which tells POSIX permission
+                     bits and eventually shall take equivalent bits as read
+                     from the ACL. The caller should submit a pointer
+                     to the st_mode variable which holds permissions as
+                     indicated by stat(2) resp. ECMA-119 and RRIP data.
    @param flag       bit0= do not remove entries, only determine return value
                      bit1= like bit0 but return immediately if a non-st_mode
                            ACL entry is found
+                     bit2= update *st_mode by acl_text
+                           ("user::" -> S_IRWXU, "mask::"|"group::" -> S_IRWXG,
+                            "other::" -> S_IRWXO)
+                     bit3= update acl_text by *st_mode (same mapping as bit 2 
+                           but with reversed transfer direction)
    @return           <0  failure
-                     >=0 tells in its bits which tag types are present.
+                     >=0 tells in its bits which tag types were found.
                          The first three tell which types deviate from the
                          corresponding st_mode settings:
                          bit0= "other::" overrides S_IRWXO
-                         bit1= "group::" overrides S_IRWXG
+                         bit1= "group::" overrides S_IRWXG (no "mask::" found)
                          bit2= "user::"  overrides S_IRWXU       
                          The second three tell which types comply with st_mode:
                          bit3= "other::" matches S_IRWXO
-                         bit4= "group::" matches S_IRWXG
+                         bit4= "group::" matches S_IRWXG (no "mask::" found)
                          bit5= "user::"  matches S_IRWXU       
-                         Given the nature of ACLs all 64 combinations are
-                         possible although some show inner contradictions.
-                         bit6= other ACL tag types are present
+                         Given the nature of ACLs nearly all combinations are
+                         possible although some would come from invalid ACLs.
+                         bit6= other ACL tag types are present. Particularly:
+                               bit7= "user:...:" is present
+                               bit8= "group:...:" is present
+                               bit9= "mask::" is present
+                         bit10= "group::" found and "mask::" exists
+                         
 */
-int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag);
+int aaip_cleanout_st_mode(char *acl_text, mode_t *st_mode, int flag);
 
 
 /* Append entries of type "user::" , "group::" , "other::" representing the
    permission bits in st_mode if those tag types are not present in the ACL
-   text.
-   @param acl_text   The text to be made longer. It must offer 33 bytes more
+   text. Append "mask::" if missing although "user:...:" or "group:...:"
+   is present. Eventually set it to S_IRWXG bits of st_mode.
+   @param acl_text   The text to be made longer. It must offer 43 bytes more
                      storage space than its length when it is submitted.
    @param st_mode    The component of struct stat which shall provide the
                      permission information.

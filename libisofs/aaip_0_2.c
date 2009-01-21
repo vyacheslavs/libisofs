@@ -65,10 +65,10 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
    @return              >0 is the number of SUSP fields generated,
                         0 means error 
 */
-unsigned int aaip_encode(char aa_name[2],
-                         unsigned int num_attrs, char **names,
-                         size_t *value_lengths, char **values, 
-                         size_t *result_len, unsigned char **result, int flag)
+size_t aaip_encode(char aa_name[2],
+                   size_t num_attrs, char **names,
+                   size_t *value_lengths, char **values, 
+                   size_t *result_len, unsigned char **result, int flag)
 {
  size_t mem_size= 0, comp_size;
  unsigned int number_of_fields, i, num_recs, total_recs= 0, ret;
@@ -426,50 +426,174 @@ group_by_name:;
 }
 
 
-/* Remove the entries user::??? , group::??? , other::??? , other:??? 
-   from an ACL in long text form if they match the bits in st_mode.
-   @param flag       bit0= do not remove entries, only determine return value
-                     bit1= like bit0 but return immediately if non-st_mode
-                           ACL entry is found
+int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text,
+                         size_t *result_len, unsigned char **result, int flag)
+{
+ int ret;
+ size_t a_acl_len= 0, d_acl_len= 0, acl_len= 0;
+ unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
+
+ if(a_acl_text != NULL) {
+   ret= aaip_encode_acl(a_acl_text, &a_acl_len, &a_acl, flag & 3);
+   if(ret <= 0)
+     goto ex;
+ }
+ if(d_acl_text != NULL) {
+   ret= aaip_encode_acl(d_acl_text, &d_acl_len, &d_acl, (flag & 3) | 4);
+   if(ret <= 0)
+     goto ex;
+ }
+ if(a_acl == NULL) {
+   acl= d_acl;
+   d_acl= NULL;
+   acl_len= d_acl_len;
+ } else if (d_acl == NULL) {
+   acl= a_acl; 
+   a_acl= NULL;
+   acl_len= a_acl_len;
+ } else {
+   acl= calloc(a_acl_len + d_acl_len + 1, 1);
+   if(acl == NULL)
+     {ret = -1; goto ex;}
+   memcpy(acl, a_acl, a_acl_len);
+   memcpy(acl + a_acl_len, d_acl, d_acl_len);
+   acl_len= a_acl_len + d_acl_len;
+ }
+ *result= acl;
+ *result_len= acl_len;
+ ret= 1;
+ex:;
+ if(a_acl != NULL)
+   free(a_acl);
+ if(d_acl != NULL)
+   free(d_acl);
+ return(ret);
+}
+
+
+/* Linux man 5 acl says:
+     The permissions defined by ACLs are a superset of the permissions speci-
+     fied by the file permission bits. The permissions defined for the file
+     owner correspond to the permissions of the ACL_USER_OBJ entry.  The per-
+     missions defined for the file group correspond to the permissions of the
+     ACL_GROUP_OBJ entry, if the ACL has no ACL_MASK entry. If the ACL has an
+     ACL_MASK entry, then the permissions defined for the file group corre-
+     spond to the permissions of the ACL_MASK entry. The permissions defined
+     for the other class correspond to the permissions of the ACL_OTHER_OBJ
+     entry.
+
+     Modification of the file permission bits results in the modification of
+     the permissions in the associated ACL entries. Modification of the per-
+     missions in the ACL entries results in the modification of the file per-
+     mission bits.
+
 */
-int aaip_cleanout_st_mode(char *acl_text, mode_t st_mode, int flag)
+/* Analyze occurence of ACL tag types in long text form. If not disabled by
+   parameter flag remove the entries of type "user::" , "group::" , "other::" ,
+   or "other:" from an ACL in long text form if they match the bits in st_mode
+   as described by man 2 stat and man 5 acl.
+   @param acl_text   The text to be analyzed and eventually shortened.
+   @param st_mode    The component of struct stat which tells POSIX permission
+                     bits and eventually shall take equivalent bits as read
+                     from the ACL. The caller should submit a pointer
+                     to the st_mode variable which holds permissions as
+                     indicated by stat(2) resp. ECMA-119 and RRIP data.
+   @param flag       bit0= do not remove entries, only determine return value
+                     bit1= like bit0 but return immediately if a non-st_mode
+                           ACL entry is found
+                     bit2= update *st_mode by acl_text
+                           ("user::" -> S_IRWXU, "mask::"|"group::" -> S_IRWXG,
+                            "other::" -> S_IRWXO)
+                     bit3= update acl_text by *st_mode (same mapping as bit 2
+                           but with reversed transfer direction)
+   @return           <0  failure
+                     >=0 tells in its bits which tag types were found.
+                         The first three tell which types deviate from the
+                         corresponding st_mode settings:
+                         bit0= "other::" overrides S_IRWXO
+                         bit1= "group::" overrides S_IRWXG (no "mask::" found)
+                         bit2= "user::"  overrides S_IRWXU
+                         The second three tell which types comply with st_mode:
+                         bit3= "other::" matches S_IRWXO
+                         bit4= "group::" matches S_IRWXG (no "mask::" found)
+                         bit5= "user::"  matches S_IRWXU
+                         Given the nature of ACLs nearly all combinations are
+                         possible although some would come from invalid ACLs.
+                         bit6= other ACL tag types are present. Particularly:
+                               bit7= "user:...:" is present
+                               bit8= "group:...:" is present
+                               bit9= "mask::" is present
+*/
+int aaip_cleanout_st_mode(char *acl_text, mode_t *in_st_mode, int flag)
 {
  char *rpt, *wpt, *npt, *cpt;
- mode_t m;
- int overriders= 0;
+ mode_t m, list_mode, st_mode;
+ int tag_types= 0, has_mask= 0, do_cleanout = 0;
+
+ list_mode= st_mode= *in_st_mode;
+ do_cleanout = !(flag & 15);
+
+ has_mask= strncmp(acl_text, "mask:", 5) == 0 ||
+           strstr(acl_text, "\nmask:") != NULL;
+ if(has_mask && (flag & 2))
+   return(64 | 512);
 
  for(npt= wpt= rpt= acl_text; *npt != 0; rpt= npt + 1) {
    npt= strchr(rpt, '\n');
    if(npt == NULL)
      npt= rpt + strlen(rpt);
-   if(strncmp(rpt, "user::", 6) == 0 && npt - rpt == 9) {
-     cpt= rpt + 6;
-     m= 0;
-     if(cpt[0] == 'r')
-       m|= S_IRUSR;
-     if(cpt[1] == 'w')
-       m|= S_IWUSR;
-     if(cpt[2] == 'x')
-       m|= S_IXUSR;
-     if((st_mode & S_IRWXU) == (m & S_IRWXU)) {
-       overriders|= 32;
+   if(strncmp(rpt, "user:", 5) == 0) {
+     if(rpt[5] == ':' && npt - rpt == 9) {
+       cpt= rpt + 6;
+       m= 0;
+       if(cpt[0] == 'r')
+         m|= S_IRUSR;
+       if(cpt[1] == 'w')
+         m|= S_IWUSR;
+       if(cpt[2] == 'x')
+         m|= S_IXUSR;
+       list_mode= (list_mode & ~S_IRWXU) | m;
+       if((st_mode & S_IRWXU) == (m & S_IRWXU)) {
+         tag_types|= 32;
  continue;
+       }
+       if(flag & 8) {
+         cpt[0]= st_mode & S_IRUSR ? 'r' : '-';
+         cpt[1]= st_mode & S_IWUSR ? 'w' : '-';
+         cpt[2]= st_mode & S_IXUSR ? 'x' : '-';
+       }
+       tag_types|= 4;
+     } else {
+       tag_types|= 64 | 128;
      }
-     overriders|= 4;
-   } else if(strncmp(rpt, "group::", 7) == 0 && npt - rpt == 10) {
-     cpt= rpt + 7;
-     m= 0;
-     if(cpt[0] == 'r')
-       m|= S_IRGRP;
-     if(cpt[1] == 'w')
-       m|= S_IWGRP;
-     if(cpt[2] == 'x')
-       m|= S_IXGRP;
-     if((st_mode & S_IRWXG) == (m & S_IRWXG)) {
-       overriders|= 16;
+   } else if(strncmp(rpt, "group:", 6) == 0) {
+     if(rpt[6] == ':' && npt - rpt == 10 && !has_mask) {
+                                  /* oddly: mask overrides group in st_mode */
+       cpt= rpt + 7;
+       m= 0;
+       if(cpt[0] == 'r')
+         m|= S_IRGRP;
+       if(cpt[1] == 'w')
+         m|= S_IWGRP;
+       if(cpt[2] == 'x')
+         m|= S_IXGRP;
+       list_mode= (list_mode & ~S_IRWXG) | m;
+       if((st_mode & S_IRWXG) == (m & S_IRWXG)) {
+         tag_types|= 16;
  continue;
+       }
+       if(flag & 8) {
+         cpt[0]= st_mode & S_IRGRP ? 'r' : '-';
+         cpt[1]= st_mode & S_IWGRP ? 'w' : '-';
+         cpt[2]= st_mode & S_IXGRP ? 'x' : '-';
+       }
+       tag_types|= 2;
+     } else {
+       if(rpt[6] == ':' && npt - rpt == 10)
+         tag_types|= 1024;
+       else
+         tag_types|= 64 | 256;
      }
-     overriders|= 2;
    } else if(strncmp(rpt, "other::", 7) == 0 && npt - rpt == 10) {
      cpt= rpt + 7;
 others_st_mode:;
@@ -480,65 +604,102 @@ others_st_mode:;
        m|= S_IWOTH;
      if(cpt[2] == 'x')
        m|= S_IXOTH;
+     list_mode= (list_mode & ~S_IRWXO) | m;
      if((st_mode & S_IRWXO) == (m & S_IRWXO)) {
-       overriders|= 8;
+       tag_types|= 8;
  continue;
      }
-     overriders|= 1;
+     if(flag & 8) {
+       cpt[0]= st_mode & S_IROTH ? 'r' : '-';
+       cpt[1]= st_mode & S_IWOTH ? 'w' : '-';
+       cpt[2]= st_mode & S_IXOTH ? 'x' : '-';
+     }
+     tag_types|= 1;
    } else if(strncmp(rpt, "other:", 6) == 0 && npt - rpt == 9) {
      cpt= rpt + 7;
      goto others_st_mode;
+   } else if(strncmp(rpt, "mask::", 6) == 0 && npt - rpt == 9) {
+     /* oddly: mask overrides group in st_mode */
+     cpt= rpt + 6;
+mask_st_mode:;
+     m= 0;
+     if(cpt[0] == 'r')
+       m|= S_IRGRP;
+     if(cpt[1] == 'w')
+       m|= S_IWGRP;
+     if(cpt[2] == 'x')
+       m|= S_IXGRP;
+     list_mode= (list_mode & ~S_IRWXG) | m;
+     tag_types|= 64 | 512;
+     if(flag & 8) {
+       cpt[0]= st_mode & S_IRGRP ? 'r' : '-';
+       cpt[1]= st_mode & S_IWGRP ? 'w' : '-';
+       cpt[2]= st_mode & S_IXGRP ? 'x' : '-';
+     }
+   } else if(strncmp(rpt, "mask:", 5) == 0 && npt - rpt == 8) {
+     cpt= rpt + 5;
+     goto mask_st_mode;
    } else if(*rpt != 0) {
-     overriders|= 64;
+     tag_types|= 64;
    }
    if (flag & 2)
-     return overriders;
+     goto ex;
    if(wpt == rpt) {
      wpt= npt + 1;
  continue;
    }
-   if(!(flag & 3))
+   if(do_cleanout)
      memmove(wpt, rpt, 1 + npt - rpt);
    wpt+= 1 + npt - rpt;
  }
- if(!(flag & 3)) {
+ if(do_cleanout) {
    if(wpt == acl_text)
      *wpt= 0;
    else if(*(wpt - 1) != 0)
      *wpt= 0;
  }
- return(overriders);
+ex:;
+ if(flag & 4)
+   *in_st_mode= list_mode;
+ return(tag_types);
 }
 
 
-/* Important: acl_text must provide 32 bytes more than its current length !
+/* Important: acl_text must provide 42 bytes more than its current length !
 */
 int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag)
 {
  char *wpt;
- int overriders= 0;
+ int tag_types= 0;
 
- overriders = aaip_cleanout_st_mode(acl_text, st_mode, 1);
- if(!(overriders & (4 | 32))) {
+ tag_types = aaip_cleanout_st_mode(acl_text, &st_mode, 1);
+ if(!(tag_types & (4 | 32))) {
    wpt= acl_text + strlen(acl_text);
    sprintf(wpt, "user::%c%c%c\n",
            st_mode & S_IRUSR ? 'r' : '-',
            st_mode & S_IWUSR ? 'w' : '-',
            st_mode & S_IXUSR ? 'x' : '-');
  }
- if(!(overriders & (2 | 16))) {
+ if(!(tag_types & (2 | 16 | 1024))) {
    wpt= acl_text + strlen(acl_text);
    sprintf(wpt, "group::%c%c%c\n",
          st_mode & S_IRGRP ? 'r' : '-',
          st_mode & S_IWGRP ? 'w' : '-',
          st_mode & S_IXGRP ? 'x' : '-');
  }
- if(!(overriders & (1 | 8))) {
+ if(!(tag_types & (1 | 8))) {
    wpt= acl_text + strlen(acl_text);
    sprintf(wpt, "other::%c%c%c\n",
          st_mode & S_IROTH ? 'r' : '-',
          st_mode & S_IWOTH ? 'w' : '-',
          st_mode & S_IXOTH ? 'x' : '-');
+ }
+ if((tag_types & (128 | 256)) && !(tag_types & 512)) {
+   wpt= acl_text + strlen(acl_text);
+   sprintf(wpt, "mask::%c%c%c\n",
+         st_mode & S_IRGRP ? 'r' : '-',
+         st_mode & S_IWGRP ? 'w' : '-',
+         st_mode & S_IXGRP ? 'x' : '-');
  }
  return(1); 
 }

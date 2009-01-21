@@ -173,9 +173,11 @@ The Value shall be an arbitrary number of ACL Entries:
                 they are not aware of updates of this document which would
                 assign a meaning to them.
 
-If any of ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER are missing then the settings
-from the PX field shall get into effect. If they exist then they shall override
-the PX field.
+The entries ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER must match the permission
+bits of the PX field. This shall obey the peculiar rule that
+ACL_USER_OBJ must match S_IRWXU, ACL_OTHER must match S_IRWXO,
+ACL_MASK - if present - must match S_IRWXG, else ACL_GROUP must match S_IRWXG.
+If there is ACL_USER_OBJ or ACL_GROUP_OBJ there must also be ACL_MASK.
 
 A numeric qualifier is a binary number of variable length. The Most Significant
 Byte comes first. The number shall be the "POSIX File User ID" resp.
