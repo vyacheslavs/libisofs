@@ -880,9 +880,7 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
     /* obtain num_aapt from node */
     num_aapt = 0;
 
-    /* >>> if AAIP is enabled */
-    if (1) {
-
+    if (t->aaip) {
         ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
         if (ret == 1) {
            num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
@@ -1127,10 +1125,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
         /* obtain num_aapt from node */
         num_aapt = 0;
-
-        /* >>> if AAIP is enabled */
-        if (1) {
-
+        if (t->aaip) {
             ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
             if (ret == 1) {
                num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
@@ -1171,13 +1166,11 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
             if (1) {
 #else /* Libisofs_with_aaip_dummY */
 
-            /* >>> if AAIP is enabled */
-            if (1) {
+            if (t->aaip) {
 
 #endif /* ! Libisofs_with_aaip_dummY */
 
                 *ce += 160; /* ER of AAIP */
-
             }
 
 #endif /* Libisofs_with_aaiP */
@@ -1655,9 +1648,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         ret = ISO_SUCCESS;
         num_aapt = 0;
 
-        /* >>> if AAIP is enabled */
-        if (1) {
-
+        if (t->aaip) {
             ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
             if (ret == 1) {
                 num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
@@ -1708,8 +1699,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             
 #else /* Libisofs_with_aaip_dummY */
 
-            /* >>> if AAIP is enabled */
-            if (1) {
+            if (t->aaip) {
 
 #endif /* ! Libisofs_with_aaip_dummY */
 
@@ -1737,8 +1727,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             
 #else /* Libisofs_with_aaip_dummY */
 
-            /* >>> if AAIP is enabled */
-            if (1) {
+            if (t->aaip) {
     
 #endif /* ! Libisofs_with_aaip_dummY */
 

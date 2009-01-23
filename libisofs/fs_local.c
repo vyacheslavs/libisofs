@@ -39,6 +39,7 @@ int iso_file_source_new_lfs(IsoFileSource *parent, const char *name,
  */
 IsoFilesystem *lfs= NULL;
 
+
 typedef struct
 {
     /** reference to the parent (if root it points to itself) */
@@ -485,8 +486,16 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
     size_t num_attrs = 0, *value_lengths = NULL, result_len, sret;
     char *path = NULL, **names = NULL, **values = NULL;
     unsigned char *result = NULL;
+    _LocalFsFileSource *data;
+
+    data = src->data;
 
     *aa_string = NULL;
+
+    if ((flag & 3 ) == 3) {
+        ret = 1;
+        goto ex;
+    }
     /* Obtain EAs and ACLs ("access" and "default"). ACLs encoded according
        to AAIP ACL representation. Clean out st_mode ACL entries.
     */ 
@@ -494,7 +503,8 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
 
     /* >>> make adjustable: bit4 = ignoring of st_mode ACL entries */
     ret = aaip_get_attr_list(path, &num_attrs, &names,
-                             &value_lengths, &values, 1 | 2 | 16);
+                             &value_lengths, &values,
+                             (!(flag & 2)) | 2 | (flag & 4) | 16);
     if (ret <= 0) {
         ret = ISO_FILE_ERROR;
         goto ex;

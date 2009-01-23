@@ -673,12 +673,20 @@ struct IsoFileSource_Iface
     /* ts A90114 */
     /**
      * Valid only if .version is > 0. See above.
-     * Get the AA string with encoded ACL and/or POSIX Extended Attributes.
+     * Get the AA string with encoded ACL and/or XFS-style Extended Attributes.
      * (Not to be confused with ECMA-119 Extended Attributes).
+     *
+     * bit1 and bit2 of flag should be implemented so that freshly fetched
+     * info does not include the undesired ACL or EAs. Nevertheless if the
+     * aa_string is cached, then it is permissible that ACL and EA are still
+     * delivered.
+     *
      * @param flag       Bitfield for control purposes
      *                   bit0= Transfer ownership of AA string data.
      *                         src will free the eventual cached data and might
      *                         not be able to produce it again.
+     *                   bit1= No need to get ACL (no guarantee of exclusion)
+     *                   bit2= No need to get EA (no guarantee of exclusion)
      * @param aa_string  Returns a pointer to the AA string data. If no AA
      *                   string is available, *aa_string becomes NULL.
      *                   Field signature will be "AA".
@@ -915,6 +923,30 @@ char *iso_get_local_charset(int flag);
 int iso_image_new(const char *name, IsoImage **image);
 
 
+/* ts A90121 */
+/**
+ * Control whether ACL and XFS-style Extended Attributes will be imported from
+ * external filesystems (typically the local POSIX filesystem) when new
+ * nodes get inserted. If enabled by iso_write_opts_set_aaip() they will later
+ * be written into the image as AAIP extension fields.
+ *
+ * A change of this setting does neither affect existing IsoNode objects
+ * nor the way how ACL and EA are handled when loading an ISO image.
+ * The latter is controlled by iso_read_opts_set_no_aaip().
+ *
+ * @param image
+ *     The image of which the behavior is to be controlled
+ * @param what
+ *     A bit field which sets the behavior:
+ *     bit0= ignore ACLs if the external file object bears some
+ *     bit1= ignore EAs if the external file object bears some
+ *     all other bits are reserved
+ *
+ * @since 0.6.14
+ */
+void iso_image_set_ignore_aclea(IsoImage *image, int what);
+
+
 /**
  * The following two functions three macros are utilities to help ensuring
  * version match of application, compile time header, and runtime library.
@@ -1017,6 +1049,9 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  *     ---> 1 [BACKUP]
  *        POSIX compatibility for backup. Simple settings, ISO level is set to
  *        3 and RR extensions are enabled. Useful for backup purposes.
+ *        Note that ACL and XFS-style EA are not enabled by default.
+ *        If you enable them, expect them not to show up in the mounted image.
+ *        They will have to be retrieved by libisofs applications like xorriso.
  *     ---> 2 [DISTRIBUTION]
  *        Setting for information distribution. Both RR and Joliet are enabled
  *        to maximize compatibility with most systems. Permissions are set to
@@ -1097,6 +1132,21 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
  * @since 0.6.2
  */
 int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
+
+/* ts A90122 */
+/**
+ * Control writing of AAIP informations for ACL and XFS-style Extended
+ * Attributes.
+ * For importing ACL and EA when inserting nodes from external filesystems
+ * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
+ * For loading of this information from images see iso_read_opts_set_no_aaip().
+ *
+ * @param enable     1 = do not read AAIP information
+ *                   0 = read AAIP information if available
+ *                   All other values are reserved.
+ * @since 0.6.14
+ */
+int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
 
 /**
  * Omit the version number (";1") at the end of the ISO-9660 identifiers.
@@ -1461,8 +1511,7 @@ int iso_image_update_sizes(IsoImage *image);
  *     ---> 0 [STANDARD]
  *         Suitable for most situations. Most extension are read. When both
  *         Joliet and RR extension are present, RR is used.
- *         AAIP for ACL and POSIX Extended Attributes is not enabled by
- *         default.
+ *         AAIP for ACL and Extended Attributes is not enabled by default.
  * @return
  *      1 success, < 0 error
  *
@@ -1509,7 +1558,12 @@ int iso_read_opts_set_no_joliet(IsoReadOpts *opts, int nojoliet);
 int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
 
 /**
- * Control reading of AAIP informations for ACL and POSIX Extended Attributes.
+ * Control reading of AAIP informations about ACL and XFS-style Extended
+ * Attributes when loading existing images.
+ * For importing ACL and EA when inserting nodes from external filesystems
+ * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
+ * For eventual writing of this information see iso_write_opts_set_aaip().
+ *
  * @param noaaip     1 = do not read AAIP information
  *                   0 = read AAIP information if available
  *                   All other values are reserved.
@@ -3666,7 +3720,7 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
 
 
 /**
- * Get the AA string with encoded ACL and/or POSIX Extended Attributes.
+ * Get the AA string with encoded ACL and/or XFS-style Extended Attributes.
  * (Not to be confused with ECMA-119 Extended Attributes).
  * @param src        The file source object to be inquired.
  * @param aa_string  Returns a pointer to the AA string data. If no AA
@@ -3680,6 +3734,8 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  *                   bit0= Transfer ownership of AA string data.
  *                         src will free the eventual cached data and might
  *                         not be able to produce it again.
+ *                   bit1= No need to get ACL (but no guarantee of exclusion)
+ *                   bit2= No need to get EA (but no guarantee of exclusion)
  * @return           1 means success (*aa_string == NULL is possible)
  *                  <0 means failure and must b a valid libisofs error code
  *                     (e.g. ISO_FILE_ERROR if no better one can be found).

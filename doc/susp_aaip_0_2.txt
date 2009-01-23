@@ -32,6 +32,13 @@ address enough storage if needed.
 The SUSP field and the ER entry of AAIP shall only be present if the ER entry
 of RRIP is present.
 
+This extension is supposed not to disturb any reader system which complies
+to this SUSP demand:
+"6.2 Requirements for a Receiving System
+ [...]
+ Any System Use Field which the receiving system does not recognize
+ is to be ignored and skipped."
+
 -------------------------------------------------------------------------------
 
 System Entries Provided by this Specification
@@ -337,4 +344,6 @@ Pending considerations:
 
 - shall "AA" be fixely defined as signature ?
 
+- shall the tag types ACL_USER and ACL_GROUP with non-numeric qualifier be
+  revoked ?
 

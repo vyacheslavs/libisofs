@@ -883,6 +883,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
     target->iso1999 = opts->iso1999;
+
+    /* ts A90122 */
+    target->aaip = opts->aaip;
+
     target->always_gmt = opts->always_gmt;
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers
@@ -1409,6 +1413,15 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable)
         return ISO_NULL_POINTER;
     }
     opts->iso1999 = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->aaip = enable ? 1 : 0;
     return ISO_SUCCESS;
 }
 

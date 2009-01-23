@@ -13,6 +13,9 @@
 #include "node.h"
 #include "fsource.h"
 
+/* ts A90121 : needed for image->builder_ignore_acl */
+#include "image.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -187,7 +190,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* ts A90115 */
 
     /* obtain ownership of eventual AA string */
-    ret = iso_file_source_get_aa_string(src, &aa_string, 1);
+    ret = iso_file_source_get_aa_string(src, &aa_string,
+            1 | (image->builder_ignore_acl << 1) |
+                (image->builder_ignore_ea << 2 ));
     if (ret == 1 && aa_string != NULL) {
 
         /* >>> change field signatures to eventual libisofs non-"AA" setting */;

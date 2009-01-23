@@ -77,6 +77,20 @@ struct Iso_Image
     int ignore_special;
 
     /**
+     * Whether to ignore ACL when inserting nodes into the image.
+     * Not in effect with loading a complete ISO image but only with image
+     * manipulation.
+     */
+    unsigned int builder_ignore_acl : 1;
+
+    /**
+     * Whether to ignore EAs when inserting nodes into the image.
+     * Not in effect with loading a complete ISO image but only with image
+     * manipulation. ACL does not count as EA.
+     */
+    unsigned int builder_ignore_ea : 1;
+
+    /**
      * Files to exclude. Wildcard support is included.
      */
     char** excludes;

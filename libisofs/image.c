@@ -71,6 +71,8 @@ int iso_image_new(const char *name, IsoImage **image)
         img->volset_id = strdup(name);
         img->volume_id = strdup(name);
     }
+    img->builder_ignore_acl = 1;
+    img->builder_ignore_ea = 1;
     *image = img;
     return ISO_SUCCESS;
 }
@@ -308,3 +310,11 @@ int iso_image_update_sizes(IsoImage *image)
 
     return dir_update_size(image, image->root);
 }
+
+
+void iso_image_set_ignore_aclea(IsoImage *image, int what)
+{
+    image->builder_ignore_acl = (what & 1);
+    image->builder_ignore_ea = !!(what & 2);
+}
+

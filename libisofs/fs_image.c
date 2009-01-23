@@ -295,8 +295,8 @@ struct image_fs_data
 
     /**
      * malloc() storage for the string of AA fields which represent
-     *  POSIX Extended Attributes and ACLs. (Not to be confused with
-     *  ECMA-119 Extended Attributes.)
+     * ACLs and XFS-style Extended Attributes. (Not to be confused with
+     * ECMA-119 Extended Attributes.)
      */
     unsigned char *aa_string;
 

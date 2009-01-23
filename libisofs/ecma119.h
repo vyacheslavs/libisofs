@@ -42,6 +42,9 @@ struct iso_write_opts {
     unsigned int joliet :1;
     unsigned int iso1999 :1;
 
+    /* ts A90122 */
+    unsigned int aaip :1; /* whether to write eventual ACL and EAs */
+
     /* allways write timestamps in GMT */
     unsigned int always_gmt :1;
 
@@ -244,6 +247,9 @@ struct ecma119_image
     unsigned int joliet :1;
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
+
+    /* ts A90122 */
+    unsigned int aaip :1;  /* whether to write eventual ACLs and EAs */
 
     /* allways write timestamps in GMT */
     unsigned int always_gmt :1;
