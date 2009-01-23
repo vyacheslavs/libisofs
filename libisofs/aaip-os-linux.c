@@ -31,11 +31,13 @@
                         with bit15 of flag.
    @param flag          Bitfield for control purposes
                         bit0=  obtain default ACL rather than access ACL
+                               behave like bit4 if ACL is empty
                         bit4=  set *text = NULL and return 2
                                if the ACL matches st_mode permissions.
                         bit15= free text and return 1
    @return                1 ok
                           2 only st_mode permissions exist and bit 4 is set
+                            or empty ACL and bit0 is set
                          -1 failure of system ACL service (see errno)
 */
 int aaip_get_acl_text(char *path, char **text, int flag)
@@ -65,6 +67,8 @@ int aaip_get_acl_text(char *path, char **text, int flag)
      if(!(ret & (7 | 64)))
        (*text)[0]= 0;
    }
+ }
+ if(flag & (1 | 16)) {
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
      acl_free(text);
      *text= NULL;
