@@ -16,7 +16,9 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+#ifdef Libisofs_with_aaip_acL
 #include <sys/acl.h>
+#endif
 
 
 /* ------------------------------ Getters --------------------------------- */
@@ -33,16 +35,23 @@
                         bit15= free text and return 1
    @return              > 0 ok
                         -1  failure of system ACL service (see errno)
+                        -2  ACL support not enabled at compile time
 */
 int aaip_get_acl_text(char *path, char **text, int flag)
 {
+#ifdef Libisofs_with_aaip_acL
  acl_t acl= NULL;
+#endif
  struct stat stbuf;
  int ret;
 
  if(flag & (1 << 15)) {
    if(*text != NULL)
+#ifdef Libisofs_with_aaip_acL
      acl_free(text);
+#else
+     free(text);
+#endif
    *text= NULL;
    return(1);
  }
@@ -52,12 +61,23 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  if(flag & 1)
    return(0);
 
+#ifdef Libisofs_with_aaip_acL
+
  acl= acl_get_file(path, ACL_TYPE_ACCESS);
 
  if(acl == NULL)
    return(-1);
  *text= acl_to_text(acl, NULL);
  acl_free(acl);
+
+#else /* Libisofs_with_aaip_acL */
+
+ /* ??? >>> Fake ACL */;
+
+ return(-2);
+
+#endif /* ! Libisofs_with_aaip_acL */
+
  if(*text == NULL)
    return(-1);
  if(flag & 16) {
@@ -68,7 +88,11 @@ int aaip_get_acl_text(char *path, char **text, int flag)
        (*text)[0]= 0;
    }
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
+#ifdef Libisofs_with_aaip_acL
      acl_free(text);
+#else
+     free(text);
+#endif
      *text= NULL;
      return(2);
    }
@@ -136,6 +160,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    (*value_lengths)[i]= 0;
  }
 
+#ifdef Libisofs_with_aaip_acL
+
  if(flag & 1) { /* Obtain ACL */
    /* access-ACL */
    ret= aaip_get_acl_text(path, &acl_text, flag & 16);
@@ -158,6 +184,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    (*value_lengths)[*num_attrs]= acl_len;
    (*num_attrs)++;
  }
+
+#endif /* Libisofs_with_aaip_acL */
 
  ret= 1;
 ex:;
@@ -201,9 +229,13 @@ ex:;
                         bit0=  set default ACL rather than access ACL
    @return              > 0 ok
                         -1  failure of system ACL service (see errno)
+                        -2  ACL support not enabled at compile time
 */
 int aaip_set_acl_text(char *path, char *text, int flag)
 {
+
+#ifdef Libisofs_with_aaip_acL
+
  int ret;
  acl_t acl= NULL;
 
@@ -225,6 +257,13 @@ ex:
  if(acl != NULL)
    acl_free(acl);
  return(ret);
+
+#else /* Libisofs_with_aaip_acL */
+
+ return(-2);
+
+#endif /* ! Libisofs_with_aaip_acL */
+
 }
 
 
@@ -242,12 +281,13 @@ ex:
                        -3 error with setting ACL
                      ( -4 error with setting attribute )
                      ( -5 error with deleting attribute )
-                       
+                       -6 support of xattr not enabled at compile time
+                       -7 support of ACL not enabled at compile time
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
- int ret, has_default_acl= 0;
+ int ret, has_default_acl= 0, was_xattr= 0;
  size_t i, consumed, acl_text_fill, list_size= 0;
  char *acl_text= NULL, *list= NULL;
 
@@ -268,9 +308,15 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
      if(ret <= 0)
        {ret= -2; goto ex;}
      has_default_acl= (ret == 2);
+
+#ifdef Libisofs_with_aaip_acL
      ret= aaip_set_acl_text(path, acl_text, 0);
      if(ret <= 0)
        {ret= -3; goto ex;}
+#else
+     {ret= -7; goto ex;}
+#endif
+                                                            /* "default" ACL */
      if(has_default_acl) {
        free(acl_text);
        acl_text= NULL;
@@ -291,9 +337,12 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
        if(ret <= 0)
          {ret= -3; goto ex;}
      }
-   }
+   } else
+     was_xattr= 1;
  }
  ret= 1;
+ if(was_xattr)
+   ret= -6;
 ex:;
  if(acl_text != NULL)
    free(acl_text);

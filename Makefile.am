@@ -10,7 +10,11 @@ lib_LTLIBRARIES = libisofs/libisofs.la
 libisofs_libisofs_la_LDFLAGS = \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 
-# ts A80114 : added aaip_0_2.*
+# ts A90123 : Eventually enabling system adapters for ACL and EA
+
+libisofs_libisofs_la_CFLAGS = $(LIBACL_DEF) $(XATTR_DEF)
+
+# ts A90114 : added aaip_0_2.*
 
 libisofs_libisofs_la_SOURCES = \
 	libisofs/builder.h \
@@ -64,8 +68,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/aaip_0_2.h \
 	libisofs/aaip_0_2.c
 libisofs_libisofs_la_LIBADD= \
-	$(THREAD_LIBS) \
-	-lacl
+	$(THREAD_LIBS)
 libinclude_HEADERS = \
 	libisofs/libisofs.h
 
