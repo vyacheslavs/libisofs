@@ -19,6 +19,7 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <stdio.h>
 
 struct dir_iter_data
 {
@@ -1666,7 +1667,7 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
                 free(*tpt);
                 *tpt = NULL;
             }
-            if (acl_text != 0) {
+            if (acl_text != NULL) {
                 *tpt = calloc(strlen(acl_text) + 1, 1);
                 if (*tpt == NULL) {
                     ret = ISO_OUT_OF_MEM;
@@ -1694,7 +1695,9 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
         /* Encode attributes and attach to node */
         ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values,
                                  0);
-        goto ex;
+        if (ret <= 0)
+            goto ex;
+        goto update_perms;
     }
 
     /* There is no ACL yet */
@@ -1751,6 +1754,16 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
     ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values, 0);
     if (ret < 0)
         goto ex;
+
+update_perms:;
+    if(acl_text != NULL && !(flag & (1 | 2))) {
+        /* Update node permissions by acl_text */
+        st_mode = iso_node_get_permissions(node);
+        ret = aaip_cleanout_st_mode(acl_text, &st_mode, 4);
+        if (ret < 0)
+            goto bad_decode;
+        iso_node_set_permissions(node, st_mode);
+    }
 
     ret = 1;
 ex:;
