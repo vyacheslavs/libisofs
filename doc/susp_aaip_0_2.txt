@@ -344,6 +344,9 @@ Pending considerations:
 
 - shall "AA" be fixely defined as signature ?
 
+- shall an "ER" be issued at all ?
+  >>> look into SUSP 1.12 for ES 
+
 - shall the tag types ACL_USER and ACL_GROUP with non-numeric qualifier be
   revoked ?
 

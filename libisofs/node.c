@@ -1601,7 +1601,7 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
 
 #ifdef Libisofs_with_aaiP
 
-    size_t num_attrs = 0, *value_lengths = NULL, i, consumed;
+    size_t num_attrs = 0, *value_lengths = NULL, i, j, consumed;
     size_t a_text_fill = 0, d_text_fill = 0;
     size_t v_len, acl_len= 0;
     char **names = NULL, **values = NULL, *a_text = NULL, *d_text = NULL;
@@ -1688,9 +1688,18 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
         /* replace variable value */;
         if (values[i] != NULL)
             free(values[i]);
-        values[i] = (char *) acl;
-        acl = NULL;
-        value_lengths[i] = acl_len;
+        if(acl == NULL) { /* delete whole ACL attribute */
+            for (j = i + 1; j < num_attrs; j++) {
+                 names[j - 1] = names[j];
+                 value_lengths[j - 1] = value_lengths[j];
+                 values[j - 1] = values[j];
+            }
+            num_attrs--;
+        } else {
+            values[i] = (char *) acl;
+            acl = NULL;
+            value_lengths[i] = acl_len;
+        }
 
         /* Encode attributes and attach to node */
         ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values,

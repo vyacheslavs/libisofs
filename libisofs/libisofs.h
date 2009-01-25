@@ -4232,6 +4232,12 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag);
 /* ts A90119 */
 /**
  * Set the ACL of the given node to the list in parameter text or delete it.
+ *
+ * The POSIX permission bits get updated according to the new ACL if neither
+ * bit0 nor bit1 of parameter flag are set nor parameter text is NULL.
+ * Note that S_IRWXG permission bits correspond to ACL mask permissions
+ * if a "mask::" entry exists in the ACL. Only if there is no "mask::" then
+ * the "group::" entry corresponds to to S_IRWXG.
  * 
  * @param node
  *      The node that is to be manipulated.
