@@ -3,7 +3,7 @@
                  Arbitrary Attribute Interchange Protocol
 
                              Draft version 0.2
-                                Dec 19 2008
+                                Jan 25 2008
 
                 Interchange of Persistent File Attributes
 
@@ -344,8 +344,8 @@ Pending considerations:
 
 - shall "AA" be fixely defined as signature ?
 
-- shall an "ER" be issued at all ?
-  >>> look into SUSP 1.12 for ES 
+- shall an "ER" be issued at all ? (SUSP 1.10 would allow to omit)
+  >>> mention ES because of SUSP 1.12
 
 - shall the tag types ACL_USER and ACL_GROUP with non-numeric qualifier be
   revoked ?

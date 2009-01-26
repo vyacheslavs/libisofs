@@ -1239,6 +1239,22 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
  */
 int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers);
 
+/* ts A90125 */
+/**
+ * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
+ * I.e. without announcing it by an ER field and thus without the need
+ * to preceed the RRIP fields and the AA field by ES fields.
+ * This saves 5 to 10 bytes per file and might avoid problems with readers
+ * which dislike ER fields other than the ones for RRIP.
+ * On the other hand, SUSP 1.12 frowns on such unannounced extensions 
+ * and prescribes ER and ES. It does this since the year 1994.
+ *
+ * In effect only if above iso_write_opts_set_aaip() enables writing of AAIP.
+ *
+ * @since 0.6.14
+ */
+int iso_write_opts_set_aaip_susp_1_10(IsoWriteOpts *opts, int oldvers);
+
 /**
  * Store as ECMA-119 Directory Record timestamp the mtime of the source
  * rather than the image creation time.

@@ -900,6 +900,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->rrip_version_1_10 = opts->rrip_version_1_10;
+    target->aaip_susp_1_10 = opts->aaip_susp_1_10;
     target->dir_rec_mtime = opts->dir_rec_mtime;
     target->sort_files = opts->sort_files;
 
@@ -1512,6 +1513,16 @@ int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers)
         return ISO_NULL_POINTER;
     }
     opts->rrip_version_1_10 = oldvers ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+/* ts A90125 */
+int iso_write_opts_set_aaip_susp_1_10(IsoWriteOpts *opts, int oldvers)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->aaip_susp_1_10 = oldvers ? 1 : 0;
     return ISO_SUCCESS;
 }
 

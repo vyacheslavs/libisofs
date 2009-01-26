@@ -115,6 +115,20 @@ struct iso_write_opts {
      */
     unsigned int rrip_version_1_10 :1;
 
+    /* ts A90125 */
+    /**
+     * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
+     * I.e. without announcing it by an ER field and thus without the need
+     * to preceed the RRIP fields by an ES and to preceed the AA field by ES.
+     * This saves bytes and might avoid problems with readers which dislike
+     * ER fields other than the ones for RRIP.
+     * On the other hand, SUSP 1.12 frowns on such unannounced extensions
+     * and prescribes ER and ES. It does this since year 1994.
+     *
+     * In effect only if above flag .aaip is set to 1.
+     */
+    unsigned int aaip_susp_1_10 :1;
+
     /**
      * Store as ECMA-119 Directory Record timestamp the mtime of the source
      * rather than the image creation time. (The ECMA-119 prescription seems
@@ -270,6 +284,10 @@ struct ecma119_image
 
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;
+
+    /* ts A90125 */
+    /* Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12. */
+    unsigned int aaip_susp_1_10 :1;
 
     /* Store in ECMA-119 timestamp mtime of source */
     unsigned int dir_rec_mtime :1;

@@ -26,6 +26,15 @@
 #include <string.h>
 
 
+#ifdef Libisofs_with_aaiP
+
+/* ts A90125 */
+static
+int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno);
+
+#endif /* Libisofs_with_aaiP */
+
+
 static
 int susp_append(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 {
@@ -476,23 +485,33 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 /* ts A90112 */
 /*
    @param flag bit0= only account sizes in sua_free resp. ce_len
-                     parameters t, susp, data may be NULL in this case
+                     parameters susp and data may be NULL in this case
 */
 static
 int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
                 uint8_t **data, size_t num_data,
                 size_t *sua_free, size_t *ce_len, int flag)
 {
-    int ret, done = 0, len;
+    int ret, done = 0, len, es_extra = 0;
     uint8_t *aapt, *cpt;
 
-    if (*sua_free < num_data || *ce_len > 0) {
-        *ce_len += num_data;
+    if (!t->aaip_susp_1_10)
+        es_extra = 5;
+    if (*sua_free < num_data + es_extra || *ce_len > 0) {
+        *ce_len += num_data + es_extra;
     } else {
-        *sua_free -= num_data;
+        *sua_free -= num_data + es_extra;
     }
     if (flag & 1)
         return ISO_SUCCESS;
+
+    /* If AAIP enabled and announced by ER : Write ES field to announce AAIP */
+    if (t->aaip && !t->aaip_susp_1_10) {
+        ret = susp_add_ES(t, susp, (*ce_len > 0), 1);
+        if (ret < 0)
+            return ret;
+    }
+
     aapt = *data;
     if (!(aapt[4] & 1)) {
         /* Single field can be handed over directly */
@@ -688,6 +707,35 @@ int susp_add_SP(Ecma119Image *t, struct susp_info *susp)
     SP[5] = 0xef;
     SP[6] = 0;
     return susp_append(t, susp, SP);
+}
+
+
+/* ts A90125 */
+/**
+ * SUSP 1.12: [...] shall specify as an 8-bit number the Extension
+ * Sequence Number of the extension specification utilized in the entries
+ * immediately following this System Use Entry. The Extension Sequence
+ * Numbers of multiple extension specifications on a volume shall correspond to
+ * the order in which their "ER" System Use Entries are recorded [...]
+ */
+static
+int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno)
+{
+    unsigned char *ES = malloc(5);
+
+    if (ES == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    ES[0] = 'E';
+    ES[1] = 'S';
+    ES[2] = (unsigned char) 5;
+    ES[3] = (unsigned char) 1;
+    ES[4] = (unsigned char) seqno;
+    if (to_ce) {
+        return susp_append_ce(t, susp, ES);
+    } else {
+        return susp_append(t, susp, ES);
+    }
 }
 
 
@@ -892,7 +940,7 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
 	/* let the expert decide where to add num_aapt */
     if (num_aapt > 0) {
         sua_free = space - *su_size;
-        aaip_add_AA(NULL, NULL, NULL, num_aapt, &sua_free, ce, 1);
+        aaip_add_AA(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
         *su_size = space - sua_free;
         if (*ce > 0 && !(flag & 1))
             goto unannounced_ca;
@@ -949,11 +997,22 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     space--;
     *ce = 0;
 
+    su_size = 0;
+
+#ifdef Libisofs_with_aaiP
+
+    /* ts A90125 */
+    /* If AAIP enabled and announced by ER : account for 5 bytes of ES */;
+    if (t->aaip && !t->aaip_susp_1_10)
+        su_size += 5;
+
+#endif /* Libisofs_with_aaiP */
+
     /* PX and TF, we are sure they always fit in SUA */
     if (!t->rrip_version_1_10) {
-        su_size = 44 + 26;
+        su_size += 44 + 26;
     } else {
-        su_size = 36 + 26;
+        su_size += 36 + 26;
     }
 
     if (n->type == ECMA119_DIR) {
@@ -1137,7 +1196,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 	/* let the expert decide where to add num_aapt */
         if (num_aapt > 0) {
             sua_free = space - su_size;
-            aaip_add_AA(NULL, NULL, NULL, num_aapt, &sua_free, ce, 1);
+            aaip_add_AA(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
             su_size = space - sua_free;
         }
 
@@ -1275,6 +1334,18 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             goto add_susp_cleanup;
         }
     }
+
+#ifdef Libisofs_with_aaiP
+
+    /* ts A90125 */
+    /* If AAIP enabled and announced by ER : Announce RRIP by ES */
+    if (t->aaip && !t->aaip_susp_1_10) {
+        ret = susp_add_ES(t, info, 0, 0);
+        if (ret < 0)
+            goto add_susp_cleanup;
+    }
+
+#endif /* Libisofs_with_aaiP */
 
     /* PX and TF, we are sure they always fit in SUA */
     ret = rrip_add_PX(t, node, info);
@@ -1699,7 +1770,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             
 #else /* Libisofs_with_aaip_dummY */
 
-            if (t->aaip) {
+            if (t->aaip && !t->aaip_susp_1_10) {
 
 #endif /* ! Libisofs_with_aaip_dummY */
 
@@ -1727,7 +1798,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             
 #else /* Libisofs_with_aaip_dummY */
 
-            if (t->aaip) {
+            if (t->aaip && !t->aaip_susp_1_10) {
     
 #endif /* ! Libisofs_with_aaip_dummY */
 
