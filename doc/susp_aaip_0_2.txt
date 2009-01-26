@@ -3,7 +3,7 @@
                  Arbitrary Attribute Interchange Protocol
 
                              Draft version 0.2
-                                Jan 25 2008
+                                Jan 26 2008
 
                 Interchange of Persistent File Attributes
 
@@ -19,25 +19,18 @@ Goal is to have for each file an arbitrary number of attributes which consist
 of two components (Name and Value) of arbitrary length and to have a compact
 representation of ACLs.
 
-This document describes a SUSP field with adjustable name (Signature Word).
-The name is defined in an ER field of which the content form is described here.
+This document describes a SUSP entry with adjustable name (Signature Word).
+The name is defined in an ER entry of which the content form is described here.
 Recommended is to use the name "AA" which collides neither with SUSP 1.12 nor
 with RRIP 1.12.
-The field has been designed to be as similar to the RRIP field SL as possible.
+The entry has been designed to be as similar to the RRIP entry SL as possible.
 
-Since the size of a SUSP field is limited to 255, multiple fields may be
+Since the size of a SUSP entry is limited to 255, multiple entries may be
 needed to describe one component. The CE mechanism of SUSP shall be used to
 address enough storage if needed.
 
-The SUSP field and the ER entry of AAIP shall only be present if the ER entry
+The SUSP entry and the ER entry of AAIP shall only be present if the ER entry
 of RRIP is present.
-
-This extension is supposed not to disturb any reader system which complies
-to this SUSP demand:
-"6.2 Requirements for a Receiving System
- [...]
- Any System Use Field which the receiving system does not recognize
- is to be ignored and skipped."
 
 -------------------------------------------------------------------------------
 
@@ -47,22 +40,22 @@ System Entries Provided by this Specification
 
 Description of the "AA" System Use Entry
 
-The field has exactly the same layout as RRIP field SL. One has to expect
+The entry has exactly the same layout as RRIP entry SL. One has to expect
 more data bytes than with SL, though, and any of the 256 possible byte values. 
 The reader shall be prepared to detect and handle oversized data.
 
-One or more AA fields form the Attribute List of a file object with
+One or more AA entries form the Attribute List of a file object with
 an even number of components. Each two consequtive components form a pair of
 Name and Value. The empty name is reserved for a compact representation of
 ALCs. The meaning of any other name is not specified by this document.
 
-All AA fields except the last one shall have the CONTINUE flag set. An AA
-field with CONTINUE set to 0 indicates the end of the Attribute List.
+All AA entries except the last one shall have the CONTINUE flag set. An AA
+entry with CONTINUE set to 0 indicates the end of the Attribute List.
 
 The format of the "AA" System Use Field is as follows:
 
   [1] "BP 1 to BP 2 - Signature Word" shall be (41)(41) ("AA") resp. the word
-      that is defined in the ER field. See below.
+      that is defined in the ER entry. See below.
 
   [2] "BP 3 - Length" shall specify as an 8-bit number the length in bytes of
       the "AA" entry recorded according to ISO 9660:7.1.1.
@@ -71,7 +64,7 @@ The format of the "AA" System Use Field is as follows:
 
   [4] "BP 5 - Flags" shall contain bit field flags numbered 0 to 7 starting
       with the least significant bit as follows:
-        0   CONTINUE  This AA field continues in the next AA field.
+        0   CONTINUE  This AA entry continues in the next AA entry.
       All other bits shall be set to 0.
 
   [5] "BP 6 to Length - Component Area" shall contain Component Records
@@ -80,9 +73,9 @@ The format of the "AA" System Use Field is as follows:
   | 'A' | 'A' | LENGTH | 1 | FLAGS | COMPONENT AREA |
   
 
-Within "AA" fields each component (Name or Value) shall be recorded as one
+Within "AA" entries each component (Name or Value) shall be recorded as one
 or more component records. If a component does not fit into the remaining
-space of an AA field then it shall be continued in following AA fields.
+space of an AA entry then it shall be continued in following AA entries.
 
 All Component Records of a component except the last one shall have the
 CONTINUE flag set. A Component Record with CONTINUE set to 0 indicates the end
@@ -91,7 +84,7 @@ component.
 
 -------------------------------------------------------------------------------
 
-The Component Record format is identical to the one of the SL field.
+The Component Record format is identical to the one of the SL entry.
 The complete form of the following summary can be found in RRIP 1.12 "4.1.3.1".
 In case of discrepancies, RRIP 1.12 is the decisive specification.
 
@@ -133,7 +126,7 @@ Each Component Record shall have the following format:
 
 
 Example: Two pairs of "name"="long...content" and "one"="more" encoded as
-         two AA fields
+         two AA entries
 
   Field 1 contains the Component Record of Name and one Component Record of
   Value :
@@ -143,7 +136,7 @@ Example: Two pairs of "name"="long...content" and "one"="more" encoded as
   Field 2 contains the rest of "long...content" and the complete second pair.
   It marks the end of the Attribute List :
   { 'A', 'A',  38,   1,   0,
-              ... 13 remaining bytes of the Component Record in first field ...
+              ... 13 remaining bytes of the Component Record in first entry ...
       0,   7, 'c', 'o', 'n', 't', 'e', 'n', 't',
       0,   3, 'o', 'n', 'e',
       0,   4, 'm', 'o', 'r', 'e' }
@@ -165,9 +158,9 @@ The Value shall be an arbitrary number of ACL Entries:
         4 - 7  TYPE
                shall contain the tag type of the ACL entry as four bit code:
                  0  TRANSLATE      entry for a global map of name to numeric id
-                 1  ACL_USER_OBJ   permissions of owning user (as of PX field)
+                 1  ACL_USER_OBJ   permissions of owning user (as of PX entry)
                  2  ACL_USER       of arbitrary user, with name as qualifier
-                 3  ACL_GROUP_OBJ  permissions of owning group (as of PX field)
+                 3  ACL_GROUP_OBJ  permissions of owning group (as of PX entry)
                  4  ACL_GROUP      of arbitrary group, with name as qualifier
                  5  ACL_MASK       restricts 2, 3, and 4 via logical AND
                  6  ACL_OTHER      permissions of non-listed, non-owning users
@@ -181,15 +174,15 @@ The Value shall be an arbitrary number of ACL Entries:
                 assign a meaning to them.
 
 The entries ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER must match the permission
-bits of the PX field. This shall obey the peculiar rule that
+bits of the PX entry. This shall obey the peculiar rule that
 ACL_USER_OBJ must match S_IRWXU, ACL_OTHER must match S_IRWXO,
 ACL_MASK - if present - must match S_IRWXG, else ACL_GROUP must match S_IRWXG.
 If there is ACL_USER_OBJ or ACL_GROUP_OBJ there must also be ACL_MASK.
 
 A numeric qualifier is a binary number of variable length. The Most Significant
 Byte comes first. The number shall be the "POSIX File User ID" resp.
-"POSIX File Group ID" as also used in RRIP PX fields. The ids of owning user
-and owning group shall be taken from the PX field of the file object.
+"POSIX File Group ID" as also used in RRIP PX entries. The ids of owning user
+and owning group shall be taken from the PX entry of the file object.
 
 Optional TRANSLATE entries may associate user or group names with numeric
 ids to allow the reading system to remap the numeric ids. See below.
@@ -258,7 +251,7 @@ The entry flag value 0x08 TRANSLATE is not a ACL entry of the hosting object
 but rather a global hint about the relation of roles, names and numeric ids.
 If it is recorded at all, then it shall be recorded with the first Directory
 Entry of the volume's root directory. According to the description of SUSP
-field ER, this has to be "dot" or (00). Other than with ER, a TRANSLATE entry
+entry ER, this has to be "dot" or (00). Other than with ER, a TRANSLATE entry
 may not appear in the root of directory sub trees.
 
 An interested reader shall examine the Arbitrary Attributes of this Directory
@@ -288,6 +281,11 @@ Example: User id number 1001 gets associated with user name "lisa"
 Specification of the ER System Use Entry Values for AAIP:
 
 This ER system entry shall only be present if the ER entry of RRIP is present.
+To be compliant with SUSP-1.12, this entry must be present and ES entries have
+to mark RRIP and AAIP entries.
+If for some reason compliance with SUSP-1.10 is intended, then this ER entry
+and the ES entries must not be present, although SUSP-1.10 would allow ER.
+(See below: Compatibility considerations.)
 
 The Extension Version number for this version of AAIP shall be 1.
 
@@ -298,13 +296,40 @@ The mandatory content form of the Extension Descriptor is
 with possibly two letters other than "AA" at the start of the string.
 The Description Length is 81.
 
-The reader of AAIP shall take the actual name of the AA field from BP 19 and
-BP 20 of the ER field.
+The reader of AAIP shall take the actual name of the AA entry from BP 19 and
+BP 20 of the ER entry.
 
 The recommended content of the Extension Source is
 "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG".
 The corresponding Source Length is 62.
 
+-------------------------------------------------------------------------------
+
+                        Compatibility Considerations
+
+This extension is supposed not to disturb any reader system which complies
+to this SUSP-1.10 demand:
+"6.2 Requirements for a Receiving System
+ [...]
+ Any System Use Field which the receiving system does not recognize
+ is to be ignored and skipped."
+
+SUSP-1.12 extends this prescription by:
+"Any System Use Entry, with the exception of the set of System Use Entries
+ defined in this document, following an "ES" System Use Entry that indicates
+ an extension specification which the receiving system does not recognize
+ shall be ignored and skipped."
+
+According to SUSP-1.12 the ER entry is mandatory for a conformant extension.
+It also prescribes that in the case that ER entries of RRIP and AAIP are 
+present, then ES entries shall be used to separate RRIP entries from AAIP
+entries.
+
+SUSP-1.10 does not specify ES entires at all and allows to have extension
+entries without announcing them by a ER entry. So if a second ER entry is
+not bearable, then the SUSP-1.10 downgrade of of AAIP allows to omit the
+AAIP ER and the ES entries. But if there is the AAIP ER then there must be ES
+at the appropriate paces.
 
 -------------------------------------------------------------------------------
 
@@ -327,7 +352,7 @@ Model Relations:
 Revoked drafts:
 
 There was a draft AAIP 0.0 with ER signature "AAIP_2008A". It did not resemble
-the existing field SL and therefore shall not be used by writers of ISO images.
+the existing entry SL and therefore shall not be used by writers of ISO images.
 
 -------------------------------------------------------------------------------
 References:
@@ -337,7 +362,7 @@ ECMA-119  http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.
 SUSP 1.12 ftp://ftp.ymi.com/pub/rockridge/susp112.ps
 
 RRIP 1.12 ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
-(especially field SL)
+(especially entry SL)
 
 -------------------------------------------------------------------------------
 Pending considerations:
