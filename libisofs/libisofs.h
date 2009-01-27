@@ -5,6 +5,19 @@
  * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
+
+/* 
+ *
+ * Applications must use 64 bit off_t, e.g. on 32-bit Linux by defining
+ *   #define _LARGEFILE_SOURCE
+ *   #define _FILE_OFFSET_BITS 64
+ * or take special precautions to interface with the library by 64 bit integers
+ * where this .h files prescribe off_t. Not to use 64 bit file i/o will keep
+ * the application from producing and processing ISO images of more than 2 GB
+ * size.
+ *
+ */
+
 #ifndef LIBISO_LIBISOFS_H_
 #define LIBISO_LIBISOFS_H_
 
