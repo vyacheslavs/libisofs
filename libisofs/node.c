@@ -1817,7 +1817,7 @@ int iso_local_set_acl_text(char *disk_path, char *text, int flag)
 
 #ifdef Libisofs_with_aaiP
 
- return aaip_set_acl_text(disk_path, text, flag);
+ return aaip_set_acl_text(disk_path, text, flag & 1);
 
 #else /* Libisofs_with_aaiP */
 
@@ -1826,4 +1826,21 @@ int iso_local_set_acl_text(char *disk_path, char *text, int flag)
 #endif /* ! Libisofs_with_aaiP */
 
 }
+
+/* ts A90127 */
+int iso_local_get_acl_text(char *disk_path, char **text, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+ return aaip_get_acl_text(disk_path, text, flag & (1 | 16 | (1 << 15)));
+
+#else /* Libisofs_with_aaiP */
+
+ return 0;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
 

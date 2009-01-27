@@ -43,7 +43,7 @@ size_t aaip_encode(char aa_name[2], size_t num_attrs, char **names,
    Attribute. According to AAIP 0.2 this value is to be stored together with
    an empty name.
    @param acl_text      The ACL in long text form
-   @param st_mode       The stat(2) permission bits to be used with flag bit2
+   @param st_mode       The stat(2) permission bits to be used with flag bit3
    @param result_len    Number of bytes in the resulting value
    @param result        *result will point to the start of the result string.
                         This is malloc() memory which needs to be freed when
@@ -68,7 +68,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
                         Submit NULL if there is no such ACL to be encoded.
    @param d_acl_text    The "default" ACL in long text form.
                         Submit NULL if there is no such ACL to be encoded.
-   @param st_mode       The stat(2) permission bits to be used with flag bit2
+   @param st_mode       The stat(2) permission bits to be used with flag bit3
    @param result_len    Number of bytes in the resulting value
    @param result        *result will point to the start of the result string.
                         This is malloc() memory which needs to be freed when
@@ -154,6 +154,7 @@ int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag);
                         bit15= free text and return 1
    @return               1 ok
                          2 only st_mode permissions exist and bit 4 is set
+                         0 ACL support not enabled at compile time
                         -1 failure of system ACL service (see errno)
 */
 int aaip_get_acl_text(char *path, char **text, int flag);
@@ -458,7 +459,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
    @param flag          Bitfield for control purposes
                         bit0=  set default ACL rather than access ACL
    @return              >0 ok
-                         0 no ACL manipulation adapter available
+                         0 ACL support not enabled at compile time
                         -1 failure of system ACL service (see errno)
 */
 int aaip_set_acl_text(char *path, char *text, int flag);

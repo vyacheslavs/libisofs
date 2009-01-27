@@ -3169,6 +3169,9 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
                       IsoNode **node);
 
 /**
+ * This is a more versatile form of iso_tree_add_node which allows to set
+ * the node name in ISO image already when it gets added. 
+ *
  * Add a new node to the image tree, from an existing file, and with the
  * given name, that must not exist on dir.
  *
@@ -4250,7 +4253,7 @@ int aaip_xinfo_func(void *data, int flag);
  * @return
  *      2 ACL produced from POSIX permissions
  *      1 ACL was read from node
- *      0 if the desire ACL type is not available
+ *      0 if the desired ACL type is not available
  *      < 0 on error
  *
  * @since 0.6.14
@@ -4283,13 +4286,43 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag);
  *             return success.
  * @return
  *      > 0 success
- *      <=0 failure
+ *      < 0 failure
  */
 int iso_node_set_acl_text(IsoNode *node, char *text, int flag);
 
 
+/* -------- This is an interface to the ACL of the local filesystem -------- */
+
+/* ts A90127 */
+/**
+ * Get the ACL of the given file in the local filesystem in long text form.
+ *
+ * @param disk_path
+ *      Path to the file
+ * @param text
+ *      Will return a pointer to the ACL text. If not NULL the text will be
+ *      0 terminated and finally has to be disposed by a call to this function
+ *      with bit15 set.
+ * @param flag
+ *      Bitfield for control purposes
+ *           bit0=  get default ACL rather than access ACL
+ *           bit4=  set *text = NULL and return 2
+ *                  if the ACL matches st_mode permissions.
+ *           bit15= free text and return 1
+ * @return
+ *        1 ok 
+ *        2 ok, trivial ACL found while bit4 is set, *text is NULL 
+ *        0 no ACL manipulation adapter available
+ *       -1 failure of system ACL service (see errno)
+ *
+ * @since 0.6.14
+ */
+int iso_local_get_acl_text(char *disk_path, char **text, int flag);
+
+
 /* ts A90118 */
-/* Set the ACL of the given file in the local filesystem to a given list
+/**
+ * Set the ACL of the given file in the local filesystem to a given list
  * in long text form.
  *
  * @param disk_path
@@ -4305,7 +4338,7 @@ int iso_node_set_acl_text(IsoNode *node, char *text, int flag);
  *       -1 failure of system ACL service (see errno)
  *
  * @since 0.6.14
-*/
+ */
 int iso_local_set_acl_text(char *disk_path, char *text, int flag);
 
 

@@ -43,44 +43,30 @@
    @return                1 ok
                           2 only st_mode permissions exist and bit 4 is set
                             or empty ACL and bit0 is set
+                          0 ACL support not enabled at compile time
                          -1 failure of system ACL service (see errno)
-                         -2 ACL support not enabled at compile time
 */
 int aaip_get_acl_text(char *path, char **text, int flag)
 {
 #ifdef Libisofs_with_aaip_acL
+
  acl_t acl= NULL;
-#endif
  struct stat stbuf;
  int ret;
 
  if(flag & (1 << 15)) {
    if(*text != NULL)
-#ifdef Libisofs_with_aaip_acL
      acl_free(text);
-#else
-     free(text);
-#endif
    *text= NULL;
    return(1);
  }
  *text= NULL;
-
-#ifdef Libisofs_with_aaip_acL
 
  acl= acl_get_file(path, (flag & 1) ? ACL_TYPE_DEFAULT : ACL_TYPE_ACCESS);
  if(acl == NULL)
    return(-1);
  *text= acl_to_text(acl, NULL);
  acl_free(acl);
-
-#else /* Libisofs_with_aaip_acL */
-
- /* ??? >>> Fake ACL */;
-
- return(-2);
- 
-#endif /* ! Libisofs_with_aaip_acL */
 
  if(*text == NULL)
    return(-1);
@@ -94,16 +80,18 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  }
  if(flag & (1 | 16)) {
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
-#ifdef Libisofs_with_aaip_acL
      acl_free(text);
-#else
-     free(text);
-#endif
      *text= NULL;
      return(2);
    }
  }
  return(1);
+
+#else /* Libisofs_with_aaip_acL */
+
+ return(0);
+ 
+#endif /* ! Libisofs_with_aaip_acL */
 }
 
 
@@ -288,9 +276,9 @@ ex:;
    @param text          The input text (0 terminated, ACL long text form)
    @param flag          Bitfield for control purposes
                         bit0=  set default ACL rather than access ACL
-   @return              > 0 ok
-                        -1  failure of system ACL service (see errno)
-                        -2  ACL support not enabled at compile time
+   @return              >0 ok
+                         0 ACL support not enabled at compile time
+                        -1 failure of system ACL service (see errno)
 */
 int aaip_set_acl_text(char *path, char *text, int flag)
 {
@@ -315,7 +303,7 @@ ex:
 
 #else /* Libisofs_with_aaip_acL */
 
- return(-2);
+ return(0);
 
 #endif /* ! Libisofs_with_aaip_acL */
 

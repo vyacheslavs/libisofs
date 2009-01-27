@@ -2006,7 +2006,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
      ret= aaip_write_acl_line(&wpt, &w_size, "other", "", perm_text, cnt);
    } else if(type == Aaip_SWITCH_MARK) {
      /* Indicate to caller: end of desired ACL type access/default */
-     if((!(perm & Aaip_EXEC)) ^ (!!(flag & 2)))
+     if((perm & Aaip_EXEC) ^ (!!(flag & 2)))
        return(2);
    } else if(type == Aaip_ACL_USER_N) {
      /* determine username from uid */
