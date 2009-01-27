@@ -203,7 +203,7 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
 
 /* ----------- Encoder for ACLs ----------- */
 
-static ssize_t aaip_encode_acl_text(char *acl_text,
+static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                           size_t result_size, unsigned char *result, int flag);
 
 
@@ -211,6 +211,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text,
    Attribute. According to AAIP 0.2 this value is to be stored together with
    an empty name.
    @param acl_text      The ACL in long text form
+   @param st_mode       The stat(2) permission bits to be used with flag bit3
    @param result_len    Number of bytes in the resulting value
    @param result        *result will point to the start of the result string.
                         This is malloc() memory which needs to be freed when
@@ -219,17 +220,20 @@ static ssize_t aaip_encode_acl_text(char *acl_text,
                         bit0= count only
                         bit1= use numeric qualifiers rather than names
                         bit2= this is a default ACL, prepend SWITCH_MARK
+                        bit3= check for completeness of list and eventually
+                              fill up with entries deduced from st_mode
    @return              >0 means ok
                         0 means error 
 */
-int aaip_encode_acl(char *acl_text,
+int aaip_encode_acl(char *acl_text, mode_t st_mode,
                     size_t *result_len, unsigned char **result, int flag)
 {
  ssize_t bytes;
 
  *result= NULL;
  *result_len= 0;
- bytes= aaip_encode_acl_text(acl_text, (size_t) 0, NULL, 1 | (flag & 6));
+ bytes= aaip_encode_acl_text(acl_text, st_mode,
+                             (size_t) 0, NULL, 1 | (flag & (2 | 4 | 8)));
  if(bytes < 0)
    return(0);
  if(flag & 1) {
@@ -241,7 +245,8 @@ int aaip_encode_acl(char *acl_text,
    return(-1);
  (*result)[bytes]= 0;
  *result_len= bytes;
- bytes= aaip_encode_acl_text(acl_text, *result_len, *result, (flag & 6));
+ bytes= aaip_encode_acl_text(acl_text, st_mode, *result_len, *result,
+                             (flag & (2 | 4 | 8)));
  if(bytes != *result_len) {
    *result_len= 0;
    return(0);
@@ -265,6 +270,21 @@ static double aaip_numeric_id(char *name, int flag)
 }
 
 
+static int aaip_make_aaip_perms(int r, int w, int x)
+{
+ int perms;
+
+ perms= 0;
+ if(r)
+   perms|= Aaip_READ;
+ if(w)
+   perms|= Aaip_WRITE;
+ if(x)
+   perms|= Aaip_EXEC;
+ return(perms);
+}
+
+
 /*
    @param result_size   Number of bytes to store result
    @param result        Pointer to the start of the result string.
@@ -272,14 +292,17 @@ static double aaip_numeric_id(char *name, int flag)
                         bit0= count only, do not really produce bytes
                         bit1= use numeric qualifiers
                         bit2= this is a default ACL, prepend SWITCH_MARK 1
+                        bit3= check for completeness of list and eventually
+                              fill up with entries deduced from st_mode
    @return              >=0 number of bytes produced resp. counted
                         <0 means error 
 */
-static ssize_t aaip_encode_acl_text(char *acl_text,
+static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                            size_t result_size, unsigned char *result, int flag)
 {
  char *rpt, *npt, *cpt;
- int qualifier= 0, perms, type, i, qualifier_len= 0, num_recs;
+ int qualifier= 0, perms, type, i, qualifier_len= 0, num_recs, needed;
+ unsigned int has_u= 0, has_g= 0, has_o= 0, has_m= 0, is_trivial= 1;
  uid_t uid, huid;
  gid_t gid, hgid;
  ssize_t count= 0;
@@ -314,11 +337,13 @@ static ssize_t aaip_encode_acl_text(char *acl_text,
  continue;
    qualifier= 0;
    if(strncmp(rpt, "user:", 5) == 0) {
-     if(cpt - rpt == 5)
+     if(cpt - rpt == 5) {
        type= Aaip_ACL_USER_OBJ;
-     else {
+       has_u++;
+     } else {
        if(cpt - (rpt + 5) >= sizeof(name))
  continue;
+       is_trivial= 0;
        strncpy(name, rpt + 5, cpt - (rpt + 5)); 
        name[cpt - (rpt + 5)]= 0;
        if(flag & 2) {
@@ -345,11 +370,13 @@ user_by_name:;
        qualifier= 1;
      }
    } else if(strncmp(rpt, "group:", 6) == 0) {
-     if(cpt - rpt == 6)
+     if(cpt - rpt == 6) {
        type= Aaip_ACL_GROUP_OBJ;
-     else {
+       has_g++;
+     } else {
        if(cpt - (rpt + 6) >= sizeof(name))
  continue;
+       is_trivial= 0;
        strncpy(name, rpt + 6, cpt - (rpt + 6)); 
        if(flag & 2) {
          type= Aaip_ACL_GROUP_N;
@@ -377,20 +404,16 @@ group_by_name:;
      }
    } else if(strncmp(rpt, "other:", 6) == 0) {
      type= Aaip_ACL_OTHER;
+     has_o++;
    } else if(strncmp(rpt, "mask:", 5) == 0) {
      type= Aaip_ACL_MASK;
+     has_m++;
    } else
  continue;
 
-   if(npt - cpt < 3)
+   if(npt - cpt < 4)
  continue;
-   perms= 0;
-   if(cpt[1] == 'r')
-     perms|= Aaip_READ;
-   if(cpt[2] == 'w')
-     perms|= Aaip_WRITE;
-   if(cpt[3] == 'x')
-     perms|= Aaip_EXEC;
+   perms= aaip_make_aaip_perms(cpt[1] == 'r', cpt[2] == 'w', cpt[3] == 'x');
 
    if(!(flag & 1)) {
      if(count >= result_size)
@@ -421,12 +444,43 @@ group_by_name:;
        count+= qualifier_len + num_recs;
    }
  }
-
+ if (flag & 8) {
+   /* add eventually missing mandatory ACL entries */
+   needed= (!has_u) + (!has_g) + (!has_o) + !(is_trivial || has_m);
+   if(flag & 1)
+     count+= needed;
+   else {
+     if(count + needed > result_size)
+       return(-1);
+   }
+ }
+ if ((flag & 8) && needed > 0 && !(flag & 1)) {
+   if(!has_u) {
+     perms= aaip_make_aaip_perms(st_mode & S_IRUSR, st_mode & S_IWUSR,
+                                 st_mode * S_IXUSR);
+     result[count++]= perms | (Aaip_ACL_USER_OBJ << 4);
+   }
+   if(!has_g) {
+     perms= aaip_make_aaip_perms(st_mode & S_IRGRP, st_mode & S_IWGRP,
+                                 st_mode * S_IXGRP);
+     result[count++]= perms | (Aaip_ACL_GROUP_OBJ << 4);
+   }
+   if(!has_o) {
+     perms= aaip_make_aaip_perms(st_mode & S_IROTH, st_mode & S_IWOTH,
+                                 st_mode * S_IXOTH);
+     result[count++]= perms | (Aaip_ACL_OTHER << 4);
+   }
+   if(!(is_trivial | has_m)) {
+     perms= aaip_make_aaip_perms(st_mode & S_IRGRP, st_mode & S_IWGRP,
+                                 st_mode * S_IXGRP);
+     result[count++]= perms | (Aaip_ACL_MASK << 4);
+   }
+ }
  return(count);
 }
 
 
-int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text,
+int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
                          size_t *result_len, unsigned char **result, int flag)
 {
  int ret;
@@ -434,12 +488,13 @@ int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text,
  unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
 
  if(a_acl_text != NULL) {
-   ret= aaip_encode_acl(a_acl_text, &a_acl_len, &a_acl, flag & 3);
+   ret= aaip_encode_acl(a_acl_text, st_mode, &a_acl_len, &a_acl, flag & 11);
    if(ret <= 0)
      goto ex;
  }
  if(d_acl_text != NULL) {
-   ret= aaip_encode_acl(d_acl_text, &d_acl_len, &d_acl, (flag & 3) | 4);
+   ret= aaip_encode_acl(d_acl_text, (mode_t) 0, &d_acl_len, &d_acl,
+                        (flag & 3) | 4);
    if(ret <= 0)
      goto ex;
  }

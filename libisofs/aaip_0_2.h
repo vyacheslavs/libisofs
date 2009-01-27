@@ -43,6 +43,7 @@ size_t aaip_encode(char aa_name[2], size_t num_attrs, char **names,
    Attribute. According to AAIP 0.2 this value is to be stored together with
    an empty name.
    @param acl_text      The ACL in long text form
+   @param st_mode       The stat(2) permission bits to be used with flag bit2
    @param result_len    Number of bytes in the resulting value
    @param result        *result will point to the start of the result string.
                         This is malloc() memory which needs to be freed when
@@ -50,10 +51,13 @@ size_t aaip_encode(char aa_name[2], size_t num_attrs, char **names,
    @param flag          Bitfield for control purposes
                         bit0= count only
                         bit1= use numeric qualifiers rather than names
+                        bit2= this is a default ACL, prepend SWITCH_MARK
+                        bit3= check for completeness of list and eventually
+                              fill up with entries deduced from st_mode
    @return              >0 means ok
                         0 means error
 */
-int aaip_encode_acl(char *acl_text,
+int aaip_encode_acl(char *acl_text, mode_t st_mode,
                     size_t *result_len, unsigned char **result, int flag);
 
 
@@ -64,6 +68,7 @@ int aaip_encode_acl(char *acl_text,
                         Submit NULL if there is no such ACL to be encoded.
    @param d_acl_text    The "default" ACL in long text form.
                         Submit NULL if there is no such ACL to be encoded.
+   @param st_mode       The stat(2) permission bits to be used with flag bit2
    @param result_len    Number of bytes in the resulting value
    @param result        *result will point to the start of the result string.
                         This is malloc() memory which needs to be freed when
@@ -71,10 +76,12 @@ int aaip_encode_acl(char *acl_text,
    @param flag          Bitfield for control purposes
                         bit0= count only
                         bit1= use numeric qualifiers rather than names
+                        bit3= check for completeness of list and eventually
+                              fill up with entries deduced from st_mode
    @return              >0 means ok
                         0 means error
 */
-int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text,
+int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
                          size_t *result_len, unsigned char **result, int flag);
 
 

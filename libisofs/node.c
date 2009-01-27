@@ -1612,9 +1612,8 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
     int ret;
     mode_t st_mode;
 
-    if (flag & 2) { /* want to update ACL by st_mode */
-        st_mode = iso_node_get_permissions(node);
-    } else {
+    st_mode = iso_node_get_permissions(node);
+    if (!(flag & 2)) { /* want to update ACL by st_mode */
 
         /* >>> validate and rectify text */;
 
@@ -1677,7 +1676,8 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
             }
         }
         if (a_text != NULL || d_text != NULL)
-            ret = aaip_encode_both_acl(a_text, d_text, &acl_len, &acl, 2);
+            ret = aaip_encode_both_acl(a_text, d_text, st_mode, &acl_len, &acl,
+                                       2 | 8);
         else
             ret = 1;
         if (ret <= 0) {
@@ -1716,9 +1716,11 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
         goto ex;
     }
     if (flag & 1)
-        ret = aaip_encode_both_acl(NULL, acl_text, &acl_len, &acl, 2);
+        ret = aaip_encode_both_acl(NULL, acl_text,
+                                   st_mode, &acl_len, &acl, 2 | 8);
     else
-        ret = aaip_encode_both_acl(acl_text, NULL, &acl_len, &acl, 2);
+        ret = aaip_encode_both_acl(acl_text, NULL,
+                                   st_mode, &acl_len, &acl, 2 | 8);
     if (ret <= 0) {
 
         /* >>> cannot encode */;

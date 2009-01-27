@@ -169,7 +169,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
      goto ex;
    if(ret == 2)
      {ret= 1; goto ex;} /* empty ACL / only st_mode info was found in ACL */
-   ret= aaip_encode_acl(acl_text, &a_acl_len, &a_acl, flag & 2);
+   ret= aaip_encode_acl(acl_text, (mode_t) 0, &a_acl_len, &a_acl, flag & 2);
    if(ret <= 0)
      goto ex;
    aaip_get_acl_text("", &acl_text, 1 << 15); /* free */

@@ -281,8 +281,8 @@ Example: User id number 1001 gets associated with user name "lisa"
 Specification of the ER System Use Entry Values for AAIP:
 
 This ER system entry shall only be present if the ER entry of RRIP is present.
-To be compliant with SUSP-1.12, this entry must be present and ES entries have
-to mark RRIP and AAIP entries.
+To be compliant with SUSP-1.12, this ER entry must be present if AAIP entries
+are present, and ES entries have to mark RRIP and AAIP entries.
 If for some reason compliance with SUSP-1.10 is intended, then this ER entry
 and the ES entries must not be present, although SUSP-1.10 would allow ER.
 (See below: Compatibility considerations.)
@@ -308,7 +308,7 @@ The corresponding Source Length is 62.
                         Compatibility Considerations
 
 This extension is supposed not to disturb any reader system which complies
-to this SUSP-1.10 demand:
+to SUSP-1.10:
 "6.2 Requirements for a Receiving System
  [...]
  Any System Use Field which the receiving system does not recognize
@@ -329,7 +329,7 @@ SUSP-1.10 does not specify ES entires at all and allows to have extension
 entries without announcing them by a ER entry. So if a second ER entry is
 not bearable, then the SUSP-1.10 downgrade of of AAIP allows to omit the
 AAIP ER and the ES entries. But if there is the AAIP ER then there must be ES
-at the appropriate paces.
+at the appropriate places.
 
 -------------------------------------------------------------------------------
 

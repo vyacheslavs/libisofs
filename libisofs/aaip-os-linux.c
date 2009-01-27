@@ -234,7 +234,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    aaip_get_acl_text(path, &d_acl_text, 1);
    if(a_acl_text == NULL && d_acl_text == NULL)
      {ret= 1; goto ex;}
-   ret= aaip_encode_both_acl(a_acl_text, d_acl_text,
+   ret= aaip_encode_both_acl(a_acl_text, d_acl_text, (mode_t) 0,
                              &acl_len, &acl, (flag & 2));
    if(ret <= 0)
      goto ex;
