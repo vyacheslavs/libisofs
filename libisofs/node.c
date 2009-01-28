@@ -277,6 +277,33 @@ const char *iso_node_get_name(const IsoNode *node)
     return node->name;
 }
 
+/* ta A90128 */
+/**
+ * See API function iso_node_set_permissions()
+ *
+ * @param flag  bit0= do not adjust ACL
+ * @return      >0 success , <0 error
+ */
+static
+int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag)
+{
+    int ret;
+
+    node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
+
+#ifdef Libisofs_with_aaiP
+    /* ts A90119 */
+
+    /* If the node has ACL info : update ACL */
+    ret = 1;
+    if (!(flag & 1))
+        ret = iso_node_set_acl_text(node, "", 2);
+
+    return ret;
+#endif
+
+}
+
 /**
  * Set the permissions for the node. This attribute is only useful when
  * Rock Ridge extensions are enabled.
@@ -288,18 +315,7 @@ const char *iso_node_get_name(const IsoNode *node)
  */
 void iso_node_set_permissions(IsoNode *node, mode_t mode)
 {
-    node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90119 */
-
-    /* If the node has ACL info : update ACL */;
-    iso_node_set_acl_text(node, "", 2);
-
-    /* >>> actually iso_node_set_permissions() would need a return value now */
-
-#endif
-
+     iso_node_set_perms_internal(node, mode, 0);
 }
 
 /**
@@ -1481,12 +1497,13 @@ int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
 {
     int ret;
 
+    *text= NULL;
     ret = aaip_decode_acl(v_data, v_len,
                           consumed, NULL, (size_t) 0, text_fill, 1);
     if (ret <= 0)
         return 0;
-    if (text_fill == 0)
-        return 0;
+    if (*text_fill == 0)
+        return ret;
     *text = calloc(*text_fill + 42, 1); /* 42 for aaip_update_acl_st_mode */
     if (*text == NULL)
         return ISO_OUT_OF_MEM;
@@ -1494,6 +1511,7 @@ int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
                           consumed, *text, *text_fill, text_fill, 0);
     if (ret <= 0) {
         free(*text);
+        *text= NULL;
         return 0;
     }
     return ret;
@@ -1773,7 +1791,7 @@ update_perms:;
         ret = aaip_cleanout_st_mode(acl_text, &st_mode, 4);
         if (ret < 0)
             goto bad_decode;
-        iso_node_set_permissions(node, st_mode);
+        iso_node_set_perms_internal(node, st_mode, 1);
     }
 
     ret = 1;

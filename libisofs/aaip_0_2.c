@@ -498,16 +498,16 @@ int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
    if(ret <= 0)
      goto ex;
  }
- if(a_acl == NULL) {
+ if(a_acl == NULL || a_acl_len == 0) {
    acl= d_acl;
    d_acl= NULL;
    acl_len= d_acl_len;
- } else if (d_acl == NULL) {
+ } else if (d_acl == NULL || d_acl_len == 0) {
    acl= a_acl; 
    a_acl= NULL;
    acl_len= a_acl_len;
  } else {
-   acl= calloc(a_acl_len + d_acl_len + 1, 1);
+   acl= calloc(a_acl_len + d_acl_len, 1);
    if(acl == NULL)
      {ret = -1; goto ex;}
    memcpy(acl, a_acl, a_acl_len);
@@ -2007,7 +2007,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
    } else if(type == Aaip_SWITCH_MARK) {
      /* Indicate to caller: end of desired ACL type access/default */
      if((perm & Aaip_EXEC) ^ (!!(flag & 2)))
-       return(2);
+       {ret= 2; goto ex;}
    } else if(type == Aaip_ACL_USER_N) {
      /* determine username from uid */
      uid= 0;
@@ -2043,9 +2043,11 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
    if(ret <= 0)
      return(-2);
  }
+ ret= 1;
+ex:;
  if(flag & 1)
    *acl_text_fill= w_size + 1;
- return(1);
+ return(ret);
 }
 
 

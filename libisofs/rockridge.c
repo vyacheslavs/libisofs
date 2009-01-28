@@ -739,7 +739,6 @@ int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno)
 }
 
 
-#ifdef Libisofs_with_aaiP
 /* ts A90114 */
 
 int aaip_xinfo_func(void *data, int flag)
@@ -749,8 +748,6 @@ int aaip_xinfo_func(void *data, int flag)
     }
     return 1;
 }
-
-#endif /* Libisofs_with_aaiP */
 
 
 /* ts A90117 */

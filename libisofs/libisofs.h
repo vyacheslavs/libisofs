@@ -4222,14 +4222,12 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 */
 
 
-#ifdef Libisofs_with_aaiP
-
+/* ts A90114 */
 /**
  * Function to identify and manage AA strings as xinfo of IsoNode
  */
 int aaip_xinfo_func(void *data, int flag);
 
-#endif /* Libisofs_with_aaiP */
 
 /* ts A90116 */
 /**
@@ -4292,6 +4290,11 @@ int iso_node_set_acl_text(IsoNode *node, char *text, int flag);
 
 
 /* -------- This is an interface to the ACL of the local filesystem -------- */
+/**
+ * libisofs has an internal system dependent adapter to ACL operations. For
+ * the sake of completeness and simplicity it exposes this functionality to
+ * its applications which might want to get and set ACLs from local files.
+ */
 
 /* ts A90127 */
 /**
