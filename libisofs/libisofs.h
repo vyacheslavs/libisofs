@@ -4224,7 +4224,17 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /* ts A90114 */
 /**
- * Function to identify and manage AA strings as xinfo of IsoNode
+ * Function to identify and manage AA strings as xinfo of IsoNode.
+ *
+ * An AA string contains all EA (aka xattr) and ACL of a node in the image
+ * tree. It is formatted according to libisofs specification AAIP-0.2 and
+ * ready to be written into the System Use Area resp. Continuation Area
+ * of a directory entry in an ISO image.
+ *
+ * Applications are not supposed to manipulate AA strings directly. They should
+ * rather make use of the appropriate iso_node_get_* and iso_node_set_* calls.
+ *
+ * @since 0.6.14
  */
 int aaip_xinfo_func(void *data, int flag);
 
