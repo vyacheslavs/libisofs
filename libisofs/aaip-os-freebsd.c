@@ -125,10 +125,10 @@ int aaip_get_acl_text(char *path, char **text, int flag)
 int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
 {
- int ret, retry= 0;
+ int ret;
  char *list= NULL;
- ssize_t list_size= 0, i, num_names, value_ret;
- size_t a_acl_len= 0, d_acl_len= 0, acl_len= 0;
+ ssize_t i, num_names;
+ size_t a_acl_len= 0, acl_len= 0;
  unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
  char *acl_text= NULL;
 
@@ -288,7 +288,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
  int ret, has_default_acl= 0, was_xattr= 0;
- size_t i, consumed, acl_text_fill, list_size= 0;
+ size_t i, consumed, acl_text_fill;
  char *acl_text= NULL, *list= NULL;
 
  for(i= 0; i < num_attrs; i++) {

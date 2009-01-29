@@ -402,6 +402,8 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont)
  */
 int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
 {
+    int high_shift= 0;
+
     if (pn == NULL || pn == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -413,8 +415,22 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
         return ISO_WRONG_RR;
     }
 
+    /* ts A90129 */
+    /* (dev_t << 32) causes compiler warnings on FreeBSD.
+       RRIP 1.10 4.1.2 prescribes PN "Dev_t High" to be 0 on 32 bit dev_t.
+    */
+    st->st_rdev = (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
+    if (sizeof(st->st_rdev) > 4) {
+        high_shift = 32;
+        st->st_rdev |= (dev_t)((dev_t)iso_read_bb(pn->data.PN.high, 4, NULL) <<
+                               high_shift);
+    }
+
+/* <<< was originally:
     st->st_rdev = (dev_t)((dev_t)iso_read_bb(pn->data.PN.high, 4, NULL) << 32)
                   | (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
+*/
+
     return ISO_SUCCESS;
 }
 
