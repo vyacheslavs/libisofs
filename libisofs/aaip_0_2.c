@@ -2059,8 +2059,14 @@ ex:;
 #include "aaip-os-freebsd.c"
 
 #else
+#ifdef __linux
 
 #include "aaip-os-linux.c"
 
-#endif
+#else
+
+#include "aaip-os-dummy.c"
+
+#endif /* ! __linux */
+#endif /* ! __FreeBSD__ */
 

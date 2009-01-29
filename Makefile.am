@@ -214,6 +214,7 @@ EXTRA_DIST = \
 	ChangeLog \
 	Roadmap \
 	doc/susp_aaip_0_2.txt \
+	libisofs/aaip-os-dummy.c \
 	libisofs/aaip-os-linux.c \
 	libisofs/aaip-os-freebsd.c
 

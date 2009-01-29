@@ -1631,7 +1631,7 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
     mode_t st_mode;
 
     st_mode = iso_node_get_permissions(node);
-    if (!(flag & 2)) { /* want to update ACL by st_mode */
+    if (!(flag & 2)) { /* want not to update ACL by st_mode */
 
         /* >>> validate and rectify text */;
 

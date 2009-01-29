@@ -483,7 +483,8 @@ int aaip_set_acl_text(char *path, char *text, int flag);
                        -3 error with setting ACL
                        -4 error with setting attribute
                        -5 error with deleting attributes
-
+                       -6 support of xattr not enabled at compile time
+                       -7 support of ACL not enabled at compile time
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag);
