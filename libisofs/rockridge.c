@@ -630,7 +630,7 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
 
 
 static
-int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, char aa[2], int flag)
+int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, int flag)
 {
     unsigned char *AA;
 
@@ -648,11 +648,9 @@ int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, char aa[2], int flag)
     AA[6] = 62;
     AA[7] = 1;
     memcpy(AA + 8, "AAIP_0002", 9);
-    AA[17] = aa[0];
-    AA[18] = aa[1];
-    memcpy(AA + 19,
-           " PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
-           " IN ISO 9660 IMAGES", 79);
+    memcpy(AA + 17,
+           "AA PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
+           " IN ISO 9660 IMAGES", 81);
     memcpy(AA + 98,
            "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG",
            62);
@@ -1799,7 +1797,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     
 #endif /* ! Libisofs_with_aaip_dummY */
 
-                ret = aaip_add_ER(t, info, "AA", 0);
+                ret = aaip_add_ER(t, info, 0);
                 if (ret < 0) {
                     goto add_susp_cleanup;
                 }

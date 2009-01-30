@@ -18,7 +18,6 @@
 /* --------------------------------- Encoder ---------------------------- */
 
 /* Convert an array of Arbitrary Attributes into a series of AAIP fields.
-   @param aa_name       The 2 byte SUSP Signature Word of the fields
    @param num_attrs     Number of attributes
    @param names         Array of pointers to 0 terminated name strings
    @param value_lengths Array of byte lengths for each value
@@ -32,7 +31,7 @@
    @return              >0 is the number of SUSP fields generated,
                         0 means error 
 */
-size_t aaip_encode(char aa_name[2], size_t num_attrs, char **names,
+size_t aaip_encode(size_t num_attrs, char **names,
                    size_t *value_lengths, char **values, 
                    size_t *result_len, unsigned char **result, int flag);
 
@@ -216,17 +215,6 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 size_t aaip_count_bytes(unsigned char *data, int flag);
 
 
-/* Set the Signature Words of all fields in the AA string to the given
-   two byte values.
-   @param aa_name       The Signature Word to be set (advised is "AA").
-   @param data          An arbitrary number of bytes beginning with the
-                        complete chain of AA fields. Trailing trash is ignored.
-   @param flag          Unused yet. Submit 0.
-   @return              1 means succes, <=0 means error
-*/
-int aaip_set_signature(char aa_name[2], unsigned char *data, int flag);
-
-
 /* The AAIP decoder context.
 */
 struct aaip_state;
@@ -241,12 +229,11 @@ size_t aaip_sizeof_aaip_state(void);
    This has to be done before the first AA field of a node is processed.
    The caller has to provide the storage of the struct aaip_state.
    @param aaip          The AAIP decoder context to be initialized
-   @param aa_name       The Signature Word (advised is "AA")
    @param flag          Bitfield for control purposes
                         submit 0
    @return <=0 error , >0 ok
 */
-int aaip_init_aaip_state(struct aaip_state *aaip, char aa_name[2], int flag);
+int aaip_init_aaip_state(struct aaip_state *aaip, int flag);
 
 
 /* -------------------------  Component Level Interface  ------------------- */
@@ -383,7 +370,6 @@ unsigned int aaip_get_pairs_skipped(struct aaip_state *aaip, int flag);
                         *handle == NULL. This handle has to be the same as long
                         as decoding goes on and finally has to be freed by a
                         call with bit15.
-   @param aa_name       The Signature Word (advised is "AA")
    @param memory_limit  Maximum number of bytes to allocate
    @param num_attr_limit  Maximum number of name-value pairs to allocate
    @param data          The raw data to decode
@@ -399,7 +385,7 @@ unsigned int aaip_get_pairs_skipped(struct aaip_state *aaip, int flag);
              3 limit exceeded, not complete yet, call with bit15 and give up
              4 limit exceeded, call aaip_get_decoded_attrs() and try again
 */
-int aaip_decode_attrs(struct aaip_state **handle, char aa_name[2],
+int aaip_decode_attrs(struct aaip_state **handle,
                       size_t memory_limit, size_t num_attr_limit,
                       unsigned char *data, size_t num_data, size_t *consumed, 
                       int flag);

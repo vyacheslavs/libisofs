@@ -1394,7 +1394,7 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
            return ISO_AAIP_BAD_AASTRING;
         }
         /* Allow 1 million bytes of memory consumption, 100,000 attributes */
-        ret = aaip_decode_attrs(&aaip, "AA", (size_t) 1000000, (size_t) 100000,
+        ret = aaip_decode_attrs(&aaip, (size_t) 1000000, (size_t) 100000,
                                 rpt, todo, &consumed, first_round);
         rpt+= consumed;
         first_round= 0;
@@ -1449,7 +1449,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
             return ret;
         return 1;
     }
-    sret = aaip_encode("AA", num_attrs, names, value_lengths, values,
+    sret = aaip_encode(num_attrs, names, value_lengths, values,
                        &result_len, &result, 0);
     if (sret == 0)
         return ISO_OUT_OF_MEM;

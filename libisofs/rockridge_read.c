@@ -438,7 +438,7 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
 #ifdef Libisofs_with_aaiP
 
 
-int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
+int read_aaip_AA(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag)
 {
@@ -469,8 +469,8 @@ int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
 
      /* Compose new SUSP header with signature aa[], cont == 0 */
      aapt = *aa_string + *aa_len;
-     aapt[0] = aa[0];
-     aapt[1] = aa[1];
+     aapt[0] = 'A';
+     aapt[1] = 'A';
      aapt[2] = sue->len_sue[0];
      aapt[3] = 1;
      aapt[4] = 0;

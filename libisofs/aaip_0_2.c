@@ -51,7 +51,6 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
 
 
 /* Convert an array of Arbitrary Attributes into a series of AAIP fields.
-   @param aa_name       The 2 byte SUSP Signature Word of the fields
    @param num_attrs     Number of attributes
    @param names         Array of pointers to 0 terminated name strings
    @param value_lengths Array of byte lengths for each value
@@ -65,8 +64,7 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
    @return              >0 is the number of SUSP fields generated,
                         0 means error 
 */
-size_t aaip_encode(char aa_name[2],
-                   size_t num_attrs, char **names,
+size_t aaip_encode(size_t num_attrs, char **names,
                    size_t *value_lengths, char **values, 
                    size_t *result_len, unsigned char **result, int flag)
 {
@@ -107,8 +105,8 @@ size_t aaip_encode(char aa_name[2],
 
  /* write the field headers */
  for(i= 0; i < number_of_fields; i++) {
-   (*result)[i * 255 + 0]= aa_name[0];
-   (*result)[i * 255 + 1]= aa_name[1];
+   (*result)[i * 255 + 0]= 'A';
+   (*result)[i * 255 + 1]= 'A';
    if(i < number_of_fields - 1 || (mem_size % 255) == 0)
      (*result)[i * 255 + 2]= 255;
    else 
@@ -776,7 +774,6 @@ int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag)
 struct aaip_state {
 
   /* AA field status */
-  unsigned char aa_name[2];
   int aa_head_missing; /* number of bytes needed to complete AA field header */
   int aa_missing;     /* number of bytes needed to complete current AA field */
   int aa_ends;      /* 0= still AA fields expected, 1= last AA being processed,
@@ -835,30 +832,14 @@ size_t aaip_count_bytes(unsigned char *data, int flag)
 }
 
 
-int aaip_set_signature(char aa_name[2], unsigned char *data, int flag)
-{
- int done = 0;
- unsigned char *aapt;
-
- for(aapt= data; !done; aapt += aapt[2]) {
-   done = !(aapt[4] & 1);
-   aapt[0] = aa_name[0];
-   aapt[1] = aa_name[1];
- }
- return(1);
-}
-
-
 size_t aaip_sizeof_aaip_state(void)
 {
  return((size_t) sizeof(struct aaip_state));
 }
 
 
-int aaip_init_aaip_state(struct aaip_state *aaip, char aa_name[2], int flag)
+int aaip_init_aaip_state(struct aaip_state *aaip, int flag)
 {
- aaip->aa_name[0]= aa_name[0];
- aaip->aa_name[1]= aa_name[1];
  aaip->aa_head_missing= 5;
  aaip->aa_missing= 0;
 
@@ -1152,8 +1133,7 @@ static int aaip_consume_aa_head(struct aaip_state *aaip,
  aaip->aa_head_missing-= todo;
  if(aaip->aa_head_missing == 0) {
    aaip_read_from_recs(aaip, aaip->recs_fill - 5, aa_head, 5, 0);
-   if(aa_head[0] != aaip->aa_name[0] || aa_head[1] != aaip->aa_name[1] ||
-      aa_head[3] != 1)
+   if(aa_head[0] != 'A' || aa_head[1] != 'A' || aa_head[3] != 1)
      return(-1);
    aaip->aa_missing= aa_head[2];
    aaip->aa_ends= !(aa_head[4] & 1);
@@ -1601,7 +1581,6 @@ static int aaip_enlarge_buf(struct aaip_state *aaip, size_t memory_limit,
                         *handle == NULL. This handle has to be the same as long
                         as decoding goes on and finally has to be freed by a
                         call with bit15.
-   @param aa_name       The Signature Word (advised is "AA")
    @param memory_limit  Maximum number of bytes to allocate
    @param num_attr_limit  Maximum number of name-value pairs to allocate
    @param data          The raw data to decode
@@ -1623,7 +1602,7 @@ static int aaip_enlarge_buf(struct aaip_state *aaip, size_t memory_limit,
                enlarge memory_limit or call with bit15 and give up
              4 limit exceeded, call aaip_get_decoded_attrs() and try again
 */
-int aaip_decode_attrs(struct aaip_state **handle, char aa_name[2],
+int aaip_decode_attrs(struct aaip_state **handle,
                       size_t memory_limit, size_t num_attr_limit,
                       unsigned char *data, size_t num_data, size_t *consumed, 
                       int flag)
@@ -1656,7 +1635,7 @@ int aaip_decode_attrs(struct aaip_state **handle, char aa_name[2],
    aaip= *handle= calloc(1, sizeof(struct aaip_state));
    if(*handle == NULL)
      return(-1);
-   aaip_init_aaip_state(*handle, aa_name, 0);
+   aaip_init_aaip_state(*handle, 0);
  }
  if(aaip->list_names == NULL || aaip->list_values == NULL ||
     aaip->list_value_lengths == NULL) {

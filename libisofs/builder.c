@@ -194,10 +194,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             1 | (image->builder_ignore_acl << 1) |
                 (image->builder_ignore_ea << 2 ));
     if (ret == 1 && aa_string != NULL) {
-
-        /* >>> change field signatures to eventual libisofs non-"AA" setting */;
-          /* (for now everything is "AA" anyway) */
-
         ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
         if (ret < 0)
             return ret;

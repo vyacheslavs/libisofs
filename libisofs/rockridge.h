@@ -288,9 +288,6 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 /**
  * Collects the AA field string from single AA fields.
  * (see doc/susp_aaip_0_2.txt)
- * @param aa          Signature of fields for inner representation. It will
- *                    replace the signature of of the submitted SUSP field.
- *                    Advised is "AA".
  * @param aa_string   Storage location of the emerging string.
  *                    Begin with *aa_string == NULL, or own malloc() storage.
  * @param aa_size     Current allocated size of aa_string.
@@ -304,15 +301,22 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
  *                    Begin with *is_done == 0
  * @param flag        Unused yet. Submit 0.
  */
-int read_aaip_AA(struct susp_sys_user_entry *sue, char aa[2],
+int read_aaip_AA(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag);
+
+#ifdef NIX
+
+/* <<< is now in libisofs.h */
 
 /**
  * Function to identify and manage AA strings as xinfo of IsoNode
  * See libisofs.h iso_node_xinfo_func
  */
 int aaip_xinfo_func(void *data, int flag);
+
+#endif /* NIX */
+
 
 #endif /* Libisofs_with_aaiP */
 

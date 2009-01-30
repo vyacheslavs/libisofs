@@ -977,7 +977,6 @@ int ifs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
         if (*aa_string == NULL)
             return ISO_OUT_OF_MEM;
         memcpy(*aa_string, data->aa_string, len);
-        aaip_set_signature("AA", *aa_string, 0); /* libisofs.h demands so */
     }
     return 1;
 }
@@ -1339,7 +1338,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
             } else if (SUSP_SIG(sue, 'A', 'A') && fsdata->aaip_load == 1) {
 
-                ret = read_aaip_AA(sue, "AA", &aa_string, &aa_size, &aa_len,
+                ret = read_aaip_AA(sue, &aa_string, &aa_size, &aa_len,
                                    &prev_field, &aa_done, 0);
                 if (ret < 0) {
                     /* notify and continue */
@@ -2584,10 +2583,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* obtain ownership of eventual AA string */
     ret = iso_file_source_get_aa_string(src, &aa_string, 1);
     if (ret == 1 && aa_string != NULL) {
-
-        /* >>> change field signatures to eventual libisofs non-"AA" setting */;
-          /* (for now everything is "AA" anyway) */
-
         ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
         if (ret < 0)
             return ret;

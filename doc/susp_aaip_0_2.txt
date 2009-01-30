@@ -3,7 +3,7 @@
                  Arbitrary Attribute Interchange Protocol
 
                              Draft version 0.2
-                                Jan 26 2008
+                                Jan 30 2008
 
                 Interchange of Persistent File Attributes
 
@@ -19,24 +19,23 @@ Goal is to have for each file an arbitrary number of attributes which consist
 of two components (Name and Value) of arbitrary length and to have a compact
 representation of ACLs.
 
-This document describes a SUSP entry with adjustable name (Signature Word).
-The name is defined in an ER entry of which the content form is described here.
-Recommended is to use the name "AA" which collides neither with SUSP 1.12 nor
-with RRIP 1.12.
-The entry has been designed to be as similar to the RRIP entry SL as possible.
+This document describes a SUSP entry with Signature Word "AA" which collides
+neither with SUSP 1.12 nor with RRIP 1.12. The AA entry has been designed
+to be as similar to the RRIP entry SL as possible.
+The presence of AAIP shall be announced by a particular ER entry.
 
 Since the size of a SUSP entry is limited to 255, multiple entries may be
 needed to describe one component. The CE mechanism of SUSP shall be used to
 address enough storage if needed.
 
-The SUSP entry and the ER entry of AAIP shall only be present if the ER entry
+The AA entry and the ER entry of AAIP shall only be present if the ER entry
 of RRIP is present.
 
 -------------------------------------------------------------------------------
 
 System Entries Provided by this Specification
 
-* AA (or another name which does not disturb other co-existing SUSP protocols)
+* AA
 
 Description of the "AA" System Use Entry
 
@@ -52,13 +51,12 @@ ALCs. The meaning of any other name is not specified by this document.
 All AA entries except the last one shall have the CONTINUE flag set. An AA
 entry with CONTINUE set to 0 indicates the end of the Attribute List.
 
-The format of the "AA" System Use Field is as follows:
+The format of the AA System Use Field is as follows:
 
-  [1] "BP 1 to BP 2 - Signature Word" shall be (41)(41) ("AA") resp. the word
-      that is defined in the ER entry. See below.
+  [1] "BP 1 to BP 2 - Signature Word" shall be (41)(41) ("AA").
 
   [2] "BP 3 - Length" shall specify as an 8-bit number the length in bytes of
-      the "AA" entry recorded according to ISO 9660:7.1.1.
+      the AA entry recorded according to ISO 9660:7.1.1.
 
   [3] "BP 4 - System Use Entry Version" shall be 1 as in ISO 9660:7.1.1.
 
@@ -73,7 +71,7 @@ The format of the "AA" System Use Field is as follows:
   | 'A' | 'A' | LENGTH | 1 | FLAGS | COMPONENT AREA |
   
 
-Within "AA" entries each component (Name or Value) shall be recorded as one
+Within AA entries each component (Name or Value) shall be recorded as one
 or more component records. If a component does not fit into the remaining
 space of an AA entry then it shall be continued in following AA entries.
 
@@ -90,8 +88,8 @@ In case of discrepancies, RRIP 1.12 is the decisive specification.
 
 Component Records shall be recorded contiguously within each Component Area,
 starting in the first byte of the Component Area. The last Component Record
-in the Component Area of an "AA" System Use Entry may be continued in the
-Component Area of the next recorded "AA" System Use Entry in the same
+in the Component Area of an AA System Use Entry may be continued in the
+Component Area of the next recorded AA System Use Entry in the same
 System Use Area.
 
 Each Component Record shall have the following format:
@@ -100,17 +98,7 @@ Each Component Record shall have the following format:
       starting with the least significant bit, as follows:
         0   CONTINUE  This Component Record continues in the next
                       AA Component Record.
-      The following bits are defined but may not be set if the Component
-      Record shall carry payload. (Their use case is unclear yet.)
-        1   CURRENT   This Component Record refers to the current
-                      directory.
-        2   PARENT    This Component Record refers to the parent of
-                      the current directory.
-        3   ROOT      This Component Record refers to root directory.
-
         all others are RESERVED and shall be 0.
-
-      No more than one of "AA" Component Flag Bits 0-3 shall be set to ONE.
 
   [B] "BP 2 - Component Length (LEN_CP)" shall specify as an 8-bit number the
       number of component bytes in the Component Record. This length shall not
@@ -281,7 +269,7 @@ Example: User id number 1001 gets associated with user name "lisa"
 Specification of the ER System Use Entry Values for AAIP:
 
 This ER system entry shall only be present if the ER entry of RRIP is present.
-To be compliant with SUSP-1.12, this ER entry must be present if AAIP entries
+To be compliant with SUSP-1.12, this ER entry must be present if AA entries
 are present, and ES entries have to mark RRIP and AAIP entries.
 If for some reason compliance with SUSP-1.10 is intended, then this ER entry
 and the ES entries must not be present, although SUSP-1.10 would allow ER.
@@ -293,7 +281,6 @@ The Extension Identifier field shall be "AAIP_0002" with Identifier Length 9.
 
 The mandatory content form of the Extension Descriptor is 
 "AA PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES IN ISO 9660 IMAGES"
-with possibly two letters other than "AA" at the start of the string.
 The Description Length is 81.
 
 The reader of AAIP shall take the actual name of the AA entry from BP 19 and
@@ -325,9 +312,9 @@ It also prescribes that in the case that ER entries of RRIP and AAIP are
 present, then ES entries shall be used to separate RRIP entries from AAIP
 entries.
 
-SUSP-1.10 does not specify ES entires at all and allows to have extension
-entries without announcing them by a ER entry. So if a second ER entry is
-not bearable, then the SUSP-1.10 downgrade of of AAIP allows to omit the
+SUSP-1.10 does not specify ES entries at all and allows to have extension
+entries without announcing them by an ER entry. So if a second ER entry is
+not bearable, then the SUSP-1.10 downgrade of AAIP allows to omit the
 AAIP ER and the ES entries. But if there is the AAIP ER then there must be ES
 at the appropriate places.
 
@@ -366,11 +353,6 @@ RRIP 1.12 ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
 
 -------------------------------------------------------------------------------
 Pending considerations:
-
-- shall "AA" be fixely defined as signature ?
-
-- shall an "ER" be issued at all ? (SUSP 1.10 would allow to omit)
-  >>> mention ES because of SUSP 1.12
 
 - shall the tag types ACL_USER and ACL_GROUP with non-numeric qualifier be
   revoked ?

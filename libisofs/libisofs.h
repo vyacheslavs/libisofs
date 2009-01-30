@@ -702,7 +702,6 @@ struct IsoFileSource_Iface
      *                   bit2= No need to get EA (no guarantee of exclusion)
      * @param aa_string  Returns a pointer to the AA string data. If no AA
      *                   string is available, *aa_string becomes NULL.
-     *                   Field signature will be "AA".
      *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
      *                    libisofs/aaip_0_2.h for encoding and decoding.)
      *                   The caller is responsible for finally calling free()
@@ -3757,7 +3756,6 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  * @param src        The file source object to be inquired.
  * @param aa_string  Returns a pointer to the AA string data. If no AA
  *                   string is available, *aa_string becomes NULL.
- *                   Field signature will be "AA".
  *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
  *                    libisofs/aaip_0_2.h for encoding and decoding.)
  *                   The caller is responsible for finally calling free()
