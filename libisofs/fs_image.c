@@ -2010,12 +2010,12 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
                 data->aaip_version = 2;
                 if (!data->aaip_load)
-                    iso_msg_submit(data->msgid, ISO_DATA_AAIP_IGNORED, 0,
+                    iso_msg_submit(data->msgid, ISO_AAIP_IGNORED, 0,
        "Identifier for extension AAIP 0.2 found, but loading is not enabled.");
 
 #else /* Libisofs_with_aaiP */
 
-                iso_msg_submit(data->msgid, ISO_DATA_AAIP_IGNORED, 0,
+                iso_msg_submit(data->msgid, ISO_AAIP_IGNORED, 0,
                 "Identifier for future extension AAIP 0.2 found and ignored.");
 
 #endif /* ! Libisofs_with_aaiP */

@@ -297,7 +297,7 @@ int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag)
     /* If the node has ACL info : update ACL */
     ret = 1;
     if (!(flag & 1))
-        ret = iso_node_set_acl_text(node, "", 2);
+        ret = iso_node_set_acl_text(node, "", "", 2);
 
     return ret;
 #endif
@@ -1390,11 +1390,8 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
         if (todo > 2048)
             todo = 2048;
         if (todo == 0) {
-
-           /* >>> Out of data while still prompted to submit */;
-
-           /* >>> invent better error code */
-           return ISO_ERROR;
+           /* Out of data while still prompted to submit */
+           return ISO_AAIP_BAD_AASTRING;
         }
         /* Allow 1 million bytes of memory consumption, 100,000 attributes */
         ret = aaip_decode_attrs(&aaip, "AA", (size_t) 1000000, (size_t) 100000,
@@ -1406,27 +1403,20 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
         if (ret == 2)
              break;
 
-         /* >>> "aaip_decode_attrs() reports error */;
-
-         /* >>> invent better error code */
-         return ISO_ERROR;
+         /* aaip_decode_attrs() reports error */
+         return ISO_AAIP_BAD_AASTRING;
     }
 
     if(rpt - aa_string != len) {
-
-         /* >>>  "aaip_decode_attrs() returns 2 but still bytes are left" */
-
-         /* >>> invent better error code */
-         return ISO_ERROR;
+         /* aaip_decode_attrs() returns 2 but still bytes are left */
+         return ISO_AAIP_BAD_AASTRING;
     }
 
     ret = aaip_get_decoded_attrs(&aaip, num_attrs, names,
                                  value_lengths, values, 0);
     if(ret != 1) {
-
-         /* >>> aaip_get_decoded_attrs() failed */;
-
-         return ISO_OUT_OF_MEM;
+         /* aaip_get_decoded_attrs() failed */
+         return ISO_AAIP_BAD_AASTRING;
     }
 
 #else /* Libisofs_with_aaiP */
@@ -1480,9 +1470,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
 
 #else /* Libisofs_with_aaiP */
 
-    /* >>> no support for attributes */
-
-    return ISO_ERROR;
+    return ISO_AAIP_NOT_ENABLED;
 
 #endif /* ! Libisofs_with_aaiP */
 
@@ -1520,8 +1508,9 @@ int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
 #endif /* ! Libisofs_with_aaiP */
 
 
-/* ts A90116 */
-int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
+/* ts A90130 */
+int iso_node_get_acl_text(IsoNode *node,
+                          char **access_text, char **default_text, int flag)
 {
 
 #ifdef Libisofs_with_aaiP
@@ -1534,13 +1523,16 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
     mode_t st_mode;
 
     if (flag & (1 << 15)) {
-        if (*text != NULL)
-            free(*text);
-        *text = NULL;
+        if (*access_text != NULL)
+            free(*access_text);
+        *access_text = NULL;
+        if (*default_text != NULL)
+            free(*default_text);
+        *default_text = NULL;
         return 1;
     }
 
-    *text = NULL;
+    *access_text = *default_text = NULL;
 
     ret = iso_node_get_attrs(node, &num_attrs, &names,
                              &value_lengths, &values, 0);
@@ -1554,39 +1546,33 @@ int iso_node_get_acl_text(IsoNode *node, char **text, int flag)
         v_data = (unsigned char *) values[i];
         v_len = value_lengths[i];
 
-        if (flag & 1) {
-            /* Skip "access" ACL and address "default" ACL instead */
-            ret = aaip_decode_acl(v_data, v_len,
-                                  &consumed, NULL, (size_t) 0, &text_fill, 1);
-            if (ret <= 0)
-                goto bad_decode;
-            if (ret != 2) {
-                ret = 0;
-                goto ex;
-            }
+        /* "access" ACL  */
+        ret = iso_decode_acl(v_data, v_len,
+                             &consumed, access_text, &text_fill, 0);
+        if (ret <= 0)
+            goto bad_decode;
+        if (ret == 2) {
             v_data += consumed;
             v_len -= consumed;
+            ret = iso_decode_acl(v_data, v_len,
+                                 &consumed, default_text, &text_fill, 0);
+            if (ret == 0)
+                goto bad_decode;
         }
-        
-        ret = iso_decode_acl(v_data, v_len, &consumed, text, &text_fill, 0);
-        if (ret == 0)
-            goto bad_decode;
-        if (ret < 0)
-            goto ex;
         break;
     }
     
-    if (*text == NULL && !(flag & 16)) {
+    if (*access_text == NULL && !(flag & 16)) {
         from_posix = 1;
-        *text = calloc(42, 1); /* 42 for aaip_update_acl_st_mode */
+        *access_text = calloc(42, 1); /* 42 for aaip_update_acl_st_mode */
     }
-    if (*text != NULL) {
+    if (*access_text != NULL) {
         st_mode = iso_node_get_permissions(node);
-        aaip_add_acl_st_mode(*text, st_mode, 0);
-        text_fill = strlen(*text);
+        aaip_add_acl_st_mode(*access_text, st_mode, 0);
+        text_fill = strlen(*access_text);
     }
 
-    if (text == NULL)
+    if (*access_text == NULL && *default_text == NULL)
         ret = 0;
     else
         ret = 1 + from_posix;
@@ -1596,25 +1582,22 @@ ex:;
     return ret;
 
 bad_decode:;
-
-    /* >>> something is wrong with the attribute value */;
-
-    /* >>> invent better error code */
-    ret = ISO_ERROR;
+    ret = ISO_AAIP_BAD_ACL;
     goto ex;
 
 #else /* Libisofs_with_aaiP */
 
-    *text = NULL;
-    return 0;
+    *access_text = *default_text = NULL;
+    return ISO_AAIP_NOT_ENABLED;
 
 #endif /* ! Libisofs_with_aaiP */
 
 }
 
 
-/* ts A90119 */
-int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
+/* ts A90130 */
+int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
+                          int flag)
 {
 
 #ifdef Libisofs_with_aaiP
@@ -1625,7 +1608,6 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
     char **names = NULL, **values = NULL, *a_text = NULL, *d_text = NULL;
     char **new_names, **new_values;
     size_t *new_value_lengths;
-    char **tpt;
     unsigned char *v_data, *acl= NULL;
     int ret;
     mode_t st_mode;
@@ -1647,57 +1629,45 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
             continue;
         v_data = (unsigned char *) values[i];
         v_len = value_lengths[i];
-        /* "access" ACL */;
-        ret = iso_decode_acl(v_data, v_len, &consumed, &a_text, &a_text_fill,
-                             0);
-        if (ret == 0)
-            goto bad_decode;
-        if (ret < 0)
-            goto ex;
-        if (ret == 2) {
-            /* "default" ACL */;
-            v_data += consumed;
-            v_len -= consumed;
-            ret = iso_decode_acl(v_data, v_len, &consumed, &d_text,
-                                 &d_text_fill, 0);
+        if (flag & 2) { /* update "access" ACL by st_mode */
+            /* read "access" ACL */
+            ret = iso_decode_acl(v_data, v_len, &consumed,
+                                 &a_text, &a_text_fill, 0);
             if (ret == 0)
                 goto bad_decode;
             if (ret < 0)
                 goto ex;
-        }
-
-        if (flag & 2) {
+            if (ret == 2) {
+                /* read "default" ACL */
+                v_data += consumed;
+                v_len -= consumed;
+                ret = iso_decode_acl(v_data, v_len, &consumed, &d_text,
+                                     &d_text_fill, 0);
+                if (ret == 0)
+                    goto bad_decode;
+                if (ret < 0)
+                    goto ex;
+            }
             /* Update "access" ACL by st_mode */
             if (a_text == NULL) {
                 ret = 1;
                 goto ex;
             }
             ret = aaip_cleanout_st_mode(a_text, &st_mode,  8);
-            if (ret < 0)
-                goto bad_decode;
-        } else {
-            if (flag & 1)
-                tpt = &d_text;
-            else
-                tpt = &a_text;
-            if (*tpt != NULL) {
-                free(*tpt);
-                *tpt = NULL;
+            if (ret < 0) {
+                ret = ISO_AAIP_BAD_ACL_TEXT;
+                goto ex;
             }
-            if (acl_text != NULL) {
-                *tpt = calloc(strlen(acl_text) + 1, 1);
-                if (*tpt == NULL) {
-                    ret = ISO_OUT_OF_MEM;
-                    goto ex;
-                }
-                memcpy(*tpt, acl_text, strlen(acl_text));
-            }
-        }
-        if (a_text != NULL || d_text != NULL)
-            ret = aaip_encode_both_acl(a_text, d_text, st_mode, &acl_len, &acl,
-                                       2 | 8);
-        else
             ret = 1;
+            if (a_text != NULL || d_text != NULL)
+                ret = aaip_encode_both_acl(a_text, d_text, st_mode,
+                                           &acl_len, &acl, 2 | 8);
+        } else {
+            ret = 1;
+            if (access_text != NULL || default_text != NULL)
+                ret = aaip_encode_both_acl(access_text, default_text, st_mode,
+                                           &acl_len, &acl, 2 | 8);
+        }
         if (ret <= 0) {
             ret = ISO_OUT_OF_MEM;
             goto ex;
@@ -1728,22 +1698,15 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
     }
 
     /* There is no ACL yet */
-    if ((flag & 2) || acl_text == NULL) {
+    if ((flag & 2) || (access_text == NULL && default_text == NULL)) {
         /* thus no need to update ACL by st_mode or to delete ACL */
         ret = 1;
         goto ex;
     }
-    if (flag & 1)
-        ret = aaip_encode_both_acl(NULL, acl_text,
-                                   st_mode, &acl_len, &acl, 2 | 8);
-    else
-        ret = aaip_encode_both_acl(acl_text, NULL,
-                                   st_mode, &acl_len, &acl, 2 | 8);
+    ret = aaip_encode_both_acl(access_text, default_text,
+                               st_mode, &acl_len, &acl, 2 | 8);
     if (ret <= 0) {
-
-        /* >>> cannot encode */;
-
-        ret = ISO_ERROR;
+        ret = ISO_AAIP_BAD_ACL_TEXT;
         goto ex;
     }
 
@@ -1785,12 +1748,14 @@ int iso_node_set_acl_text(IsoNode *node, char *acl_text, int flag)
         goto ex;
 
 update_perms:;
-    if(acl_text != NULL && !(flag & (1 | 2))) {
+    if(access_text != NULL && !(flag & (1 | 2))) {
         /* Update node permissions by acl_text */
         st_mode = iso_node_get_permissions(node);
-        ret = aaip_cleanout_st_mode(acl_text, &st_mode, 4);
-        if (ret < 0)
-            goto bad_decode;
+        ret = aaip_cleanout_st_mode(access_text, &st_mode, 4);
+        if (ret < 0) {
+            ret = ISO_AAIP_BAD_ACL_TEXT;
+            goto ex;
+        }
         iso_node_set_perms_internal(node, st_mode, 1);
     }
 
@@ -1807,22 +1772,14 @@ ex:;
     return ret;
 
 bad_decode:;
-
-    /* >>> something is wrong with the attribute value */;
-
-    /* >>> invent better error code */
-    ret = ISO_ERROR;
+    ret = ISO_AAIP_BAD_ACL;
     goto ex;
 
 #else /* Libisofs_with_aaiP */
 
-    if (acl_text != NULL) {
-
-       /* >>> No ACL enabled in program code */;
-
-       return(0);
-    }
-    return (1);
+    if (access_text != NULL || default_text != NULL)
+        return ISO_AAIP_NOT_ENABLED;
+    return 1;
 
 #endif /* ! Libisofs_with_aaiP */
 

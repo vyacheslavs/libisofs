@@ -210,6 +210,10 @@ const char *iso_error_to_msg(int errcode)
     case ISO_DATA_SOURCE_FAILURE:
     case ISO_DATA_SOURCE_FATAL:
         return "Read error occured with IsoDataSource";
+    case ISO_AAIP_IGNORED:
+        return "AAIP info is present in ISO image but will be ignored";
+    case ISO_AAIP_BAD_ACL:
+        return "Error with decoding ACL from AAIP info";
     default:
         return "Unknown error";
     }

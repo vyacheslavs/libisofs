@@ -416,8 +416,8 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
     }
 
     /* ts A90129 */
-    /* (dev_t << 32) causes compiler warnings on FreeBSD.
-       RRIP 1.10 4.1.2 prescribes PN "Dev_t High" to be 0 on 32 bit dev_t.
+    /* (dev_t << 32) causes compiler warnings on FreeBSD
+        because sizeof(dev_t) is 4.
     */
     st->st_rdev = (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
     if (sizeof(st->st_rdev) > 4) {

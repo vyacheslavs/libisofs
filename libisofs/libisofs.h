@@ -4207,7 +4207,23 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 /* ts A90121 */
 /** AAIP info is present in ISO image but will be ignored (NOTE, HIGH, -336) */
-#define ISO_DATA_AAIP_IGNORED     0xB030FEB1
+#define ISO_AAIP_IGNORED          0xB030FEB0
+
+/* ts A90130 */
+/** Error with decoding ACL from AAIP info (FAILURE, HIGH, -337) */
+#define ISO_AAIP_BAD_ACL          0xE830FEAF
+
+/* ts A90130 */
+/** Error with encoding ACL for AAIP (FAILURE, HIGH, -338) */
+#define ISO_AAIP_BAD_ACL_TEXT     0xE830FEAE
+
+/* ts A90130 */
+/** No AAIP processing enabled at compile time (FAILURE, HIGH, -339) */
+#define ISO_AAIP_NOT_ENABLED      0xE830FEAD
+
+/* ts A90130 */
+/** Error with decoding attribute list AAIP info (FAILURE, HIGH, -340) */
+#define ISO_AAIP_BAD_AASTRING     0xE830FEAC
 
 
 /* --------------------------------- AAIP --------------------------------- */
@@ -4239,64 +4255,72 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 int aaip_xinfo_func(void *data, int flag);
 
 
-/* ts A90116 */
+/* ts A90130 */
 /**
- * Get an eventual ACL which is associated with the node.
+ * Get the eventual ACLs which are associated with the node.
  * The result will be in "long" text form as of man acl resp. acl_to_text().
  *
  * @param node
  *      The node that is to be inquired.
- * @param text
- *      Will return a pointer to the eventual ACL text or NULL if the desired
- *      ACL is not available. Call this funtion with flag bit15 to finally
- *      release the memory occupied an ACL inquiry.
+ * @param access_text
+ *      Will return a pointer to the eventual "access" ACL text or NULL if it
+ *      is not available and flag bit 4 is set.
+ *      Call this function with flag bit15 to finally release the memory
+ *      occupied by an ACL inquiry.
+ * @param default_text
+ *      Will return a pointer to the eventual "default" ACL  or NULL if it
+ *      is not available.
+ *      (Linux directories can have a "default" ACL which influences
+ *       the permissions of newly created files.)
  * @param flag
  *      Bitfield for control purposes
- *      bit0=  obtain "default" ACL rather than "access" ACL
- *             (Linux directories can have a "default" ACL which influences
- *              the permissions of newly created files.)
- *      bit4=  if no ACL is available: return *text == NULL
- *             else:                   produce ACL from POSIX permissions
+ *      bit4=  if no "access" ACL is available: return *access_text == NULL
+ *             else:                       produce ACL from stat(2) permissions
  *      bit15= free memory and return 1
  * @return
- *      2 ACL produced from POSIX permissions
- *      1 ACL was read from node
- *      0 if the desired ACL type is not available
+ *      2 *access_text was produced from stat(2) permissions
+ *      1 *access_text was produced from ACL of node
+ *      0 if flag bit4 is set and no ACL is available
  *      < 0 on error
  *
  * @since 0.6.14
  */
-int iso_node_get_acl_text(IsoNode *node, char **text, int flag);
+int iso_node_get_acl_text(IsoNode *node,
+                          char **access_text, char **default_text, int flag);
 
 
-/* ts A90119 */
+/* ts A90130 */
 /**
- * Set the ACL of the given node to the list in parameter text or delete it.
+ * Set the ACLs of the given node to the lists in parameters access_text and
+ * default_text or delete them.
  *
- * The POSIX permission bits get updated according to the new ACL if neither
- * bit0 nor bit1 of parameter flag are set nor parameter text is NULL.
+ * The POSIX permission bits get updated according to the new "access" ACL if
+ * neither bit1 of parameter flag is set nor parameter access_text is NULL.
  * Note that S_IRWXG permission bits correspond to ACL mask permissions
  * if a "mask::" entry exists in the ACL. Only if there is no "mask::" then
  * the "group::" entry corresponds to to S_IRWXG.
  * 
  * @param node
  *      The node that is to be manipulated.
- * @param text
- *      The ACL text to be set into effect. NULL will delete an eventually
- *      existing ACL of the node.
+ * @param access_text
+ *      The text to be set into effect as "access" ACL. NULL will delete an
+ *      eventually existing "access" ACL of the node.
+ * @param default_text
+ *      The text to be set into effect as "default" ACL. NULL will delete an
+ *      eventually existing "default" ACL of the node.
+ *      (Linux directories can have a "default" ACL which influences
+ *       the permissions of newly created files.)
  * @param flag
  *      Bitfield for control purposes
- *      bit0=  set "default" ACL rather than "access" ACL
- *             (Linux directories can have a "default" ACL which influences
- *              the permissions of newly created files.)
- *      bit1=  ignore text but rather update eventual "access" ACL to the POSIX
- *             permissions of node. If no ACL exists, then do nothing and
- *             return success.
+ *      bit1=  ignore text parameters but rather update eventual "access" ACL
+ *             to the stat(2) permissions of node. If no "access" ACL exists,
+ *             then do nothing and return success.
  * @return
  *      > 0 success
  *      < 0 failure
  */
-int iso_node_set_acl_text(IsoNode *node, char *text, int flag);
+int iso_node_set_acl_text(IsoNode *node,
+                          char *access_text, char *default_text, int flag);
 
 
 /* -------- This is an interface to the ACL of the local filesystem -------- */
