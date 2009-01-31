@@ -28,7 +28,7 @@ Since the size of a SUSP entry is limited to 255, multiple entries may be
 needed to describe one component. The CE mechanism of SUSP shall be used to
 address enough storage if needed.
 
-The AA entry and the ER entry of AAIP shall only be present if the ER entry
+AA entries and the ER entry of AAIP shall only be present if the ER entry
 of RRIP is present.
 
 -------------------------------------------------------------------------------
@@ -84,7 +84,8 @@ component.
 
 The Component Record format is identical to the one of the SL entry.
 The complete form of the following summary can be found in RRIP 1.12 "4.1.3.1".
-In case of discrepancies, RRIP 1.12 is the decisive specification.
+In case of discrepancies, RRIP 1.12 is the decisive specification. Please
+inform the author of this document if you find such a discrepancy.
 
 Component Records shall be recorded contiguously within each Component Area,
 starting in the first byte of the Component Area. The last Component Record
@@ -261,7 +262,7 @@ The Qualifier Bytes of a TRANSLATE entry shall have the following format:
 
 Example: User id number 1001 gets associated with user name "lisa"
 
-               0x08,   13,   0,   233,3,0,0,   0,0,3,233, 'l', 'i', 's', 'a',
+               0x08,   13,   0,   233,3,0,0,   0,0,3,233,  'l', 'i', 's', 'a',
 
 
 -------------------------------------------------------------------------------
@@ -282,9 +283,6 @@ The Extension Identifier field shall be "AAIP_0002" with Identifier Length 9.
 The mandatory content form of the Extension Descriptor is 
 "AA PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES IN ISO 9660 IMAGES"
 The Description Length is 81.
-
-The reader of AAIP shall take the actual name of the AA entry from BP 19 and
-BP 20 of the ER entry.
 
 The recommended content of the Extension Source is
 "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG".
@@ -311,12 +309,14 @@ According to SUSP-1.12 the ER entry is mandatory for a conformant extension.
 It also prescribes that in the case that ER entries of RRIP and AAIP are 
 present, then ES entries shall be used to separate RRIP entries from AAIP
 entries.
+SUSP-1.12 frowns on extensions which are not announced by ER. Nevertheless
+is does not totally outrule them.
 
 SUSP-1.10 does not specify ES entries at all and allows to have extension
 entries without announcing them by an ER entry. So if a second ER entry is
 not bearable, then the SUSP-1.10 downgrade of AAIP allows to omit the
 AAIP ER and the ES entries. But if there is the AAIP ER then there must be ES
-at the appropriate places.
+at the appropriate places. Else the format would explicitely violate SUSP-1.12.
 
 -------------------------------------------------------------------------------
 
