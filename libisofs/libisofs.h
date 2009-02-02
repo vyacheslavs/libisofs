@@ -4372,6 +4372,7 @@ int iso_node_set_acl_text(IsoNode *node,
  * @param flag
  *      Bitfield for control purposes
  *      bit0=  obtain eventual ACLs as attribute with empty name
+ *      bit2=  with bit0: do not obtain attributes other than ACLs
  *      bit15= free memory
  * @return
  *      1 = ok (but *num_attrs may be 0)

@@ -1353,6 +1353,7 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
 
 
 /* ts A90202 */
+/* @param flag    bit0= inverse: cleanout everything but del_name
 static
 int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag)
@@ -1360,7 +1361,7 @@ int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
     size_t i, w;
 
     for (w = i = 0; i < *num_attrs; i++) {
-        if (strcmp(names[i], del_name) == 0)
+        if ((strcmp(names[i], del_name) == 0) ^ (flag & 1))
             continue;
         if (w == i) {
             w++;
@@ -1441,8 +1442,9 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
          return ISO_AAIP_BAD_AASTRING;
     }
     if (!(flag & 1)) {
-        /* Clean out eventual ACL attribute */
-        attrs_cleanout_name("", num_attrs, *names, *value_lengths, *values, 0);
+        /* Clean out eventual ACL attribute resp. all other xattr */
+        attrs_cleanout_name("", num_attrs, *names, *value_lengths, *values,
+                            !!(flag & 4));
     }
 
 
