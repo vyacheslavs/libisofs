@@ -1354,6 +1354,7 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
 
 /* ts A90202 */
 /* @param flag    bit0= inverse: cleanout everything but del_name
+*/
 static
 int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag)
