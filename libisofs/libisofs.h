@@ -686,12 +686,12 @@ struct IsoFileSource_Iface
     /* ts A90114 */
     /**
      * Valid only if .version is > 0. See above.
-     * Get the AA string with encoded ACL and/or XFS-style Extended Attributes.
-     * (Not to be confused with ECMA-119 Extended Attributes).
+     * Get the AA string with encoded ACL and XFS-style Extended Attributes
+     * xattr. (Not to be confused with ECMA-119 Extended Attributes).
      *
      * bit1 and bit2 of flag should be implemented so that freshly fetched
-     * info does not include the undesired ACL or EAs. Nevertheless if the
-     * aa_string is cached, then it is permissible that ACL and EA are still
+     * info does not include the undesired ACL or xattr. Nevertheless if the
+     * aa_string is cached, then it is permissible that ACL and xattr are still
      * delivered.
      *
      * @param flag       Bitfield for control purposes
@@ -699,7 +699,7 @@ struct IsoFileSource_Iface
      *                         src will free the eventual cached data and might
      *                         not be able to produce it again.
      *                   bit1= No need to get ACL (no guarantee of exclusion)
-     *                   bit2= No need to get EA (no guarantee of exclusion)
+     *                   bit2= No need to get xattr (no guarantee of exclusion)
      * @param aa_string  Returns a pointer to the AA string data. If no AA
      *                   string is available, *aa_string becomes NULL.
      *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
@@ -937,13 +937,13 @@ int iso_image_new(const char *name, IsoImage **image);
 
 /* ts A90121 */
 /**
- * Control whether ACL and XFS-style Extended Attributes will be imported from
- * external filesystems (typically the local POSIX filesystem) when new
- * nodes get inserted. If enabled by iso_write_opts_set_aaip() they will later
- * be written into the image as AAIP extension fields.
+ * Control whether ACL and XFS-style Extended Attributes xattr will be
+ * imported from external filesystems (typically the local POSIX filesystem)
+ * when new nodes get inserted. If enabled by iso_write_opts_set_aaip() they
+ * will later be written into the image as AAIP extension fields.
  *
  * A change of this setting does neither affect existing IsoNode objects
- * nor the way how ACL and EA are handled when loading an ISO image.
+ * nor the way how ACL and xattr are handled when loading an ISO image.
  * The latter is controlled by iso_read_opts_set_no_aaip().
  *
  * @param image
@@ -951,7 +951,7 @@ int iso_image_new(const char *name, IsoImage **image);
  * @param what
  *     A bit field which sets the behavior:
  *     bit0= ignore ACLs if the external file object bears some
- *     bit1= ignore EAs if the external file object bears some
+ *     bit1= ignore xattr if the external file object bears some
  *     all other bits are reserved
  *
  * @since 0.6.14
@@ -1061,7 +1061,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  *     ---> 1 [BACKUP]
  *        POSIX compatibility for backup. Simple settings, ISO level is set to
  *        3 and RR extensions are enabled. Useful for backup purposes.
- *        Note that ACL and XFS-style EA are not enabled by default.
+ *        Note that ACL and XFS-style xattr are not enabled by default.
  *        If you enable them, expect them not to show up in the mounted image.
  *        They will have to be retrieved by libisofs applications like xorriso.
  *     ---> 2 [DISTRIBUTION]
@@ -1148,8 +1148,8 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
 /* ts A90122 */
 /**
  * Control writing of AAIP informations for ACL and XFS-style Extended
- * Attributes.
- * For importing ACL and EA when inserting nodes from external filesystems
+ * Attributes xattr.
+ * For importing ACL and xattr when inserting nodes from external filesystems
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For loading of this information from images see iso_read_opts_set_no_aaip().
  *
@@ -1539,7 +1539,7 @@ int iso_image_update_sizes(IsoImage *image);
  *     ---> 0 [STANDARD]
  *         Suitable for most situations. Most extension are read. When both
  *         Joliet and RR extension are present, RR is used.
- *         AAIP for ACL and Extended Attributes is not enabled by default.
+ *         AAIP for ACL and xattr is not enabled by default.
  * @return
  *      1 success, < 0 error
  *
@@ -1587,8 +1587,8 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
 
 /**
  * Control reading of AAIP informations about ACL and XFS-style Extended
- * Attributes when loading existing images.
- * For importing ACL and EA when inserting nodes from external filesystems
+ * Attributes xattr when loading existing images.
+ * For importing ACL and xattr when inserting nodes from external filesystems
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For eventual writing of this information see iso_write_opts_set_aaip().
  *
@@ -2123,8 +2123,9 @@ typedef int (*iso_node_xinfo_func)(void *data, int flag);
 /**
  * Add extended information to the given node. Extended info allows
  * applications (and libisofs itself) to add more information to an IsoNode.
- * You can use this facilities to associate new information with a given
- * node.
+ * You can use this facilities to associate temporary information with a given
+ * node. This information is not written into the ISO 9660 image on media
+ * and thus does not persist longer than the node memory object.
  *
  * Each node keeps a list of added extended info, meaning you can add several
  * extended info data to each node. Each extended info you add is identified
@@ -3751,7 +3752,7 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
 
 
 /**
- * Get the AA string with encoded ACL and/or XFS-style Extended Attributes.
+ * Get the AA string with encoded ACL and XFS-style Extended Attributes xattr.
  * (Not to be confused with ECMA-119 Extended Attributes).
  * @param src        The file source object to be inquired.
  * @param aa_string  Returns a pointer to the AA string data. If no AA
@@ -3765,7 +3766,7 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  *                         src will free the eventual cached data and might
  *                         not be able to produce it again.
  *                   bit1= No need to get ACL (but no guarantee of exclusion)
- *                   bit2= No need to get EA (but no guarantee of exclusion)
+ *                   bit2= No need to get xattr (but no guarantee of exclusion)
  * @return           1 means success (*aa_string == NULL is possible)
  *                  <0 means failure and must b a valid libisofs error code
  *                     (e.g. ISO_FILE_ERROR if no better one can be found).
@@ -4223,10 +4224,19 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 /** Error with decoding attribute list AAIP info (FAILURE, HIGH, -340) */
 #define ISO_AAIP_BAD_AASTRING     0xE830FEAC
 
+/* ts A90131 */
+/** Error with reading ACL or xattr from local file (FAILURE, HIGH, -341) */
+#define ISO_AAIP_NO_GET_LOCAL     0xE830FEAB
+
+/* ts A90131 */
+/** Error with attaching ACL or xattr to local file (FAILURE, HIGH, -342) */
+#define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
+
+
 
 /* --------------------------------- AAIP --------------------------------- */
 
-/* ts A90112 : Enable experiments about EA and ACL
+/* ts A90112 : Enable experiments about xattr and ACL
 */
 #define Libisofs_with_aaiP yes
 
@@ -4240,13 +4250,21 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 /**
  * Function to identify and manage AA strings as xinfo of IsoNode.
  *
- * An AA string contains all EA (aka xattr) and ACL of a node in the image
- * tree. It is formatted according to libisofs specification AAIP-0.2 and
- * ready to be written into the System Use Area resp. Continuation Area
- * of a directory entry in an ISO image.
+ * An AA string contains the Attribute List with the xattr and ACL of a node
+ * in the image tree. It is formatted according to libisofs specification
+ * AAIP-0.2 and ready to be written into the System Use Area resp. Continuation
+ * Area of a directory entry in an ISO image.
  *
  * Applications are not supposed to manipulate AA strings directly. They should
  * rather make use of the appropriate iso_node_get_* and iso_node_set_* calls.
+ *
+ * AAIP represents ACLs as xattr with empty name and AAIP-specific binary
+ * content. Local filesystems may represent ACLs as xattr with names like
+ * "system.posix_acl_access". libisofs does not interpret those local
+ * xattr representations of ACL directly but rather uses the ACL interface of
+ * the local system. By default the local xattr representations of ACL will
+ * not become part of the AAIP Attribute List via iso_local_get_attrs() and
+ * not be attached to local files via iso_local_set_attrs().
  *
  * @since 0.6.14
  */
@@ -4257,14 +4275,14 @@ int aaip_xinfo_func(void *data, int flag);
 /**
  * Get the eventual ACLs which are associated with the node.
  * The result will be in "long" text form as of man acl resp. acl_to_text().
+ * Call this function with flag bit15 to finally release the memory
+ * occupied by an ACL inquiry.
  *
  * @param node
  *      The node that is to be inquired.
  * @param access_text
  *      Will return a pointer to the eventual "access" ACL text or NULL if it
  *      is not available and flag bit 4 is set.
- *      Call this function with flag bit15 to finally release the memory
- *      occupied by an ACL inquiry.
  * @param default_text
  *      Will return a pointer to the eventual "default" ACL  or NULL if it
  *      is not available.
@@ -4292,7 +4310,7 @@ int iso_node_get_acl_text(IsoNode *node,
  * Set the ACLs of the given node to the lists in parameters access_text and
  * default_text or delete them.
  *
- * The POSIX permission bits get updated according to the new "access" ACL if
+ * The stat(2) permission bits get updated according to the new "access" ACL if
  * neither bit1 of parameter flag is set nor parameter access_text is NULL.
  * Note that S_IRWXG permission bits correspond to ACL mask permissions
  * if a "mask::" entry exists in the ACL. Only if there is no "mask::" then
@@ -4316,9 +4334,86 @@ int iso_node_get_acl_text(IsoNode *node,
  * @return
  *      > 0 success
  *      < 0 failure
+ *
+ * @since 0.6.14
  */
 int iso_node_set_acl_text(IsoNode *node,
                           char *access_text, char *default_text, int flag);
+
+/* ts A90131 */
+/**
+ * Get the list of XFS-style Extended Attributes xattr which is associated
+ * with the node.
+ * The resulting data may finally be disposed by a call to this function
+ * with flag bit15 set, or its components may be freed one-by-one.
+ * The following values are either NULL or malloc() memory:
+ *   *names, *value_lengths, *values, (*names)[i], (*values)[i] 
+ * with 0 <= i < *num_attrs.
+ * It is allowed to replace or reallocate those memory items in order to
+ * to manipulate the attribute list before submitting it to other calls.
+ *
+ * If enabled by flag bit0, this list possibly includes the ACLs of the node.
+ * They are eventually encoded in a pair with empty name. It is not advisable
+ * to alter the value or name of that pair. One may decide to erase both ACLs
+ * by deleting this pair or to copy both ACLs by copying the content of this
+ * pair to an empty named pair of another node.
+ * For all other ACL purposes use iso_node_get_acl_text().
+ *
+ * @param node
+ *      The node that is to be manipulated.
+ * @param num_attrs
+ *      Will return the number of name-value pairs
+ * @param names
+ *      Will return an array of pointers to 0-terminated names
+ * @param value_lengths
+ *      Will return an arry with the lenghts of values
+ * @param values
+ *      Will return an array of pointers to 8-bit values
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0=  obtain eventual ACLs as attribute with empty name
+ *      bit15= free memory
+ * @return
+ *      1 = ok (but *num_attrs may be 0)
+ *    < 0 = error
+ *
+ * @since 0.6.14
+ */
+int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
+              char ***names, size_t **value_lengths, char ***values, int flag);
+
+/* ts A90131 */
+/**
+ * Set the list of XFS-style Extended Attributes xattr which is associated
+ * with the node.
+ * The data get copied so that you may dispose your input data afterwards.
+ *
+ * If enabled by flag bit0 then the submitted list of attributes will not only
+ * overwrite xattr but also both eventual ACLs of the node. Eventual ACL in
+ * the submitted list have to reside in an attribute with empty name.
+ *
+ * @param node
+ *      The node that is to be manipulated.
+ * @param num_attrs
+ *      Number of attributes
+ * @param names
+ *      Array of pointers to 0 terminated name strings
+ * @param value_lengths
+ *      Array of byte lengths for each value
+ * @param values
+ *      Array of pointers to the value bytes
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= Do not maintain eventual existing ACL of the node.
+ *            Set eventual new ACL from value of empty name.
+ * @return
+ *      1 = ok
+ *    < 0 = error
+ *
+ * @since 0.6.14
+ */
+int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
+                       size_t *value_lengths, char **values, int flag);
 
 
 /* -------- This is an interface to the ACL of the local filesystem -------- */
@@ -4375,6 +4470,74 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag);
  * @since 0.6.14
  */
 int iso_local_set_acl_text(char *disk_path, char *text, int flag);
+
+
+/* ts A90131 */
+/**
+ * Get xattr and non-trivial ACLs of the given file in the local filesystem.
+ * The resulting data has finally to be disposed by a call to this function
+ * with flag bit15 set.
+ *
+ * Eventual ACLs will get encoded as attribute pair with empty name if this is
+ * enabled by flag bit0. An ACL which simply replects stat(2) permissions
+ * will not be put into the result.
+ *
+ * @param disk_path
+ *      Path to the file
+ * @param num_attrs
+ *      Will return the number of name-value pairs
+ * @param names
+ *      Will return an array of pointers to 0-terminated names
+ * @param value_lengths
+ *      Will return an arry with the lenghts of values
+ * @param values
+ *      Will return an array of pointers to 8-bit values
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0=  obtain eventual ACLs as attribute with empty name
+ *      bit2=  do not obtain attributes other than ACLs
+ *      bit3=  do not ignore eventual xattr representing ACL in local format
+ *             (e.g. name "system.posix_acl_access")
+ *      bit15= free memory
+ * @return
+ *        1 ok
+ *      < 0 failure
+ *
+ * @since 0.6.14
+ */
+int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
+                        size_t **value_lengths, char ***values, int flag);
+
+
+/* ts A90131 */
+/**
+ * Attach a list of xattr and ACLs to the given file in the local filesystem.
+ *
+ * Eventual ACLs have to be encoded as attribute pair with empty name.
+ *
+ * @param disk_path
+ *      Path to the file
+ * @param num_attrs
+ *      Number of attributes
+ * @param names
+ *      Array of pointers to 0 terminated name strings
+ * @param value_lengths
+ *      Array of byte lengths for each attribute payload
+ * @param values
+ *      Array of pointers to the attribute payload bytes
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0=  do not attach ACLs from an eventual attribute with empty name
+ *      bit3=  do not ignore eventual xattr representing ACL in local format
+ *             (e.g. name "system.posix_acl_access")
+ * @return
+ *      1 = ok 
+ *    < 0 = error
+ *
+ * @since 0.6.14
+ */
+int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
+                        size_t *value_lengths, char **values, int flag);
 
 
 #endif /*LIBISO_LIBISOFS_H_*/

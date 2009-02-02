@@ -126,15 +126,12 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
 {
  int ret;
- char *list= NULL;
  ssize_t i, num_names;
  size_t a_acl_len= 0, acl_len= 0;
  unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
  char *acl_text= NULL;
 
  if(flag & (1 << 15)) { /* Free memory */
-   if(*names != NULL)
-     list= (*names)[0];
    {ret= 1; goto ex;}
  }
 
@@ -153,9 +150,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  if(*names == NULL || *value_lengths == NULL || *values == NULL)
    {ret= -1; goto ex;}
 
- for(i= *num_attrs; i < num_names; i++)
-   (*names)[i]= NULL;
  for(i= 0; i < num_names; i++) {
+   (*names)[i]= NULL;
    (*values)[i]= NULL;
    (*value_lengths)[i]= 0;
  }
@@ -197,10 +193,11 @@ ex:;
    aaip_get_acl_text("", &acl_text, 1 << 15); /* free */
 
  if(ret <= 0 || (flag & (1 << 15))) {
-   if(list != NULL)
-     free(list);
-   if(*names != NULL)
+   if(*names != NULL) {
+     for(i= 0; i < *num_attrs; i++)
+       free((*names)[i]);
      free(*names);
+   }
    *names= NULL;
    if(*value_lengths != NULL)
      free(*value_lengths);

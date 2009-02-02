@@ -24,7 +24,8 @@
 #include <attr/xattr.h>
 #endif
 
-#define Aaip_acl_attrnamE "system.posix_acl_access"
+#define Aaip_a_acl_attrnamE "system.posix_acl_access"
+#define Aaip_d_acl_attrnamE "system.posix_acl_default"
 
 
 /* ------------------------------ Getters --------------------------------- */
@@ -124,8 +125,6 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  char *a_acl_text= NULL, *d_acl_text= NULL;
 
  if(flag & (1 << 15)) { /* Free memory */
-   if(*names != NULL)
-     list= (*names)[0];
    {ret= 1; goto ex;}
  }
 
@@ -172,19 +171,22 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  if(*names == NULL || *value_lengths == NULL || *values == NULL)
    {ret= -1; goto ex;}
 
- if(!(flag & 4))
+ for(i= 0; i < num_names; i++) {
+   (*names)[i]= NULL;
+   (*values)[i]= NULL;
+   (*value_lengths)[i]= 0;
+ }
+ if(!(flag & 4)) {
    for(i= 0; i < list_size && num_names > *num_attrs;
        i+= strlen(list + i) + 1) {
      if(!(flag & 8))
-       if(strcmp(list + i, Aaip_acl_attrnamE) == 0)
+       if(strcmp(list + i, Aaip_a_acl_attrnamE) == 0 ||
+          strcmp(list + i, Aaip_d_acl_attrnamE) == 0)
    continue;
-     (*names)[(*num_attrs)++]= list + i;
+     (*names)[(*num_attrs)++]= strdup(list + i);
+     if((*names)[(*num_attrs) - 1] == NULL)
+       {ret= -1; goto ex;}
    }
- for(i= *num_attrs; i < num_names; i++)
-   (*names)[i]= NULL;
- for(i= 0; i < num_names; i++) {
-   (*values)[i]= NULL;
-   (*value_lengths)[i]= 0;
  }
 
 #ifdef Libisofs_with_aaip_xattR
@@ -192,7 +194,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  if(!(flag & 4)) { /* Get xattr values */
    for(i= 0; i < *num_attrs; i++) {
      if(!(flag & 8))
-       if(strcmp((*names)[i], Aaip_acl_attrnamE) == 0)
+       if(strcmp((*names)[i], Aaip_a_acl_attrnamE) == 0 ||
+          strcmp((*names)[i], Aaip_d_acl_attrnamE) == 0)
    continue;
      value_ret= getxattr(path, (*names)[i], NULL, 0);
      if(value_ret == -1)
@@ -200,7 +203,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
      (*values)[i]= calloc(value_ret + 1, 1);
      if((*values)[i] == NULL)
        {ret= -1; goto ex;}
-     (*value_lengths)[i]= getxattr(path, (*names)[i], (*values)[i], value_ret);
+     value_ret= getxattr(path, (*names)[i], (*values)[i], value_ret);
      if(value_ret == -1) { /* there could be a race condition */
        if(retry++ > 5)
          {ret= -1; goto ex;}
@@ -248,8 +251,11 @@ ex:;
  if(ret <= 0 || (flag & (1 << 15))) {
    if(list != NULL)
      free(list);
-   if(*names != NULL)
+   if(*names != NULL) {
+     for(i= 0; i < *num_attrs; i++)
+       free((*names)[i]);
      free(*names);
+   }
    *names= NULL;
    if(*value_lengths != NULL)
      free(*value_lengths);
@@ -346,7 +352,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
     {ret= -5; goto ex;}
   for(i= 0; i < list_size; i+= strlen(list + i) + 1) {
      if(!(flag & 8))
-       if(strcmp(list + i, Aaip_acl_attrnamE) == 0)
+       if(strcmp(list + i, Aaip_a_acl_attrnamE) == 0 ||
+          strcmp(list + i, Aaip_d_acl_attrnamE) == 0)
    continue;
     ret= removexattr(path, list + i);
     if(ret == -1)
@@ -367,7 +374,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    }
    /* Extended Attribute */
    if((flag & 1) && !(flag & 8))
-     if(strcmp(names[i], Aaip_acl_attrnamE) == 0)
+     if(strcmp(names[i], Aaip_a_acl_attrnamE) == 0 ||
+        strcmp(names[i], Aaip_d_acl_attrnamE) == 0)
  continue;
 
 #ifdef Libisofs_with_aaip_xattR

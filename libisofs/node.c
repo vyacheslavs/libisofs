@@ -1352,11 +1352,33 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
 }
 
 
-/* ts A90116 */
-/* >>> describe
+/* ts A90202 */
+static
+int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
+                        size_t *value_lengths, char **values, int flag)
+{
+    size_t i, w;
 
-   @param flag      bit15 = free memory
-*/
+    for (w = i = 0; i < *num_attrs; i++) {
+        if (strcmp(names[i], del_name) == 0)
+            continue;
+        if (w == i) {
+            w++;
+            continue;
+        }
+        names[w] = names[i];
+        value_lengths[w] = value_lengths[i];
+        values[w] = values[i];
+        names[i] = values[i] = NULL;
+        value_lengths[i] = 0;
+        w++;
+    }
+    *num_attrs = w;
+    return 1;
+}
+
+
+/* ts A90116 */
 int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag)
 {
@@ -1407,17 +1429,22 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
          return ISO_AAIP_BAD_AASTRING;
     }
 
-    if(rpt - aa_string != len) {
+    if (rpt - aa_string != len) {
          /* aaip_decode_attrs() returns 2 but still bytes are left */
          return ISO_AAIP_BAD_AASTRING;
     }
 
     ret = aaip_get_decoded_attrs(&aaip, num_attrs, names,
                                  value_lengths, values, 0);
-    if(ret != 1) {
+    if (ret != 1) {
          /* aaip_get_decoded_attrs() failed */
          return ISO_AAIP_BAD_AASTRING;
     }
+    if (!(flag & 1)) {
+        /* Clean out eventual ACL attribute */
+        attrs_cleanout_name("", num_attrs, *names, *value_lengths, *values, 0);
+    }
+
 
 #else /* Libisofs_with_aaiP */
 
@@ -1442,11 +1469,20 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
     int ret;
     size_t sret, result_len;
     unsigned char *result;
+    char *a_acl= NULL, *d_acl= NULL;
+
+    if (!(flag & 1))
+        iso_node_get_acl_text(node, &a_acl, &d_acl, 16);
 
     if (num_attrs == 0) {
         ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
         if (ret < 0)
             return ret;
+        if (!(flag & 1)) {
+            ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
+            if (ret < 0)
+                return ret;
+        }
         return 1;
     }
     sret = aaip_encode(num_attrs, names, value_lengths, values,
@@ -1465,6 +1501,11 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
         /* >>> something is messed up with xinfo */;
 
         return ISO_ERROR;
+    }
+    if (!(flag & 1)) {
+        ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
+        if (ret < 0)
+            return ret;
     }
     return 1;
 
@@ -1786,33 +1827,98 @@ bad_decode:;
 }
 
 
-/* ts A90118 */
-int iso_local_set_acl_text(char *disk_path, char *text, int flag)
-{
-
-#ifdef Libisofs_with_aaiP
-
- return aaip_set_acl_text(disk_path, text, flag & 1);
-
-#else /* Libisofs_with_aaiP */
-
- return 0;
- 
-#endif /* ! Libisofs_with_aaiP */
-
-}
-
 /* ts A90127 */
 int iso_local_get_acl_text(char *disk_path, char **text, int flag)
 {
 
 #ifdef Libisofs_with_aaiP
 
- return aaip_get_acl_text(disk_path, text, flag & (1 | 16 | (1 << 15)));
+    int ret;
+
+    ret = aaip_get_acl_text(disk_path, text, flag & (1 | 16 | (1 << 15)));
+    if (ret < 0)
+        return ISO_AAIP_NO_GET_LOCAL;
+    return ret;
 
 #else /* Libisofs_with_aaiP */
 
- return 0;
+    return 0;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90118 */
+int iso_local_set_acl_text(char *disk_path, char *text, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    int ret;
+
+    ret = aaip_set_acl_text(disk_path, text, flag & 1);
+    if (ret < 0)
+        return ISO_AAIP_NO_SET_LOCAL;
+    return ret;
+
+#else /* Libisofs_with_aaiP */
+
+    return 0;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90131 */
+int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
+                        size_t **value_lengths, char ***values, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    int ret;
+
+    ret = aaip_get_attr_list(disk_path,
+                             num_attrs, names, value_lengths, values,
+                             (flag & (1 | 4 | 8 | (1 << 15))) | 2 | 16);
+    if (ret <= 0)
+        return ISO_AAIP_NO_GET_LOCAL;
+    return 1;
+
+#else /* Libisofs_with_aaiP */
+
+    *num_attrs = 0;
+    *names = NULL;
+    *value_lengths = NULL;
+    *values = NULL;
+    return 1;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90131 */
+int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
+                        size_t *value_lengths, char **values, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+    int ret;
+
+    ret = aaip_set_attr_list(disk_path, num_attrs, names, value_lengths,
+                             values, (flag & 8) | !(flag & 1));
+    if (ret <= 0)
+        return ISO_AAIP_NO_SET_LOCAL;
+    return 1;
+
+#else /* Libisofs_with_aaiP */
+
+    if (num_attrs > 0)
+        return ISO_AAIP_NOT_ENABLED;
+    return 1;
  
 #endif /* ! Libisofs_with_aaiP */
 
