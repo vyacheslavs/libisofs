@@ -18,6 +18,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <limits.h>
+#include <iconv.h>
 #include <locale.h>
 #include <langinfo.h>
 
@@ -29,50 +30,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #endif
-
-
-/* ts A901203 */
-/* A dummy non-implementation of iconv API as used by libisofs.
-   Needed for FreeBSD experiments on a slightly misconfigured public server.
- #define Libisofs_iconv_dummY yes
-*/
-#ifdef Libisofs_iconv_dummY
-
-typedef int iconv_t;
-
-static
-iconv_t iconv_open(const char *tocode, const char *fromcode)
-{
-    return (iconv_t)(999);
-}
-static
-size_t iconv(iconv_t cd,
-             char **inbuf, size_t *inbytesleft,
-             char **outbuf, size_t *outbytesleft)
-{
-    size_t todo;
-
-    todo = *inbytesleft;
-    if (todo > *outbytesleft)
-        todo = *outbytesleft;
-    memcpy(*outbuf, *inbuf, todo);
-    *outbytesleft -= todo;
-    *outbuf += todo;
-    *inbuf -= todo;
-    *inbytesleft = 0;
-    return todo;
-}
-static
-int iconv_close(iconv_t cd)
-{
-    return 0;
-}
-
-#else /* Libisofs_iconv_dummY */
-
-#include <iconv.h>
-
-#endif /* ! Libisofs_iconv_dummY */
 
 
 int int_pow(int base, int power)
