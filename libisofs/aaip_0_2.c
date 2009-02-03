@@ -299,7 +299,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                            size_t result_size, unsigned char *result, int flag)
 {
  char *rpt, *npt, *cpt;
- int qualifier= 0, perms, type, i, qualifier_len= 0, num_recs, needed;
+ int qualifier= 0, perms, type, i, qualifier_len= 0, num_recs, needed= 0;
  unsigned int has_u= 0, has_g= 0, has_o= 0, has_m= 0, is_trivial= 1;
  uid_t uid, huid;
  gid_t gid, hgid;

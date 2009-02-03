@@ -16,6 +16,11 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+#ifndef Libisofs_with_aaip_acL
+/* It seems ACL is fixely integrated in FreeBSD libc. There is no libacl. */
+#define Libisofs_with_aaip_acL yes
+#endif
+
 #ifdef Libisofs_with_aaip_acL
 #include <sys/acl.h>
 #endif
@@ -140,6 +145,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  *value_lengths= NULL;
  *values= NULL;
 
+ num_names= 0;
  if(flag & 1)
    num_names++;
  if(num_names == 0)
