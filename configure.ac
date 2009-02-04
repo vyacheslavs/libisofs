@@ -84,6 +84,10 @@ if test ! $ac_cv_func_fseeko; then
    AC_MSG_ERROR([Libisofs requires largefile support.])
 fi
 
+dnl If iconv(3) is in an extra lib, then it gets added to variable LIBS.
+dnl If not, then no -liconv will be added.
+AC_CHECK_LIB(iconv, iconv, , )
+
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
 LIBTOOL="$LIBTOOL --silent"
