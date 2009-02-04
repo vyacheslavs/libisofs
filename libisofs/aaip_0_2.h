@@ -172,8 +172,9 @@ int aaip_get_acl_text(char *path, char **text, int flag);
                                system ACL API and encode 
                         bit1=  use numeric ACL qualifiers rather than names
                         bit2=  do not obtain attributes other than ACLs
-                        bit3=  do not ignore eventual ACL attribute
-                               (e.g. system.posix_acl_access)
+                        bit3=  do not ignore eventual non-user attributes.
+                               I.e. those with a name which does not begin
+                               by "user."
                         bit4=  do not return trivial ACL that matches st_mode
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
@@ -461,8 +462,9 @@ int aaip_set_acl_text(char *path, char *text, int flag);
                         bit0= decode and set ACLs
                         bit1= first clear all existing attributes of the file
                         bit2= do not set attributes other than ACLs
-                        bit3= do not ignore eventual ACL attribute
-                              (e.g. system.posix_acl_access)
+                        bit3= do not ignore eventual non-user attributes.
+                              I.e. those with a name which does not begin
+                              by "user."
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
