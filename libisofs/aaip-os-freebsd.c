@@ -37,10 +37,13 @@
                         bit0=  obtain default ACL rather than access ACL
                         bit4=  set *text = NULL and return 2
                                if the ACL matches st_mode permissions.
+                        bit5=  in case of symbolic link: inquire link target
                         bit15= free text and return 1
    @return              > 0 ok
-                        -1  failure of system ACL service (see errno)
-                        -2  ACL support not enabled at compile time
+                          0 ACL support not enabled at compile time
+                         -1 failure of system ACL service (see errno)
+                         -2 attempt to inquire ACL of a symbolic
+                            link without bit4 or bit5
 */
 int aaip_get_acl_text(char *path, char **text, int flag)
 {
@@ -60,7 +63,19 @@ int aaip_get_acl_text(char *path, char **text, int flag)
    *text= NULL;
    return(1);
  }
+
  *text= NULL;
+ if(flag & 32)
+   ret= stat(path, &stbuf);
+ else
+   ret= lstat(path, &stbuf);
+ if(ret == -1)
+   return(-1);
+ if((stbuf.st_mode & S_IFMT) == S_IFLNK) {
+   if(flag & 16)
+     return(2);
+   return(-2);
+ }
 
  /* Note: no ACL_TYPE_DEFAULT in FreeBSD  */
  if(flag & 1)
@@ -79,19 +94,16 @@ int aaip_get_acl_text(char *path, char **text, int flag)
 
  /* ??? >>> Fake ACL */;
 
- return(-2);
+ return(0);
 
 #endif /* ! Libisofs_with_aaip_acL */
 
  if(*text == NULL)
    return(-1);
  if(flag & 16) {
-   ret= stat(path, &stbuf);
-   if(ret != -1) {
-     ret = aaip_cleanout_st_mode(*text, &(stbuf.st_mode), 2);
-     if(!(ret & (7 | 64)))
-       (*text)[0]= 0;
-   }
+   ret = aaip_cleanout_st_mode(*text, &(stbuf.st_mode), 2);
+   if(!(ret & (7 | 64)))
+     (*text)[0]= 0;
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
 #ifdef Libisofs_with_aaip_acL
      acl_free(text);
@@ -166,7 +178,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
  if(flag & 1) { /* Obtain ACL */
    /* access-ACL */
-   ret= aaip_get_acl_text(path, &acl_text, flag & 16);
+   ret= aaip_get_acl_text(path, &acl_text, flag & (16 | 32));
    if(ret <= 0)
      goto ex;
    if(ret == 2)
@@ -241,6 +253,16 @@ int aaip_set_acl_text(char *path, char *text, int flag)
 
  int ret;
  acl_t acl= NULL;
+ struct stat stbuf;
+
+ if(flag & 32)
+   ret= stat(path, &stbuf);
+ else
+   ret= lstat(path, &stbuf);
+ if(ret == -1)
+   return(-1);
+ if((stbuf.st_mode & S_IFMT) == S_IFLNK)
+   return(-2);
 
  acl= acl_from_text(text);
  if(acl == NULL) {
@@ -313,7 +335,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
      has_default_acl= (ret == 2);
 
 #ifdef Libisofs_with_aaip_acL
-     ret= aaip_set_acl_text(path, acl_text, 0);
+     ret= aaip_set_acl_text(path, acl_text, flag & 32);
      if(ret <= 0)
        {ret= -3; goto ex;}
 #else
@@ -336,7 +358,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                             acl_text, acl_text_fill, &acl_text_fill, 0);
        if(ret <= 0)
          {ret= -2; goto ex;}
-       ret= aaip_set_acl_text(path, acl_text, 1);
+       ret= aaip_set_acl_text(path, acl_text, 1 | (flag & 32));
        if(ret <= 0)
          {ret= -3; goto ex;}
      }

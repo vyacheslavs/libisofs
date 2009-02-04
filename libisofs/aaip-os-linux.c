@@ -24,9 +24,6 @@
 #include <attr/xattr.h>
 #endif
 
-#define Aaip_a_acl_attrnamE "system.posix_acl_access"
-#define Aaip_d_acl_attrnamE "system.posix_acl_default"
-
 
 /* ------------------------------ Getters --------------------------------- */
 
@@ -40,12 +37,15 @@
                                behave like bit4 if ACL is empty
                         bit4=  set *text = NULL and return 2
                                if the ACL matches st_mode permissions.
+                        bit5=  in case of symbolic link: inquire link target
                         bit15= free text and return 1
    @return                1 ok
                           2 only st_mode permissions exist and bit 4 is set
                             or empty ACL and bit0 is set
                           0 ACL support not enabled at compile time
                          -1 failure of system ACL service (see errno)
+                         -2 attempt to inquire ACL of a symbolic link without
+                            bit4 or bit5 resp. with no suitable link target
 */
 int aaip_get_acl_text(char *path, char **text, int flag)
 {
@@ -63,6 +63,18 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  }
  *text= NULL;
 
+ if(flag & 32)
+   ret= stat(path, &stbuf);
+ else
+   ret= lstat(path, &stbuf);
+ if(ret == -1)
+   return(-1);
+ if((stbuf.st_mode & S_IFMT) == S_IFLNK) {
+   if(flag & 16)
+     return(2);
+   return(-2);
+ }
+ 
  acl= acl_get_file(path, (flag & 1) ? ACL_TYPE_DEFAULT : ACL_TYPE_ACCESS);
  if(acl == NULL)
    return(-1);
@@ -72,12 +84,9 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  if(*text == NULL)
    return(-1);
  if(flag & 16) {
-   ret= stat(path, &stbuf);
-   if(ret != -1) {
-     ret = aaip_cleanout_st_mode(*text, &(stbuf.st_mode), 2);
-     if(!(ret & (7 | 64)))
-       (*text)[0]= 0;
-   }
+   ret = aaip_cleanout_st_mode(*text, &(stbuf.st_mode), 2);
+   if(!(ret & (7 | 64)))
+     (*text)[0]= 0;
  }
  if(flag & (1 | 16)) {
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
@@ -107,9 +116,11 @@ int aaip_get_acl_text(char *path, char **text, int flag)
                         bit0=  obtain ACL (access and eventually default)
                         bit1=  use numeric ACL qualifiers rather than names
                         bit2=  do not obtain attributes other than ACL
-                        bit3=  do not ignore eventual local ACL attribute
-                               (e.g. system.posix_acl_access)
+                        bit3=  do not ignore eventual non-user attributes
+                               I.e. those with a name which does not begin
+                               by "user."
                         bit4=  do not return trivial ACL that matches st_mode
+                        bit5=  in case of symbolic link: inquire link target
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
                         <=0 error
@@ -138,13 +149,19 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
 #ifdef Libisofs_with_aaip_xattR
 
-    list_size= listxattr(path, list, 0);
+    if(flag & 32)
+      list_size= listxattr(path, list, 0);
+    else
+      list_size= llistxattr(path, list, 0);
     if(list_size == -1)
       {ret= -1; goto ex;}
     list= calloc(list_size, 1);
     if(list == NULL)
       {ret= -1; goto ex;}
-    list_size= listxattr(path, list, list_size);
+    if(flag & 32)
+      list_size= listxattr(path, list, list_size);
+    else
+      list_size= llistxattr(path, list, list_size);
     if(list_size == -1)
       {ret= -1; goto ex;}
 
@@ -180,8 +197,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    for(i= 0; i < list_size && num_names > *num_attrs;
        i+= strlen(list + i) + 1) {
      if(!(flag & 8))
-       if(strcmp(list + i, Aaip_a_acl_attrnamE) == 0 ||
-          strcmp(list + i, Aaip_d_acl_attrnamE) == 0)
+       if(strncmp(list + i, "user.", 5))
    continue;
      (*names)[(*num_attrs)++]= strdup(list + i);
      if((*names)[(*num_attrs) - 1] == NULL)
@@ -194,16 +210,21 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  if(!(flag & 4)) { /* Get xattr values */
    for(i= 0; i < *num_attrs; i++) {
      if(!(flag & 8))
-       if(strcmp((*names)[i], Aaip_a_acl_attrnamE) == 0 ||
-          strcmp((*names)[i], Aaip_d_acl_attrnamE) == 0)
+       if(strncmp((*names)[i], "user.", 5))
    continue;
-     value_ret= getxattr(path, (*names)[i], NULL, 0);
+     if(flag & 32)
+       value_ret= getxattr(path, (*names)[i], NULL, 0);
+     else
+       value_ret= lgetxattr(path, (*names)[i], NULL, 0);
      if(value_ret == -1)
  continue;
      (*values)[i]= calloc(value_ret + 1, 1);
      if((*values)[i] == NULL)
        {ret= -1; goto ex;}
-     value_ret= getxattr(path, (*names)[i], (*values)[i], value_ret);
+     if(flag & 32)
+       value_ret= getxattr(path, (*names)[i], (*values)[i], value_ret);
+     else
+       value_ret= lgetxattr(path, (*names)[i], (*values)[i], value_ret);
      if(value_ret == -1) { /* there could be a race condition */
        if(retry++ > 5)
          {ret= -1; goto ex;}
@@ -221,8 +242,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
  if(flag & 1) { /* Obtain ACL */
 
-   aaip_get_acl_text(path, &a_acl_text, flag & 16);
-   aaip_get_acl_text(path, &d_acl_text, 1);
+   aaip_get_acl_text(path, &a_acl_text, flag & (16 | 32));
+   aaip_get_acl_text(path, &d_acl_text, 1 | (flag & 32));
    if(a_acl_text == NULL && d_acl_text == NULL)
      {ret= 1; goto ex;}
    ret= aaip_encode_both_acl(a_acl_text, d_acl_text, (mode_t) 0,
@@ -282,9 +303,12 @@ ex:;
    @param text          The input text (0 terminated, ACL long text form)
    @param flag          Bitfield for control purposes
                         bit0=  set default ACL rather than access ACL
+                        bit5=  in case of symbolic link: manipulate link target
    @return              >0 ok
                          0 ACL support not enabled at compile time
                         -1 failure of system ACL service (see errno)
+                        -2 attempt to manipulate ACL of a symbolic link
+                           without bit5 resp. with no suitable link target
 */
 int aaip_set_acl_text(char *path, char *text, int flag)
 {
@@ -293,6 +317,16 @@ int aaip_set_acl_text(char *path, char *text, int flag)
 
  int ret;
  acl_t acl= NULL;
+ struct stat stbuf;
+
+ if(flag & 32)
+   ret= stat(path, &stbuf);
+ else
+   ret= lstat(path, &stbuf);
+ if(ret == -1)
+   return(-1);
+ if((stbuf.st_mode & S_IFMT) == S_IFLNK)
+   return(-2);
 
  acl= acl_from_text(text);
  if(acl == NULL) {
@@ -321,8 +355,10 @@ ex:
                         bit0= decode and set ACLs
                         bit1= first clear all existing attributes of the file
                         bit2= do not set attributes other than ACLs
-                        bit3= do not ignore eventual ACL attribute
-                              (e.g. system.posix_acl_access)
+                        bit3= do not ignore eventual non-user attributes.
+                              I.e. those with a name which does not begin
+                              by "user."
+                        bit5=  in case of symbolic link: manipulate link target
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
@@ -341,25 +377,34 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
 
 #ifdef Libisofs_with_aaip_xattR
 
- if(flag & 2) /* Delete all file attributes */
-   list_size= listxattr(path, list, 0);
+ if(flag & 2) { /* Delete all file attributes */
+   if(flag & 32)
+     list_size= listxattr(path, list, 0);
+   else
+     list_size= llistxattr(path, list, 0);
+ }
  if(list_size > 0) { /* Delete all file attributes */
-  list= calloc(list_size, 1);
-  if(list == NULL)
-    {ret= -5; goto ex;}
-  list_size= listxattr(path, list, list_size);
-  if(list_size == -1)
-    {ret= -5; goto ex;}
-  for(i= 0; i < list_size; i+= strlen(list + i) + 1) {
-     if(!(flag & 8))
-       if(strcmp(list + i, Aaip_a_acl_attrnamE) == 0 ||
-          strcmp(list + i, Aaip_d_acl_attrnamE) == 0)
+   list= calloc(list_size, 1);
+   if(list == NULL)
+     {ret= -5; goto ex;}
+   if(flag & 32)
+     list_size= listxattr(path, list, list_size);
+   else
+     list_size= llistxattr(path, list, list_size);
+   if(list_size == -1)
+     {ret= -5; goto ex;}
+   for(i= 0; i < list_size; i+= strlen(list + i) + 1) {
+      if(!(flag & 8))
+        if(strncmp(list + i, "user.", 5))
    continue;
-    ret= removexattr(path, list + i);
-    if(ret == -1)
-      {ret= -5; goto ex;}
-  }
-  free(list); list= NULL;
+     if(flag & 32)
+       ret= removexattr(path, list + i);
+     else
+       ret= lremovexattr(path, list + i);
+     if(ret == -1)
+       {ret= -5; goto ex;}
+   }
+   free(list); list= NULL;
  }
 
 #endif /* Libisofs_with_aaip_xattR */
@@ -374,13 +419,15 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    }
    /* Extended Attribute */
    if((flag & 1) && !(flag & 8))
-     if(strcmp(names[i], Aaip_a_acl_attrnamE) == 0 ||
-        strcmp(names[i], Aaip_d_acl_attrnamE) == 0)
+     if(strncmp(names[i], "user.", 5))
  continue;
 
 #ifdef Libisofs_with_aaip_xattR
 
-   ret= setxattr(path, names[i], values[i], value_lengths[i], 0);
+   if(flag & 32)
+     ret= setxattr(path, names[i], values[i], value_lengths[i], 0);
+   else
+     ret= lsetxattr(path, names[i], values[i], value_lengths[i], 0);
    if(ret == -1)
      {ret= -4; goto ex;}
 
@@ -411,7 +458,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  has_default_acl= (ret == 2);
 
 #ifdef Libisofs_with_aaip_acL
- ret= aaip_set_acl_text(path, acl_text, 0);
+ ret= aaip_set_acl_text(path, acl_text, flag & 32);
  if(ret <= 0)
    {ret= -3; goto ex;}
 #else
@@ -434,7 +481,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                         acl_text, acl_text_fill, &acl_text_fill, 0);
    if(ret <= 0)
      {ret= -2; goto ex;}
-   ret= aaip_set_acl_text(path, acl_text, 1);
+   ret= aaip_set_acl_text(path, acl_text, 1 | (flag & 32));
    if(ret <= 0)
      {ret= -3; goto ex;}
  }

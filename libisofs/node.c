@@ -1838,9 +1838,7 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag)
 
     int ret;
 
-    ret = aaip_get_acl_text(disk_path, text, flag & (1 | 16 | (1 << 15)));
-    if (ret < 0)
-        return ISO_AAIP_NO_GET_LOCAL;
+    ret = aaip_get_acl_text(disk_path, text, flag & (1 | 16 | 32 | (1 << 15)));
     return ret;
 
 #else /* Libisofs_with_aaiP */
@@ -1860,7 +1858,7 @@ int iso_local_set_acl_text(char *disk_path, char *text, int flag)
 
     int ret;
 
-    ret = aaip_set_acl_text(disk_path, text, flag & 1);
+    ret = aaip_set_acl_text(disk_path, text, flag & (1 | 32));
     if (ret < 0)
         return ISO_AAIP_NO_SET_LOCAL;
     return ret;
@@ -1885,7 +1883,7 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
 
     ret = aaip_get_attr_list(disk_path,
                              num_attrs, names, value_lengths, values,
-                             (flag & (1 | 4 | 8 | (1 << 15))) | 2 | 16);
+                             (flag & (1 | 4 | 8 | 32 | (1 << 15))) | 2 | 16);
     if (ret <= 0)
         return ISO_AAIP_NO_GET_LOCAL;
     return 1;
@@ -1912,7 +1910,7 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
     int ret;
 
     ret = aaip_set_attr_list(disk_path, num_attrs, names, value_lengths,
-                             values, (flag & 8) | !(flag & 1));
+                             values, (flag & (8 | 32)) | !(flag & 1));
     if (ret <= 0)
         return ISO_AAIP_NO_SET_LOCAL;
     return 1;

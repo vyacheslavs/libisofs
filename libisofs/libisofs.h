@@ -4439,12 +4439,15 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
  *           bit0=  get default ACL rather than access ACL
  *           bit4=  set *text = NULL and return 2
  *                  if the ACL matches st_mode permissions.
+ *           bit5=  in case of symbolic link: inquire link target
  *           bit15= free text and return 1
  * @return
  *        1 ok 
  *        2 ok, trivial ACL found while bit4 is set, *text is NULL 
  *        0 no ACL manipulation adapter available
  *       -1 failure of system ACL service (see errno)
+ *       -2 attempt to inquire ACL of a symbolic link without bit4 or bit5
+ *          resp. with no suitable link target
  *
  * @since 0.6.14
  */
@@ -4463,10 +4466,13 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag);
  * @param flag
  *      Bitfield for control purposes
  *           bit0=  set default ACL rather than access ACL
+ *           bit5=  in case of symbolic link: manipulate link target
  * @return
  *      > 0 ok
  *        0 no ACL manipulation adapter available
  *       -1 failure of system ACL service (see errno)
+ *       -2 attempt to manipulate ACL of a symbolic link without bit5
+ *          resp. with no suitable link target
  *
  * @since 0.6.14
  */
@@ -4497,8 +4503,9 @@ int iso_local_set_acl_text(char *disk_path, char *text, int flag);
  *      Bitfield for control purposes
  *      bit0=  obtain eventual ACLs as attribute with empty name
  *      bit2=  do not obtain attributes other than ACLs
- *      bit3=  do not ignore eventual xattr representing ACL in local format
- *             (e.g. name "system.posix_acl_access")
+ *      bit3=  do not ignore eventual non-user attributes.
+ *             I.e. those with a name which does not begin by "user."
+ *      bit5=  in case of symbolic link: inquire link target
  *      bit15= free memory
  * @return
  *        1 ok
@@ -4529,8 +4536,9 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
  * @param flag
  *      Bitfield for control purposes
  *      bit0=  do not attach ACLs from an eventual attribute with empty name
- *      bit3=  do not ignore eventual xattr representing ACL in local format
- *             (e.g. name "system.posix_acl_access")
+ *      bit3=  do not ignore eventual non-user attributes.
+ *             I.e. those with a name which does not begin by "user."
+ *      bit5=  in case of symbolic link: manipulate link target
  * @return
  *      1 = ok 
  *    < 0 = error
