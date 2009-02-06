@@ -1462,6 +1462,138 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
 }
 
 
+/* ts A90205 */
+/* Enlarge attribute list */
+static
+int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
+                      size_t new_num, int flag)
+{
+    void *newpt;
+
+    newpt = realloc(*names, new_num * sizeof(char *));
+    if (newpt == NULL) 
+        return ISO_OUT_OF_MEM;
+    *names = (char **) newpt;
+    newpt = realloc(*values, new_num * sizeof(char *));
+    if (newpt == NULL) 
+        return ISO_OUT_OF_MEM;
+    *values = (char **) newpt;
+    newpt = realloc(*value_lengths, new_num * sizeof(size_t));
+    if (newpt == NULL) 
+        return ISO_OUT_OF_MEM;
+    *value_lengths = (size_t *) newpt;
+    return 1;
+}
+
+
+/* ts A90205 */
+/* Merge attribute list of node and given new attribute list into
+   attribute list returned by  m_* parameters.
+   The m_* paramters have finally to be freed by a call with bit15 set.
+   @param flag          Bitfield for control purposes
+                        bit2= delete rather than overwrite
+                        bit15= release memory and return 1
+*/
+static
+int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
+                         size_t *value_lengths, char **values,
+                         size_t *m_num_attrs, char ***m_names,
+                         size_t **m_value_lengths, char ***m_values, int flag)
+{
+    int ret;
+    size_t new_names = 0, deleted = 0, i, j, w;
+
+    if (flag & (1 << 15)) {
+        iso_node_get_attrs(node, m_num_attrs, m_names, m_value_lengths,
+                           m_values, 1 << 15);
+        return 1;
+    }
+
+    ret = iso_node_get_attrs(node, m_num_attrs, m_names, m_value_lengths,
+                             m_values, 0);
+    if (ret < 0)
+        return ret;
+
+    /* Handle existing names, count non-existing names */
+    for (i = 0; i < num_attrs; i++) {
+        for (j = 0; j < *m_num_attrs; j++) {
+            if (names[i] == NULL || (*m_names)[j] == NULL)
+                continue;
+            if (strcmp(names[i], (*m_names)[j]) == 0) {
+                if ((*m_values)[j] != NULL)
+                    free((*m_values)[j]);
+                (*m_values)[j] = NULL;
+                (*m_value_lengths)[j] = 0;
+                if (flag & 4) {
+                    /* Delete pair */
+                    free((*m_names)[j]);
+                    (*m_names)[j] = NULL;
+                    deleted++;
+                } else {
+                    (*m_values)[j] = calloc(value_lengths[i] + 1, 1);
+                    if ((*m_values)[j] == NULL)
+                        return ISO_OUT_OF_MEM;
+                    memcpy((*m_values)[j], values[i], value_lengths[i]);
+                    (*m_values)[j][value_lengths[i]] = 0;
+                    (*m_value_lengths)[j] = value_lengths[i];
+                }
+                break;
+            } 
+        }
+        if (j >= *m_num_attrs)
+            new_names++;
+    }
+    if (new_names > 0 && (flag & 4)) {
+
+        /* >>> warn of non-existing name on delete ? */;
+
+    } else if (new_names > 0) {
+        ret = attr_enlarge_list(m_names, m_value_lengths, m_values,
+                                *m_num_attrs + new_names, 0);
+        if (ret < 0)
+            return ret;
+
+        /* Set new pairs */;
+        w = *m_num_attrs;
+        for (i = 0; i < num_attrs; i++) {
+            for (j = 0; j < *m_num_attrs; j++) {
+                if (names[i] == NULL || (*m_names)[j] == NULL)
+                    continue;
+                if (strcmp(names[i], (*m_names)[j]) == 0)
+                    continue;
+            }
+            if (j < *m_num_attrs) /* Name is not new */ 
+                continue;
+            (*m_names)[w] = strdup(names[i]);
+            if ((*m_names)[w] == NULL)
+                return ISO_OUT_OF_MEM;
+            (*m_values)[w] = calloc(value_lengths[i] + 1, 1);
+            if ((*m_values)[w] == NULL)
+                return ISO_OUT_OF_MEM;
+            memcpy((*m_values)[w], values[i], value_lengths[i]);
+            (*m_values)[w][value_lengths[i]] = 0;
+            (*m_value_lengths)[w] = value_lengths[i];
+            w++;
+        }
+        *m_num_attrs = w;
+    }
+    if (deleted > 0) {
+        /* Garbage collection */
+        w = 0;
+        for (j = 0; j < *m_num_attrs; j++) {
+            if ((*m_names)[j] == NULL)
+                continue;
+            (*m_names)[w] = (*m_names)[j];
+            (*m_values)[w] = (*m_values)[j];
+            (*m_value_lengths)[w] = (*m_value_lengths)[j];
+            w++;
+        }
+        *m_num_attrs = w;
+    }
+    return 1;
+}
+
+
 /* ts A90121 */
 int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
@@ -1470,47 +1602,74 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
 #ifdef Libisofs_with_aaiP
 
     int ret;
-    size_t sret, result_len;
+    size_t sret, result_len, m_num = 0, *m_value_lengths = NULL, i;
     unsigned char *result;
-    char *a_acl= NULL, *d_acl= NULL;
+    char *a_acl = NULL, *d_acl = NULL, **m_names = NULL, **m_values = NULL;
+
+    if (!(flag & 8))
+        for (i = 0; i < num_attrs; i++)
+            if (strncmp(names[i], "user.", 5) != 0 && names[i][0] != 0) 
+                return ISO_AAIP_NON_USER_NAME;  
 
     if (!(flag & 1))
         iso_node_get_acl_text(node, &a_acl, &d_acl, 16);
 
+    if (flag & (2 | 4)) {
+        /* Merge old and new lists */
+        ret = iso_node_merge_xattr(
+                  node, num_attrs, names, value_lengths, values,
+                  &m_num, &m_names, &m_value_lengths, &m_values, flag & 4);
+        if (ret < 0)
+            goto ex;
+        num_attrs = m_num;
+        names = m_names;
+        value_lengths = m_value_lengths;
+        values = m_values;
+    }
+
     if (num_attrs == 0) {
         ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
         if (ret < 0)
-            return ret;
+            goto ex;
         if (!(flag & 1)) {
             ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
             if (ret < 0)
-                return ret;
+                goto ex;
         }
-        return 1;
+        ret = 1;
+        goto ex;
     }
     sret = aaip_encode(num_attrs, names, value_lengths, values,
                        &result_len, &result, 0);
-    if (sret == 0)
-        return ISO_OUT_OF_MEM;
+    if (sret == 0) {
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
+    }
 
     ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
     if (ret < 0)
-        return ret;
+        goto ex;
     ret = iso_node_add_xinfo(node, aaip_xinfo_func, result);
     if (ret < 0)
-        return ret;
+        goto ex;
     if (ret == 0) {
 
         /* >>> something is messed up with xinfo */;
 
-        return ISO_ERROR;
+        ret = ISO_ERROR;
+        goto ex;
     }
     if (!(flag & 1)) {
         ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
         if (ret < 0)
-            return ret;
+            goto ex;
     }
-    return 1;
+    ret = 1;
+ex:;
+    /* Dispose eventual merged list */
+    iso_node_merge_xattr(node, num_attrs, names, value_lengths, values,
+                       &m_num, &m_names, &m_value_lengths, &m_values, 1 << 15);
+    return ret;
 
 #else /* Libisofs_with_aaiP */
 
@@ -1579,7 +1738,7 @@ int iso_node_get_acl_text(IsoNode *node,
     *access_text = *default_text = NULL;
 
     ret = iso_node_get_attrs(node, &num_attrs, &names,
-                             &value_lengths, &values, 0);
+                             &value_lengths, &values, 1);
     if (ret < 0)
         return ret;
 
@@ -1650,8 +1809,7 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
     size_t a_text_fill = 0, d_text_fill = 0;
     size_t v_len, acl_len= 0;
     char **names = NULL, **values = NULL, *a_text = NULL, *d_text = NULL;
-    char **new_names, **new_values;
-    size_t *new_value_lengths;
+
     unsigned char *v_data, *acl= NULL;
     int ret;
     mode_t st_mode;
@@ -1664,7 +1822,7 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
     }
 
     ret = iso_node_get_attrs(node, &num_attrs, &names,
-                             &value_lengths, &values, 0);
+                             &value_lengths, &values, 1);
     if (ret < 0)
         return ret;
 
@@ -1721,6 +1879,9 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
         if (values[i] != NULL)
             free(values[i]);
         if(acl == NULL) { /* delete whole ACL attribute */
+
+            /* >>> update S_IRWXG by eventual group:: ACL entry */;
+
             for (j = i + 1; j < num_attrs; j++) {
                  names[j - 1] = names[j];
                  value_lengths[j - 1] = value_lengths[j];
@@ -1735,7 +1896,7 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
 
         /* Encode attributes and attach to node */
         ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values,
-                                 0);
+                                 1 | 8);
         if (ret <= 0)
             goto ex;
         goto update_perms;
@@ -1754,26 +1915,9 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
         goto ex;
     }
 
-    /* Enlarge attribute list */
-    new_names = realloc(names, (num_attrs + 1) * sizeof(char *));
-    if (new_names == NULL) {
-        ret = ISO_OUT_OF_MEM;
+    ret = attr_enlarge_list(&names, &value_lengths, &values, num_attrs + 1, 0);
+    if (ret < 0)
         goto ex;
-    }
-    names = new_names;
-    new_values = realloc(values, (num_attrs + 1) * sizeof(char *));
-    if (new_values == NULL) {
-        ret = ISO_OUT_OF_MEM;
-        goto ex;
-    }
-    values = new_values;
-    new_value_lengths = realloc(value_lengths,
-                                (num_attrs + 1) * sizeof(size_t));
-    if (new_value_lengths == NULL) {
-        ret = ISO_OUT_OF_MEM;
-        goto ex;
-    }
-    value_lengths = new_value_lengths;
 
     /* Set new ACL attribute */
     names[num_attrs] = strdup("");
@@ -1787,7 +1931,8 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
     num_attrs++;
     
     /* Encode attributes and attach to node */
-    ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values, 0);
+    ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values,
+                             1 | 8);
     if (ret < 0)
         goto ex;
 

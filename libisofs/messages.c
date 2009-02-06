@@ -211,9 +211,21 @@ const char *iso_error_to_msg(int errcode)
     case ISO_DATA_SOURCE_FATAL:
         return "Read error occured with IsoDataSource";
     case ISO_AAIP_IGNORED:
-        return "AAIP info is present in ISO image but will be ignored";
+        return "AAIP info with ACL or xattr in ISO image will be ignored";
     case ISO_AAIP_BAD_ACL:
         return "Error with decoding ACL from AAIP info";
+    case ISO_AAIP_BAD_ACL_TEXT:
+        return "Error with encoding ACL for AAIP";
+    case ISO_AAIP_NOT_ENABLED:
+        return "AAIP processing for ACL and xattr not enabled at compile time";
+    case ISO_AAIP_BAD_AASTRING:
+        return "Error with decoding AAIP info for ACL or xattr";
+    case ISO_AAIP_NO_GET_LOCAL:
+        return "Error with reading ACL or xattr from local file";
+    case ISO_AAIP_NO_SET_LOCAL:
+        return "Error with attaching ACL or xattr to local file";
+    case ISO_AAIP_NON_USER_NAME:
+        return "Unallowed attempt to set an xattr with non-user name";
     default:
         return "Unknown error";
     }

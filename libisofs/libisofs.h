@@ -4205,7 +4205,8 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 
 
 /* ts A90121 */
-/** AAIP info is present in ISO image but will be ignored (NOTE, HIGH, -336) */
+/** AAIP info with ACL or xattr in ISO image will be ignored
+                                                          (NOTE, HIGH, -336) */
 #define ISO_AAIP_IGNORED          0xB030FEB0
 
 /* ts A90130 */
@@ -4217,11 +4218,12 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_AAIP_BAD_ACL_TEXT     0xE830FEAE
 
 /* ts A90130 */
-/** No AAIP processing enabled at compile time (FAILURE, HIGH, -339) */
+/** AAIP processing for ACL and xattr not enabled at compile time
+                                                       (FAILURE, HIGH, -339) */
 #define ISO_AAIP_NOT_ENABLED      0xE830FEAD
 
 /* ts A90130 */
-/** Error with decoding attribute list AAIP info (FAILURE, HIGH, -340) */
+/** Error with decoding AAIP info for ACL or xattr (FAILURE, HIGH, -340) */
 #define ISO_AAIP_BAD_AASTRING     0xE830FEAC
 
 /* ts A90131 */
@@ -4232,6 +4234,10 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 /** Error with attaching ACL or xattr to local file (FAILURE, HIGH, -342) */
 #define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
 
+/* ts A90206 */
+/** Unallowed attempt to set an xattr with non-user name
+                                                       (FAILURE, HIGH, -343) */
+#define ISO_AAIP_NON_USER_NAME    0xE830FEA9
 
 
 /* --------------------------------- AAIP --------------------------------- */
@@ -4407,6 +4413,12 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
  *      Bitfield for control purposes
  *      bit0= Do not maintain eventual existing ACL of the node.
  *            Set eventual new ACL from value of empty name.
+ *      bit1= Do not clear the existing attribute list but merge it with
+ *            the list given by this call
+ *      bit2= Delete the attributes with the given names
+ *      bit3= Allow non-user attribute.
+ *            I.e. those with a non-empty name which does not begin by "user."
+ *            (The empty name is always allowed and governed by bit0.)
  * @return
  *      1 = ok
  *    < 0 = error
