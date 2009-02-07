@@ -277,14 +277,13 @@ const char *iso_node_get_name(const IsoNode *node)
     return node->name;
 }
 
-/* ta A90128 */
+/* ts A90128 */
 /**
  * See API function iso_node_set_permissions()
  *
  * @param flag  bit0= do not adjust ACL
  * @return      >0 success , <0 error
  */
-static
 int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag)
 {
     int ret;
@@ -1381,12 +1380,88 @@ int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
 }
 
 
+#ifdef Libisofs_with_aaiP
+
+/* ts A90207 */
+/**
+ * Backend of iso_node_get_attrs() with parameter node replaced by the
+ * AA string from where to get the attribute list.
+ * All other parameter specs apply.
+ */
+static
+int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
+              char ***names, size_t **value_lengths, char ***values, int flag)
+{
+    struct aaip_state *aaip= NULL;
+    unsigned char *rpt;
+    size_t len, todo, consumed;
+    int is_done = 0, first_round= 1, ret;
+
+    if (flag & (1 << 15))
+        aaip_get_decoded_attrs(&aaip, num_attrs, names,
+                               value_lengths, values, 1 << 15);
+    *num_attrs = 0;
+    *names = NULL;
+    *value_lengths = NULL;
+    *values = NULL;
+    if (flag & (1 << 15))
+        return 1;
+
+    rpt = aa_string;
+    len = aaip_count_bytes(rpt, 0);
+    while (!is_done) {
+        todo = len - (rpt - aa_string);
+        if (todo > 2048)
+            todo = 2048;
+        if (todo == 0) {
+           /* Out of data while still prompted to submit */
+           return ISO_AAIP_BAD_AASTRING;
+        }
+        /* Allow 1 million bytes of memory consumption, 100,000 attributes */
+        ret = aaip_decode_attrs(&aaip, (size_t) 1000000, (size_t) 100000,
+                                rpt, todo, &consumed, first_round);
+        rpt+= consumed;
+        first_round= 0;
+        if (ret == 1)
+            continue;
+        if (ret == 2)
+             break;
+
+         /* aaip_decode_attrs() reports error */
+         return ISO_AAIP_BAD_AASTRING;
+    }
+
+    if (rpt - aa_string != len) {
+         /* aaip_decode_attrs() returns 2 but still bytes are left */
+         return ISO_AAIP_BAD_AASTRING;
+    }
+
+    ret = aaip_get_decoded_attrs(&aaip, num_attrs, names,
+                                 value_lengths, values, 0);
+    if (ret != 1) {
+         /* aaip_get_decoded_attrs() failed */
+         return ISO_AAIP_BAD_AASTRING;
+    }
+    if (!(flag & 1)) {
+        /* Clean out eventual ACL attribute resp. all other xattr */
+        attrs_cleanout_name("", num_attrs, *names, *value_lengths, *values,
+                            !!(flag & 4));
+    }
+
+    return 1;
+}
+
+#endif /* ! Libisofs_with_aaiP */
+
+
 /* ts A90116 */
 int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag)
 {
 
 #ifdef Libisofs_with_aaiP
+
+#ifdef NIX
 
     void *xipt;
     struct aaip_state *aaip= NULL;
@@ -1448,6 +1523,31 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
         attrs_cleanout_name("", num_attrs, *names, *value_lengths, *values,
                             !!(flag & 4));
     }
+
+#else /* NIX */
+
+    void *xipt;
+    unsigned char *aa_string = NULL;
+    int ret;
+
+    if (flag & (1 << 15)) {
+        iso_aa_get_attrs(aa_string, num_attrs, names, value_lengths, values,
+                         1 << 15);
+        return 1;
+    }
+    *num_attrs = 0;
+    *names = NULL;
+    *value_lengths = NULL;
+    *values = NULL;
+    ret = iso_node_get_xinfo(node, aaip_xinfo_func, &xipt);
+    if (ret != 1)
+        return 1;
+    aa_string = (unsigned char *) xipt;
+    ret = iso_aa_get_attrs(aa_string, num_attrs, names, value_lengths, values,
+                           flag);
+    return ret;
+
+#endif /* ! NIX */
 
 
 #else /* Libisofs_with_aaiP */
@@ -1709,6 +1809,79 @@ int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
     return ret;
 }
 
+
+/* ts A90207 */
+/**
+ * Backend of iso_node_get_acl_text() with parameter node replaced by the
+ * attribute list from where to get the ACL and by the associated st_mode
+ * permission bits. All other parameter specs apply.
+ */
+static
+int iso_attr_get_acl_text(size_t num_attrs, char **names,
+                          size_t *value_lengths, char **values, mode_t st_mode,
+                          char **access_text, char **default_text, int flag)
+{
+    size_t i, consumed, text_fill = 0;
+    size_t v_len;
+    unsigned char *v_data;
+    int ret, from_posix= 0;
+
+    if (flag & (1 << 15)) {
+        if (*access_text != NULL)
+            free(*access_text);
+        *access_text = NULL;
+        if (*default_text != NULL)
+            free(*default_text);
+        *default_text = NULL;
+        return 1;
+    }
+
+    *access_text = *default_text = NULL;
+    for(i = 0; i < num_attrs; i++) {
+        if (names[i][0]) /* searching the empty name */
+            continue;
+
+        v_data = (unsigned char *) values[i];
+        v_len = value_lengths[i];
+
+        /* "access" ACL  */
+        ret = iso_decode_acl(v_data, v_len,
+                             &consumed, access_text, &text_fill, 0);
+        if (ret <= 0)
+            goto bad_decode;
+        if (ret == 2) {
+            v_data += consumed;
+            v_len -= consumed;
+            ret = iso_decode_acl(v_data, v_len,
+                                 &consumed, default_text, &text_fill, 0);
+            if (ret == 0)
+                goto bad_decode;
+        }
+        break;
+    }
+    
+    if (*access_text == NULL && !(flag & 16)) {
+        from_posix = 1;
+        *access_text = calloc(42, 1); /* 42 for aaip_update_acl_st_mode */
+    }
+    if (*access_text != NULL) {
+        aaip_add_acl_st_mode(*access_text, st_mode, 0);
+        text_fill = strlen(*access_text);
+    }
+
+    if (*access_text == NULL && *default_text == NULL)
+        ret = 0;
+    else
+        ret = 1 + from_posix;
+ex:;
+    return ret;
+
+bad_decode:;
+    ret = ISO_AAIP_BAD_ACL;
+    goto ex;
+}
+
+
 #endif /* ! Libisofs_with_aaiP */
 
 
@@ -1718,6 +1891,8 @@ int iso_node_get_acl_text(IsoNode *node,
 {
 
 #ifdef Libisofs_with_aaiP
+
+#ifdef NIX
 
     size_t num_attrs = 0, *value_lengths = NULL, i, consumed, text_fill = 0;
     size_t v_len;
@@ -1781,13 +1956,41 @@ int iso_node_get_acl_text(IsoNode *node,
     else
         ret = 1 + from_posix;
 ex:;
+
+#else /* NIX */
+
+    size_t num_attrs = 0, *value_lengths = NULL;
+    char **names = NULL, **values = NULL;
+    mode_t st_mode;
+    int ret;
+
+    if (flag & (1 << 15)) {
+        iso_attr_get_acl_text(num_attrs, names, value_lengths, values, st_mode,
+                              access_text, default_text, 1 << 15);
+        return 1;
+    }
+    ret = iso_node_get_attrs(node, &num_attrs, &names,
+                             &value_lengths, &values, 1);
+    if (ret < 0)
+        return ret;
+    st_mode = iso_node_get_permissions(node);
+    ret = iso_attr_get_acl_text(num_attrs, names, value_lengths, values,
+                                st_mode, access_text, default_text, flag);
+
+#endif /* ! NIX */
+
     iso_node_get_attrs(node, &num_attrs, &names,
                        &value_lengths, &values, 1 << 15); /* free memory */
     return ret;
 
+#ifdef NIX
+
 bad_decode:;
     ret = ISO_AAIP_BAD_ACL;
     goto ex;
+
+#endif /* NIX */
+
 
 #else /* Libisofs_with_aaiP */
 
@@ -1797,6 +2000,37 @@ bad_decode:;
 #endif /* ! Libisofs_with_aaiP */
 
 }
+
+
+#ifdef Libisofs_with_aaiP
+
+/* ts A90207 */
+int iso_aa_get_acl_text(unsigned char *aa_string, mode_t st_mode,
+                        char **access_text, char **default_text, int flag)
+{
+    int ret;
+    size_t num_attrs = 0, *value_lengths = NULL;
+    char **names = NULL, **values = NULL;
+
+    if (flag & (1 << 15)) {
+        iso_attr_get_acl_text(num_attrs, names, value_lengths, values, st_mode,
+                              access_text, default_text, 1 << 15);
+        return 1;
+    }
+    ret = iso_aa_get_attrs(aa_string, &num_attrs, &names,
+                           &value_lengths, &values, 1);
+    if (ret < 0)
+        goto ex;
+    ret = iso_attr_get_acl_text(num_attrs, names, value_lengths, values,
+                                st_mode, access_text, default_text, flag);
+ex:;
+    iso_aa_get_attrs(aa_string, &num_attrs, &names, &value_lengths, &values,
+                     1 << 15);
+    return ret;
+}
+
+#endif /* Libisofs_with_aaiP */
+
 
 
 /* ts A90130 */
@@ -2103,7 +2337,7 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node)
     ret = iso_node_get_acl_text((IsoNode *) node, &a_text, &d_text, 16);
     if (ret != 1) 
         goto ex;
-    ret = aaip_cleanout_st_mode(a_text, &st_mode, 4 | 16);
+    aaip_cleanout_st_mode(a_text, &st_mode, 4 | 16);
 ex:;
     iso_node_get_acl_text((IsoNode *) node, &a_text, &d_text, 1 << 15);
     return st_mode;
@@ -2116,4 +2350,35 @@ ex:;
 
 }
 
+
+/* ts A90207 */
+int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag)
+{
+    struct stat stbuf;
+    int ret;
+
+#ifdef Libisofs_with_aaiP
+    char *a_text = NULL;
+#endif
+
+    if (flag & 32)
+        ret = stat(disk_path, &stbuf);
+    else
+        ret = lstat(disk_path, &stbuf);
+    if (ret == -1)
+        return -1;
+    *st_mode = stbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+
+#ifdef Libisofs_with_aaiP
+
+    ret = iso_local_get_acl_text(disk_path, &a_text, 16 | (flag & 32));
+    if (a_text != NULL) {
+        aaip_cleanout_st_mode(a_text, st_mode, 4 | 16);
+        iso_local_get_acl_text(disk_path, &a_text, 1 << 15); /* free a_text */
+    }
+
+#endif /*  Libisofs_with_aaiP */
+
+    return 1;
+}
 

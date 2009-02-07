@@ -331,4 +331,23 @@ void iso_dir_iter_unregister(IsoDirIter *iter);
 
 void iso_notify_dir_iters(IsoNode *node, int flag);
 
+
+/* ts A90128 */
+/**
+ * See API function iso_node_set_permissions()
+ *
+ * @param flag  bit0= do not adjust ACL
+ * @return      >0 success , <0 error
+ */
+int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag);
+
+
+/* ts A90207 */
+/**
+ * Like iso_node_get_acl_text() with param node replaced by aa_string and
+ * st_mode from where to obtain the ACLs. All other parameter specs apply.
+ */
+int iso_aa_get_acl_text(unsigned char *aa_string, mode_t st_mode,
+                        char **access_text, char **default_text, int flag);
+
 #endif /*LIBISO_NODE_H_*/

@@ -4507,6 +4507,28 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag);
 int iso_local_set_acl_text(char *disk_path, char *text, int flag);
 
 
+/* ts A90207 */
+/**
+ * Obtain permissions of a file in the local filesystem which shall reflect
+ * ACL entry "group::" in S_IRWXG rather than ACL entry "mask::". This is
+ * necessary if the permissions of a disk file with ACL shall be copied to
+ * an object which has no ACL.
+ * @param disk_path
+ *      Path to the local file which may have an "access" ACL or not.
+ * @param flag
+ *      Bitfield for control purposes
+ *           bit5=  in case of symbolic link: inquire link target
+ * @param st_mode
+ *      Returns permission bits as of stat(2)
+ * @return
+ *      1 success
+ *     -1 failure of lstat() resp. stat() (see errno)
+ *
+ * @since 0.6.14
+ */
+int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag);
+
+
 /* ts A90131 */
 /**
  * Get xattr and non-trivial ACLs of the given file in the local filesystem.

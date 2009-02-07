@@ -20,6 +20,12 @@
 #include <string.h>
 #include <limits.h>
 
+/* ts A90207 */
+#ifdef Libisofs_with_aaiP
+#include "aaip_0_2.h"
+#endif
+
+
 void iso_node_builder_ref(IsoNodeBuilder *builder)
 {
     ++builder->refcount;
@@ -94,6 +100,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
 #ifdef Libisofs_with_aaiP
     unsigned char *aa_string;
+    char *a_text = NULL, *d_text = NULL;
 #endif /* Libisofs_with_aaiP */
 
     if (builder == NULL || src == NULL || node == NULL) {
@@ -176,7 +183,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
     /* fill fields */
-    iso_node_set_permissions(new, info.st_mode);
+    iso_node_set_perms_internal(new, info.st_mode, 1);
     iso_node_set_uid(new, info.st_uid);
     iso_node_set_gid(new, info.st_gid);
     iso_node_set_atime(new, info.st_atime);
@@ -184,11 +191,25 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     iso_node_set_ctime(new, info.st_ctime);
     iso_node_set_uid(new, info.st_uid);
 
-    *node = new;
-
 #ifdef Libisofs_with_aaiP
-    /* ts A90115 */
 
+    /* ts A90207 */
+    /* Eventually set S_IRWXG from ACL */
+    if (image->builder_ignore_acl) {
+        ret = iso_file_source_get_aa_string(src, &aa_string, 4);
+        if (aa_string != NULL)
+            iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text, 16);
+        if (a_text != NULL) {
+            aaip_cleanout_st_mode(a_text, &(info.st_mode), 4 | 16);
+            iso_node_set_perms_internal(new, info.st_mode, 1);
+            free(a_text);
+            a_text = 0;
+        }
+        iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
+                            1 << 15); /* free ACL texts */
+    }
+
+    /* ts A90115 */
     /* obtain ownership of eventual AA string */
     ret = iso_file_source_get_aa_string(src, &aa_string,
             1 | (image->builder_ignore_acl << 1) |
@@ -200,6 +221,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
 #endif /* Libisofs_with_aaiP */
+
+    *node = new;
 
     return ISO_SUCCESS;
 }
