@@ -89,7 +89,7 @@ int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
    or "other:" from an ACL in long text form if they match the bits in st_mode
    as described by man 2 stat and man 5 acl.
    @param acl_text   The text to be analyzed and eventually shortened.
-   @param st_mode    The component of struct stat which tells POSIX permission
+   @param st_mode    The component of struct stat which tells permission
                      bits and eventually shall take equivalent bits as read
                      from the ACL. The caller should submit a pointer
                      to the st_mode variable which holds permissions as
@@ -102,6 +102,8 @@ int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
                             "other::" -> S_IRWXO)
                      bit3= update acl_text by *st_mode (same mapping as bit 2 
                            but with reversed transfer direction)
+                     bit4= map "group::" <-> S_IRWXG in any case.
+                           I.e. ignore "mask::".
    @return           <0  failure
                      >=0 tells in its bits which tag types were found.
                          The first three tell which types deviate from the

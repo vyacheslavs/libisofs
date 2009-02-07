@@ -318,6 +318,7 @@ void iso_node_set_permissions(IsoNode *node, mode_t mode)
      iso_node_set_perms_internal(node, mode, 0);
 }
 
+
 /**
  * Get the permissions for the node
  */
@@ -1875,13 +1876,26 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
             goto ex;
         }
 
-        /* replace variable value */;
-        if (values[i] != NULL)
-            free(values[i]);
-        if(acl == NULL) { /* delete whole ACL attribute */
+        if(acl == NULL) { /* Delete whole ACL attribute */
+            /* Update S_IRWXG by eventual "group::" ACL entry.
+               With ACL it reflected the "mask::" entry.
+            */
+            if (a_text != NULL)
+                free(a_text);
+            ret = iso_decode_acl(v_data, v_len, &consumed,
+                                 &a_text, &a_text_fill, 0);
+            if (ret == 0)
+                goto bad_decode;
+            if (ret < 0)
+                goto ex;
+            ret = aaip_cleanout_st_mode(a_text, &st_mode, 4 | 16);
+            if (ret < 0)
+                goto ex;
+            iso_node_set_perms_internal(node, st_mode, 1);
 
-            /* >>> update S_IRWXG by eventual group:: ACL entry */;
-
+            /* Delete the attribute pair */
+            if (values[i] != NULL)
+                free(values[i]);
             for (j = i + 1; j < num_attrs; j++) {
                  names[j - 1] = names[j];
                  value_lengths[j - 1] = value_lengths[j];
@@ -1889,6 +1903,9 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
             }
             num_attrs--;
         } else {
+            /* replace variable value */;
+            if (values[i] != NULL)
+                free(values[i]);
             values[i] = (char *) acl;
             acl = NULL;
             value_lengths[i] = acl_len;
@@ -2066,6 +2083,35 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
         return ISO_AAIP_NOT_ENABLED;
     return 1;
  
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90206 */
+mode_t iso_node_get_perms_wo_acl(const IsoNode *node)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    mode_t st_mode;
+    int ret;
+    char *a_text = NULL, *d_text = NULL;
+
+    st_mode = iso_node_get_permissions(node);
+
+    ret = iso_node_get_acl_text((IsoNode *) node, &a_text, &d_text, 16);
+    if (ret != 1) 
+        goto ex;
+    ret = aaip_cleanout_st_mode(a_text, &st_mode, 4 | 16);
+ex:;
+    iso_node_get_acl_text((IsoNode *) node, &a_text, &d_text, 1 << 15);
+    return st_mode;
+
+#else /* Libisofs_with_aaiP */
+
+    return iso_node_get_permissions(node);
+
 #endif /* ! Libisofs_with_aaiP */
 
 }

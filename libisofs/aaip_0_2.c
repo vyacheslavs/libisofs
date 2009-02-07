@@ -559,6 +559,8 @@ ex:;
                             "other::" -> S_IRWXO)
                      bit3= update acl_text by *st_mode (same mapping as bit 2
                            but with reversed transfer direction)
+                     bit4= map "group::" <-> S_IRWXG in any case.
+                           I.e. ignore "mask::".
    @return           <0  failure
                      >=0 tells in its bits which tag types were found.
                          The first three tell which types deviate from the
@@ -620,7 +622,7 @@ int aaip_cleanout_st_mode(char *acl_text, mode_t *in_st_mode, int flag)
        tag_types|= 64 | 128;
      }
    } else if(strncmp(rpt, "group:", 6) == 0) {
-     if(rpt[6] == ':' && npt - rpt == 10 && !has_mask) {
+     if(rpt[6] == ':' && npt - rpt == 10 && ((flag & 16) || !has_mask)) {
                                   /* oddly: mask overrides group in st_mode */
        cpt= rpt + 7;
        m= 0;
@@ -672,22 +674,24 @@ others_st_mode:;
      cpt= rpt + 7;
      goto others_st_mode;
    } else if(strncmp(rpt, "mask::", 6) == 0 && npt - rpt == 9) {
-     /* oddly: mask overrides group in st_mode */
      cpt= rpt + 6;
 mask_st_mode:;
-     m= 0;
-     if(cpt[0] == 'r')
-       m|= S_IRGRP;
-     if(cpt[1] == 'w')
-       m|= S_IWGRP;
-     if(cpt[2] == 'x')
-       m|= S_IXGRP;
-     list_mode= (list_mode & ~S_IRWXG) | m;
      tag_types|= 64 | 512;
-     if(flag & 8) {
-       cpt[0]= st_mode & S_IRGRP ? 'r' : '-';
-       cpt[1]= st_mode & S_IWGRP ? 'w' : '-';
-       cpt[2]= st_mode & S_IXGRP ? 'x' : '-';
+     if(!(flag & 16)) {
+       /* oddly: mask overrides group in st_mode */
+       m= 0;
+       if(cpt[0] == 'r')
+         m|= S_IRGRP;
+       if(cpt[1] == 'w')
+         m|= S_IWGRP;
+       if(cpt[2] == 'x')
+         m|= S_IXGRP;
+       list_mode= (list_mode & ~S_IRWXG) | m;
+       if(flag & 8) {
+         cpt[0]= st_mode & S_IRGRP ? 'r' : '-';
+         cpt[1]= st_mode & S_IWGRP ? 'w' : '-';
+         cpt[2]= st_mode & S_IXGRP ? 'x' : '-';
+       }
      }
    } else if(strncmp(rpt, "mask:", 5) == 0 && npt - rpt == 8) {
      cpt= rpt + 5;

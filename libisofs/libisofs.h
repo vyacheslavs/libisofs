@@ -4346,6 +4346,22 @@ int iso_node_get_acl_text(IsoNode *node,
 int iso_node_set_acl_text(IsoNode *node,
                           char *access_text, char *default_text, int flag);
 
+/* ts A90206 */
+/**
+ * Like iso_node_get_permissions but reflecting ACL entry "group::" in S_IRWXG
+ * rather than ACL entry "mask::". This is necessary if the permissions of a
+ * node with ACL shall be restored to a filesystem without restoring the ACL.
+ * If the node has no ACL then the result is iso_node_get_permissions(node).
+ * @param node
+ *      The node that is to be inquired.
+ * @return
+ *      Permission bits as of stat(2)
+ *
+ * @since 0.6.14
+ */
+mode_t iso_node_get_perms_wo_acl(const IsoNode *node);
+
+
 /* ts A90131 */
 /**
  * Get the list of XFS-style Extended Attributes xattr which is associated
