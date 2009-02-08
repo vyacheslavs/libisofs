@@ -361,3 +361,17 @@ Pending considerations:
 - shall the tag types ACL_USER and ACL_GROUP with non-numeric qualifier be
   revoked ?
 
+- define short indicators for namespaces "user" and "system".
+  Idea:
+  Reserved start bytes of name
+    0x00 to 0x1F
+  have a meaning
+    0x00   builtin ACL
+    0x01   escape reserved character at start of name
+    0x02   namespace "system"
+    0x03   namespace "user"
+    0x04   namespace "libisofs"
+  0x05 to 0x1F shall not be used yet. If encountered then they map to name
+  space "user" and the name gets prefixed "aaipXY_" with XY being two hex
+  digits describint the encountered short indicator value.
+

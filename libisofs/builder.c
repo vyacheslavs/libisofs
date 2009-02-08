@@ -202,8 +202,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         if (a_text != NULL) {
             aaip_cleanout_st_mode(a_text, &(info.st_mode), 4 | 16);
             iso_node_set_perms_internal(new, info.st_mode, 1);
-            free(a_text);
-            a_text = 0;
         }
         iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
                             1 << 15); /* free ACL texts */

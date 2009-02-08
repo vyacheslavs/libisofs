@@ -1336,7 +1336,10 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 #ifdef Libisofs_with_aaiP
             /* ts A90115 */
 
-            } else if (SUSP_SIG(sue, 'A', 'A') && fsdata->aaip_load == 1) {
+            /* Need to read AA in any case so it is available for S_IRWXG
+               mapping in case that fsdata->aaip_load != 1
+             */
+            } else if (SUSP_SIG(sue, 'A', 'A')) {
 
                 ret = read_aaip_AA(sue, &aa_string, &aa_size, &aa_len,
                                    &prev_field, &aa_done, 0);
@@ -2583,9 +2586,28 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* obtain ownership of eventual AA string */
     ret = iso_file_source_get_aa_string(src, &aa_string, 1);
     if (ret == 1 && aa_string != NULL) {
-        ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
-        if (ret < 0)
-            return ret;
+        _ImageFsData *fsdata = data->fs->data;
+        char *a_text = NULL, *d_text = NULL;
+
+        if (fsdata->aaip_load == 1) {
+            ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
+            if (ret < 0)
+                return ret;
+        } else {
+
+            /* ts A90208 */
+            /* Look for ACL and perform S_IRWXG mapping */
+            if (aa_string != NULL)
+                iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
+                                    16);
+            if (a_text != NULL)
+                aaip_cleanout_st_mode(a_text, &(new->mode), 4 | 16);
+            /* Dispose ACL a_text and d_text */
+            iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
+                                1 << 15);
+            /* Dispose aa_string */
+            aaip_xinfo_func(aa_string, 1);
+        }
     }
 
 #endif /* Libisofs_with_aaiP */
