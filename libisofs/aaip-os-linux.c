@@ -372,7 +372,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
  int ret, has_default_acl= 0;
- size_t i, consumed, acl_text_fill, list_size= 0, acl_idx= 0;
+ size_t i, consumed, acl_text_fill, list_size= 0, acl_idx= 0, h_consumed;
  char *acl_text= NULL, *list= NULL;
 
 #ifdef Libisofs_with_aaip_xattR
@@ -469,7 +469,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    free(acl_text);
    acl_text= NULL;
    ret= aaip_decode_acl((unsigned char *) (values[i] + consumed),
-                        value_lengths[i] - consumed, &consumed,
+                        value_lengths[i] - consumed, &h_consumed,
                         NULL, 0, &acl_text_fill, 1);
    if(ret <= 0)
      {ret= -2; goto ex;}
@@ -477,7 +477,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    if(acl_text == NULL)
      {ret= -1; goto ex;}
    ret= aaip_decode_acl((unsigned char *) (values[i] + consumed),
-                        value_lengths[i] - consumed, &consumed,
+                        value_lengths[i] - consumed, &h_consumed,
                         acl_text, acl_text_fill, &acl_text_fill, 0);
    if(ret <= 0)
      {ret= -2; goto ex;}

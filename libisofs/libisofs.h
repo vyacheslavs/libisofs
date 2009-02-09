@@ -4351,6 +4351,7 @@ int iso_node_set_acl_text(IsoNode *node,
  * Like iso_node_get_permissions but reflecting ACL entry "group::" in S_IRWXG
  * rather than ACL entry "mask::". This is necessary if the permissions of a
  * node with ACL shall be restored to a filesystem without restoring the ACL.
+ * The same mapping happens internally when the ACL of a node is deleted.
  * If the node has no ACL then the result is iso_node_get_permissions(node).
  * @param node
  *      The node that is to be inquired.
