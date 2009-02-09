@@ -4218,7 +4218,7 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_AAIP_BAD_ACL_TEXT     0xE830FEAE
 
 /* ts A90130 */
-/** AAIP processing for ACL and xattr not enabled at compile time
+/** AAIP processing for ACL or xattr not enabled at compile time
                                                        (FAILURE, HIGH, -339) */
 #define ISO_AAIP_NOT_ENABLED      0xE830FEAD
 
@@ -4235,7 +4235,7 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
 
 /* ts A90206 */
-/** Unallowed attempt to set an xattr with non-user name
+/** Unallowed attempt to set an xattr with non-userspace name
                                                        (FAILURE, HIGH, -343) */
 #define ISO_AAIP_NON_USER_NAME    0xE830FEA9
 

@@ -475,7 +475,7 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
      aapt[3] = 1;
      aapt[4] = 0;
      /* Append sue payload */
-     memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0]);
+     memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0] - 5);
 
      *aa_len += sue->len_sue[0];
      *is_done = !(sue->data.AA.flags[0] & 1);

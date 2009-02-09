@@ -217,7 +217,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_AAIP_BAD_ACL_TEXT:
         return "Error with encoding ACL for AAIP";
     case ISO_AAIP_NOT_ENABLED:
-        return "AAIP processing for ACL and xattr not enabled at compile time";
+        return "AAIP processing for ACL or xattr not enabled at compile time";
     case ISO_AAIP_BAD_AASTRING:
         return "Error with decoding AAIP info for ACL or xattr";
     case ISO_AAIP_NO_GET_LOCAL:
@@ -225,7 +225,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_AAIP_NO_SET_LOCAL:
         return "Error with attaching ACL or xattr to local file";
     case ISO_AAIP_NON_USER_NAME:
-        return "Unallowed attempt to set an xattr with non-user name";
+        return "Unallowed attempt to set an xattr with non-userspace name";
     default:
         return "Unknown error";
     }
