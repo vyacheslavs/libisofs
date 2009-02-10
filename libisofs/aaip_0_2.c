@@ -41,6 +41,21 @@
 #define Aaip_ACL_GROUP_N    12
 #define Aaip_FUTURE_VERSION 15
 
+#define Aaip_with_short_namespaceS yes
+#define Aaip_max_named_spacE    0x04
+#define Aaip_min_named_spacE    0x02
+#define Aaip_maxdef_namespacE   0x1f
+
+#define Aaip_namespace_literaL  0x01
+#define Aaip_namespace_systeM   0x02
+#define Aaip_namespace_useR     0x03
+#define Aaip_namespace_isofS    0x04
+
+static char Aaip_namespace_textS[][8]= {"", "", "system.", "user.", "isofs."};
+
+/* maximum expansion:  "user.aaipXY_" */
+#define Aaip_max_name_expansioN  12
+
 /* --------------------------------- Encoder ---------------------------- */
 
 
@@ -151,22 +166,27 @@ static void aaip_encode_byte(unsigned char *result, size_t *result_fill,
 
 
 static int aaip_encode_comp(unsigned char *result, size_t *result_fill,
-                            char *data, size_t l, int flag)
+                            int prefix, char *data, size_t l, int flag)
 {
  size_t todo;
  char *rpt, *comp_start;
 
- if(l == 0) {
+ if(l == 0 && prefix <= 0) {
    aaip_encode_byte(result, result_fill, 0);
    aaip_encode_byte(result, result_fill, 0);
    return(1);
  }
  for(rpt= data; rpt - data < l;) {
-   todo= l - (rpt - data);
+   todo= l - (rpt - data) + (prefix > 0);
    aaip_encode_byte(result, result_fill, (todo > 255));
    if(todo > 255)
      todo= 255;
    aaip_encode_byte(result, result_fill, todo);
+   if(prefix > 0) {
+     aaip_encode_byte(result, result_fill, prefix);
+     todo--;
+     prefix= 0;
+   }
    for(comp_start= rpt; rpt - comp_start < todo; rpt++)
      aaip_encode_byte(result, result_fill, *((unsigned char *) rpt));
  }
@@ -184,8 +204,24 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
                             int flag)
 {
  size_t l;
+ int i, prefix= 0;
 
- l= strlen(name);
+#ifdef Aaip_with_short_namespaceS
+
+ /* translate name into eventual short form */
+ for(i= Aaip_min_named_spacE; i <= Aaip_max_named_spacE; i++)
+   if(strncmp(name, Aaip_namespace_textS[i], strlen(Aaip_namespace_textS[i]))
+      == 0) {
+     name+= strlen(Aaip_namespace_textS[i]);
+     prefix= i;
+   }
+ /* Eventually prepend escape marker for strange names */
+ if(prefix <= 0 && name[0] > 0 && name[0] <= Aaip_maxdef_namespacE)
+   prefix= Aaip_namespace_literaL;
+
+#endif /* Aaip_with_short_namespaceS */
+
+ l= strlen(name) + (prefix > 0);
  *num_recs= l / 255 + (!!(l % 255)) + (l == 0) +
             attr_length / 255 + (!!(attr_length % 255)) + (attr_length == 0);
  *comp_size= l + attr_length + 2 * *num_recs;
@@ -193,8 +229,8 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
  if(flag & 1)
    return(1);
 
- aaip_encode_comp(result, &result_fill, name, l, 0);
- aaip_encode_comp(result, &result_fill, attr, attr_length, 0);
+ aaip_encode_comp(result, &result_fill, prefix, name, l - (prefix > 0), 0);
+ aaip_encode_comp(result, &result_fill, 0, attr, attr_length, 0);
  return(1);
 }
 
@@ -1482,6 +1518,11 @@ int aaip_decode_pair(struct aaip_state *aaip,
  int ret;
  size_t ready_bytes;
 
+#ifdef Aaip_with_short_namespaceS
+ char prefix[Aaip_max_name_expansioN + 1];
+ size_t nl, pl;
+#endif
+
  *consumed= 0;
  if((aaip->pair_status < 0 && aaip->pair_status != -2) ||
      aaip->pair_status == 4 ||
@@ -1524,8 +1565,8 @@ int aaip_decode_pair(struct aaip_state *aaip,
    {ret= -1; goto ex;} /* unknown reply from aaip_submit_data() */
 
  *consumed= num_data;
- ret= aaip_advance_pair(aaip, name, name_size, name_fill,
-                        value, value_size, value_fill, flag & 1);
+ ret= aaip_advance_pair(aaip, name, name_size - Aaip_max_name_expansioN,
+                        name_fill, value, value_size, value_fill, flag & 1);
  if(aaip->aa_ends == 3) {
    if(ret >= 2 && ret <= 4)
      ret= 4;
@@ -1533,6 +1574,38 @@ int aaip_decode_pair(struct aaip_state *aaip,
      ret= 5;
  }
 ex:;
+
+#ifdef Aaip_with_short_namespaceS
+
+ if(ret >= 2 && ret <= 4 && *name_fill > 0) {
+   /* Translate name from eventual short form */
+   nl= *name_fill;
+   if(name[0] > 0  && name[0] <= Aaip_maxdef_namespacE) {
+     prefix[0]= 0;
+     if(name[0] == Aaip_namespace_literaL) {
+       if(nl > 1) {
+         /* Remove first character of name */
+         memmove(name, name + 1, nl - 1);
+         (*name_fill)--; 
+       }
+     } else if(name[0] == Aaip_namespace_systeM ||
+               name[0] == Aaip_namespace_useR ||
+               name[0] == Aaip_namespace_isofS) {
+       strcpy(prefix, Aaip_namespace_textS[(int) name[0]]);
+     } else {
+       sprintf(prefix, "user.aaip%2.2X_", (unsigned int) name[0]);
+     }
+     pl= strlen(prefix);
+     if(pl > 0) {
+       memmove(name + pl, name + 1, nl - 1);
+       memcpy(name, prefix, pl);
+       *name_fill= pl + nl - 1;
+     }
+   }
+ }
+
+#endif /* Aaip_with_short_namespaceS */
+
  aaip->pair_status= ret;
  return(ret);
 }

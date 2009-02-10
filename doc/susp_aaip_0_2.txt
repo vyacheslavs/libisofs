@@ -3,7 +3,7 @@
                  Arbitrary Attribute Interchange Protocol
 
                              Draft version 0.2
-                                Jan 30 2008
+                                Feb 10 2009
 
                 Interchange of Persistent File Attributes
 
@@ -46,11 +46,12 @@ The reader shall be prepared to detect and handle oversized data.
 One or more AA entries form the Attribute List of a file object with
 an even number of components. Each two consequtive components form a pair of
 Name and Value.
-Names which do not contain a perisod character "." are reserved for
-registration at libburnia.org.  The meaning of any other names is not
-specified by this document.
-For now only one name is registered:
-  The empty name indicates that the value is a compact representation of ALCs.
+
+The empty name indicates that the value is a compact representation of ACLs.
+
+Names must not contain byte value 0x00. Names which begin by bytes 0x01 to 0x1f
+represent names in particular name spaces. See below: Name Spaces.
+The meaning of any other names or name parts is not specified by this document.
 
 All AA entries except the last one shall have the CONTINUE flag set. An AA
 entry with CONTINUE set to 0 indicates the end of the Attribute List.
@@ -133,6 +134,50 @@ Example: Two pairs of "name"="long...content" and "one"="more" encoded as
       0,   7, 'c', 'o', 'n', 't', 'e', 'n', 't',
       0,   3, 'o', 'n', 'e',
       0,   4, 'm', 'o', 'r', 'e' }
+
+-------------------------------------------------------------------------------
+
+Name Spaces
+
+AAIP provides a short notation for namespaces which uses a single non-printable
+byte at the start of the name.
+Reserved start bytes of names are
+    0x01 to 0x1F
+
+The names of extended file attributes are traditionally organized in name
+spaces, which get expressed as first part of an attribute name up to a
+period "." character. It is also tradition that names are printable text,
+single words and especially contain no 0-bytes.
+
+AAIP does not enforce the use of any name space but it urges that names in the
+following registered name spaces are used according to traditions.
+
+The name spaces "system." and "user." are available with many file system
+types. "system." is file system dependent and often restricted in the
+choice of names. "user." is portable and allows to choose about any name.
+
+Name space "isofs." is defined for internal use of AAIP enhanced ISO 9660
+file systems. Names in this name space should be registered at libburnia.org.
+
+Further name spaces may be registered at libburnia.org.
+
+The reserved start bytes of names have the following meaning
+    0x01   escape reserved character at start of name
+    0x02   namespace "system."
+    0x03   namespace "user."
+    0x04   namespace "isofs."
+    0x05 to 0x1F shall not be used yet.
+           If encountered then they map to name space "user." and the name gets
+           prefixed "aaipXY_" with XY being two hex digits [0-9A-F] describing
+           the encountered short indicator value.
+
+Examples:
+   Name "user.abc"
+      0,   4, 0x03,  'a', 'b', 'c'
+   Name "\003abc" (if really desired)
+      0,   5, 0x01, 0x03, 'a', 'b', 'c'
+   Default mapping of AAIP name component record {0,   4, 0x0f, 'a', 'b', 'c'}
+      "user.aaip0F_abc"
 
 -------------------------------------------------------------------------------
 
@@ -345,6 +390,10 @@ Revoked drafts:
 There was a draft AAIP 0.0 with ER signature "AAIP_2008A". It did not resemble
 the existing entry SL and therefore shall not be used by writers of ISO images.
 
+AAIP 0.2 once allowed to announce and use a different signature than "AA".
+This has been revoked because ES entries serve the purpose to distinguish
+AAIP entries from eventual "AA" entries of any other extension.
+
 -------------------------------------------------------------------------------
 References:
 
@@ -360,18 +409,4 @@ Pending considerations:
 
 - shall the tag types ACL_USER and ACL_GROUP with non-numeric qualifier be
   revoked ?
-
-- define short indicators for namespaces "user" and "system".
-  Idea:
-  Reserved start bytes of name
-    0x00 to 0x1F
-  have a meaning
-    0x00   builtin ACL
-    0x01   escape reserved character at start of name
-    0x02   namespace "system"
-    0x03   namespace "user"
-    0x04   namespace "libisofs"
-  0x05 to 0x1F shall not be used yet. If encountered then they map to name
-  space "user" and the name gets prefixed "aaipXY_" with XY being two hex
-  digits describint the encountered short indicator value.
 
