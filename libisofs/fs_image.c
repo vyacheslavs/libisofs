@@ -2002,23 +2002,27 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 #ifndef Libisofs_with_aaiP_retro
 /* ts A90113 : tolerate AAIP ER even if not supported */
 
-            } else if ( (sue->data.ER.len_id[0] == 9 &&
-                    !strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9)) ) {
+            } else if (sue->data.ER.len_id[0] == 9 &&
+                  (strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9) == 0 ||
+                   strncmp((char*)sue->data.ER.ext_id, "AAIP_0100", 9) == 0)) {
 
                 iso_msg_debug(data->msgid,
-                              "Arbitrary Attribute ER found. Version 0.2.");
+                              "Suitable AAIP ER found.");
 
 #ifdef Libisofs_with_aaiP
 
-                data->aaip_version = 2;
+                if (((char*)sue->data.ER.ext_id)[6] == '1')
+                    data->aaip_version = 100;
+                else
+                    data->aaip_version = 2;
                 if (!data->aaip_load)
                     iso_msg_submit(data->msgid, ISO_AAIP_IGNORED, 0,
-       "Identifier for extension AAIP 0.2 found, but loading is not enabled.");
+       "Identifier for extension AAIP found, but loading is not enabled.");
 
 #else /* Libisofs_with_aaiP */
 
                 iso_msg_submit(data->msgid, ISO_AAIP_IGNORED, 0,
-                "Identifier for future extension AAIP 0.2 found and ignored.");
+                "Identifier for future extension AAIP found and ignored.");
 
 #endif /* ! Libisofs_with_aaiP */
 
