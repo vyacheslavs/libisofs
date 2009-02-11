@@ -167,9 +167,6 @@ The reserved start bytes of names have the following meaning
     0x03   namespace "user."
     0x04   namespace "isofs."
     0x05 to 0x1F shall not be used yet.
-           If encountered then they map to name space "user." and the name gets
-           prefixed "aaipXY_" with XY being two hex digits [0-9A-F] describing
-           the encountered short indicator value.
 
 Examples:
    Name "user.abc"

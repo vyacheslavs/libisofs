@@ -1592,11 +1592,7 @@ ex:;
                name[0] == Aaip_namespace_useR ||
                name[0] == Aaip_namespace_isofS) {
        strcpy(prefix, Aaip_namespace_textS[(int) name[0]]);
-     } else {
-       sprintf(prefix, "user.aaip%2.2X_", (unsigned int) name[0]);
-     }
-     pl= strlen(prefix);
-     if(pl > 0) {
+       pl= strlen(prefix);
        memmove(name + pl, name + 1, nl - 1);
        memcpy(name, prefix, pl);
        *name_fill= pl + nl - 1;
