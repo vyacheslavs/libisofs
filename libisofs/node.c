@@ -1528,6 +1528,7 @@ int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
                               (but not if bit2 is set)
                         bit2= delete the given names rather than overwrite
                               their content
+                        bit4= do not overwrite value of empty name
                         bit15= release memory and return 1
 */
 static
@@ -1546,7 +1547,7 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
     }
 
     ret = iso_node_get_attrs(node, m_num_attrs, m_names, m_value_lengths,
-                             m_values, 0);
+                             m_values, 1);
     if (ret < 0)
         return ret;
 
@@ -1572,8 +1573,12 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
 
     /* Handle existing names, count non-existing names */
     for (i = 0; i < num_attrs; i++) {
+        if (names[i] == NULL)
+            continue;
+        if (names[i][0] == 0 && (flag & 16))
+            continue;
         for (j = 0; j < *m_num_attrs; j++) {
-            if (names[i] == NULL || (*m_names)[j] == NULL)
+            if ((*m_names)[j] == NULL)
                 continue;
             if (strcmp(names[i], (*m_names)[j]) == 0) {
                 if ((*m_values)[j] != NULL)
@@ -1613,8 +1618,12 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
         /* Set new pairs */;
         w = *m_num_attrs;
         for (i = 0; i < num_attrs; i++) {
+            if (names[i] == NULL)
+                continue;
+            if (names[i][0] == 0 && (flag & 16))
+                continue;
             for (j = 0; j < *m_num_attrs; j++) {
-                if (names[i] == NULL || (*m_names)[j] == NULL)
+                if ((*m_names)[j] == NULL)
                     continue;
                 if (strcmp(names[i], (*m_names)[j]) == 0)
                     continue;
@@ -1658,7 +1667,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
 
 #ifdef Libisofs_with_aaiP
 
-    int ret;
+    int ret, acl_saved = 0;
     size_t sret, result_len, m_num = 0, *m_value_lengths = NULL, i;
     unsigned char *result;
     char *a_acl = NULL, *d_acl = NULL, **m_names = NULL, **m_values = NULL;
@@ -1668,28 +1677,28 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
             if (strncmp(names[i], "user.", 5) != 0 && names[i][0] != 0) 
                 return ISO_AAIP_NON_USER_NAME;  
 
-    if (!(flag & 1))
-        iso_node_get_acl_text(node, &a_acl, &d_acl, 16);
-
     if ((flag & (2 | 4)) || !(flag & 8)) {
         /* Merge old and new lists */
         ret = iso_node_merge_xattr(
                   node, num_attrs, names, value_lengths, values,
                   &m_num, &m_names, &m_value_lengths, &m_values,
-                  (flag & 4) | !(flag & 2));
+                  (flag & 4) | (!(flag & 2)) | ((!(flag & 1)) << 4));
         if (ret < 0)
             goto ex;
         num_attrs = m_num;
         names = m_names;
         value_lengths = m_value_lengths;
         values = m_values;
+    } else if (!(flag & 1)) {
+        iso_node_get_acl_text(node, &a_acl, &d_acl, 16);
+        acl_saved = 1;
     }
 
     if (num_attrs == 0) {
         ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
         if (ret < 0)
             goto ex;
-        if (!(flag & 1)) {
+        if (acl_saved && (a_acl != NULL || d_acl != NULL)) {
             ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
             if (ret < 0)
                 goto ex;
@@ -1712,12 +1721,12 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
         goto ex;
     if (ret == 0) {
 
-        /* >>> something is messed up with xinfo */;
+        /* >>> something is messed up with xinfo: an aa_string still exists */;
 
         ret = ISO_ERROR;
         goto ex;
     }
-    if (!(flag & 1)) {
+    if (acl_saved) {
         ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
         if (ret < 0)
             goto ex;
