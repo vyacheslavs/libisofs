@@ -1524,7 +1524,10 @@ int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
    attribute list returned by  m_* parameters.
    The m_* paramters have finally to be freed by a call with bit15 set.
    @param flag          Bitfield for control purposes
-                        bit2= delete rather than overwrite
+                        bit0= delete all old names which begin by "user."     
+                              (but not if bit2 is set)
+                        bit2= delete the given names rather than overwrite
+                              their content
                         bit15= release memory and return 1
 */
 static
@@ -1546,6 +1549,26 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
                              m_values, 0);
     if (ret < 0)
         return ret;
+
+    if ((flag & 1) && (!(flag & 4))) {
+        /* Delete unmatched user space pairs */
+        for (j = 0; j < *m_num_attrs; j++) {
+            if (strncmp((*m_names)[j], "user.", 5) != 0)
+                continue;
+            for (i = 0; i < num_attrs; i++) {
+                if (names[i] == NULL || (*m_names)[j] == NULL)
+                    continue;
+                if (strcmp(names[i], (*m_names)[j]) == 0)
+                    break;
+            }
+            if (i >= num_attrs) {    
+                /* Delete unmatched pair */
+                free((*m_names)[j]);
+                (*m_names)[j] = NULL;
+                deleted++;
+            }
+        }
+    }
 
     /* Handle existing names, count non-existing names */
     for (i = 0; i < num_attrs; i++) {
@@ -1571,11 +1594,12 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
                     (*m_value_lengths)[j] = value_lengths[i];
                 }
                 break;
-            } 
+            }
         }
         if (j >= *m_num_attrs)
             new_names++;
     }
+
     if (new_names > 0 && (flag & 4)) {
 
         /* >>> warn of non-existing name on delete ? */;
@@ -1647,11 +1671,12 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
     if (!(flag & 1))
         iso_node_get_acl_text(node, &a_acl, &d_acl, 16);
 
-    if (flag & (2 | 4)) {
+    if ((flag & (2 | 4)) || !(flag & 8)) {
         /* Merge old and new lists */
         ret = iso_node_merge_xattr(
                   node, num_attrs, names, value_lengths, values,
-                  &m_num, &m_names, &m_value_lengths, &m_values, flag & 4);
+                  &m_num, &m_names, &m_value_lengths, &m_values,
+                  (flag & 4) | !(flag & 2));
         if (ret < 0)
             goto ex;
         num_attrs = m_num;

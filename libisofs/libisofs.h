@@ -4435,7 +4435,8 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
  *      bit2= Delete the attributes with the given names
  *      bit3= Allow non-user attribute.
  *            I.e. those with a non-empty name which does not begin by "user."
- *            (The empty name is always allowed and governed by bit0.)
+ *            (The empty name is always allowed and governed by bit0.) This
+ *            deletes all previously existing attributes if not bit1 is set.
  * @return
  *      1 = ok
  *    < 0 = error
