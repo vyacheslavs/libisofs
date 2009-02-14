@@ -305,19 +305,6 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag);
 
-#ifdef NIX
-
-/* <<< is now in libisofs.h */
-
-/**
- * Function to identify and manage AA strings as xinfo of IsoNode
- * See libisofs.h iso_node_xinfo_func
- */
-int aaip_xinfo_func(void *data, int flag);
-
-#endif /* NIX */
-
-
 #endif /* Libisofs_with_aaiP */
 
 

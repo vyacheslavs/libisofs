@@ -4246,11 +4246,6 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 */
 #define Libisofs_with_aaiP yes
 
-/* ts A90112
-   <<< write dummy AAIP fields with any node
-   # define Libisofs_with_aaip_dummY yes
-*/
-
 
 /* ts A90114 */
 /**

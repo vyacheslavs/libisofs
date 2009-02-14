@@ -913,26 +913,15 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
     /* ts A90112 */
     xipt = NULL;
 
-#ifdef Libisofs_with_aaip_dummY
-
-    num_aapt = 28;
-    aaip_xinfo_func(NULL, 0); /* to avoid compiler warning */
-
-#else /* Libisofs_with_aaip_dummY */
-
     /* obtain num_aapt from node */
     num_aapt = 0;
-
     if (t->aaip) {
         ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
         if (ret == 1) {
            num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
         }
     }
-
-#endif /* ! Libisofs_with_aaip_dummY */
-
-	/* let the expert decide where to add num_aapt */
+    /* let the expert decide where to add num_aapt */
     if (num_aapt > 0) {
         sua_free = space - *su_size;
         aaip_add_AA(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
@@ -1170,13 +1159,6 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
         /* ts A90112 */
         xipt = NULL;
 
-#ifdef Libisofs_with_aaip_dummY
-
-        num_aapt = 28;
-        aaip_xinfo_func(NULL, 0); /* to avoid compiler warning */
-
-#else /* Libisofs_with_aaip_dummY */
-
         /* obtain num_aapt from node */
         num_aapt = 0;
         if (t->aaip) {
@@ -1185,9 +1167,6 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
                num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
             }
         }
-
-#endif /* ! Libisofs_with_aaip_dummY */
-
 	/* let the expert decide where to add num_aapt */
         if (num_aapt > 0) {
             sua_free = space - su_size;
@@ -1215,15 +1194,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 #ifdef Libisofs_with_aaiP
             /* ts A90113 */
 
-#ifdef Libisofs_with_aaip_dummY
-
-            if (1) {
-#else /* Libisofs_with_aaip_dummY */
-
             if (t->aaip) {
-
-#endif /* ! Libisofs_with_aaip_dummY */
-
                 *ce += 160; /* ER of AAIP */
             }
 
@@ -1678,34 +1649,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
 
 #ifdef Libisofs_with_aaiP
-
-#ifdef Libisofs_with_aaip_dummY
-/* ts A90112 */
-
-{
-        static uint8_t dummy_aa[28]= {
-            'A', 'A',  28,   1,   0,
-             0,   0,
-             0,  19,  0x16,
-                      0x2E,   4, 'l', 'i', 's', 'a',
-                      0x34, 
-                      0x4E,   7, 't', 'o', 'o', 'l', 'i', 'e', 's',
-                      0x54, 
-                      0x64
-        };
-
-        num_aapt = 28;
-        aapt = malloc(num_aapt);
-        memcpy(aapt, dummy_aa, num_aapt);
-
-        ret = aaip_add_AA(t, info, &aapt, num_aapt, &sua_free, &ce_len, 0);
-        if (ret < 0) {
-            goto add_susp_cleanup;
-        }
-        /* aapt is NULL now and the memory is owned by t */
-}
-
-#else /* Libisofs_with_aaip_dummY */
 /* ts A90114 */
 
         /* Obtain AA field string from node
@@ -1735,8 +1678,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
 
-#endif /* ! Libisofs_with_aaip_dummY */
-
 #endif /* Libisofs_with_aaiP */
 
     } else {
@@ -1759,16 +1700,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 #ifdef Libisofs_with_aaiP
             /* ts A90113 */
 
-#ifdef Libisofs_with_aaip_dummY
-
-            if (1) {
-            
-#else /* Libisofs_with_aaip_dummY */
-
             if (t->aaip && !t->aaip_susp_1_10) {
-
-#endif /* ! Libisofs_with_aaip_dummY */
-
                 aaip_er_len = 160;
             }
 
@@ -1787,16 +1719,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 #ifdef Libisofs_with_aaiP
             /* ts A90113 */
 
-#ifdef Libisofs_with_aaip_dummY
-
-            if (1) {
-            
-#else /* Libisofs_with_aaip_dummY */
-
             if (t->aaip && !t->aaip_susp_1_10) {
-    
-#endif /* ! Libisofs_with_aaip_dummY */
-
                 ret = aaip_add_ER(t, info, 0);
                 if (ret < 0) {
                     goto add_susp_cleanup;
