@@ -1353,16 +1353,12 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 #endif /* Libisofs_with_aaiP */
 
 
-            } else {
-
-#ifdef Libisofs_with_aaiP_retro
 /* ts A90112 : this message is inflationary */
-
+/*
+            } else {
                 ret = iso_msg_submit(fsdata->msgid, ISO_SUSP_UNHANDLED, 0,
                     "Unhandled SUSP entry %c%c.", sue->sig[0], sue->sig[1]);
-#else
-                ;
-#endif
+*/
 
             }
         }
@@ -1963,22 +1959,6 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
             continue;
 
         if (SUSP_SIG(sue, 'E', 'R')) {
-
-#ifdef Libisofs_with_aaiP_retro
-            /* ts A90113 : this warning is not appropriate any more */
-
-            if (data->rr_version) {
-                ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
-                    "More than one ER has found. This is not supported. "
-                    "It will be ignored, but can cause problems. "
-                    "Please notify us about this.");
-                if (ret < 0) {
-                    break;
-                }
-            }
-
-#endif /* ! Libisofs_with_aaiP_retro */
-
             /*
              * it seems that Rock Ridge can be identified with any
              * of the following
@@ -1999,13 +1979,11 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                               "Suitable Rock Ridge ER found. Version 1.12.");
                 data->rr_version = RR_EXT_112;
 
-#ifndef Libisofs_with_aaiP_retro
-/* ts A90113 : tolerate AAIP ER even if not supported */
-
             } else if (sue->data.ER.len_id[0] == 9 &&
                   (strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9) == 0 ||
                    strncmp((char*)sue->data.ER.ext_id, "AAIP_0100", 9) == 0)) {
 
+                /* ts A90113 : tolerate AAIP ER even if not supported */
                 iso_msg_debug(data->msgid,
                               "Suitable AAIP ER found.");
 
@@ -2026,11 +2004,9 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
 #endif /* ! Libisofs_with_aaiP */
 
-#endif /* ! Libisofs_with_aaiP_retro */
-
             } else {
                 ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
-                    "Non-Rock-Ridge ER found.\n"
+                    "Unknown Extension Signature found in ER.\n"
                     "It will be ignored, but can cause problems in "
                     "image reading. Please notify us about this.");
                 if (ret < 0) {

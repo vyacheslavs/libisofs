@@ -646,10 +646,24 @@ int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, int flag)
     AA[5] = 81;
     AA[6] = 62;
     AA[7] = 1;
+
+#define Libisofs_aaip_1_0 yes
+#ifdef Libisofs_aaip_1_0
+
+    memcpy(AA + 8, "AAIP_0100", 9);
+    memcpy(AA + 17,
+           "AA PROVIDES VIA AAIP 1.0 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
+           " IN ISO 9660 IMAGES", 81);
+
+#else /* Libisofs_aaip_1_0 */
+
     memcpy(AA + 8, "AAIP_0002", 9);
     memcpy(AA + 17,
            "AA PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
            " IN ISO 9660 IMAGES", 81);
+
+#endif /* ! Libisofs_aaip_1_0 */
+
     memcpy(AA + 98,
            "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG",
            62);
