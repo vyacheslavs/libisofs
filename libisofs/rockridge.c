@@ -7,7 +7,6 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-#define Libisofs_new_nm_sl_cE yes
 
 /* ts A90116 : libisofs.h eventually defines Libisofs_with_aaiP */
 #include "libisofs.h"
@@ -962,15 +961,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
 #ifdef Libisofs_with_aaiP
     /* ts A90112 */
-#ifndef Libisofs_new_nm_sl_cE
-    void *xipt;
-    size_t num_aapt = 0, sua_free = 0;
-#endif /* Libisofs_new_nm_sl_cE */
     int ret;
 #else /* Libisofs_with_aaiP */
-#ifdef Libisofs_new_nm_sl_cE
     int ret;
-#endif
 #endif /* ! Libisofs_with_aaiP */
 
     /* space min is 255 - 33 - 37 = 185
@@ -1022,161 +1015,10 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
     if (type == 0) {
 
-#ifdef Libisofs_new_nm_sl_cE
-
         /* Try without CE */
         ret = susp_calc_nm_sl_aa(t, n, space, &su_size, ce, 0);
         if (ret == 0) /* Retry with CE */
             susp_calc_nm_sl_aa(t, n, space, &su_size, ce, 1);
-
-#else /* Libisofs_new_nm_sl_cE */
-
-        char *name = get_rr_fname(t, n->node->name);
-        size_t namelen = strlen(name);
-        free(name);
-
-        /* NM entry */
-        if (su_size + 5 + namelen <= space) {
-            /* ok, it fits in System Use Area */
-            su_size += 5 + namelen;
-        } else {
-            /* the NM will be divided in a CE */
-            namelen = namelen - (space - su_size - 5 - 28);
-            *ce = 5 + namelen;
-            su_size = space;
-        }
-        if (n->type == ECMA119_SYMLINK) {
-            /* 
-             * for symlinks, we also need to write the SL
-             */
-            char *dest, *cur, *prev;
-            size_t sl_len = 5;
-            int cew = (*ce != 0); /* are we writing to CE? */
-
-            dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
-            prev = dest;
-            cur = strchr(prev, '/');
-            while (1) {
-                size_t clen;
-                if (cur) {
-                    clen = cur - prev;
-                } else {
-                    /* last component */
-                    clen = strlen(prev);
-                }
-
-                if (clen == 1 && prev[0] == '.') {
-                    clen = 0;
-                } else if (clen == 2 && prev[0] == '.' && prev[1] == '.') {
-                    clen = 0;
-                }
-
-                /* flags and len for each component record (RRIP, 4.1.3.1) */
-                clen += 2;
-
-                if (!cew) {
-                    /* we are still writing to the SUA */
-                    if (su_size + sl_len + clen > space) {
-                        /* 
-                         * ok, we need a Continuation Area anyway
-                         * TODO this can be handled better, but for now SL
-                         * will be completelly moved into the CA
-                         */
-                        if (su_size + 28 <= space) {
-                            /* the CE entry fills without reducing NM */
-                            su_size += 28;
-                        } else {
-                            /* we need to reduce NM */
-                            *ce = (28 - (space - su_size)) + 5;
-                            su_size = space;
-                        }
-                        cew = 1;
-                    } else {
-                        sl_len += clen;
-                    }
-                }
-                if (cew) {
-                    if (sl_len + clen > 255) {
-                        /* we need an additional SL entry */
-                        if (clen > 250) {
-                            /* 
-                             * case 1, component too large to fit in a 
-                             * single SL entry. Thus, the component need
-                             * to be divided anyway.
-                             * Note than clen can be up to 255 + 2 = 257.
-                             * 
-                             * First, we check how many bytes fit in current
-                             * SL field 
-                             */
-                            int fit = 255 - sl_len - 2;
-                            if (clen - 250 <= fit) {
-                                /* 
-                                 * the component can be divided between this
-                                 * and another SL entry
-                                 */
-                                *ce += 255; /* this SL, full */
-                                sl_len = 5 + (clen - fit);
-                            } else {
-                                /*
-                                 * the component will need a 2rd SL entry in
-                                 * any case, so we prefer to don't write 
-                                 * anything in this SL
-                                 */
-                                *ce += sl_len + 255;
-                                sl_len = 5 + (clen - 250) + 2;
-                            }
-                        } else {
-                            /* case 2, create a new SL entry */
-                            *ce += sl_len;
-                            sl_len = 5 + clen;
-                        }
-                    } else {
-                        sl_len += clen;
-                    }
-                }
-
-                if (!cur || cur[1] == '\0') {
-                    /* cur[1] can be \0 if dest ends with '/' */
-                    break;
-                }
-                prev = cur + 1;
-                cur = strchr(prev, '/');
-            }
-
-            free(dest);
-
-            /* and finally write the pending SL field */
-            if (!cew) {
-                /* the whole SL fits into the SUA */
-                su_size += sl_len;
-            } else {
-                *ce += sl_len;
-            }
-
-        }
-
-#ifdef Libisofs_with_aaiP
-        /* ts A90112 */
-        xipt = NULL;
-
-        /* obtain num_aapt from node */
-        num_aapt = 0;
-        if (t->aaip) {
-            ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
-            if (ret == 1) {
-               num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
-            }
-        }
-	/* let the expert decide where to add num_aapt */
-        if (num_aapt > 0) {
-            sua_free = space - su_size;
-            aaip_add_AA(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
-            su_size = space - sua_free;
-        }
-
-#endif /* Libisofs_with_aaiP */
-
-#endif /* ! Libisofs_new_nm_sl_cE */
 
     } else {
 
@@ -1263,11 +1105,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     size_t num_aapt= 0;
 #endif
     size_t aaip_er_len= 0;
-
-#ifdef Libisofs_new_nm_sl_cE
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
-#endif
 
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
@@ -1374,7 +1213,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
         sua_free = space - info->suf_len;
 
-#ifdef Libisofs_new_nm_sl_cE
         /* ts A90117 */
         /* Try whether NM, SL, AA will fit into SUA */
         su_size_pd = info->suf_len;
@@ -1386,8 +1224,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             ce_is_predicted = 1;
         }
 
-#endif /* ! Libisofs_new_nm_sl_cE */
-
         /* NM entry */
         if (5 + namelen <= sua_free) {
             /* ok, it fits in System Use Area */
@@ -1396,13 +1232,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         } else {
             /* the NM will be divided in a CE */
             nm_type = 1;
-
-#ifdef Libisofs_new_nm_sl_cE
             namelen = namelen - (sua_free - 5);
-#else
-            namelen = namelen - (sua_free - 5 - 28);
-#endif
-
             ce_len = 5 + namelen;
             sua_free = 0;
         }
@@ -1451,27 +1281,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                          * will be completelly moved into the CA
                          */
 
-#ifdef Libisofs_new_nm_sl_cE
-
                         /* ts A90117 */
                         /* sua_free, ce_len, nm_type already account for CE */
                         cew = 1;
-
-#else /* Libisofs_new_nm_sl_cE */
-
-                        if (28 <= sua_free) {
-                            /* the CE entry fills without reducing NM */
-                            sua_free -= 28;
-                            cew = 1;
-                        } else {
-                            /* we need to reduce NM */
-                            nm_type = 1;
-                            ce_len = (28 - sua_free) + 5;
-                            sua_free = 0;
-                            cew = 1;
-                        }
-
-#endif /* ! Libisofs_new_nm_sl_cE */
 
                     } else {
                         /* add the component */
@@ -1590,32 +1402,16 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * entry and NM in the continuation area is added below 
              */
 
-#ifdef Libisofs_new_nm_sl_cE
             namelen = space - info->suf_len - 28 * (!!ce_is_predicted) - 5;
-#else
-            namelen = space - info->suf_len - 28 - 5;
-#endif
-
             ret = rrip_add_NM(t, info, name, namelen, 1, 0);
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
         }
 
-#ifdef Libisofs_new_nm_sl_cE
-
         if (ce_is_predicted) {
             /* Add the CE entry */
             ret = susp_add_CE(t, ce_len_pd, info);
-
-#else /* Libisofs_new_nm_sl_cE */
-
-        if (ce_len > 0) {
-            /* Add the CE entry */
-            ret = susp_add_CE(t, ce_len, info);
-
-#endif /* ! Libisofs_new_nm_sl_cE */
-
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
