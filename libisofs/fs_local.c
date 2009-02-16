@@ -768,3 +768,137 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
     *fs = lfs;
     return ISO_SUCCESS;
 }
+
+
+/* ts A90127 */
+int iso_local_get_acl_text(char *disk_path, char **text, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    int ret;
+
+    ret = aaip_get_acl_text(disk_path, text, flag & (1 | 16 | 32 | (1 << 15)));
+    return ret;
+
+#else /* Libisofs_with_aaiP */
+
+    return 0;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90118 */
+int iso_local_set_acl_text(char *disk_path, char *text, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    int ret;
+
+    ret = aaip_set_acl_text(disk_path, text, flag & (1 | 32));
+    if (ret < 0)
+        return ISO_AAIP_NO_SET_LOCAL;
+    return ret;
+
+#else /* Libisofs_with_aaiP */
+
+    return 0;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90131 */
+int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
+                        size_t **value_lengths, char ***values, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+
+    int ret;
+
+    ret = aaip_get_attr_list(disk_path,
+                             num_attrs, names, value_lengths, values,
+                             (flag & (1 | 4 | 8 | 32 | (1 << 15))) | 2 | 16);
+    if (ret <= 0)
+        return ISO_AAIP_NO_GET_LOCAL;
+    return 1;
+
+#else /* Libisofs_with_aaiP */
+
+    *num_attrs = 0;
+    *names = NULL;
+    *value_lengths = NULL;
+    *values = NULL;
+    return 1;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90131 */
+int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
+                        size_t *value_lengths, char **values, int flag)
+{
+
+#ifdef Libisofs_with_aaiP
+    int ret;
+
+    ret = aaip_set_attr_list(disk_path, num_attrs, names, value_lengths,
+                             values, (flag & (8 | 32)) | !(flag & 1));
+    if (ret <= 0) {
+        if (ret == -1)
+            return ISO_OUT_OF_MEM;
+        if (ret == -2)
+            return ISO_AAIP_BAD_AASTRING;
+        return ISO_AAIP_NO_SET_LOCAL;
+    }
+    return 1;
+
+#else /* Libisofs_with_aaiP */
+
+    if (num_attrs > 0)
+        return ISO_AAIP_NOT_ENABLED;
+    return 1;
+ 
+#endif /* ! Libisofs_with_aaiP */
+
+}
+
+
+/* ts A90207 */
+int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag)
+{
+    struct stat stbuf;
+    int ret;
+
+#ifdef Libisofs_with_aaiP
+    char *a_text = NULL;
+#endif
+
+    if (flag & 32)
+        ret = stat(disk_path, &stbuf);
+    else
+        ret = lstat(disk_path, &stbuf);
+    if (ret == -1)
+        return -1;
+    *st_mode = stbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+
+#ifdef Libisofs_with_aaiP
+
+    ret = iso_local_get_acl_text(disk_path, &a_text, 16 | (flag & 32));
+    if (a_text != NULL) {
+        aaip_cleanout_st_mode(a_text, st_mode, 4 | 16);
+        iso_local_get_acl_text(disk_path, &a_text, 1 << 15); /* free a_text */
+    }
+
+#endif /*  Libisofs_with_aaiP */
+
+    return 1;
+}
+

@@ -4293,7 +4293,7 @@ int aaip_xinfo_func(void *data, int flag);
  *      Bitfield for control purposes
  *      bit4=  if no "access" ACL is available: return *access_text == NULL
  *             else:                       produce ACL from stat(2) permissions
- *      bit15= free memory and return 1
+ *      bit15= free memory and return 1 (node may be NULL)
  * @return
  *      2 *access_text was produced from stat(2) permissions
  *      1 *access_text was produced from ACL of node
@@ -4391,7 +4391,7 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node);
  *      Bitfield for control purposes
  *      bit0=  obtain eventual ACLs as attribute with empty name
  *      bit2=  with bit0: do not obtain attributes other than ACLs
- *      bit15= free memory
+ *      bit15= free memory (node may be NULL)
  * @return
  *      1 = ok (but *num_attrs may be 0)
  *    < 0 = error
