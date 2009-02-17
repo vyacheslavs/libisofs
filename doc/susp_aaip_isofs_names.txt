@@ -1,0 +1,34 @@
+                 Arbitrary Attribute Interchange Protocol
+                Interchange of Persistent File Attributes
+
+                      Directory of Namespace "isofs."
+
+          by Thomas Schmitt    - mailto:scdbackup@gmx.net
+          Libburnia project    - mailto:libburn-hackers@pykix.org
+
+
+The following names are defined for AAIP namespace "isofs." as mentioned in
+specification AAIP 1.0 :
+
+-------------------------------------------------------------------------------
+
+Name:
+      isofs.di
+
+Purpose:
+      Records .st_dev and .st_ino of struct stat. See man 2 stat.
+
+Format of Value:
+      DEV_LEN | DEV_BYTES | INO_LEN | INO_BYTES
+      The _LEN fields comply to ISO 9660 Format section 7.1.1.
+
+Example:
+      Device number 2001, inode number 176343
+      {   2,   7, 209,
+          3,   2, 176, 215 } 
+
+Registered:
+      17 Feb 2009 by Thomas Schmitt for xorriso.
+                 
+-------------------------------------------------------------------------------
+
