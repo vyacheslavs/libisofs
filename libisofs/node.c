@@ -1415,7 +1415,8 @@ int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
             todo = 2048;
         if (todo == 0) {
            /* Out of data while still prompted to submit */
-           return ISO_AAIP_BAD_AASTRING;
+           ret = ISO_AAIP_BAD_AASTRING;
+           goto ex;
         }
         /* Allow 1 million bytes of memory consumption, 100,000 attributes */
         ret = aaip_decode_attrs(&aaip, (size_t) 1000000, (size_t) 100000,
@@ -1428,19 +1429,22 @@ int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
              break;
 
          /* aaip_decode_attrs() reports error */
-         return ISO_AAIP_BAD_AASTRING;
+         ret = ISO_AAIP_BAD_AASTRING;
+         goto ex;
     }
 
     if (rpt - aa_string != len) {
          /* aaip_decode_attrs() returns 2 but still bytes are left */
-         return ISO_AAIP_BAD_AASTRING;
+         ret = ISO_AAIP_BAD_AASTRING;
+         goto ex;
     }
 
     ret = aaip_get_decoded_attrs(&aaip, num_attrs, names,
                                  value_lengths, values, 0);
     if (ret != 1) {
          /* aaip_get_decoded_attrs() failed */
-         return ISO_AAIP_BAD_AASTRING;
+         ret = ISO_AAIP_BAD_AASTRING;
+         goto ex;
     }
     if (!(flag & 1)) {
         /* Clean out eventual ACL attribute resp. all other xattr */
@@ -1448,7 +1452,11 @@ int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
                             !!(flag & 4));
     }
 
-    return 1;
+    ret = 1;
+ex:;
+    aaip_decode_attrs(&aaip, (size_t) 1000000, (size_t) 100000,
+                      rpt, todo, &consumed, 1 << 15);
+    return ret;
 }
 
 #endif /* ! Libisofs_with_aaiP */
