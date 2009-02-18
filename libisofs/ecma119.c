@@ -7,7 +7,13 @@
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
+/* ts A90218 : libburn.h is not necessarily available */
+/*
+ # include "libburn/libburn.h"
+*/
+#define LIBISOFS_WITHOUT_LIBBURN yes
 #include "libisofs.h"
+
 #include "ecma119.h"
 #include "joliet.h"
 #include "iso1999.h"
@@ -20,8 +26,6 @@
 #include "rockridge.h"
 #include "util.h"
 #include "system_area.h"
-
-#include "libburn/libburn.h"
 
 #include <stdlib.h>
 #include <time.h>

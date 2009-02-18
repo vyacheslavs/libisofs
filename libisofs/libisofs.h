@@ -4596,4 +4596,184 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag);
 
 
+/* ------------------------------------------------------------------------- */
+
+#ifdef LIBISOFS_WITHOUT_LIBBURN
+
+/* ts A90218 */
+/**
+    This is a copy from the API of libburn-0.6.0 (under GPL).
+    It is supposed to be as stable as any overall include of libburn.h.
+    I.e. if this definition is out of sync then you cannot rely on any
+    contract that was made with libburn.h.
+
+    Libisofs does not need to be linked with libburn at all. But if it is
+    linked with libburn then it must be libburn-0.4.2 or later.
+*/ 
+
+
+/** Data source interface for tracks.
+    This allows to use arbitrary program code as provider of track input data.
+
+    Objects compliant to this interface are either provided by the application
+    or by API calls of libburn: burn_fd_source_new() , burn_file_source_new(),
+    and burn_fifo_source_new().
+
+    The API calls allow to use any file object as data source. Consider to feed
+    an eventual custom data stream asynchronously into a pipe(2) and to let
+    libburn handle the rest. 
+    In this case the following rule applies:
+    Call burn_source_free() exactly once for every source obtained from
+    libburn API. You MUST NOT otherwise use or manipulate its components.
+
+    In general, burn_source objects can be freed as soon as they are attached
+    to track objects. The track objects will keep them alive and dispose them
+    when they are no longer needed. With a fifo burn_source it makes sense to
+    keep the own reference for inquiring its state while burning is in
+    progress.
+
+    ---
+
+    The following description of burn_source applies only to application
+    implemented burn_source objects. You need not to know it for API provided
+    ones.
+
+    If you really implement an own passive data producer by this interface,
+    then beware: it can do anything and it can spoil everything.
+
+    In this case the functions (*read), (*get_size), (*set_size), (*free_data)
+    MUST be implemented by the application and attached to the object at
+    creation time.
+    Function (*read_sub) is allowed to be NULL or it MUST be implemented and
+    attached.
+
+    burn_source.refcount MUST be handled properly: If not exactly as many
+    references are freed as have been obtained, then either memory leaks or
+    corrupted memory are the consequence.
+    All objects which are referred to by *data must be kept existent until
+    (*free_data) is called via burn_source_free() by the last referer.
+*/
+struct burn_source {
+
+	/** Reference count for the data source. MUST be 1 when a new source
+            is created and thus the first reference is handed out. Increment
+            it to take more references for yourself. Use burn_source_free()
+            to destroy your references to it. */
+	int refcount;
+
+
+	/** Read data from the source. Semantics like with read(2), but MUST
+	    either deliver the full buffer as defined by size or MUST deliver
+	    EOF (return 0) or failure (return -1) at this call or at the
+	    next following call. I.e. the only incomplete buffer may be the
+	    last one from that source.
+	    libburn will read a single sector by each call to (*read).
+	    The size of a sector depends on BURN_MODE_*. The known range is
+	    2048 to 2352.
+
+            If this call is reading from a pipe then it will learn
+            about the end of data only when that pipe gets closed on the
+            feeder side. So if the track size is not fixed or if the pipe
+            delivers less than the predicted amount or if the size is not
+            block aligned, then burning will halt until the input process
+            closes the pipe.
+
+	    IMPORTANT:
+	    If this function pointer is NULL, then the struct burn_source is of
+	    version >= 1 and the job of .(*read)() is done by .(*read_xt)().
+	    See below, member .version.
+	*/
+	int (*read)(struct burn_source *, unsigned char *buffer, int size);
+
+
+	/** Read subchannel data from the source (NULL if lib generated) 
+	    WARNING: This is an obscure feature with CD raw write modes.
+	    Unless you checked the libburn code for correctness in that aspect
+	    you should not rely on raw writing with own subchannels.
+	    ADVICE: Set this pointer to NULL.
+	*/
+	int (*read_sub)(struct burn_source *, unsigned char *buffer, int size);
+
+
+	/** Get the size of the source's data. Return 0 means unpredictable
+	    size. If application provided (*get_size) allows return 0, then
+	    the application MUST provide a fully functional (*set_size).
+	*/
+	off_t (*get_size)(struct burn_source *); 
+
+
+	/* ts A70125 : BROKE BINARY BACKWARD COMPATIBILITY AT libburn-0.3.1. */
+        /* @since 0.3.2 */
+	/** Program the reply of (*get_size) to a fixed value. It is advised
+	    to implement this by a attribute  off_t fixed_size;  in *data .
+	    The read() function does not have to take into respect this fake
+	    setting. It is rather a note of libburn to itself. Eventually
+	    necessary truncation or padding is done in libburn. Truncation
+	    is usually considered a misburn. Padding is considered ok.
+
+	    libburn is supposed to work even if (*get_size) ignores the
+            setting by (*set_size). But your application will not be able to
+	    enforce fixed track sizes by  burn_track_set_size() and possibly
+	    even padding might be left out.
+	*/
+	int (*set_size)(struct burn_source *source, off_t size);
+
+
+	/** Clean up the source specific data. This function will be called
+	    once by burn_source_free() when the last referer disposes the
+	    source.
+	*/
+	void (*free_data)(struct burn_source *);
+
+
+	/** Next source, for when a source runs dry and padding is disabled
+	    WARNING: This is an obscure feature. Set to NULL at creation and
+	             from then on leave untouched and uninterpreted.
+	*/
+	struct burn_source *next;
+
+
+	/** Source specific data. Here the various source classes express their
+	    specific properties and the instance objects store their individual
+	    management data.
+            E.g. data could point to a struct like this:
+		struct app_burn_source
+		{
+			struct my_app *app_handle;
+			... other individual source parameters ...
+			off_t fixed_size;
+		};
+
+	    Function (*free_data) has to be prepared to clean up and free
+	    the struct.
+	*/
+	void *data;
+
+
+	/* ts A71222 : Supposed to be binary backwards compatible extension. */
+        /* @since 0.4.2 */
+	/** Valid only if above member .(*read)() is NULL. This indicates a
+	    version of struct burn_source younger than 0.
+	    From then on, member .version tells which further members exist
+	    in the memory layout of struct burn_source. libburn will only touch
+	    those announced extensions.
+
+	    Versions:
+	     0  has .(*read)() != NULL, not even .version is present.
+             1  has .version, .(*read_xt)(), .(*cancel)()
+	*/
+	int version;
+
+	/** This substitutes for (*read)() in versions above 0. */
+	int (*read_xt)(struct burn_source *, unsigned char *buffer, int size);
+
+	/** Informs the burn_source that the consumer of data prematurely
+	    ended reading. This call may or may not be issued by libburn
+	    before (*free_data)() is called.
+	*/
+	int (*cancel)(struct burn_source *source);
+};
+
+#endif /* LIBISOFS_WITHOUT_LIBBURN */
+
 #endif /*LIBISO_LIBISOFS_H_*/

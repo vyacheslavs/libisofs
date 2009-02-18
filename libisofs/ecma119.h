@@ -531,4 +531,5 @@ struct ecma119_vol_desc_terminator
     uint8_t reserved                 BP(8, 2048);
 };
 
+
 #endif /*LIBISO_ECMA119_H_*/

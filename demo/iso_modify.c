@@ -2,8 +2,8 @@
  * Little program to show how to modify an iso image.
  */
 
+#define LIBISOFS_WITHOUT_LIBBURN yes
 #include "libisofs.h"
-#include "libburn/libburn.h"
 
 #include <stdio.h>
 #include <stdlib.h>

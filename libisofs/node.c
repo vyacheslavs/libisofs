@@ -1868,7 +1868,7 @@ int iso_node_get_acl_text(IsoNode *node,
 
     size_t num_attrs = 0, *value_lengths = NULL;
     char **names = NULL, **values = NULL;
-    mode_t st_mode;
+    mode_t st_mode = 0;
     int ret;
 
     if (flag & (1 << 15)) {

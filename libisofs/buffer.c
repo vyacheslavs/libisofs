@@ -16,8 +16,14 @@
  *
  */
 
+/* ts A90218 : libburn.h is not necessarily available */
+/*
+ # include "libburn/libburn.h"
+*/
+#define LIBISOFS_WITHOUT_LIBBURN yes
+#include "libisofs.h"
+
 #include "buffer.h"
-#include "libburn/libburn.h"
 #include "ecma119.h"
 
 #include <pthread.h>
