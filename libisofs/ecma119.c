@@ -1,15 +1,15 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-/* ts A90218 : libburn.h is not necessarily available */
 /*
- # include "libburn/libburn.h"
+   Use the copy of the struct burn_source definition in libisofs.h
 */
 #define LIBISOFS_WITHOUT_LIBBURN yes
 #include "libisofs.h"
@@ -887,10 +887,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
     target->iso1999 = opts->iso1999;
-
-    /* ts A90122 */
     target->aaip = opts->aaip;
-
     target->always_gmt = opts->always_gmt;
     target->ino = 0;
     target->omit_version_numbers = opts->omit_version_numbers
@@ -1520,7 +1517,6 @@ int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers)
     return ISO_SUCCESS;
 }
 
-/* ts A90125 */
 int iso_write_opts_set_aaip_susp_1_10(IsoWriteOpts *opts, int oldvers)
 {
     if (opts == NULL) {

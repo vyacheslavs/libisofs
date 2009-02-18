@@ -1,29 +1,25 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
  * published by the Free Software Foundation. See COPYING file for details.
  */
 
-/* ts A90116 : libisofs.h eventually defines aaip_xinfo_func */
+/* libisofs.h defines aaip_xinfo_func */
 #include "libisofs.h"
 
 #include "builder.h"
 #include "node.h"
 #include "fsource.h"
-
-/* ts A90121 : needed for image->builder_ignore_acl */
 #include "image.h"
+#include "aaip_0_2.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 
-/* ts A90207 */
-#ifdef Libisofs_with_aaiP
-#include "aaip_0_2.h"
-#endif
 
 
 void iso_node_builder_ref(IsoNodeBuilder *builder)
@@ -97,11 +93,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     struct stat info;
     IsoNode *new;
     char *name;
-
-#ifdef Libisofs_with_aaiP
     unsigned char *aa_string;
     char *a_text = NULL, *d_text = NULL;
-#endif /* Libisofs_with_aaiP */
 
     if (builder == NULL || src == NULL || node == NULL) {
         return ISO_NULL_POINTER;
@@ -191,9 +184,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     iso_node_set_ctime(new, info.st_ctime);
     iso_node_set_uid(new, info.st_uid);
 
-#ifdef Libisofs_with_aaiP
-
-    /* ts A90207 */
     /* Eventually set S_IRWXG from ACL */
     if (image->builder_ignore_acl) {
         ret = iso_file_source_get_aa_string(src, &aa_string, 4);
@@ -207,8 +197,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
                             1 << 15); /* free ACL texts */
     }
 
-    /* ts A90115 */
-    /* obtain ownership of eventual AA string */
+    /* Obtain ownership of eventual AA string */
     ret = iso_file_source_get_aa_string(src, &aa_string,
             1 | (image->builder_ignore_acl << 1) |
                 (image->builder_ignore_ea << 2 ));
@@ -217,8 +206,6 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         if (ret < 0)
             return ret;
     }
-
-#endif /* Libisofs_with_aaiP */
 
     *node = new;
 

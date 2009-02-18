@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -18,10 +19,7 @@
 #include "image.h"
 #include "tree.h"
 #include "eltorito.h"
-
-#ifdef Libisofs_with_aaiP
 #include "aaip_0_2.h"
-#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -61,11 +59,7 @@ struct iso_read_opts
     unsigned int norock : 1; /*< Do not read Rock Ridge extensions */
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90121 */
-    unsigned int noaaip : 1; /* Do not read AAIP extension for EA and ACL */
-#endif /* Libisofs_with_aaiP */
+    unsigned int noaaip : 1; /* Do not read AAIP extension for xattr and ACL */
 
     /**
      * When both Joliet and RR extensions are present, the RR tree is used.
@@ -222,9 +216,6 @@ typedef struct
     /** If ISO 9660:1999 is available on image */
     unsigned int iso1999 : 1;
 
-#ifdef Libisofs_with_aaiP
-    /* ts A90121 */
-
     /** Whether AAIP info shall be loaded if it is present.
      *  1 = yes , 0 = no
      */
@@ -234,8 +225,6 @@ typedef struct
      *  Value -1 means that no AAIP ER was detected yet.
      */
     int aaip_version;
-
-#endif /* ! Libisofs_with_aaiP */
 
     /**
      * Number of blocks of the volume, as reported in the PVM.
@@ -290,18 +279,12 @@ struct image_fs_data
         off_t offset;
     } data;
 
-#ifdef Libisofs_with_aaiP
-    /* ts A90114 */
-
     /**
      * malloc() storage for the string of AA fields which represent
      * ACLs and XFS-style Extended Attributes. (Not to be confused with
      * ECMA-119 Extended Attributes.)
      */
     unsigned char *aa_string;
-
-#endif /* Libisofs_with_aaiP */
-
 
 };
 
@@ -945,20 +928,11 @@ void ifs_free(IsoFileSource *src)
 
     free(data->sections);
     free(data->name);
-    
-#ifdef Libisofs_with_aaiP
-    /* ts A90115 */
-
     if (data->aa_string != NULL)
         free(data->aa_string);
-
-#endif /* Libisofs_with_aaiP */
-
     free(data);
 }
 
-
-#ifdef Libisofs_with_aaiP
 
 static
 int ifs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
@@ -981,17 +955,10 @@ int ifs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
     return 1;
 }
 
-#endif /* Libisofs_with_aaiP */
-
 
 IsoFileSourceIface ifs_class = {
 
-#ifdef Libisofs_with_aaiP
     1, /* version */
-#else
-    0, /* version */
-#endif
-
     ifs_get_path,
     ifs_get_name,
     ifs_lstat,
@@ -1004,12 +971,8 @@ IsoFileSourceIface ifs_class = {
     ifs_readlink,
     ifs_get_filesystem,
     ifs_free,
-    ifs_lseek
-
-#ifdef Libisofs_with_aaiP
-    ,
+    ifs_lseek,
     ifs_get_aa_string
-#endif
 
 };
 
@@ -1082,15 +1045,9 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
     uint32_t relocated_dir = 0;
 
-#ifdef Libisofs_with_aaiP 
-
-    /* ts A90115 */
     unsigned char *aa_string = NULL;
     size_t aa_size = 0, aa_len = 0, prev_field = 0;
     int aa_done = 0;
-
-#endif /* Libisofs_with_aaiP */
-
 
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
@@ -1332,10 +1289,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 }
                 continue;
 
-
-#ifdef Libisofs_with_aaiP
-            /* ts A90115 */
-
             /* Need to read AA in any case so it is available for S_IRWXG
                mapping in case that fsdata->aaip_load != 1
              */
@@ -1350,10 +1303,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     continue;
                 }
 
-#endif /* Libisofs_with_aaiP */
-
-
-/* ts A90112 : this message is inflationary */
+/* This message is inflationary */
 /*
             } else {
                 ret = iso_msg_submit(fsdata->msgid, ISO_SUSP_UNHANDLED, 0,
@@ -1609,13 +1559,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     }
     ifsdata->info = atts;
     ifsdata->name = name;
-
-#ifdef Libisofs_with_aaiP
-
     ifsdata->aa_string = aa_string;
-
-#endif /* Libisofs_with_aaiP */
-
 
     /* save extents */
     ifsdata->sections = realloc(ifsdata->sections,
@@ -1983,11 +1927,9 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                   (strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9) == 0 ||
                    strncmp((char*)sue->data.ER.ext_id, "AAIP_0100", 9) == 0)) {
 
-                /* ts A90113 : tolerate AAIP ER even if not supported */
+                /* Tolerate AAIP ER even if not supported */
                 iso_msg_debug(data->msgid,
                               "Suitable AAIP ER found.");
-
-#ifdef Libisofs_with_aaiP
 
                 if (((char*)sue->data.ER.ext_id)[6] == '1')
                     data->aaip_version = 100;
@@ -1995,14 +1937,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
                     data->aaip_version = 2;
                 if (!data->aaip_load)
                     iso_msg_submit(data->msgid, ISO_AAIP_IGNORED, 0,
-       "Identifier for extension AAIP found, but loading is not enabled.");
-
-#else /* Libisofs_with_aaiP */
-
-                iso_msg_submit(data->msgid, ISO_AAIP_IGNORED, 0,
-                "Identifier for future extension AAIP found and ignored.");
-
-#endif /* ! Libisofs_with_aaiP */
+           "Identifier for extension AAIP found, but loading is not enabled.");
 
             } else {
                 ret = iso_msg_submit(data->msgid, ISO_SUSP_MULTIPLE_ER, 0,
@@ -2170,15 +2105,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->file_mode = opts->file_mode & ~S_IFMT;
     data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90121 */
-
     data->aaip_load = !opts->noaaip;
     data->aaip_version = -1;
-
-#endif /* Libisofs_with_aaiP */
-
 
     /* ??? ts Nov 25 2008 :
        Shouldn't this go to library initialization or even to app ?
@@ -2385,10 +2313,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     IsoNode *new;
     char *name;
     ImageFileSourceData *data;
-
-#ifdef Libisofs_with_aaiP
     unsigned char *aa_string;
-#endif /* Libisofs_with_aaiP */
 
     if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
@@ -2560,10 +2485,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     new->next = NULL;
     *node = new;
 
-#ifdef Libisofs_with_aaiP
-    /* ts A90115 */
-
-    /* obtain ownership of eventual AA string */
+    /* Obtain ownership of eventual AA string */
     ret = iso_file_source_get_aa_string(src, &aa_string, 1);
     if (ret == 1 && aa_string != NULL) {
         _ImageFsData *fsdata = data->fs->data;
@@ -2575,7 +2497,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 return ret;
         } else {
 
-            /* ts A90208 */
             /* Look for ACL and perform S_IRWXG mapping */
             if (aa_string != NULL)
                 iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
@@ -2589,9 +2510,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             aaip_xinfo_func(aa_string, 1);
         }
     }
-
-#endif /* Libisofs_with_aaiP */
-
     return ISO_SUCCESS;
 }
 
@@ -2966,13 +2884,7 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
 
     ropts->file_mode = 0444;
     ropts->dir_mode = 0555;
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90121 */
-
     ropts->noaaip= 1;
-
-#endif /* Libisofs_with_aaiP */
 
     *opts = ropts;
     return ISO_SUCCESS;
@@ -3024,21 +2936,14 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999)
     return ISO_SUCCESS;
 }
 
-/* ts A90121 */
 int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip)
 {
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-
-#ifdef Libisofs_with_aaiP
     opts->noaaip = noaaip ? 1 : 0;
-#endif /* Libisofs_with_aaiP */
-
     return ISO_SUCCESS;
 }
-
-
 
 int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet)
 {

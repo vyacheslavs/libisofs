@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -7,8 +8,8 @@
  */
 
 /*
- * This file contains functions related to the reading of SUSP and
- * Rock Ridge extensions on an ECMA-119 image.
+ * This file contains functions related to the reading of SUSP, 
+ * Rock Ridge and AAIP extensions on an ECMA-119 image.
  */
 
 #include "libisofs.h"
@@ -415,7 +416,6 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
         return ISO_WRONG_RR;
     }
 
-    /* ts A90129 */
     /* (dev_t << 32) causes compiler warnings on FreeBSD
         because sizeof(dev_t) is 4.
     */
@@ -426,16 +426,13 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
                                high_shift);
     }
 
-/* <<< was originally:
+/* was originally:
     st->st_rdev = (dev_t)((dev_t)iso_read_bb(pn->data.PN.high, 4, NULL) << 32)
                   | (dev_t)iso_read_bb(pn->data.PN.low, 4, NULL);
 */
 
     return ISO_SUCCESS;
 }
-
-
-#ifdef Libisofs_with_aaiP
 
 
 int read_aaip_AA(struct susp_sys_user_entry *sue,
@@ -482,6 +479,4 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
 
      return ISO_SUCCESS;
 }
-
-#endif /* Libisofs_with_aaiP */
 

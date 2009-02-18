@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -42,7 +43,6 @@ struct iso_write_opts {
     unsigned int joliet :1;
     unsigned int iso1999 :1;
 
-    /* ts A90122 */
     unsigned int aaip :1; /* whether to write eventual ACL and EAs */
 
     /* allways write timestamps in GMT */
@@ -115,7 +115,6 @@ struct iso_write_opts {
      */
     unsigned int rrip_version_1_10 :1;
 
-    /* ts A90125 */
     /**
      * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
      * I.e. without announcing it by an ER field and thus without the need
@@ -262,7 +261,6 @@ struct ecma119_image
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
 
-    /* ts A90122 */
     unsigned int aaip :1;  /* whether to write eventual ACLs and EAs */
 
     /* allways write timestamps in GMT */
@@ -285,7 +283,6 @@ struct ecma119_image
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;
 
-    /* ts A90125 */
     /* Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12. */
     unsigned int aaip_susp_1_10 :1;
 

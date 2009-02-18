@@ -1,15 +1,12 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
  * published by the Free Software Foundation. See COPYING file for details.
  */
-
-
-/* ts A90116 : libisofs.h eventually defines Libisofs_with_aaiP */
-#include "libisofs.h"
 
 #include "rockridge.h"
 #include "node.h"
@@ -17,21 +14,13 @@
 #include "writer.h"
 #include "messages.h"
 #include "image.h"
-
-#ifdef Libisofs_with_aaiP
 #include "aaip_0_2.h"
-#endif
 
 #include <string.h>
 
 
-#ifdef Libisofs_with_aaiP
-
-/* ts A90125 */
 static
 int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno);
-
-#endif /* Libisofs_with_aaiP */
 
 
 static
@@ -479,9 +468,6 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 }
 
 
-#ifdef Libisofs_with_aaiP
-
-/* ts A90112 */
 /*
    @param flag bit0= only account sizes in sua_free resp. ce_len
                      parameters susp and data may be NULL in this case
@@ -543,8 +529,6 @@ int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
     *data = NULL;
     return ISO_SUCCESS;
 }
-
-#endif /* Libisofs_with_aaiP */
 
 
 /**
@@ -721,7 +705,6 @@ int susp_add_SP(Ecma119Image *t, struct susp_info *susp)
 }
 
 
-/* ts A90125 */
 /**
  * SUSP 1.12: [...] shall specify as an 8-bit number the Extension
  * Sequence Number of the extension specification utilized in the entries
@@ -750,8 +733,6 @@ int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno)
 }
 
 
-/* ts A90114 */
-
 int aaip_xinfo_func(void *data, int flag)
 {
     if (flag & 1) {
@@ -761,7 +742,6 @@ int aaip_xinfo_func(void *data, int flag)
 }
 
 
-/* ts A90117 */
 /**
  * Compute SUA lentgth and eventual Continuation Area length of field NM and
  * eventually fields SL and AA. Because CA usage makes necessary the use of
@@ -782,13 +762,9 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
 {
     char *name;
     size_t namelen, su_mem, ce_mem;
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90112 */
     void *xipt;
     size_t num_aapt = 0, sua_free = 0;
     int ret;
-#endif
 
     su_mem = *su_size;
     ce_mem = *ce;
@@ -922,11 +898,8 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
 
     }
 
-#ifdef Libisofs_with_aaiP
-    /* ts A90112 */
-    xipt = NULL;
-
     /* obtain num_aapt from node */
+    xipt = NULL;
     num_aapt = 0;
     if (t->aaip) {
         ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
@@ -942,9 +915,6 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
         if (*ce > 0 && !(flag & 1))
             goto unannounced_ca;
     }
-
-#endif /* Libisofs_with_aaiP */
-
     return 1;
 
 unannounced_ca:;
@@ -972,13 +942,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
                      size_t *ce)
 {
     size_t su_size;
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90112 */
     int ret;
-#else /* Libisofs_with_aaiP */
-    int ret;
-#endif /* ! Libisofs_with_aaiP */
 
     /* space min is 255 - 33 - 37 = 185
      * At the same time, it is always an odd number, but we need to pad it
@@ -990,14 +954,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 
     su_size = 0;
 
-#ifdef Libisofs_with_aaiP
-
-    /* ts A90125 */
     /* If AAIP enabled and announced by ER : account for 5 bytes of ES */;
     if (t->aaip && !t->aaip_susp_1_10)
         su_size += 5;
-
-#endif /* Libisofs_with_aaiP */
 
     /* PX and TF, we are sure they always fit in SUA */
     if (!t->rrip_version_1_10) {
@@ -1046,16 +1005,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
              */
             su_size += 7 + 28; /* SP + CE */
             *ce = 182; /* ER of RRIP */
-
-#ifdef Libisofs_with_aaiP
-            /* ts A90113 */
-
             if (t->aaip) {
                 *ce += 160; /* ER of AAIP */
             }
-
-#endif /* Libisofs_with_aaiP */
-
         }
     }
 
@@ -1111,13 +1063,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     Ecma119Node *node;
     char *name = NULL;
     char *dest = NULL;
-
-#ifdef Libisofs_with_aaiP
-    /* ts A90112 */
     uint8_t *aapt;
     void *xipt;
     size_t num_aapt= 0;
-#endif
     size_t aaip_er_len= 0;
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
@@ -1154,17 +1102,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
     }
 
-#ifdef Libisofs_with_aaiP
-
-    /* ts A90125 */
     /* If AAIP enabled and announced by ER : Announce RRIP by ES */
     if (t->aaip && !t->aaip_susp_1_10) {
         ret = susp_add_ES(t, info, 0, 0);
         if (ret < 0)
             goto add_susp_cleanup;
     }
-
-#endif /* Libisofs_with_aaiP */
 
     /* PX and TF, we are sure they always fit in SUA */
     ret = rrip_add_PX(t, node, info);
@@ -1227,7 +1170,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
         sua_free = space - info->suf_len;
 
-        /* ts A90117 */
         /* Try whether NM, SL, AA will fit into SUA */
         su_size_pd = info->suf_len;
         ce_len_pd = ce_len;
@@ -1295,7 +1237,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                          * will be completelly moved into the CA
                          */
 
-                        /* ts A90117 */
                         /* sua_free, ce_len, nm_type already account for CE */
                         cew = 1;
 
@@ -1458,9 +1399,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
 
-#ifdef Libisofs_with_aaiP
-/* ts A90114 */
-
         /* Obtain AA field string from node
            and write it to directory entry or CE area.
         */
@@ -1488,8 +1426,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
 
-#endif /* Libisofs_with_aaiP */
-
     } else {
 
         /* "." or ".." entry */
@@ -1507,14 +1443,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * Note that SP entry was already added above
              */
 
-#ifdef Libisofs_with_aaiP
-            /* ts A90113 */
-
             if (t->aaip && !t->aaip_susp_1_10) {
                 aaip_er_len = 160;
             }
-
-#endif /* Libisofs_with_aaiP */
 
             ret = susp_add_CE(t, 182 + aaip_er_len, info);
                                                     /* 182 is RRIP-ER length */
@@ -1526,18 +1457,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 goto add_susp_cleanup;
             }
 
-#ifdef Libisofs_with_aaiP
-            /* ts A90113 */
-
             if (t->aaip && !t->aaip_susp_1_10) {
                 ret = aaip_add_ER(t, info, 0);
                 if (ret < 0) {
                     goto add_susp_cleanup;
                 }
             }
-
-#endif /* Libisofs_with_aaiP */
-
         }
     }
 

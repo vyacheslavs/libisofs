@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -9,11 +10,7 @@
 #include "libisofs.h"
 #include "node.h"
 #include "stream.h"
-
-#ifdef Libisofs_with_aaiP
 #include "aaip_0_2.h"
-#endif
-
 
 #include <stdlib.h>
 #include <string.h>
@@ -277,7 +274,6 @@ const char *iso_node_get_name(const IsoNode *node)
     return node->name;
 }
 
-/* ts A90128 */
 /**
  * See API function iso_node_set_permissions()
  *
@@ -290,17 +286,12 @@ int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag)
 
     node->mode = (node->mode & S_IFMT) | (mode & ~S_IFMT);
 
-#ifdef Libisofs_with_aaiP
-    /* ts A90119 */
-
     /* If the node has ACL info : update ACL */
     ret = 1;
     if (!(flag & 1))
         ret = iso_node_set_acl_text(node, "", "", 2);
 
     return ret;
-#endif
-
 }
 
 /**
@@ -1352,7 +1343,6 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
 }
 
 
-/* ts A90202 */
 /* @param flag    bit0= inverse: cleanout everything but del_name
 */
 static
@@ -1380,9 +1370,6 @@ int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
 }
 
 
-#ifdef Libisofs_with_aaiP
-
-/* ts A90207 */
 /**
  * Backend of iso_node_get_attrs() with parameter node replaced by the
  * AA string from where to get the attribute list.
@@ -1459,16 +1446,10 @@ ex:;
     return ret;
 }
 
-#endif /* ! Libisofs_with_aaiP */
 
-
-/* ts A90116 */
 int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     void *xipt;
     unsigned char *aa_string = NULL;
     int ret;
@@ -1489,21 +1470,9 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
     ret = iso_aa_get_attrs(aa_string, num_attrs, names, value_lengths, values,
                            flag);
     return ret;
-
-#else /* Libisofs_with_aaiP */
-
-    *num_attrs = 0;
-    *names = NULL;
-    *value_lengths = NULL;
-    *values = NULL;
-
-#endif /* ! Libisofs_with_aaiP */
-
-    return 1;
 }
 
 
-/* ts A90205 */
 /* Enlarge attribute list */
 static
 int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
@@ -1527,7 +1496,6 @@ int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
 }
 
 
-/* ts A90205 */
 /* Merge attribute list of node and given new attribute list into
    attribute list returned by  m_* parameters.
    The m_* paramters have finally to be freed by a call with bit15 set.
@@ -1668,13 +1636,9 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
 }
 
 
-/* ts A90121 */
 int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     int ret, acl_saved = 0;
     size_t sret, result_len, m_num = 0, *m_value_lengths = NULL, i;
     unsigned char *result;
@@ -1745,17 +1709,8 @@ ex:;
     iso_node_merge_xattr(node, num_attrs, names, value_lengths, values,
                        &m_num, &m_names, &m_value_lengths, &m_values, 1 << 15);
     return ret;
-
-#else /* Libisofs_with_aaiP */
-
-    return ISO_AAIP_NOT_ENABLED;
-
-#endif /* ! Libisofs_with_aaiP */
-
 } 
 
-
-#ifdef Libisofs_with_aaiP
 
 static
 int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
@@ -1784,7 +1739,6 @@ int iso_decode_acl(unsigned char *v_data, size_t v_len, size_t *consumed,
 }
 
 
-/* ts A90207 */
 /**
  * Backend of iso_node_get_acl_text() with parameter node replaced by the
  * attribute list from where to get the ACL and by the associated st_mode
@@ -1856,16 +1810,9 @@ bad_decode:;
 }
 
 
-#endif /* ! Libisofs_with_aaiP */
-
-
-/* ts A90130 */
 int iso_node_get_acl_text(IsoNode *node,
                           char **access_text, char **default_text, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     size_t num_attrs = 0, *value_lengths = NULL;
     char **names = NULL, **values = NULL;
     mode_t st_mode = 0;
@@ -1886,20 +1833,9 @@ int iso_node_get_acl_text(IsoNode *node,
     iso_node_get_attrs(node, &num_attrs, &names,
                        &value_lengths, &values, 1 << 15); /* free memory */
     return ret;
-
-#else /* Libisofs_with_aaiP */
-
-    *access_text = *default_text = NULL;
-    return ISO_AAIP_NOT_ENABLED;
-
-#endif /* ! Libisofs_with_aaiP */
-
 }
 
 
-#ifdef Libisofs_with_aaiP
-
-/* ts A90207 */
 int iso_aa_get_acl_text(unsigned char *aa_string, mode_t st_mode,
                         char **access_text, char **default_text, int flag)
 {
@@ -1924,17 +1860,10 @@ ex:;
     return ret;
 }
 
-#endif /* Libisofs_with_aaiP */
 
-
-
-/* ts A90130 */
 int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
                           int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     size_t num_attrs = 0, *value_lengths = NULL, i, j, consumed;
     size_t a_text_fill = 0, d_text_fill = 0;
     size_t v_len, acl_len= 0;
@@ -2109,24 +2038,11 @@ ex:;
 bad_decode:;
     ret = ISO_AAIP_BAD_ACL;
     goto ex;
-
-#else /* Libisofs_with_aaiP */
-
-    if (access_text != NULL || default_text != NULL)
-        return ISO_AAIP_NOT_ENABLED;
-    return 1;
-
-#endif /* ! Libisofs_with_aaiP */
-
 }
 
 
-/* ts A90206 */
 mode_t iso_node_get_perms_wo_acl(const IsoNode *node)
 {
-
-#ifdef Libisofs_with_aaiP
-
     mode_t st_mode;
     int ret;
     char *a_text = NULL, *d_text = NULL;
@@ -2140,12 +2056,5 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node)
 ex:;
     iso_node_get_acl_text((IsoNode *) node, &a_text, &d_text, 1 << 15);
     return st_mode;
-
-#else /* Libisofs_with_aaiP */
-
-    return iso_node_get_permissions(node);
-
-#endif /* ! Libisofs_with_aaiP */
-
 }
 

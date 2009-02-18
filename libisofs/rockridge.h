@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -117,15 +118,11 @@ struct rr_SL {
 };
 
 
-#ifdef Libisofs_with_aaiP
-
-/** Arbitrary Attribute (AAIP, see doc/susp_aaip_0_2.txt) */
+/** Arbitrary Attribute (AAIP, see doc/susp_aaip_1_0.txt) */
 struct rr_AA {
     uint8_t flags[1];
     uint8_t comps[1];
 };
-
-#endif /* Libisofs_with_aaiP */
 
 
 /**
@@ -146,10 +143,7 @@ struct susp_sys_user_entry
         struct rr_NM NM;
         struct rr_CL CL;
         struct rr_SL SL;
-
-#ifdef Libisofs_with_aaiP
         struct rr_AA AA;
-#endif /* Libisofs_with_aaiP */
 
     } data; /* 5 to 4+len_sue */
 };
@@ -283,8 +277,6 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont);
 int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 
 
-#ifdef Libisofs_with_aaiP
-
 /**
  * Collects the AA field string from single AA fields.
  * (see doc/susp_aaip_0_2.txt)
@@ -304,8 +296,6 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 int read_aaip_AA(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag);
-
-#endif /* Libisofs_with_aaiP */
 
 
 #endif /* LIBISO_ROCKRIDGE_H */

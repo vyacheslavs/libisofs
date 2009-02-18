@@ -332,7 +332,6 @@ void iso_dir_iter_unregister(IsoDirIter *iter);
 void iso_notify_dir_iters(IsoNode *node, int flag);
 
 
-/* ts A90128 */
 /**
  * See API function iso_node_set_permissions()
  *
@@ -342,7 +341,6 @@ void iso_notify_dir_iters(IsoNode *node, int flag);
 int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag);
 
 
-/* ts A90207 */
 /**
  * Like iso_node_get_acl_text() with param node replaced by aa_string and
  * st_mode from where to obtain the ACLs. All other parameter specs apply.

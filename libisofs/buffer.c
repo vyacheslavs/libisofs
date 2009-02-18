@@ -16,9 +16,8 @@
  *
  */
 
-/* ts A90218 : libburn.h is not necessarily available */
 /*
- # include "libburn/libburn.h"
+   Use the copy of the struct burn_source definition in libisofs.h
 */
 #define LIBISOFS_WITHOUT_LIBBURN yes
 #include "libisofs.h"

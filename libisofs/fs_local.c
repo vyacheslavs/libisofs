@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -10,15 +11,9 @@
  * Filesystem/FileSource implementation to access the local filesystem.
  */
 
-/* ts A90116 : libisofs.h eventually defines Libisofs_with_aaiP */
-#include "libisofs.h"
-
 #include "fsource.h"
 #include "util.h"
-
-#ifdef Libisofs_with_aaiP
 #include "aaip_0_2.h"
-#endif
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -475,10 +470,6 @@ void lfs_free(IsoFileSource *src)
 }
 
 
-    
-#ifdef Libisofs_with_aaiP
-/* ts A90116 */
-
 static 
 int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
 {
@@ -528,17 +519,10 @@ ex:;
     return ret;
 }
 
-#endif /* Libisofs_with_aaiP */
-
 
 IsoFileSourceIface lfs_class = { 
 
-#ifdef Libisofs_with_aaiP
     1, /* version */
-#else
-    0, /* version */
-#endif
-
     lfs_get_path,
     lfs_get_name,
     lfs_lstat,
@@ -551,12 +535,8 @@ IsoFileSourceIface lfs_class = {
     lfs_readlink,
     lfs_get_filesystem,
     lfs_free,
-    lfs_lseek
-
-#ifdef Libisofs_with_aaiP
-    ,
+    lfs_lseek,
     lfs_get_aa_string
-#endif
 
 };
 
@@ -770,55 +750,29 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
 }
 
 
-/* ts A90127 */
 int iso_local_get_acl_text(char *disk_path, char **text, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     int ret;
 
     ret = aaip_get_acl_text(disk_path, text, flag & (1 | 16 | 32 | (1 << 15)));
     return ret;
-
-#else /* Libisofs_with_aaiP */
-
-    return 0;
- 
-#endif /* ! Libisofs_with_aaiP */
-
 }
 
 
-/* ts A90118 */
 int iso_local_set_acl_text(char *disk_path, char *text, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     int ret;
 
     ret = aaip_set_acl_text(disk_path, text, flag & (1 | 32));
     if (ret < 0)
         return ISO_AAIP_NO_SET_LOCAL;
     return ret;
-
-#else /* Libisofs_with_aaiP */
-
-    return 0;
- 
-#endif /* ! Libisofs_with_aaiP */
-
 }
 
 
-/* ts A90131 */
 int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
                         size_t **value_lengths, char ***values, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
-
     int ret;
 
     ret = aaip_get_attr_list(disk_path,
@@ -827,26 +781,12 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
     if (ret <= 0)
         return ISO_AAIP_NO_GET_LOCAL;
     return 1;
-
-#else /* Libisofs_with_aaiP */
-
-    *num_attrs = 0;
-    *names = NULL;
-    *value_lengths = NULL;
-    *values = NULL;
-    return 1;
- 
-#endif /* ! Libisofs_with_aaiP */
-
 }
 
 
-/* ts A90131 */
 int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag)
 {
-
-#ifdef Libisofs_with_aaiP
     int ret;
 
     ret = aaip_set_attr_list(disk_path, num_attrs, names, value_lengths,
@@ -859,27 +799,14 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
         return ISO_AAIP_NO_SET_LOCAL;
     }
     return 1;
-
-#else /* Libisofs_with_aaiP */
-
-    if (num_attrs > 0)
-        return ISO_AAIP_NOT_ENABLED;
-    return 1;
- 
-#endif /* ! Libisofs_with_aaiP */
-
 }
 
 
-/* ts A90207 */
 int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag)
 {
     struct stat stbuf;
     int ret;
-
-#ifdef Libisofs_with_aaiP
     char *a_text = NULL;
-#endif
 
     if (flag & 32)
         ret = stat(disk_path, &stbuf);
@@ -888,17 +815,11 @@ int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag)
     if (ret == -1)
         return -1;
     *st_mode = stbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
-
-#ifdef Libisofs_with_aaiP
-
     ret = iso_local_get_acl_text(disk_path, &a_text, 16 | (flag & 32));
     if (a_text != NULL) {
         aaip_cleanout_st_mode(a_text, st_mode, 4 | 16);
         iso_local_get_acl_text(disk_path, &a_text, 1 << 15); /* free a_text */
     }
-
-#endif /*  Libisofs_with_aaiP */
-
     return 1;
 }
 

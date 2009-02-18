@@ -117,7 +117,6 @@ IsoFilesystem* iso_file_source_get_filesystem(IsoFileSource *src)
 }
 
 
-/* ts A90115 */
 inline
 int iso_file_source_get_aa_string(IsoFileSource *src,
                                   unsigned char **aa_string, int flag)
