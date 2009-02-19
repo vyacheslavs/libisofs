@@ -3,9 +3,12 @@
 
  aaip-os-freebsd.c
  Arbitrary Attribute Interchange Protocol , system adapter for getting and
- setting of ACLs and XFS-style Extended Attributes.
+ setting of ACLs and ixattr.
 
  To be included by aaip_0_2.c
+
+ Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2
+
 */
 
 #include <ctype.h>

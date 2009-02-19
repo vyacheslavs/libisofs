@@ -1,13 +1,15 @@
 
 /*
 
- Arbitrary Attribute Interchange Protocol , AAIP version 0.2
- Demonstration program for encoding and decoding EA and ACL.
+ Arbitrary Attribute Interchange Protocol , AAIP versions 0.2 and 1.0.
+ Implementation for encoding and decoding xattr and ACL.
 
  See http://libburnia-project.org/wiki/AAIP
- or  doc/susp_aaip_0_2.txt
+ or  doc/susp_aaip_1_0.txt
 
- test/aaip_0.2.h - Public declarations
+ test/aaip_0_2.h - Public declarations
+
+ Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2
 
 */
 
@@ -39,7 +41,7 @@ size_t aaip_encode(size_t num_attrs, char **names,
 /* ------ ACL representation ------ */
 
 /* Convert an ACL from long text form into the value of an Arbitrary
-   Attribute. According to AAIP 0.2 this value is to be stored together with
+   Attribute. According to AAIP this value is to be stored together with
    an empty name.
    @param acl_text      The ACL in long text form
    @param st_mode       The stat(2) permission bits to be used with flag bit3
@@ -61,7 +63,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
 
 
 /* Convert an "access" and "default" ACL from long text form into the value
-   of an Arbitrary Attribute. According to AAIP 0.2 this value is to be stored
+   of an Arbitrary Attribute. According to AAIP this value is to be stored
    together with an empty name.
    @param a_acl_text    The "access" ACL in long text form.
                         Submit NULL if there is no such ACL to be encoded.
@@ -414,7 +416,7 @@ int aaip_get_decoded_attrs(struct aaip_state **handle, size_t *num_attrs,
 
 /* ------ ACL representation ------ */
 
-/* Convert an AAIP 0.2 ACL attribute value into the long text form of ACL.
+/* Convert an AAIP ACL attribute value into the long text form of ACL.
    @param data          The raw data to decode
    @param num_data      Number of data bytes provided
    @param consumed      Returns the number of consumed data bytes

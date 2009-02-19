@@ -1,11 +1,13 @@
 
 /*
 
- Arbitrary Attribute Interchange Protocol , AAIP version 0.2
- Demonstration implementation of encoding and decoding EA and ACL.
+ Arbitrary Attribute Interchange Protocol , AAIP versions 0.2 and 1.0.
+ Implementation of encoding and decoding xattr and ACL.
 
  See test/aaip_0_2.h
      http://libburnia-project.org/wiki/AAIP
+
+ Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2
 
 */
 
@@ -242,7 +244,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
 
 
 /* Convert an ACL text as of acl_to_text(3) into the value of an Arbitrary
-   Attribute. According to AAIP 0.2 this value is to be stored together with
+   Attribute. According to AAIP this value is to be stored together with
    an empty name.
    @param acl_text      The ACL in long text form
    @param st_mode       The stat(2) permission bits to be used with flag bit3
