@@ -16,7 +16,8 @@ Name:
       isofs.di
 
 Purpose:
-      Records .st_dev and .st_ino of struct stat. See man 2 stat.
+      Records .st_dev and .st_ino of struct stat of the file source in the
+      local filesystem. See man 2 stat.
 
 Format of Value:
       DEV_LEN | DEV_BYTES | INO_LEN | INO_BYTES
