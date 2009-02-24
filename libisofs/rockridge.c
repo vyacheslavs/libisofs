@@ -1038,6 +1038,37 @@ void susp_info_free(struct susp_info* susp)
     free(susp->ce_susp_fields);
 }
 
+
+/* @param flag bit0= Do not add data but only count sua_free and ce_len
+*/
+static
+int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
+                  size_t *sua_free, size_t *ce_len, int flag)
+{
+    int ret;
+    uint8_t *aapt;
+    void *xipt;
+    size_t num_aapt= 0;
+
+    ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
+    if (ret == 1) {
+        num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
+        if (num_aapt > 0) {
+            aapt = malloc(num_aapt);
+            if (aapt == NULL)
+                return ISO_OUT_OF_MEM;
+            memcpy(aapt, xipt, num_aapt);
+            ret = aaip_add_AA(t, info, &aapt, num_aapt, sua_free, ce_len,
+                              flag & 1);
+            if (ret < 0) 
+                return ret;
+            /* aapt is NULL now and the memory is owned by t */
+        }
+    }
+    return 1;
+}
+
+
 /**
  * Fill a struct susp_info with the RR/SUSP entries needed for a given
  * node.
@@ -1063,12 +1094,10 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     Ecma119Node *node;
     char *name = NULL;
     char *dest = NULL;
-    uint8_t *aapt;
-    void *xipt;
-    size_t num_aapt= 0;
     size_t aaip_er_len= 0;
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
+    size_t aaip_sua_free= 0, aaip_len= 0;
 
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
@@ -1403,27 +1432,11 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
            and write it to directory entry or CE area.
         */
         ret = ISO_SUCCESS;
-        num_aapt = 0;
 
         if (t->aaip) {
-            ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
-            if (ret == 1) {
-                num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
-                if (num_aapt > 0) {
-                    aapt = malloc(num_aapt);
-                    if (aapt == NULL) {
-                        ret = ISO_OUT_OF_MEM;
-                        goto add_susp_cleanup;
-                    }
-                    memcpy(aapt, xipt, num_aapt);
-                    ret = aaip_add_AA(t, info, &aapt, num_aapt,
-                                      &sua_free, &ce_len, 0);
-                    if (ret < 0) {
-                        goto add_susp_cleanup;
-                    }
-                    /* aapt is NULL now and the memory is owned by t */
-                }
-            }
+            ret = add_aa_string(t, n, info, &sua_free, &ce_len, 0);
+            if (ret < 0)
+                goto add_susp_cleanup;
         }
 
     } else {
@@ -1447,7 +1460,14 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 aaip_er_len = 160;
             }
 
-            ret = susp_add_CE(t, 182 + aaip_er_len, info);
+            /* Compute length of AAIP string of root node */
+            aaip_sua_free= 0;
+            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, 1);
+            if (ret < 0)
+                goto add_susp_cleanup;
+
+            /* Allocate the necessary CE space */
+            ret = susp_add_CE(t, 182 + aaip_er_len + aaip_len, info);
                                                     /* 182 is RRIP-ER length */
             if (ret < 0) {
                 goto add_susp_cleanup;
@@ -1456,13 +1476,18 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
-
             if (t->aaip && !t->aaip_susp_1_10) {
                 ret = aaip_add_ER(t, info, 0);
                 if (ret < 0) {
                     goto add_susp_cleanup;
                 }
             }
+            /* Write AAIP string of root node */
+            aaip_sua_free= aaip_len= 0;
+            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, 0);
+            if (ret < 0)
+                goto add_susp_cleanup;
+
         }
     }
 

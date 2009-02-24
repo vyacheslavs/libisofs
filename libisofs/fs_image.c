@@ -2304,6 +2304,46 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     return ret;
 }
 
+
+/* Take over aa_string from file source to node or discard it after making
+   the necessary change in node->mode group permissions.
+   node->mode must already be set.
+*/
+static
+int src_aa_to_node(IsoFileSource *src, IsoNode *node, int flag)
+{
+    int ret;
+    unsigned char *aa_string;
+    ImageFileSourceData *data;
+    _ImageFsData *fsdata;
+    char *a_text = NULL, *d_text = NULL;
+
+    data = (ImageFileSourceData*)src->data;
+    fsdata = data->fs->data;
+
+    /* Obtain ownership of eventual AA string */
+    ret = iso_file_source_get_aa_string(src, &aa_string, 1);
+    if (ret != 1 || aa_string == NULL)
+        return 1;
+    if (fsdata->aaip_load == 1) {
+        /* Attach aa_string to node */
+        ret = iso_node_add_xinfo(node, aaip_xinfo_func, aa_string);
+        if (ret < 0)
+            return ret;
+    } else {
+        /* Look for ACL and perform S_IRWXG mapping */
+        iso_aa_get_acl_text(aa_string, node->mode, &a_text, &d_text, 16);
+        if (a_text != NULL)
+            aaip_cleanout_st_mode(a_text, &(node->mode), 4 | 16);
+        /* Dispose ACL a_text and d_text */
+        iso_aa_get_acl_text(aa_string, node->mode, &a_text, &d_text, 1 << 15);
+        /* Dispose aa_string */
+        aaip_xinfo_func(aa_string, 1);
+    }
+    return 1;
+}
+
+
 static
 int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                               IsoFileSource *src, IsoNode **node)
@@ -2313,7 +2353,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     IsoNode *new;
     char *name;
     ImageFileSourceData *data;
-    unsigned char *aa_string;
 
     if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
@@ -2483,33 +2522,17 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     new->parent = NULL;
     new->next = NULL;
-    *node = new;
 
-    /* Obtain ownership of eventual AA string */
-    ret = iso_file_source_get_aa_string(src, &aa_string, 1);
-    if (ret == 1 && aa_string != NULL) {
-        _ImageFsData *fsdata = data->fs->data;
-        char *a_text = NULL, *d_text = NULL;
-
-        if (fsdata->aaip_load == 1) {
-            ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
-            if (ret < 0)
-                return ret;
-        } else {
-
-            /* Look for ACL and perform S_IRWXG mapping */
-            if (aa_string != NULL)
-                iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
-                                    16);
-            if (a_text != NULL)
-                aaip_cleanout_st_mode(a_text, &(new->mode), 4 | 16);
-            /* Dispose ACL a_text and d_text */
-            iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
-                                1 << 15);
-            /* Dispose aa_string */
-            aaip_xinfo_func(aa_string, 1);
-        }
+    ret = src_aa_to_node(src, new, 0);
+    if (ret < 0) {
+        /* todo: stuff any possible memory leak here */
+        if (name != NULL)
+            free(name);
+        free(new);
+        return ret;
     }
+
+    *node = new;
     return ISO_SUCCESS;
 }
 
@@ -2683,6 +2706,12 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         image->root->node.atime = info.st_atime;
         image->root->node.mtime = info.st_mtime;
         image->root->node.ctime = info.st_ctime;
+
+        /* This might fail in iso_node_add_xinfo() */
+        ret = src_aa_to_node(newroot, &(image->root->node), 0);
+        if (ret < 0)
+            goto import_revert;
+
     }
 
     /* if old image has el-torito, add a new catalog */
