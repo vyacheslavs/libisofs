@@ -239,6 +239,16 @@ struct iso_write_opts {
      * buffer.
      */
     size_t fifo_size;
+
+
+    /* ts A90228 : exposing address of data start block to the API */
+    /**
+     * This is not an option setting but a value returned after the options
+     * were used to compute the layout of the image.
+     * It tells the LBA of the first plain file data block in the image.
+     */
+    uint32_t data_start_lba;
+
 };
 
 typedef struct ecma119_image Ecma119Image;

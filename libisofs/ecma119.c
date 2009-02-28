@@ -865,7 +865,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters;
     Ecma119Image *target;
-    int el_torito_writer_index = -1;
+    int el_torito_writer_index = -1, file_src_writer_index= -1;
 
     /* 1. Allocate target and copy opts there */
     target = calloc(1, sizeof(Ecma119Image));
@@ -1032,6 +1032,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (ret < 0) {
         goto target_cleanup;
     }
+    file_src_writer_index = target->nwriters - 1;
 
     /*
      * 3.
@@ -1048,6 +1049,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (i == el_torito_writer_index)
     continue;
 #endif
+
+        /* ts A90228 : exposing address of data start to IsoWriteOpts */
+        if (i == file_src_writer_index) {
+            opts->data_start_lba = target->curblock;
+        }
+
         ret = writer->compute_data_blocks(writer);
         if (ret < 0) {
             goto target_cleanup;
@@ -1682,3 +1689,13 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size)
     opts->fifo_size = fifo_size;
     return ISO_SUCCESS;
 }
+
+int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
+                                  int flag)
+{
+    if(opts->data_start_lba == 0)
+	return ISO_ERROR;
+    *data_start = opts->data_start_lba;
+    return ISO_SUCCESS;
+}
+

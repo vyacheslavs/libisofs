@@ -997,7 +997,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  */
 #define iso_lib_header_version_major  0
 #define iso_lib_header_version_minor  6
-#define iso_lib_header_version_micro  14
+#define iso_lib_header_version_micro  15
 
 /**
  * Usage discussion:
@@ -1478,6 +1478,27 @@ int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
  * @since 0.6.2
  */
 int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
+
+
+/* ts A90228 */
+#define Libisofs_has_iwo_get_data_starT yes
+/**
+ * Inquire the start address of the file data blocks after having used
+ * IsoWriteOpts with iso_image_create_burn_source().
+ * @param opts
+ *        The option set that was used when starting image creation
+ * @param data_start
+ *        Returns the logical block address if it is already valid
+ * @param flag
+ *        Reserved for future usage, set to 0.
+ * @return
+ *        1 indicates valid data_start, <0 indicates invalid data_start
+ *
+ * @since 0.6.16
+ */
+int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
+                                  int flag);
+
 
 /**
  * Create a burn_source and a thread which immediately begins to generate
@@ -4061,7 +4082,7 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
  */
 #define ISO_FILE_ERROR                  0xE830FF80
 
-/** Trying to open an already openned file (FAILURE,HIGH, -129) */
+/** Trying to open an already opened file (FAILURE,HIGH, -129) */
 #define ISO_FILE_ALREADY_OPENED         0xE830FF7F
 
 /* @deprecated use ISO_FILE_ALREADY_OPENED instead */

@@ -22,6 +22,7 @@ Purpose:
 Format of Value:
       DEV_LEN | DEV_BYTES | INO_LEN | INO_BYTES
       The _LEN fields comply to ISO 9660 Format section 7.1.1.
+      The byte strings begin with the most significant byte.
 
 Example:
       Device number 2001, inode number 176343
