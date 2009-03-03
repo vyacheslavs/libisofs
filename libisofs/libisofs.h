@@ -4127,8 +4127,10 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 /* File read error during image creation (MISHAP,HIGH, -141) */
 #define ISO_FILE_CANT_WRITE             0xE430FF73
 
-/* Can't convert filename to requested charset (HINT,MEDIUM, -142) */
-#define ISO_FILENAME_WRONG_CHARSET      0xC020FF72
+/* Can't convert filename to requested charset (WARNING,MEDIUM, -142) */
+#define ISO_FILENAME_WRONG_CHARSET      0xD020FF72
+/* This was once a HINT. Deprecated now. */
+#define ISO_FILENAME_WRONG_CHARSET_OLD  0xC020FF72
 
 /* File can't be added to the tree (SORRY,HIGH, -143) */
 #define ISO_FILE_CANT_ADD               0xE030FF71

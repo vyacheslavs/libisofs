@@ -164,6 +164,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_FILE_CANT_WRITE:
         return "File read error during image creation";
     case ISO_FILENAME_WRONG_CHARSET:
+    case ISO_FILENAME_WRONG_CHARSET_OLD:
         return "Cannot convert filename to requested charset";
     case ISO_FILE_CANT_ADD:
         return "File cannot be added to the tree";
