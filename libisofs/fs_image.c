@@ -241,6 +241,10 @@ typedef struct
     uint32_t imgblock; /**< Block for El-Torito boot image */
     uint32_t catblock; /**< Block for El-Torito catalog */
 
+    /* ts A90303 */
+    /* Inode number generator counter */
+    ino_t inode_counter;
+
 } _ImageFsData;
 
 typedef struct image_fs_data ImageFileSourceData;
@@ -1013,6 +1017,31 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
     return name;
 }
 
+
+/* ts A90303 */
+/**
+ * A global counter for default inode numbers for the ISO image filesystem.
+ * @param fs    The filesystem where the number shall be used
+ * @param flag  bit0= reset count
+ */
+static
+ino_t fs_give_ino_number(IsoImageFilesystem *fs, int flag)
+{
+    _ImageFsData *fsdata;
+
+    fsdata = (_ImageFsData*)fs->data;
+    if (flag & 1)
+        fsdata->inode_counter = 0;
+    fsdata->inode_counter++;
+    if (fsdata->inode_counter == 0) {
+
+        /* >>> raise alert because of inode rollover */;
+     
+    }
+    return fsdata->inode_counter;
+}
+
+
 /**
  *
  * @param src
@@ -1460,6 +1489,18 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         return ISO_SUCCESS;
     }
 
+
+#ifdef Libisofs_new_fs_image_inO
+
+    if (fsdata->rr != RR_EXT_112) {
+        if (fsdata->rr == 0) {
+            atts.st_nlink = 1;
+        }
+    }
+    atts.st_ino = fs_give_ino_number(fs, 0);
+
+#else /* Libisofs_new_fs_image_inO */
+
     /* ts Nov 25 2008: TODO
        This seems not fully consistent with read_rr_PX() which decides
        by (px->len_sue[0] == 44) whether an inode number is present or not.
@@ -1480,16 +1521,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
          * It BREAKS POSIX SEMANTICS, but its suitable for our needs
          */
 
+#ifndef Libisofs_ino_from_lbA
 #define Libisofs_patch_ticket_144 yes
+#endif
 #ifdef Libisofs_patch_ticket_144
-        /* Trying to ensure unique inode numbers */
-        {
-            static ino_t iso_global_inode= 0;
 
-            if(iso_global_inode <= 0)
-                iso_global_inode= 1;
-            atts.st_ino = iso_global_inode++;
-        }
+        atts.st_ino = fs_give_ino_number(fs, 0);
+
 #else
         /* Ticket 144: This produces duplicate numbers with empty files.
         */
@@ -1499,6 +1537,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             atts.st_nlink = 1;
         }
     }
+
+#endif /* ! Libisofs_new_fs_image_inO */
 
     /*
      * if we haven't RR extensions, or a needed TF time stamp is not present,
@@ -2586,7 +2626,17 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
 
     memset(&atts, 0, sizeof(struct stat));
     atts.st_mode = S_IFREG;
+
+#ifdef Libisofs_new_fs_image_inO
+
+    atts.st_ino = fs_give_ino_number(fs, 0);
+
+#else /* Libisofs_new_fs_image_inO */
+
     atts.st_ino = fsdata->imgblock; /* not the best solution, but... */
+
+#endif /* ! Libisofs_new_fs_image_inO */
+
     atts.st_nlink = 1;
 
     /*

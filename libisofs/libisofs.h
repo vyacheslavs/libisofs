@@ -4771,4 +4771,23 @@ struct burn_source {
 
 #endif /* LIBISOFS_WITHOUT_LIBBURN */
 
+
+/* Attempt to fix several issues about inode numbers from ISO images */
+
+/* Experiment: Ignore PX inode numbers,
+               have boot image inode number counted by fs_give_ino_number()
+*/
+#define Libisofs_new_fs_image_inO yes
+
+/* Experiment: Trying to avoid the risk of losing file content by duplicate
+               inodes. iso_file_src_cmp() shall compare sizes too.
+*/
+#define Libisofs_file_src_cmp_sizE yes
+
+/* Experiment: Revoke Ticket 144, use data file LBAs again.
+               (will work only if not Libisofs_new_fs_image_inO
+                and wll only be safe with Libisofs_file_src_cmp_sizE)
+ #define Libisofs_ino_from_lbA yes
+*/
+
 #endif /*LIBISO_LIBISOFS_H_*/
