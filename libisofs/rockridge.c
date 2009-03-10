@@ -381,6 +381,38 @@ int rrip_SL_append_comp(size_t *n, uint8_t ***comps, char *s, int size, char fl)
     return ISO_SUCCESS;
 }
 
+
+#ifdef Libisofs_with_rrip_rR
+
+/* ts A90307 */
+/**
+ * Add to the given tree node a RR System Use Entry. This is an obsolete 
+ * entry from before RRIP-1.10. Nevertheless mkisofs produces it and there
+ * is the suspicion that Solaris takes it as indication for Rock Ridge.
+ *
+ * I once saw a copy of a RRIP spec which mentioned RR. Here i just use
+ * the same constant 5 bytes as produced by mkisofs.
+ */
+static
+int rrip_add_RR(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
+{
+    uint8_t *RR;
+    RR = malloc(5);
+    if (RR == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+
+    RR[0] = 'R';
+    RR[1] = 'R';
+    RR[2] = 5;
+    RR[3] = 1;
+    RR[4] = 0201;
+    return susp_append(t, susp, RR);
+}
+
+#endif /* Libisofs_with_rrip_rR */
+
+
 /**
  * Add a SL System Use Entry to the given tree node. This is used to store 
  * the content of a symbolic link, and is mandatory if the tree node
@@ -496,7 +528,6 @@ int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
         if (ret < 0)
             return ret;
     }
-
     aapt = *data;
     if (!(aapt[4] & 1)) {
         /* Single field can be handed over directly */
@@ -554,6 +585,7 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
          decrease by 1."
         So "IEEE_P1282" would be the new form, "RRIP_1991A" is the old form.
         */
+
         ER = malloc(182);
         if (ER == NULL) {
             return ISO_OUT_OF_MEM;
@@ -958,6 +990,11 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     if (t->aaip && !t->aaip_susp_1_10)
         su_size += 5;
 
+#ifdef Libisofs_with_rrip_rR
+    /* obsolete RR field (once in AAIP-1.09) */
+    su_size += 5;
+#endif
+
     /* PX and TF, we are sure they always fit in SUA */
     if (!t->rrip_version_1_10) {
         su_size += 44 + 26;
@@ -996,7 +1033,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     } else {
 
         /* "." or ".." entry */
+
         su_size += 5; /* NM field */
+
         if (type == 1 && n->parent == NULL) {
             /* 
              * "." for root directory 
@@ -1004,7 +1043,20 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
              * ER needs a Continuation Area, thus we also need a CE entry
              */
             su_size += 7 + 28; /* SP + CE */
-            *ce = 182; /* ER of RRIP */
+
+#ifdef Libisofs_rrip_1_10_er_bugfiX
+
+            /* ER of RRIP */
+            if (t->rrip_version_1_10) {
+                *ce = 237;
+            } else {
+                *ce = 182;
+            }
+
+#else
+            *ce = 182;
+#endif
+
             if (t->aaip) {
                 *ce += 160; /* ER of AAIP */
             }
@@ -1095,6 +1147,11 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     char *name = NULL;
     char *dest = NULL;
     size_t aaip_er_len= 0;
+
+#ifdef Libisofs_rrip_1_10_er_bugfiX
+    size_t rrip_er_len= 182;
+#endif
+
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
     size_t aaip_sua_free= 0, aaip_len= 0;
@@ -1137,6 +1194,14 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         if (ret < 0)
             goto add_susp_cleanup;
     }
+
+#ifdef Libisofs_with_rrip_rR
+    /* ts A90307 */
+    ret = rrip_add_RR(t, node, info);
+    if (ret < 0) {
+        goto add_susp_cleanup;
+    }
+#endif /* Libisofs_with_rrip_rR */
 
     /* PX and TF, we are sure they always fit in SUA */
     ret = rrip_add_PX(t, node, info);
@@ -1448,6 +1513,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         if (ret < 0) {
             goto add_susp_cleanup;
         }
+
         if (type == 1 && n->parent == NULL) {
             /* 
              * "." for root directory 
@@ -1455,6 +1521,28 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * ER needs a Continuation Area, thus we also need a CE entry.
              * Note that SP entry was already added above
              */
+
+#ifdef Libisofs_rrip_1_10_er_bugfiX
+
+            if (t->rrip_version_1_10) {
+                rrip_er_len = 237;
+            } else {
+                rrip_er_len = 182;
+            }
+            if (t->aaip && !t->aaip_susp_1_10) {
+                aaip_er_len = 160;
+            }
+
+            /* Compute length of AAIP string of root node */
+            aaip_sua_free= 0;
+            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, 1);
+            if (ret < 0)
+                goto add_susp_cleanup;
+
+            /* Allocate the necessary CE space */
+            ret = susp_add_CE(t, rrip_er_len + aaip_er_len + aaip_len, info);
+
+#else /* Libisofs_rrip_1_10_er_bugfiX */
 
             if (t->aaip && !t->aaip_susp_1_10) {
                 aaip_er_len = 160;
@@ -1469,6 +1557,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             /* Allocate the necessary CE space */
             ret = susp_add_CE(t, 182 + aaip_er_len + aaip_len, info);
                                                     /* 182 is RRIP-ER length */
+
+#endif /* ! Libisofs_rrip_1_10_er_bugfiX */
+
             if (ret < 0) {
                 goto add_susp_cleanup;
             }

@@ -4771,23 +4771,60 @@ struct burn_source {
 
 #endif /* LIBISOFS_WITHOUT_LIBBURN */
 
+/* ----------------------------- Bug Fixes ----------------------------- */
 
-/* Attempt to fix several issues about inode numbers from ISO images */
+
+/* Bug Fix   : Augment ecma119.c:write_dirs() by parameter parent
+               and use that one for the second directory entry 001 = "..".
+
+               Everything else seems wrong.
+*/
+#define  Libisofs_use_parent_for_dot_doT yes
+
+
+/* Bug fix   : Use correct size of 237 if the ER of RRIP-1.10 shal be written
+               (rather than size 182 of RRIP-1.12)
+
+*/
+#define Libisofs_rrip_1_10_er_bugfiX yes
+
+
+/* ---------------------------- Experiments ---------------------------- */
+
 
 /* Experiment: Ignore PX inode numbers,
                have boot image inode number counted by fs_give_ino_number()
 */
 #define Libisofs_new_fs_image_inO yes
 
+
 /* Experiment: Trying to avoid the risk of losing file content by duplicate
                inodes. iso_file_src_cmp() shall compare sizes too.
 */
 #define Libisofs_file_src_cmp_sizE yes
+
 
 /* Experiment: Revoke Ticket 144, use data file LBAs again.
                (will work only if not Libisofs_new_fs_image_inO
                 and wll only be safe with Libisofs_file_src_cmp_sizE)
  #define Libisofs_ino_from_lbA yes
 */
+
+
+/* Experiment: Write obsolete RR entries with Rock Ridge.
+               I suspect Solaris wants to see them.
+               DID NOT HELP: Solaris knows only RRIP_1991A.
+
+ #define Libisofs_with_rrip_rR yes
+*/
+
+
+/* Experiment: Use iso_iconv*() wrappers.
+               They can print errno messages and they
+               can avoid iconv() if the identical mapping is desired.
+               One could install own simple conversion capabilities.
+*/
+#define Libisofs_with_iso_iconV yes
+
 
 #endif /*LIBISO_LIBISOFS_H_*/
