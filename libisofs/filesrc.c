@@ -49,9 +49,9 @@ int iso_file_src_cmp(const void *n1, const void *n2)
 
 #ifdef Libisofs_file_src_cmp_sizE
 
-        } else if (ino_id1 > ino_id2) {
-            return -1;
         } else if (ino_id1 < ino_id2) {
+            return -1;
+        } else if (ino_id1 > ino_id2) {
             return 1;
         } else {
             size1 = iso_stream_get_size(f1->stream);

@@ -4823,8 +4823,8 @@ struct burn_source {
                They can print errno messages and they
                can avoid iconv() if the identical mapping is desired.
                One could install own simple conversion capabilities.
+ #define Libisofs_with_iso_iconV yes
 */
-#define Libisofs_with_iso_iconV yes
 
 
 #endif /*LIBISO_LIBISOFS_H_*/
