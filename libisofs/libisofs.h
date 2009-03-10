@@ -997,7 +997,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  */
 #define iso_lib_header_version_major  0
 #define iso_lib_header_version_minor  6
-#define iso_lib_header_version_micro  15
+#define iso_lib_header_version_micro  16
 
 /**
  * Usage discussion:
@@ -1479,9 +1479,6 @@ int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
  */
 int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
 
-
-/* ts A90228 */
-#define Libisofs_has_iwo_get_data_starT yes
 /**
  * Inquire the start address of the file data blocks after having used
  * IsoWriteOpts with iso_image_create_burn_source().
@@ -1498,7 +1495,6 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  */
 int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
                                   int flag);
-
 
 /**
  * Create a burn_source and a thread which immediately begins to generate
