@@ -997,7 +997,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  */
 #define iso_lib_header_version_major  0
 #define iso_lib_header_version_minor  6
-#define iso_lib_header_version_micro  16
+#define iso_lib_header_version_micro  17
 
 /**
  * Usage discussion:
@@ -4783,6 +4783,14 @@ struct burn_source {
 
 */
 #define Libisofs_rrip_1_10_er_bugfiX yes
+
+
+/* Portability: Avoid use of function alloca().
+
+                Solaris demands to include <alloca,h>, FreeBSD has no such
+                file. It seems wiser to replace alloca() by calloc() and free()
+*/
+#define Libisofs_avoid_using_allocA yes
 
 
 /* ---------------------------- Experiments ---------------------------- */

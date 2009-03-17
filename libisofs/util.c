@@ -191,15 +191,22 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     iconv_t conv;
 #endif
 
-    char *out;
+    char *out = NULL;
     char *src;
     char *ret;
+    int retval;
 
     inbytes = strlen(str);
     outbytes = (inbytes + 1) * MB_LEN_MAX;
+
+#ifdef Libisofs_avoid_using_allocA
+    out = calloc(outbytes, 1);
+#else
     out = alloca(outbytes);
+#endif
     if (out == NULL) {
-        return ISO_OUT_OF_MEM;
+        retval = ISO_OUT_OF_MEM;
+        goto ex;
     }
 
 #ifdef Libisofs_with_iso_iconV
@@ -210,7 +217,8 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     if (conv == (iconv_t)(-1)) {
 #endif
 
-        return ISO_CHARSET_CONV_ERROR;
+        retval = ISO_CHARSET_CONV_ERROR;
+        goto ex;
     }
 
     src = (char *)str;
@@ -228,7 +236,8 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
         iconv_close(conv);
 #endif
 
-        return ISO_CHARSET_CONV_ERROR;
+        retval = ISO_CHARSET_CONV_ERROR;
+        goto ex;
     }
     *ret = '\0';
 
@@ -240,10 +249,20 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
 
     *output = malloc(ret - out + 1);
     if (*output == NULL) {
-        return ISO_OUT_OF_MEM;
+        retval = ISO_OUT_OF_MEM;
+        goto ex;
     }
     memcpy(*output, out, ret - out + 1);
     return ISO_SUCCESS;
+
+ex:;
+
+#ifdef Libisofs_avoid_using_allocA
+    if (out != NULL)
+        free(out);
+#endif
+
+    return retval;
 }
 
 int strnconv(const char *str, const char *icharset, const char *ocharset,
@@ -260,15 +279,23 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
     iconv_t conv;
 #endif
 
-    char *out;
+    char *out = NULL;
     char *src;
     char *ret;
+    int retval;
 
     inbytes = len;
     outbytes = (inbytes + 1) * MB_LEN_MAX;
+
+#ifdef Libisofs_avoid_using_allocA
+    out = calloc(outbytes, 1);
+#else
     out = alloca(outbytes);
+#endif
+
     if (out == NULL) {
-        return ISO_OUT_OF_MEM;
+        retval = ISO_OUT_OF_MEM;
+        goto ex;
     }
 
 #ifdef Libisofs_with_iso_iconV
@@ -279,7 +306,8 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
     if (conv == (iconv_t)(-1)) {
 #endif
 
-        return ISO_CHARSET_CONV_ERROR;
+        retval = ISO_CHARSET_CONV_ERROR;
+        goto ex;
     }
     src = (char *)str;
     ret = (char *)out;
@@ -296,7 +324,8 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
         iconv_close(conv);
 #endif
 
-        return ISO_CHARSET_CONV_ERROR;
+        retval = ISO_CHARSET_CONV_ERROR;
+        goto ex;
     }
     *ret = '\0';
 
@@ -308,10 +337,20 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
 
     *output = malloc(ret - out + 1);
     if (*output == NULL) {
-        return ISO_OUT_OF_MEM;
+        retval = ISO_OUT_OF_MEM;
+        goto ex;
     }
     memcpy(*output, out, ret - out + 1);
     return ISO_SUCCESS;
+
+ex:;
+
+#ifdef Libisofs_avoid_using_allocA
+    if (out != NULL)
+        free(out);
+#endif
+
+    return retval;
 }
 
 /**
@@ -934,10 +973,20 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
 {
     char *dot;
     int lname, lext, lnname, lnext, pos, i;
+
+#ifdef Libisofs_avoid_using_allocA
+    char *dest = NULL;
+
+    dest = calloc(len + 1 + 1, 1);
+    if (dest == NULL)
+        goto ex;
+#else
     char *dest = alloca(len + 1 + 1);
+#endif
+
 
     if (src == NULL) {
-        return NULL;
+        goto ex;
     }
 
     dot = strrchr(src, '.');
@@ -962,7 +1011,7 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
     }
 
     if (lnname == 0 && lnext == 0) {
-        return NULL;
+        goto ex;
     }
 
     pos = 0;
@@ -1019,6 +1068,15 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
     }
     dest[pos] = '\0';
     return strdup(dest);
+
+ex:;
+
+#ifdef Libisofs_avoid_using_allocA
+    if (dest != NULL)
+        free(dest);
+#endif
+
+    return NULL;
 }
 
 uint16_t *iso_j_file_id(const uint16_t *src)
@@ -1537,7 +1595,7 @@ void strncpy_pad(char *dest, const char *src, size_t max)
 char *ucs2str(const char *buf, size_t len)
 {
     size_t outbytes, inbytes;
-    char *str, *src, *out;
+    char *str, *src, *out = NULL;
 
 #ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
@@ -1553,7 +1611,11 @@ char *ucs2str(const char *buf, size_t len)
     outbytes = (inbytes+1) * MB_LEN_MAX;
     
     /* ensure enought space */
+#ifdef Libisofs_avoid_using_allocA
+    out = calloc(outbytes, 1);
+#else
     out = alloca(outbytes);
+#endif
 
     /* convert to local charset */
 
@@ -1570,7 +1632,7 @@ char *ucs2str(const char *buf, size_t len)
     if (conv == (iconv_t)(-1)) {
 #endif
 
-        return NULL;
+        goto ex;
     }
     src = (char *)buf;
     str = (char *)out;
@@ -1586,7 +1648,7 @@ char *ucs2str(const char *buf, size_t len)
 
     if (n == -1) {
         /* error */
-        return NULL;
+        goto ex;
     }
     *str = '\0';
 
@@ -1594,6 +1656,15 @@ char *ucs2str(const char *buf, size_t len)
     for (len = strlen(out) - 1; out[len] == ' ' && len > 0; --len)
         out[len] = '\0';
     return strdup(out);
+
+ex:;
+
+#ifdef Libisofs_avoid_using_allocA
+    if (out != NULL)
+        free(out);
+#endif
+
+    return NULL;
 }
 
 void iso_lib_version(int *major, int *minor, int *micro)
