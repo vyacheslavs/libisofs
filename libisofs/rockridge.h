@@ -125,6 +125,9 @@ struct rr_AA {
 };
 
 
+/* >>> AAIP-2 : struct rr_AL like struct rr_AA */
+
+
 /**
  * Struct for a SUSP System User Entry (SUSP, 4.1)
  */
@@ -144,6 +147,8 @@ struct susp_sys_user_entry
         struct rr_CL CL;
         struct rr_SL SL;
         struct rr_AA AA;
+
+        /* >>> AAIP-2 : struct rr_AL */
 
     } data; /* 5 to 4+len_sue */
 };

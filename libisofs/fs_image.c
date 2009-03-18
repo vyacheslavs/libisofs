@@ -1332,6 +1332,11 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     continue;
                 }
 
+            /* >>> AAIP-2 : 
+                   SUSP_SIG(sue, 'A', 'L')
+                   read_aaip_AL() like read_aaip_AA()
+             */
+
 /* This message is inflationary */
 /*
             } else {
