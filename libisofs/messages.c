@@ -15,6 +15,9 @@
 #include "libisofs.h"
 #include "messages.h"
 
+#include "util.h"
+
+
 /*
  * error codes are 32 bit numbers, that follow the following conventions:
  *
@@ -55,8 +58,15 @@ int abort_threshold = LIBISO_MSGS_SEV_FAILURE;
 
 struct libiso_msgs *libiso_msgr = NULL;
 
-int iso_init()
+
+/*
+  @param flag  bit0= do not set up locale by LC_* environment variables
+*/
+int iso_init_with_flag(int flag)
 {
+    if (! (flag & 1)) {
+        iso_init_locale(0);
+    }
     if (libiso_msgr == NULL) {
         if (libiso_msgs_new(&libiso_msgr, 0) <= 0)
             return ISO_FATAL_ERROR;
@@ -64,6 +74,12 @@ int iso_init()
     libiso_msgs_set_severities(libiso_msgr, LIBISO_MSGS_SEV_NEVER,
                    LIBISO_MSGS_SEV_FATAL, "libisofs: ", 0);
     return 1;
+}
+
+
+int iso_init()
+{
+    return iso_init_with_flag(0);
 }
 
 void iso_finish()

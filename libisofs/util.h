@@ -26,6 +26,11 @@
 int int_pow(int base, int power);
 
 /**
+ * Set up locale by LC_* environment variables.
+ */
+int iso_init_locale(int flag);
+
+/**
  * Convert the charset encoding of a given string.
  * 
  * @param input

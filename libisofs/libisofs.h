@@ -873,12 +873,25 @@ struct iso_stream
 };
 
 /**
- * Initialize libisofs. You must call this before any usage of the library.
+ * Initialize libisofs. Before any usage of the library you must either call
+ * this function or iso_init_with_flag().
  * @return 1 on success, < 0 on error
  *
  * @since 0.6.2
  */
 int iso_init();
+
+/**
+ * Initialize libisofs. Before any usage of the library you must either call
+ * this function or iso_init() which is equivalent to iso_init_with_flag(0).
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= do not set up locale by LC_* environment variables
+ * @return 1 on success, < 0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_init_with_flag(int flag);
 
 /**
  * Finalize libisofs.
@@ -4830,5 +4843,8 @@ struct burn_source {
  #define Libisofs_with_iso_iconV yes
 */
 
+/* Cleanup : make call setlocale() at init time resp. never
+*/
+#define Libisofs_setlocale_in_iniT yes
 
 #endif /*LIBISO_LIBISOFS_H_*/
