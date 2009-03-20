@@ -1162,8 +1162,8 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For loading of this information from images see iso_read_opts_set_no_aaip().
  *
- * @param enable     1 = do not read AAIP information
- *                   0 = read AAIP information if available
+ * @param enable     1 = write AAIP information from nodes into the image
+ *                   0 = do not write AAIP information into the image
  *                   All other values are reserved.
  * @since 0.6.14
  */
@@ -1676,6 +1676,29 @@ int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
  * @since 0.6.2
  */
 int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
+
+
+/* ts A90319 */
+#define Libisofs_has_auto_input_charseT yes
+/**
+ * Enable or disable methods to automatically choose an input charset.
+ * This eventually overrides the name set via iso_read_opts_set_input_charset()
+ *
+ * @param mode
+ *       Bitfield for control purposes:
+ *       bit0= Allow to use the input character set name which is eventually
+ *             stored in attribute "isofs.cs" of the root directory.
+ *             Applications may attach this xattr by iso_node_set_attrs() to
+ *             the root node, call iso_write_opts_set_output_charset() with the
+ *             same name and enable iso_write_opts_set_aaip() when writing
+ *             an image.
+ *       Submit any other bits with value 0.
+ *
+ * @since 0.6.18
+ *
+ */
+int iso_read_opts_auto_input_charset(IsoReadOpts *opts, int mode);
+
 
 /**
  * Import a previous session or image, for growing or modify.
@@ -4394,7 +4417,7 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node);
  * @param value_lengths
  *      Will return an arry with the lenghts of values
  * @param values
- *      Will return an array of pointers to 8-bit values
+ *      Will return an array of pointers to strings of 8-bit bytes
  * @param flag
  *      Bitfield for control purposes
  *      bit0=  obtain eventual ACLs as attribute with empty name
@@ -4434,7 +4457,7 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
  *      bit1= Do not clear the existing attribute list but merge it with
  *            the list given by this call
  *      bit2= Delete the attributes with the given names
- *      bit3= Allow non-user attributes.
+ *      bit3= Allow to affect non-user attributes.
  *            I.e. those with a non-empty name which does not begin by "user."
  *            (The empty name is always allowed and governed by bit0.) This
  *            deletes all previously existing attributes if not bit1 is set.
@@ -4806,6 +4829,11 @@ struct burn_source {
 #define Libisofs_avoid_using_allocA yes
 
 
+/* Cleanup : make call setlocale() at init time resp. never
+*/
+#define Libisofs_setlocale_in_iniT yes
+
+
 /* ---------------------------- Experiments ---------------------------- */
 
 
@@ -4840,11 +4868,7 @@ struct burn_source {
                They can print errno messages and they
                can avoid iconv() if the identical mapping is desired.
                One could install own simple conversion capabilities.
- #define Libisofs_with_iso_iconV yes
 */
-
-/* Cleanup : make call setlocale() at init time resp. never
-*/
-#define Libisofs_setlocale_in_iniT yes
+#define Libisofs_with_iso_iconV yes
 
 #endif /*LIBISO_LIBISOFS_H_*/

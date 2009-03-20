@@ -348,4 +348,22 @@ int iso_node_set_perms_internal(IsoNode *node, mode_t mode, int flag);
 int iso_aa_get_acl_text(unsigned char *aa_string, mode_t st_mode,
                         char **access_text, char **default_text, int flag);
 
+/**
+ * Backend of iso_node_get_attrs() with parameter node replaced by the
+ * AA string from where to get the attribute list.
+ * All other parameter specs apply.
+ */
+int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
+              char ***names, size_t **value_lengths, char ***values, int flag);
+
+/**
+ * Search given name. Eventually calloc() and copy value. Add trailing 0 byte
+ * for caller convenience.
+ *
+ * @return 1= found , 0= not found , <0 error
+ */
+int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
+                       size_t *value_length, char **value, int flag);
+
+
 #endif /*LIBISO_NODE_H_*/

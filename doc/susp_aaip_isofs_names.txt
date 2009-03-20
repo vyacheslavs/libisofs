@@ -8,7 +8,7 @@
 
 
 The following names are defined for AAIP namespace "isofs." as mentioned in
-specification AAIP 1.0 :
+specification of AAIP :
 
 -------------------------------------------------------------------------------
 
@@ -32,5 +32,27 @@ Example:
 Registered:
       17 Feb 2009 by Thomas Schmitt for xorriso.
                  
+-------------------------------------------------------------------------------
+
+Name:
+      isofs.cs
+
+Purpose:
+      Records the name of the character set that was used as output character
+      set when writing the RRIP name tree of the ISO 9660 image. It shall be
+      suitable as parameter for function iconv_open(3).
+      This attribute shall eventually be attached to the root directory entry
+      and be global for the whole image.
+
+Format of Value:
+      Shall hold the character set name without terminating 0-byte.
+
+Example:
+      { 'I', 'S', 'O', '-', '8', '8', '5', '9' , '-', '1' }
+
+Registered:
+      18 Mar 2009 by Thomas Schmitt for libisofs.
+                 
+-------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 

@@ -1375,7 +1375,6 @@ int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
  * AA string from where to get the attribute list.
  * All other parameter specs apply.
  */
-static
 int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag)
 {
@@ -1443,6 +1442,43 @@ int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
 ex:;
     aaip_decode_attrs(&aaip, (size_t) 1000000, (size_t) 100000,
                       rpt, todo, &consumed, 1 << 15);
+    return ret;
+}
+
+
+/* ts A90319 */
+/**
+ * Search given name. Eventually calloc() and copy value. Add trailing 0 byte
+ * for caller convenience.
+ *
+ * @return 1= found , 0= not found , <0 error
+ */
+int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
+                       size_t *value_length, char **value, int flag)
+{
+    size_t num_attrs = 0, *value_lengths = NULL;
+    char **names = NULL, **values = NULL;
+    int i, ret = 0;
+
+    ret = iso_aa_get_attrs(aa_string, &num_attrs, &names,
+                           &value_lengths, &values, 0);
+    for (i = 0; i < num_attrs; i++) {
+        if (strcmp(names[i], name))
+    continue;
+        *value_length = value_lengths[i];
+        *value = calloc(*value_length + 1, 1);
+        if (*value == NULL) {
+            ret = ISO_OUT_OF_MEM;
+    break;
+        }
+        if (*value_length > 0)
+            memcpy(*value, values[i], *value_length);
+        (*value)[*value_length] = 0;
+        ret = 1;
+    break;
+    }
+    iso_aa_get_attrs(aa_string, &num_attrs, &names,
+                     &value_lengths, &values, 1 << 15);
     return ret;
 }
 

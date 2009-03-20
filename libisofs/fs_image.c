@@ -19,6 +19,7 @@
 #include "image.h"
 #include "tree.h"
 #include "eltorito.h"
+#include "node.h"
 #include "aaip_0_2.h"
 
 #include <stdlib.h>
@@ -26,6 +27,7 @@
 #include <locale.h>
 #include <langinfo.h>
 #include <limits.h>
+#include <stdio.h>
 
 
 /**
@@ -77,6 +79,16 @@ struct iso_read_opts
      * Input charset for RR file names. NULL to use default locale charset.
      */
     char *input_charset;
+
+    /* ts A90319 */
+    /**
+     * Enable or disable methods to automatically choose an input charset.
+     * This eventually overrides input_charset.
+     *
+     * bit0= allow to set the input character set automatically from
+     *       attribute "isofs.cs" of root directory
+     */
+    int auto_input_charset;
 };
 
 /**
@@ -112,7 +124,7 @@ static int ifs_fs_open(IsoImageFilesystem *fs);
 static int ifs_fs_close(IsoImageFilesystem *fs);
 static int iso_file_source_new_ifs(IsoImageFilesystem *fs,
            IsoFileSource *parent, struct ecma119_dir_record *record,
-           IsoFileSource **src);
+           IsoFileSource **src, int falg);
 
 /** unique identifier for each image */
 unsigned int fs_dev_id = 0;
@@ -153,6 +165,16 @@ typedef struct
 
     char *input_charset; /**< Input charset for RR names */
     char *local_charset; /**< For RR names, will be set to the locale one */
+
+    /* ts A90319 */
+    /**
+     * Enable or disable methods to automatically choose an input charset.
+     * This eventually overrides input_charset.
+     *
+     * bit0= allow to set the input character set automatically from
+     *       attribute "isofs.cs" of root directory
+     */
+    int auto_input_charset;
 
     /**
      * Will be filled with the block lba of the extend for the root directory
@@ -463,7 +485,7 @@ int read_dir(ImageFileSourceData *data)
          * We pass a NULL parent instead of dir, to prevent the circular
          * reference from child to parent.
          */
-        ret = iso_file_source_new_ifs(fs, NULL, record, &child);
+        ret = iso_file_source_new_ifs(fs, NULL, record, &child, 0);
         if (ret < 0) {
             if (child) {
                 /*
@@ -1047,6 +1069,12 @@ ino_t fs_give_ino_number(IsoImageFilesystem *fs, int flag)
  * @param src
  *      if not-NULL, it points to a multi-extent file returned by a previous
  *      call to this function.
+ *
+ * ts A90320
+ * @param flag
+ *      bit0= this is the root node attribute load call
+ *            (parameter parent is not reliable for this)
+ *
  * @return
  *      2 node is still incomplete (multi-extent)
  *      1 success, 0 record ignored (not an error, can be a relocated dir),
@@ -1055,7 +1083,7 @@ ino_t fs_give_ino_number(IsoImageFilesystem *fs, int flag)
 static
 int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                             struct ecma119_dir_record *record,
-                            IsoFileSource **src)
+                            IsoFileSource **src, int flag)
 {
     int ret;
     struct stat atts;
@@ -1077,6 +1105,10 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     unsigned char *aa_string = NULL;
     size_t aa_size = 0, aa_len = 0, prev_field = 0;
     int aa_done = 0;
+    char *cs_value = NULL;
+    size_t cs_value_length = 0;
+    char msg[160];
+
 
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
@@ -1298,7 +1330,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                  * Ignore this, to prevent the hint message, if we are dealing
                  * with root node (SP is only valid in "." of root node)
                  */
-                if (parent != NULL) {
+                if (!(flag & 1)) {
                     /* notify and continue */
                     ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                                   "SP entry found in a directory entry other "
@@ -1310,7 +1342,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                  * Ignore this, to prevent the hint message, if we are dealing
                  * with root node (ER is only valid in "." of root node)
                  */
-                if (parent != NULL) {
+                if (!(flag & 1)) {
                     /* notify and continue */
                     ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                                   "ER entry found in a directory entry other "
@@ -1373,6 +1405,28 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         if (ret < 0) {
             free(name);
             return ret;
+        }
+
+        /* ts A90319 */
+        if ((flag & 1)  && aa_string != NULL) {
+            ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
+                                     &cs_value_length, &cs_value, 0);
+            if (ret == 1) {
+                if (fsdata->auto_input_charset & 1) {
+                    if (fsdata->input_charset != NULL)
+                        free(fsdata->input_charset);
+                    fsdata->input_charset = cs_value;
+                    sprintf(msg,
+                         "Learned from ISO image: input character set '%.80s'",
+                         cs_value);
+                } else {
+                    sprintf(msg,
+                           "Character set name recorded in ISO image: '%.80s'",
+                           cs_value);
+                }
+                iso_msgs_submit(0, msg, 0, "NOTE", 0);
+                cs_value = NULL;
+            }
         }
 
         /* convert name to needed charset */
@@ -1483,7 +1537,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         }
 
         ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
-                                      buffer, src);
+                                      buffer, src, 0);
         if (ret <= 0) {
             return ret;
         }
@@ -1666,7 +1720,7 @@ int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
     /* get root attributes from "." entry */
     *root = NULL;
     ret = iso_file_source_new_ifs((IsoImageFilesystem*)fs, NULL,
-                                   (struct ecma119_dir_record*) buffer, root);
+                                 (struct ecma119_dir_record*) buffer, root, 1);
 
     ifs_fs_close((IsoImageFilesystem*)fs);
     return ret;
@@ -2339,6 +2393,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         ret = ISO_OUT_OF_MEM;
         goto fs_cleanup;
     }
+    /* ts A90319 */
+    data->auto_input_charset = opts->auto_input_charset;
 
     /* and finally return. Note that we keep the DataSource opened */
 
@@ -3075,6 +3131,15 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset)
         return ISO_NULL_POINTER;
     }
     opts->input_charset = charset ? strdup(charset) : NULL;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_auto_input_charset(IsoReadOpts *opts, int mode)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->auto_input_charset = mode;
     return ISO_SUCCESS;
 }
 

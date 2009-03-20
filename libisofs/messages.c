@@ -64,9 +64,13 @@ struct libiso_msgs *libiso_msgr = NULL;
 */
 int iso_init_with_flag(int flag)
 {
+
+#ifdef Libisofs_setlocale_in_iniT
     if (! (flag & 1)) {
         iso_init_locale(0);
     }
+#endif
+
     if (libiso_msgr == NULL) {
         if (libiso_msgs_new(&libiso_msgr, 0) <= 0)
             return ISO_FATAL_ERROR;
