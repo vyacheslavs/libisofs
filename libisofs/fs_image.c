@@ -124,7 +124,7 @@ static int ifs_fs_open(IsoImageFilesystem *fs);
 static int ifs_fs_close(IsoImageFilesystem *fs);
 static int iso_file_source_new_ifs(IsoImageFilesystem *fs,
            IsoFileSource *parent, struct ecma119_dir_record *record,
-           IsoFileSource **src, int falg);
+           IsoFileSource **src, int flag);
 
 /** unique identifier for each image */
 unsigned int fs_dev_id = 0;

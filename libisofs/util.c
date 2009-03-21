@@ -253,7 +253,7 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
         goto ex;
     }
     memcpy(*output, out, ret - out + 1);
-    return ISO_SUCCESS;
+    retval = ISO_SUCCESS;
 
 ex:;
 
@@ -341,7 +341,7 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
         goto ex;
     }
     memcpy(*output, out, ret - out + 1);
-    return ISO_SUCCESS;
+    retval = ISO_SUCCESS;
 
 ex:;
 
@@ -971,7 +971,7 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
  */
 char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
 {
-    char *dot;
+    char *dot, *retval = NULL;
     int lname, lext, lnname, lnext, pos, i;
 
 #ifdef Libisofs_avoid_using_allocA
@@ -1067,7 +1067,8 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
         }
     }
     dest[pos] = '\0';
-    return strdup(dest);
+
+    retval = strdup(dest);
 
 ex:;
 
@@ -1076,7 +1077,7 @@ ex:;
         free(dest);
 #endif
 
-    return NULL;
+    return retval;
 }
 
 uint16_t *iso_j_file_id(const uint16_t *src)
@@ -1595,7 +1596,7 @@ void strncpy_pad(char *dest, const char *src, size_t max)
 char *ucs2str(const char *buf, size_t len)
 {
     size_t outbytes, inbytes;
-    char *str, *src, *out = NULL;
+    char *str, *src, *out = NULL, *retval = NULL;
 
 #ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
@@ -1657,7 +1658,8 @@ char *ucs2str(const char *buf, size_t len)
     /* remove trailing spaces */
     for (len = strlen(out) - 1; out[len] == ' ' && len > 0; --len)
         out[len] = '\0';
-    return strdup(out);
+
+    retval = strdup(out);
 
 ex:;
 
@@ -1666,7 +1668,7 @@ ex:;
         free(out);
 #endif
 
-    return NULL;
+    return retval;
 }
 
 void iso_lib_version(int *major, int *minor, int *micro)
