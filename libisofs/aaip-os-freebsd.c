@@ -59,9 +59,9 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  if(flag & (1 << 15)) {
    if(*text != NULL)
 #ifdef Libisofs_with_aaip_acL
-     acl_free(text);
+     acl_free(*text);
 #else
-     free(text);
+     free(*text);
 #endif
    *text= NULL;
    return(1);
@@ -109,9 +109,9 @@ int aaip_get_acl_text(char *path, char **text, int flag)
      (*text)[0]= 0;
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
 #ifdef Libisofs_with_aaip_acL
-     acl_free(text);
+     acl_free(*text);
 #else
-     free(text);
+     free(*text);
 #endif
      *text= NULL;
      return(2);

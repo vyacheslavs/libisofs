@@ -60,7 +60,7 @@ int aaip_get_acl_text(char *path, char **text, int flag)
 
  if(flag & (1 << 15)) {
    if(*text != NULL)
-     acl_free(text);
+     acl_free(*text);
    *text= NULL;
    return(1);
  }
@@ -93,7 +93,7 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  }
  if(flag & (1 | 16)) {
    if((*text)[0] == 0 || strcmp(*text, "\n") == 0) {
-     acl_free(text);
+     acl_free(*text);
      *text= NULL;
      return(2);
    }
