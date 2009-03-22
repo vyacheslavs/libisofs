@@ -44,16 +44,19 @@
 #define Aaip_FUTURE_VERSION 15
 
 #define Aaip_with_short_namespaceS yes
-#define Aaip_max_named_spacE    0x04
+#define Aaip_max_named_spacE    0x06
 #define Aaip_min_named_spacE    0x02
 #define Aaip_maxdef_namespacE   0x1f
 
-#define Aaip_namespace_literaL  0x01
-#define Aaip_namespace_systeM   0x02
-#define Aaip_namespace_useR     0x03
-#define Aaip_namespace_isofS    0x04
+#define Aaip_namespace_literaL   0x01
+#define Aaip_namespace_systeM    0x02
+#define Aaip_namespace_useR      0x03
+#define Aaip_namespace_isofS     0x04
+#define Aaip_namespace_trusteD   0x05
+#define Aaip_namespace_securitY  0x06
 
-static char Aaip_namespace_textS[][8]= {"", "", "system.", "user.", "isofs."};
+static char Aaip_namespace_textS[][16]= {"", "", "system.", "user.", "isofs.",
+                                         "trusted.", "security."};
 
 /* maximum expansion:  "user.aaipXY_" */
 #define Aaip_max_name_expansioN  12
@@ -1592,7 +1595,10 @@ ex:;
        }
      } else if(name[0] == Aaip_namespace_systeM ||
                name[0] == Aaip_namespace_useR ||
-               name[0] == Aaip_namespace_isofS) {
+               name[0] == Aaip_namespace_isofS ||
+               name[0] == Aaip_namespace_trusteD ||
+               name[0] == Aaip_namespace_securitY
+              ) {
        strcpy(prefix, Aaip_namespace_textS[(int) name[0]]);
        pl= strlen(prefix);
        memmove(name + pl, name + 1, nl - 1);
