@@ -12,8 +12,16 @@
  * Definitions of filters.
  */
 
+
 /* dev_id for stream identification */
-#define XOR_ENCRYPT_DEV_ID      1
+
+/* libisofs/filters/xor_encrypt.c */
+#define XOR_ENCRYPT_DEV_ID           1
+
+/* libisofs/filters/external.c */
+#define ISO_FILTER_EXTERNAL_DEV_ID   2
+
+
 
 typedef struct filter_context FilterContext;
 

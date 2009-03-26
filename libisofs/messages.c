@@ -247,6 +247,8 @@ const char *iso_error_to_msg(int errcode)
         return "Error with attaching ACL or xattr to local file";
     case ISO_AAIP_NON_USER_NAME:
         return "Unallowed attempt to set an xattr with non-userspace name";
+    case ISO_EXTF_TOO_OFTEN:
+        return "Too many references on a single external filter command";
     default:
         return "Unknown error";
     }

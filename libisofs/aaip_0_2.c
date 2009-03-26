@@ -58,8 +58,8 @@
 static char Aaip_namespace_textS[][16]= {"", "", "system.", "user.", "isofs.",
                                          "trusted.", "security."};
 
-/* maximum expansion:  "user.aaipXY_" */
-#define Aaip_max_name_expansioN  12
+/* maximum expansion:  "security." */
+#define Aaip_max_name_expansioN  9
 
 /* --------------------------------- Encoder ---------------------------- */
 

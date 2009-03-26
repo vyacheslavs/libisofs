@@ -778,6 +778,7 @@ struct IsoStream_Iface
      * "fsrc" -> Read from file source
      * "mem " -> Read from memory
      * "boot" -> Boot catalog
+     * "extf" -> External filter program
      * "user" -> User supplied stream
      */
     char type[4];
@@ -871,6 +872,7 @@ struct iso_stream
     int refcount;
     void *data;
 };
+
 
 /**
  * Initialize libisofs. Before any usage of the library you must either call
@@ -2837,10 +2839,11 @@ dev_t iso_special_get_dev(IsoSpecial *special);
 /**
  * Get the IsoStream that represents the contents of the given IsoFile.
  *
- * If you open() the stream, it should be close() before image generation.
+ * If you iso_stream_open() the stream, iso_stream_close() it before
+ * image generation begins.
  *
  * @return
- *      The IsoStream. No extra ref is added, so the IsoStream belong to the
+ *      The IsoStream. No extra ref is added, so the IsoStream belongs to the
  *      IsoFile, and it may be freed together with it. Add your own ref with
  *      iso_stream_ref() if you need it.
  *
@@ -4183,7 +4186,7 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_CHARSET_CONV_ERROR          0xE830FF00
 
 /**
- * Too much files to mangle, i.e. we cannot guarantee unique file names
+ * Too many files to mangle, i.e. we cannot guarantee unique file names
  * (FAILURE,HIGH, -257)
  */
 #define ISO_MANGLE_TOO_MUCH_FILES       0xE830FEFF
@@ -4278,8 +4281,13 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 #define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
 
 /** Unallowed attempt to set an xattr with non-userspace name
-                                                       (FAILURE, HIGH, -343) */
+                                                    (FAILURE, HIGH, -343) */
 #define ISO_AAIP_NON_USER_NAME    0xE830FEA9
+
+/* ts A90325 */
+/** Too many references on a single IsoExternalFilterCommand
+                                                    (FAILURE, HIGH, -344) */
+#define ISO_EXTF_TOO_OFTEN        0xE830FEA8
 
 
 /* --------------------------------- AAIP --------------------------------- */
@@ -4624,6 +4632,76 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
 
 /* ------------------------------------------------------------------------- */
 
+/* >>> ts A90325 */
+/**
+ * Representation of an external program that shall serve as filter for
+ * an IsoStream. This object may be shared among many IsoStream objects.
+ * It is to be created and disposed by the application.
+ *
+ * The filter will act as proxy between the original IsoStream of an IsoFile.
+ * Up to completed image generation it will be run at least twice: 
+ * for IsoStream.class.get_size() and for .open() with subsequent .read().
+ * So the original IsoStream has to return 1 by its .class.is_repeatable().
+ * The filter program has to be repeateable too. I.e. it must produce the same
+ * output on the same input.
+ *
+ * @since 0.6.18
+ */
+struct iso_external_filter_command
+{
+    /* Will indicate future extensions. It has to be 0 for now. */
+    int version;
+
+    /* Tells how many IsoStream objects depend on this command object.
+     * One may only dispose an IsoExternalFilterCommand when this count is 0.
+     * Initially this value has to be 0.
+     */
+    int refcount;
+
+    /* Absolute local filesystem path to the executable program. */
+    char *path;
+
+    /* Tells the number of arguments. */
+    int argc;
+
+    /* NULL terminated list suitable for system call execv(3).
+     * I.e. argv[0] points to the alleged program name,
+     *      argv[1] to argv[argc] point to program arguments (if argc > 0)
+     *      argv[argc+1] is NULL
+     */
+    char **argv;
+
+};
+
+typedef struct iso_external_filter_command IsoExternalFilterCommand;
+
+/* ts A90326 */
+/**
+ * Install an external filter command on top of the content stream of a data
+ * file. The filter process must be repeatable. It will be run once by this
+ * call in order to cache the output size.
+ * iso_file_get_stream() will return the filter stream.
+ * iso_stream_get_size() will return the cached size of the filtered data,
+ * iso_stream_open()     will start again the external filter process,
+ * iso_stream_close()    will kill it,
+ * iso_stream_read()     will return filtered data.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param cmd
+ *      The external program and its arguments which shall do the filtering.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
+                                 int flag);
+
+
+/* ------------------------------------------------------------------------- */
+
 #ifdef LIBISOFS_WITHOUT_LIBBURN
 
 /**
@@ -4834,6 +4912,12 @@ struct burn_source {
 #define Libisofs_setlocale_in_iniT yes
 
 
+/* Stabilization: Trying to avoid the risk of losing file content by duplicate
+                  inodes. iso_file_src_cmp() shall compare sizes too.
+*/
+#define Libisofs_file_src_cmp_sizE yes
+
+
 /* ---------------------------- Experiments ---------------------------- */
 
 
@@ -4842,11 +4926,6 @@ struct burn_source {
 */
 #define Libisofs_new_fs_image_inO yes
 
-
-/* Experiment: Trying to avoid the risk of losing file content by duplicate
-               inodes. iso_file_src_cmp() shall compare sizes too.
-*/
-#define Libisofs_file_src_cmp_sizE yes
 
 
 /* Experiment: Revoke Ticket 144, use data file LBAs again.
@@ -4870,5 +4949,13 @@ struct burn_source {
                One could install own simple conversion capabilities.
 */
 #define Libisofs_with_iso_iconV yes
+
+/* Experiment: Regarding (fs_id == 0 && dev_id == 0 && ino_id == 0)
+                  as always unique.
+   LOOKS DANGEROUS: iso_rbtree_insert() seems to need equality
+
+ #ifdef Libisofs_file_src_cmp_non_zerO yes
+*/
+
 
 #endif /*LIBISO_LIBISOFS_H_*/
