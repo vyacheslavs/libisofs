@@ -4673,7 +4673,7 @@ struct iso_external_filter_command
 
     /* A bit field which controls behavior variations:
      * bit0= Shortcut: 0 sized input will surely yield 0 sized output
-     * bit1= Do not install filter if the output becomes larger than the input
+     * >>> not implemented yet: bit1= Do not install filter if the output becomes larger than the input
      */
     int behavior;
 };
@@ -4697,7 +4697,8 @@ typedef struct iso_external_filter_command IsoExternalFilterCommand;
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0.
  * @return
- *      1 on success, <0 on error
+ *      1 on success, 2 if filter installation revoked (e.g. cmd.behavior bit1)
+ *      <0 on error
  *
  * @since 0.6.18
  */
