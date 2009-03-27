@@ -46,7 +46,31 @@ typedef struct
     int out_eof;
     uint8_t pipebuf[2048]; /* buffers in case of EAGAIN on write() */
     int pipebuf_fill;
+    int is_0_run;
 } ExternalFilterRuntime;
+
+
+static
+int extf_running_new(ExternalFilterRuntime **running, int send_fd, int recv_fd,
+                     pid_t child_pid, int flag)
+{
+    ExternalFilterRuntime *o;
+    *running = o = calloc(sizeof(ExternalFilterRuntime), 1);
+    if (o == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    o->send_fd = send_fd;
+    o->recv_fd = recv_fd;
+    o->pid = child_pid;
+    o->in_counter = 0;
+    o->in_eof = 0;
+    o->out_counter = 0;
+    o->out_eof = 0;
+    memset(o->pipebuf, 0, sizeof(o->pipebuf));
+    o->pipebuf_fill = 0;
+    o->is_0_run = 0;
+    return 1;
+}
 
 
 /*
@@ -100,6 +124,18 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
     if (data->running != NULL) {
         return ISO_FILE_ALREADY_OPENED;
     }
+    if (data->cmd->behavior & 1) {
+        if (iso_stream_get_size(data->orig) == 0) {
+            /* Do not fork. Place message for .read and .close */;
+            ret = extf_running_new(&running, -1, -1, 0, 0);
+            if (ret < 0) {
+                return ret;
+            }
+            running->is_0_run = 1;
+            data->running = running;
+            return 1;
+        }
+    }
     if (data->size < 0 && !(flag & 1)) {
         /* Do the size determination run now, so that the size gets cached
            and .get_size() will not fail on an opened stream.
@@ -132,6 +168,13 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
     if (child_pid != 0) {
         /* parent */
 
+#ifndef NIX
+        ret = extf_running_new(&running, send_pipe[1], recv_pipe[0], child_pid,
+                               0);
+        if (ret < 0) {
+            goto parent_failed;
+        }
+#else
         running = calloc(sizeof(ExternalFilterRuntime), 1);
         if (running == NULL) {
             ret = ISO_OUT_OF_MEM;
@@ -146,6 +189,9 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
         running->out_eof = 0;
         memset(running->pipebuf, 0, sizeof(running->pipebuf));
         running->pipebuf_fill = 0;
+        running->is_0_run = 0;
+#endif /* NIX */
+
         data->running = running;
 
         /* Give up the child-side pipe ends */
@@ -221,28 +267,34 @@ int extf_stream_open(IsoStream *stream)
 static
 int extf_stream_close(IsoStream *stream)
 {
-    int ret, status;
+    int ret, status, is_0_run;
     ExternalFilterStreamData *data;
+
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
     data = stream->data;
 
-    if (data->running != NULL) {
+    if (data->running == NULL) {
+        return 1;
+    }
+    is_0_run = data->running->is_0_run;
+    if (!is_0_run) {
         if(data->running->recv_fd != -1)
             close(data->running->recv_fd);
         if(data->running->send_fd != -1)
             close(data->running->send_fd);
 
         ret = waitpid(data->running->pid, &status, WNOHANG);
-        if (ret == -1) {
+        if (ret == -1 && data->running->pid != 0) {
             kill(data->running->pid, SIGKILL);
             waitpid(data->running->pid, &status, 0);
         }
-
-        free(data->running);
-        data->running = NULL;
     }
+    free(data->running);
+    data->running = NULL;
+    if (is_0_run)
+        return 1;
     return iso_stream_close(data->orig);
 }
 
@@ -263,7 +315,7 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
     if (running == NULL) {
         return ISO_FILE_NOT_OPENED;
     }
-    if (running->out_eof) {
+    if (running->out_eof || running->is_0_run) {
         return 0;
     }
 
@@ -428,8 +480,16 @@ void extf_stream_free(IsoStream *stream)
 }
 
 
+static
+int extf_update_size(IsoStream *stream)
+{
+    /* By principle size is determined only once */
+    return 1;
+}
+
+
 IsoStreamIface extf_stream_class = {
-    0,
+    1,
     "extf",
     extf_stream_open,
     extf_stream_close,
@@ -437,7 +497,8 @@ IsoStreamIface extf_stream_class = {
     extf_stream_read,
     extf_stream_is_repeatable,
     extf_stream_get_id,
-    extf_stream_free
+    extf_stream_free,
+    extf_update_size
 };
 
 

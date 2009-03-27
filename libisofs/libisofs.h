@@ -4671,6 +4671,11 @@ struct iso_external_filter_command
      */
     char **argv;
 
+    /* A bit field which controls behavior variations:
+     * bit0= Shortcut: 0 sized input will surely yield 0 sized output
+     * bit1= Do not install filter if the output becomes larger than the input
+     */
+    int behavior;
 };
 
 typedef struct iso_external_filter_command IsoExternalFilterCommand;
