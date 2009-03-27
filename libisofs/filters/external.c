@@ -286,7 +286,7 @@ int extf_stream_close(IsoStream *stream)
             close(data->running->send_fd);
 
         ret = waitpid(data->running->pid, &status, WNOHANG);
-        if (ret == -1 && data->running->pid != 0) {
+        if (ret == 0 && data->running->pid != 0) {
             kill(data->running->pid, SIGKILL);
             waitpid(data->running->pid, &status, 0);
         }
