@@ -473,6 +473,9 @@ void extf_stream_free(IsoStream *stream)
         return;
     }
     data = stream->data;
+    if (data->running != NULL) {
+        extf_stream_close(stream);
+    }
     iso_stream_unref(data->orig);
     if (data->cmd->refcount > 0)
         data->cmd->refcount--;
@@ -488,8 +491,20 @@ int extf_update_size(IsoStream *stream)
 }
 
 
+IsoStream *extf_get_input_stream(IsoStream *stream, int flag)
+{
+    ExternalFilterStreamData *data;
+
+    if (stream == NULL) {
+        return NULL;
+    }
+    data = stream->data;
+    return data->orig;
+}
+
+
 IsoStreamIface extf_stream_class = {
-    1,
+    2,
     "extf",
     extf_stream_open,
     extf_stream_close,
@@ -498,7 +513,8 @@ IsoStreamIface extf_stream_class = {
     extf_stream_is_repeatable,
     extf_stream_get_id,
     extf_stream_free,
-    extf_update_size
+    extf_update_size,
+    extf_get_input_stream
 };
 
 

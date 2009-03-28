@@ -47,3 +47,20 @@ int iso_file_add_filter(IsoFile *file, FilterContext *filter, int flag)
     file->stream = filtered;
     return ISO_SUCCESS;
 }
+
+
+/* ts A90328 */
+int iso_file_remove_filter(IsoFile *file, int flag)
+{
+    IsoStream *file_stream, *input_stream;
+
+    file_stream = file->stream;
+    input_stream = iso_stream_get_input_stream(file_stream, 0);
+    if (input_stream == NULL)
+        return 0;
+    file->stream = input_stream;
+    iso_stream_ref(input_stream); /* Protect against _unref(file_stream) */
+    iso_stream_unref(file_stream);
+    return 1;
+}
+

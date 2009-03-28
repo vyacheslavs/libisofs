@@ -766,10 +766,13 @@ extern ino_t serial_id;
 struct IsoStream_Iface
 {
     /*
-     * Current version of the interface, set to 1.
-     *
-     * -version 1 (since 0.6.8)
+     * Current version of the interface, set to 1 or 2.
+     * Version 0 (since 0.6.4)
+     *    deprecated but still valid.
+     * Version 1 (since 0.6.8) 
      *    update_size() added.
+     * Version 2 (since 0.6.18)
+     *    get_input_stream() added. A filter stream should have version 2.
      */
     int version;
 
@@ -846,6 +849,7 @@ struct IsoStream_Iface
     void (*free)(IsoStream *stream);
 
     /**
+     * Present if .version is 1 or higher:
      * Updates the size of the IsoStream with the current size of the
      * underlying source. After calling this, get_size() will return
      * the new size. This should never be called after
@@ -856,9 +860,26 @@ struct IsoStream_Iface
      *
      * @return
      *     1 if ok, < 0 on error (has to be a valid libisofs error code)
+     *
      * @since 0.6.8
      */
     int (*update_size)(IsoStream *stream);
+
+    /**
+     * Present if .version is 2 or higher:
+     * Obtains the eventual input stream of a filter stream.
+     * @param stream
+     *      The eventual filter stream to be inquired.
+     * @param flag
+     *      Bitfield for control purposes. Submit 0 for now.
+     * @return
+     *      The input stream, if one exists. Elsewise NULL.
+     *      No extra reference to the stream is taken by this call.
+     *
+     * @since 0.6.18
+     */
+    IsoStream *(*get_input_stream)(IsoStream *stream, int flag);
+
 };
 
 /**
@@ -4045,6 +4066,22 @@ int iso_stream_update_size(IsoStream *stream);
 void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                       ino_t *ino_id);
 
+/* ts A90328 */
+/**
+ * Obtain the eventual input stream of a filter stream.
+ * @param stream
+ *      The eventual filter stream to be inquired.
+ * @param flag
+ *      Bitfield for control purposes. Submit 0 for now.
+ * @return
+ *      The input stream, if one exists. Elsewise NULL.
+ *      No extra reference to the stream is taken by this call.
+ * 
+ * @since 0.6.18
+ */    
+IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
+
+
 /************ Error codes and return values for libisofs ********************/
 
 /** successfully execution */
@@ -4685,6 +4722,8 @@ typedef struct iso_external_filter_command IsoExternalFilterCommand;
  * Install an external filter command on top of the content stream of a data
  * file. The filter process must be repeatable. It will be run once by this
  * call in order to cache the output size.
+ * This call creates a new IsoStream which uses the existing IsoStream of the
+ * data file as input.
  * iso_file_get_stream() will return the filter stream.
  * iso_stream_get_size() will return the cached size of the filtered data,
  * iso_stream_open()     will start again the external filter process,
@@ -4704,6 +4743,27 @@ typedef struct iso_external_filter_command IsoExternalFilterCommand;
  */
 int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
                                  int flag);
+
+/* ts A90328 */
+/**
+ * Delete the top filter stream from a data file. This is the most recent one
+ * which was added by iso_file_add_*_filter().
+ * Caution: One should not do this while the IsoStream of the file is opened.
+ *          For now there is no general way to determine this state.
+ *          Filter stream implementations are urged to eventually call .close()
+ *          inside method .free() . This will close the input stream too.
+ * @param file
+ *      The data file node which shall get rid of one layer of content
+ *      filtering.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, 0 if no filter was present
+ *      <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_file_remove_filter(IsoFile *file, int flag);
 
 
 /* ------------------------------------------------------------------------- */

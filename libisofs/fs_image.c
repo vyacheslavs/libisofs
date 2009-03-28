@@ -3229,18 +3229,28 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
          * to get the sections. This break encapsultation, but safes memory as
          * we don't need to store the sections in the IsoFile node.
          */
-        IsoStream *stream = file->stream;
+        IsoStream *stream = file->stream, *input_stream;
         FSrcStreamData *data;
         ImageFileSourceData *ifsdata;
 
-        /* <<< ts A90327 : provisory patch on SIGSEGV */
+        /* ts A90328 : Get the most original stream */
+        while (1) {
+            input_stream = iso_stream_get_input_stream(stream, 0);
+            if (input_stream == NULL || input_stream == stream)
+        break;
+            stream = input_stream;
+        }
+
+        /* ts A90327 : From here on it must be a stream with FSrcStreamData. */
+        /* ??? Shall one rather check :
+                stream->class == extern IsoStreamIface fsrc_stream_class
+               (its storage location is global in stream.c)
+         */
         if (stream->class->type[0] != 'f' || stream->class->type[1] != 's' ||
             stream->class->type[2] != 'r' || stream->class->type[3] != 'c')
             return 0;
 
-        /* >>> need a method to get the most original stream */
-
-        data = file->stream->data;
+        data = stream->data;
         ifsdata = data->src->data;
 
         *section_count = ifsdata->nsections;

@@ -642,3 +642,14 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
         strcpy(name, "UNKNOWN SOURCE");
     }
 }
+
+/* ts A90328 API */
+IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
+{
+    IsoStreamIface* class = stream->class;
+
+    if (class->version < 2)
+        return NULL;
+    return class->get_input_stream(stream, 0);
+}
+
