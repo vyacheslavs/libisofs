@@ -615,7 +615,15 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
     int ret;
     FilterContext *f = NULL;
     IsoStream *stream;
+    off_t original_size = 0, filtered_size = 0;
 
+    if (cmd->behavior & (2 | 4)) {
+        original_size = iso_file_get_size(file);
+        if (original_size <= 0 ||
+            ((cmd->behavior & 4) && original_size < 2048)) {
+            return 2;
+        }
+    }
     ret = extf_create_context(cmd, &f, 0);
     if (ret < 0) {
         return ret;
@@ -627,9 +635,17 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
     }
     /* Run a full filter process getsize so that the size is cached */
     stream = iso_file_get_stream(file);
-    ret = iso_stream_get_size(stream);
+    filtered_size = iso_stream_get_size(stream);
     if (ret < 0) {
         return ret;
+    }
+    if (((cmd->behavior & 2) && filtered_size >= original_size) ||
+        ((cmd->behavior & 4) && filtered_size / 2048 >= original_size / 2048)){
+        ret = iso_file_remove_filter(file, 0);
+        if (ret < 0) {
+            return ret;
+        }
+        return 2;
     }
     return ISO_SUCCESS;
 }
