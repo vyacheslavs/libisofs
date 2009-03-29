@@ -4714,7 +4714,7 @@ struct iso_external_filter_command
      * bit2= Do not install filter if the number of output blocks is
      *       not smaller than the number of input blocks. Block size is 2048.
      *       Assume that non-empty input yields non-empty output and thus do
-     *       not attempt to attach a filter to files smaller than 2048 bytes.
+     *       not attempt to attach a filter to files smaller than 2049 bytes.
      */
     int behavior;
 };

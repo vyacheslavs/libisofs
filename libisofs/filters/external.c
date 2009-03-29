@@ -620,7 +620,7 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
     if (cmd->behavior & (2 | 4)) {
         original_size = iso_file_get_size(file);
         if (original_size <= 0 ||
-            ((cmd->behavior & 4) && original_size < 2048)) {
+            ((cmd->behavior & 4) && original_size <= 2048)) {
             return 2;
         }
     }
