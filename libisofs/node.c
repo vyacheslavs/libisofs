@@ -1458,7 +1458,7 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
 {
     size_t num_attrs = 0, *value_lengths = NULL;
     char **names = NULL, **values = NULL;
-    int i, ret = 0;
+    int i, ret = 0, found = 0;
 
     ret = iso_aa_get_attrs(aa_string, &num_attrs, &names,
                            &value_lengths, &values, 0);
@@ -1474,12 +1474,12 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
         if (*value_length > 0)
             memcpy(*value, values[i], *value_length);
         (*value)[*value_length] = 0;
-        ret = 1;
+        found = 1;
     break;
     }
     iso_aa_get_attrs(aa_string, &num_attrs, &names,
                      &value_lengths, &values, 1 << 15);
-    return ret;
+    return found;
 }
 
 

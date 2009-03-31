@@ -5,7 +5,7 @@
  Implementation for encoding and decoding xattr and ACL.
 
  See http://libburnia-project.org/wiki/AAIP
- or  doc/susp_aaip_1_0.txt
+ or  doc/susp_aaip_2_0.txt
 
  test/aaip_0_2.h - Public declarations
 
