@@ -685,7 +685,7 @@ struct IsoFileSource_Iface
 
     /**
      * Valid only if .version is > 0. See above.
-     * Get the AA string with encoded ACL and xattr.
+     * Get the AAIP string with encoded ACL and xattr.
      * (Not to be confused with ECMA-119 Extended Attributes).
      *
      * bit1 and bit2 of flag should be implemented so that freshly fetched
@@ -694,14 +694,14 @@ struct IsoFileSource_Iface
      * delivered.
      *
      * @param flag       Bitfield for control purposes
-     *                   bit0= Transfer ownership of AA string data.
+     *                   bit0= Transfer ownership of AAIP string data.
      *                         src will free the eventual cached data and might
      *                         not be able to produce it again.
      *                   bit1= No need to get ACL (no guarantee of exclusion)
      *                   bit2= No need to get xattr (no guarantee of exclusion)
-     * @param aa_string  Returns a pointer to the AA string data. If no AA
+     * @param aa_string  Returns a pointer to the AAIP string data. If no AAIP
      *                   string is available, *aa_string becomes NULL.
-     *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
+     *                   (See doc/susp_aaip_*_*.txt for the meaning of AAIP and
      *                    libisofs/aaip_0_2.h for encoding and decoding.)
      *                   The caller is responsible for finally calling free()
      *                   on non-NULL results.
@@ -1286,7 +1286,7 @@ int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers);
 /**
  * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
  * I.e. without announcing it by an ER field and thus without the need
- * to preceed the RRIP fields and the AA field by ES fields.
+ * to preceed the RRIP fields and the AAIP field by ES fields.
  * This saves 5 to 10 bytes per file and might avoid problems with readers
  * which dislike ER fields other than the ones for RRIP.
  * On the other hand, SUSP 1.12 frowns on such unannounced extensions 
@@ -3824,17 +3824,17 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
 
 
 /**
- * Get the AA string with encoded ACL and xattr.
+ * Get the AAIP string with encoded ACL and xattr.
  * (Not to be confused with ECMA-119 Extended Attributes).
  * @param src        The file source object to be inquired.
- * @param aa_string  Returns a pointer to the AA string data. If no AA
+ * @param aa_string  Returns a pointer to the AAIP string data. If no AAIP
  *                   string is available, *aa_string becomes NULL.
- *                   (See doc/susp_aaip_0_2.txt for the meaning of AA and
+ *                   (See doc/susp_aaip_0_2.txt for the meaning of AAIP and
  *                    libisofs/aaip_0_2.h for encoding and decoding.)
  *                   The caller is responsible for finally calling free()
  *                   on non-NULL results.
  * @param flag       Bitfield for control purposes
- *                   bit0= Transfer ownership of AA string data.
+ *                   bit0= Transfer ownership of AAIP string data.
  *                         src will free the eventual cached data and might
  *                         not be able to produce it again.
  *                   bit1= No need to get ACL (but no guarantee of exclusion)
@@ -4330,15 +4330,16 @@ IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
 /* --------------------------------- AAIP --------------------------------- */
 
 /**
- * Function to identify and manage AA strings as xinfo of IsoNode.
+ * Function to identify and manage AAIP strings as xinfo of IsoNode.
  *
- * An AA string contains the Attribute List with the xattr and ACL of a node
+ * An AAIP string contains the Attribute List with the xattr and ACL of a node
  * in the image tree. It is formatted according to libisofs specification
  * AAIP-1.0 and ready to be written into the System Use Area resp. Continuation
  * Area of a directory entry in an ISO image.
  *
- * Applications are not supposed to manipulate AA strings directly. They should
- * rather make use of the appropriate iso_node_get_* and iso_node_set_* calls.
+ * Applications are not supposed to manipulate AAIP strings directly.
+ * They should rather make use of the appropriate iso_node_get_* and
+ * iso_node_set_* calls.
  *
  * AAIP represents ACLs as xattr with empty name and AAIP-specific binary
  * content. Local filesystems may represent ACLs as xattr with names like
@@ -4977,6 +4978,9 @@ struct burn_source {
 #define Libisofs_avoid_using_allocA yes
 
 
+/* ---------------------------- Improvements --------------------------- */
+
+
 /* Cleanup : make call setlocale() at init time resp. never
 */
 #define Libisofs_setlocale_in_iniT yes
@@ -4986,6 +4990,11 @@ struct burn_source {
                   inodes. iso_file_src_cmp() shall compare sizes too.
 */
 #define Libisofs_file_src_cmp_sizE yes
+
+
+/* Disambiguation : change to AAIP-2.0 with field signature "AL"
+*/
+#define Libisofs_aaip_2_0 yes
 
 
 /* ---------------------------- Experiments ---------------------------- */

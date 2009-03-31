@@ -118,14 +118,19 @@ struct rr_SL {
 };
 
 
-/** Arbitrary Attribute (AAIP, see doc/susp_aaip_1_0.txt) */
-struct rr_AA {
+/** Outdated Arbitrary Attribute (AAIP, see doc/susp_aaip_1_0.txt)
+ *  It collided with pre-SUSP Apple AA field.
+ */
+struct aaip_AA {
     uint8_t flags[1];
     uint8_t comps[1];
 };
 
-
-/* >>> AAIP-2 : struct rr_AL like struct rr_AA */
+/** Arbitrary Attribute (AAIP, see doc/susp_aaip_2_0.txt) */
+struct aaip_AL {
+    uint8_t flags[1];
+    uint8_t comps[1];
+};
 
 
 /**
@@ -146,10 +151,8 @@ struct susp_sys_user_entry
         struct rr_NM NM;
         struct rr_CL CL;
         struct rr_SL SL;
-        struct rr_AA AA;
-
-        /* >>> AAIP-2 : struct rr_AL */
-
+        struct aaip_AA AA;
+        struct aaip_AL AL;
     } data; /* 5 to 4+len_sue */
 };
 
@@ -283,8 +286,8 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
 
 
 /**
- * Collects the AA field string from single AA fields.
- * (see doc/susp_aaip_0_2.txt)
+ * Collects the AAIP field string from single AAIP fields.
+ * (see doc/susp_aaip_1_0.txt)
  * @param aa_string   Storage location of the emerging string.
  *                    Begin with *aa_string == NULL, or own malloc() storage.
  * @param aa_size     Current allocated size of aa_string.
@@ -293,12 +296,22 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st);
  *                    Begin with *aa_len == 0
  * @param prev_field  Returns the index of start of the previous field
  *                    in the string.
- * @param is_done     The current completion state of the AA field string.
+ * @param is_done     The current completion state of the AAIP field string.
  *                    Fields will be ignored as soon as it is 1.
  *                    Begin with *is_done == 0
  * @param flag        Unused yet. Submit 0.
+ * @return 
+ *      1 on success, < 0 on error
  */
 int read_aaip_AA(struct susp_sys_user_entry *sue,
+                 unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
+                 size_t *prev_field, int *is_done, int flag);
+
+/**
+ * Collects the AAIP field string from single AL fields.
+ * (see doc/susp_aaip_2_0.txt)
+ */
+int read_aaip_AL(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag);
 

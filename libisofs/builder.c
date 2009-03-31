@@ -197,7 +197,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
                             1 << 15); /* free ACL texts */
     }
 
-    /* Obtain ownership of eventual AA string */
+    /* Obtain ownership of eventual AAIP string */
     ret = iso_file_source_get_aa_string(src, &aa_string,
             1 | (image->builder_ignore_acl << 1) |
                 (image->builder_ignore_ea << 2 ));

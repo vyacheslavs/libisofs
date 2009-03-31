@@ -1,7 +1,7 @@
 
 /*
 
- Arbitrary Attribute Interchange Protocol , AAIP versions 0.2 and 1.0.
+ Arbitrary Attribute Interchange Protocol , AAIP versions 0.2 , 1.0 , 2.0.
  Implementation of encoding and decoding xattr and ACL.
 
  See test/aaip_0_2.h
@@ -20,6 +20,8 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
+
+#include "libisofs.h"
 
 /* <<<
 */
@@ -80,7 +82,7 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
                         This is malloc() memory which needs to be freed when
                         no longer needed 
    @param flag          Bitfield for control purposes
-                        bit0= set CONTINUE bit of last AA field to 1
+                        bit0= set CONTINUE bit of last AAIP field to 1
    @return              >0 is the number of SUSP fields generated,
                         0 means error 
 */
@@ -126,7 +128,13 @@ size_t aaip_encode(size_t num_attrs, char **names,
  /* write the field headers */
  for(i= 0; i < number_of_fields; i++) {
    (*result)[i * 255 + 0]= 'A';
+
+#ifdef Libisofs_aaip_2_0
+   (*result)[i * 255 + 1]= 'L';
+#else /* Libisofs_aaip_2_0 */
    (*result)[i * 255 + 1]= 'A';
+#endif /* ! Libisofs_aaip_2_0 */
+
    if(i < number_of_fields - 1 || (mem_size % 255) == 0)
      (*result)[i * 255 + 2]= 255;
    else 
@@ -200,7 +208,7 @@ static int aaip_encode_comp(unsigned char *result, size_t *result_fill,
 
 
 /* Write the component records for name and attr. Skip the positions of
-   AA field headers.
+   AAIP field headers.
    @param flag          bit0= only count but do not produce result
 */
 static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
@@ -818,11 +826,11 @@ int aaip_add_acl_st_mode(char *acl_text, mode_t st_mode, int flag)
 
 struct aaip_state {
 
-  /* AA field status */
-  int aa_head_missing; /* number of bytes needed to complete AA field header */
-  int aa_missing;     /* number of bytes needed to complete current AA field */
-  int aa_ends;      /* 0= still AA fields expected, 1= last AA being processed,
-                       2= all AA fields processed, 3= all is delivered */
+  /* AAIP field status */
+  int aa_head_missing; /* number of bytes needed to complete field header */
+  int aa_missing;     /* number of bytes needed to complete current field */
+  int aa_ends;      /* 0= still fields expected, 1= last field being processed,
+                       2= all fields processed, 3= all is delivered */
 
   /* Buffer for component records */
   int recs_invalid;                          /* number of components to skip */
@@ -1178,11 +1186,19 @@ static int aaip_consume_aa_head(struct aaip_state *aaip,
  aaip->aa_head_missing-= todo;
  if(aaip->aa_head_missing == 0) {
    aaip_read_from_recs(aaip, aaip->recs_fill - 5, aa_head, 5, 0);
+
+#ifdef Libisofs_aaip_2_0
+   if(aa_head[0] != 'A' || (aa_head[1] != 'L' && aa_head[1] != 'A') ||
+      aa_head[3] != 1)
+     return(-1);
+#else /* Libisofs_aaip_2_0 */
    if(aa_head[0] != 'A' || aa_head[1] != 'A' || aa_head[3] != 1)
      return(-1);
+#endif /* ! Libisofs_aaip_2_0 */
+
    aaip->aa_missing= aa_head[2];
    aaip->aa_ends= !(aa_head[4] & 1);
-   aaip->recs_fill-= 5; /* AA heads do not get delivered */
+   aaip->recs_fill-= 5; /* AAIP field heads do not get delivered */
    if(aaip->aa_missing >= 5)
      aaip->aa_missing-= 5;
    else
@@ -1262,7 +1278,7 @@ static int aaip_consume_aa_data(struct aaip_state *aaip,
                         0 inquires the buffer status avoiding replies <= 0
    @param ready_bytes   Number of decoded bytes ready for delivery
    @param flag          Bitfield for control purposes
-   @return             -1= non-AA field detected
+   @return             -1= non-AAIP field detected
                            *ready_bytes gives number of consumed bytes in data
                         0= cannot accept data because buffer full
                         1= no component record complete, submit more data
@@ -1506,7 +1522,7 @@ retry:;
    @return <0 error
            -3 buffer full (program error)
            -2 insufficient result_size (only with flag bit0)
-           -1 non-AA field detected
+           -1 non-AAIP field detected
             0 data not accepted, first fetch pending pairs with num_data == 0
             1 name and value are not valid yet, submit more data
             2 name and value are valid, submit more data
@@ -1521,7 +1537,7 @@ int aaip_decode_pair(struct aaip_state *aaip,
                      int flag)
 {
  int ret;
- size_t ready_bytes;
+ size_t ready_bytes= 0;
 
 #ifdef Aaip_with_short_namespaceS
  char prefix[Aaip_max_name_expansioN + 1];
@@ -1552,7 +1568,7 @@ int aaip_decode_pair(struct aaip_state *aaip,
    else if(aaip->num_recs)
      ret= 2;
  }
- if(ret < 0) { /* non-AA field detected */
+ if(ret < 0) { /* non-AAIP field detected */
    *consumed= ready_bytes;
    {ret= -1; goto ex;}
  } else if(ret == 0) { /* buffer overflow */;
@@ -1673,8 +1689,9 @@ static int aaip_enlarge_buf(struct aaip_state *aaip, size_t memory_limit,
                         bit15= end decoding :
                                Free handle and its intermediate list memory.
    @return <=0 error
+            -4 interpretation stalled, no valid result
             -3 program error, unexpected reply from lower layers
-            -2 non-AA-field detected, arrays are complete,
+            -2 non-AAIP-field detected, arrays are complete,
                call aaip_get_decoded_attrs()
             -1 out of memory
              1 not complete yet, submit more data
@@ -1776,8 +1793,10 @@ int aaip_decode_attrs(struct aaip_state **handle,
      if(ret != 1)
        return(ret);
 
-   } else if(ret == -1) { /* non-AA field detected */
+   } else if(ret == -1) { /* non-AAIP field detected */
      was_non_aa= 1;
+     if(pair_consumed <= 0)
+       return(-4); /* interpretation did not advance */
 
    } else if(ret < 0) { /* other error */
      return(-3);

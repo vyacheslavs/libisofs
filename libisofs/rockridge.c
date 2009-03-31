@@ -15,6 +15,7 @@
 #include "messages.h"
 #include "image.h"
 #include "aaip_0_2.h"
+#include "libisofs.h"
 
 #include <string.h>
 
@@ -505,7 +506,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
                      parameters susp and data may be NULL in this case
 */
 static
-int aaip_add_AA(Ecma119Image *t, struct susp_info *susp,
+int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
                 uint8_t **data, size_t num_data,
                 size_t *sua_free, size_t *ce_len, int flag)
 {
@@ -647,45 +648,46 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
 static
 int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, int flag)
 {
-    unsigned char *AA;
+    unsigned char *ER;
 
-    AA = malloc(160);
-    if (AA == NULL) {
+    ER = malloc(160);
+    if (ER == NULL) {
         return ISO_OUT_OF_MEM;
     }
     
-    AA[0] = 'E';
-    AA[1] = 'R';
-    AA[2] = 160;
-    AA[3] = 1;
-    AA[4] = 9;
-    AA[5] = 81;
-    AA[6] = 62;
-    AA[7] = 1;
+    ER[0] = 'E';
+    ER[1] = 'R';
+    ER[2] = 160;
+    ER[3] = 1;
+    ER[4] = 9;
+    ER[5] = 81;
+    ER[6] = 62;
+    ER[7] = 1;
 
-#define Libisofs_aaip_1_0 yes
-#ifdef Libisofs_aaip_1_0
+#ifdef Libisofs_aaip_2_0
 
-    memcpy(AA + 8, "AAIP_0100", 9);
-    memcpy(AA + 17,
-           "AA PROVIDES VIA AAIP 1.0 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
+    memcpy(ER + 8, "AAIP_0200", 9);
+    memcpy(ER + 17,
+           "AL PROVIDES VIA AAIP 2.0 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
            " IN ISO 9660 IMAGES", 81);
-
-#else /* Libisofs_aaip_1_0 */
-
-    memcpy(AA + 8, "AAIP_0002", 9);
-    memcpy(AA + 17,
-           "AA PROVIDES VIA AAIP 0.2 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
-           " IN ISO 9660 IMAGES", 81);
-
-#endif /* ! Libisofs_aaip_1_0 */
-
-    memcpy(AA + 98,
+    memcpy(ER + 98,
            "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG",
            62);
 
+#else /* Libisofs_aaip_2_0 */
+
+    memcpy(ER + 8, "AAIP_0100", 9);
+    memcpy(ER + 17,
+           "AA PROVIDES VIA AAIP 1.0 SUPPORT FOR ARBITRARY FILE ATTRIBUTES"
+           " IN ISO 9660 IMAGES", 81);
+    memcpy(ER + 98,
+           "PLEASE CONTACT THE LIBBURNIA PROJECT VIA LIBBURNIA-PROJECT.ORG",
+           62);
+
+#endif /* ! Libisofs_aaip_2_0 */
+
     /** This always goes to continuation area */
-    return susp_append_ce(t, susp, AA);
+    return susp_append_ce(t, susp, ER);
 }
 
 
@@ -775,8 +777,8 @@ int aaip_xinfo_func(void *data, int flag)
 
 
 /**
- * Compute SUA lentgth and eventual Continuation Area length of field NM and
- * eventually fields SL and AA. Because CA usage makes necessary the use of
+ * Compute SUA length and eventual Continuation Area length of field NM and
+ * eventually fields SL and AL. Because CA usage makes necessary the use of
  * a CE entry of 28 bytes in SUA, this computation fails if not the 28 bytes
  * are taken into account at start. In this case the caller should retry with
  * bit0 set. 
@@ -789,7 +791,7 @@ int aaip_xinfo_func(void *data, int flag)
  *                 -1= not enough SUA space for 28 bytes of CE entry
  */
 static
-int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
+int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                        size_t *su_size, size_t *ce, int flag)
 {
     char *name;
@@ -942,7 +944,7 @@ int susp_calc_nm_sl_aa(Ecma119Image *t, Ecma119Node *n, size_t space,
     /* let the expert decide where to add num_aapt */
     if (num_aapt > 0) {
         sua_free = space - *su_size;
-        aaip_add_AA(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
+        aaip_add_AL(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
         *su_size = space - sua_free;
         if (*ce > 0 && !(flag & 1))
             goto unannounced_ca;
@@ -991,7 +993,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
         su_size += 5;
 
 #ifdef Libisofs_with_rrip_rR
-    /* obsolete RR field (once in AAIP-1.09) */
+    /* obsolete RR field (once in RRIP-1.09) */
     su_size += 5;
 #endif
 
@@ -1026,9 +1028,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
     if (type == 0) {
 
         /* Try without CE */
-        ret = susp_calc_nm_sl_aa(t, n, space, &su_size, ce, 0);
+        ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, 0);
         if (ret == 0) /* Retry with CE */
-            susp_calc_nm_sl_aa(t, n, space, &su_size, ce, 1);
+            susp_calc_nm_sl_al(t, n, space, &su_size, ce, 1);
 
     } else {
 
@@ -1110,7 +1112,7 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
             if (aapt == NULL)
                 return ISO_OUT_OF_MEM;
             memcpy(aapt, xipt, num_aapt);
-            ret = aaip_add_AA(t, info, &aapt, num_aapt, sua_free, ce_len,
+            ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
                               flag & 1);
             if (ret < 0) 
                 return ret;
@@ -1264,12 +1266,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
         sua_free = space - info->suf_len;
 
-        /* Try whether NM, SL, AA will fit into SUA */
+        /* Try whether NM, SL, AL will fit into SUA */
         su_size_pd = info->suf_len;
         ce_len_pd = ce_len;
-        ret = susp_calc_nm_sl_aa(t, n, space, &su_size_pd, &ce_len_pd, 0);
+        ret = susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 0);
         if (ret == 0) { /* Have to use CA. 28 bytes of CE are necessary */
-            susp_calc_nm_sl_aa(t, n, space, &su_size_pd, &ce_len_pd, 1);
+            susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 1);
             sua_free -= 28;
             ce_is_predicted = 1;
         }
@@ -1493,7 +1495,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
 
-        /* Obtain AA field string from node
+        /* Obtain AAIP field string from node
            and write it to directory entry or CE area.
         */
         ret = ISO_SUCCESS;

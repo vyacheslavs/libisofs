@@ -29,7 +29,7 @@
                         This is malloc() memory which needs to be freed when
                         no longer needed 
    @param flag          Bitfield for control purposes
-                        bit0= set CONTINUE bit of last AA field to 1
+                        bit0= set CONTINUE bit of last AAIP field to 1
    @return              >0 is the number of SUSP fields generated,
                         0 means error 
 */
@@ -207,15 +207,16 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    attribute lists but may also be used as alternative to Pair Level.
 */
 
-/* Operations on complete AA field strings which need no decoder context.
-   These function expect to get submitted a complete chain of AA fields.
+/* Operations on complete AAIP field strings which need no decoder context.
+   These function expect to get submitted a complete chain of AAIP fields.
 */
 
-/* Determine the size of the AA string by interpreting the SUSP structure.
+/* Determine the size of the AAIP string by interpreting the SUSP structure.
    @param data          An arbitrary number of bytes beginning with the
-                        complete chain of AA fields. Trailing trash is ignored.
+                        complete chain of AAIP fields. Trailing trash is
+                        ignored.
    @param flag          Unused yet. Submit 0.
-   @return              The number of bytes of the AA field chain.
+   @return              The number of bytes of the AAIP field chain.
 */
 size_t aaip_count_bytes(unsigned char *data, int flag);
 
@@ -231,7 +232,7 @@ size_t aaip_sizeof_aaip_state(void);
 
 
 /* Initialize a AAIP decoder context.
-   This has to be done before the first AA field of a node is processed.
+   This has to be done before the first AAIP field of a node is processed.
    The caller has to provide the storage of the struct aaip_state.
    @param aaip          The AAIP decoder context to be initialized
    @param flag          Bitfield for control purposes
@@ -259,7 +260,7 @@ int aaip_init_aaip_state(struct aaip_state *aaip, int flag);
                         0 inquires the buffer status avoiding replies <= 0
    @param ready_bytes   Number of decoded bytes ready for delivery
    @param flag          Bitfield for control purposes
-   @return             -1= non-AA field detected
+   @return             -1= non-AAIP field detected
                            *ready_bytes gives number of consumed bytes in data
                         0= cannot accept data because buffer full
                         1= no component record complete, submit more data

@@ -1372,7 +1372,7 @@ int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
 
 /**
  * Backend of iso_node_get_attrs() with parameter node replaced by the
- * AA string from where to get the attribute list.
+ * AAIP string from where to get the attribute list.
  * All other parameter specs apply.
  */
 int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,

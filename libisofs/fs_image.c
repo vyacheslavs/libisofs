@@ -306,7 +306,7 @@ struct image_fs_data
     } data;
 
     /**
-     * malloc() storage for the string of AA fields which represent
+     * malloc() storage for the string of AAIP fields which represent
      * ACLs and XFS-style Extended Attributes. (Not to be confused with
      * ECMA-119 Extended Attributes.)
      */
@@ -1350,8 +1350,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 }
                 continue;
 
-            /* Need to read AA in any case so it is available for S_IRWXG
-               mapping in case that fsdata->aaip_load != 1
+            /* Need to read AA resp. AL in any case so it is available for
+               S_IRWXG mapping in case that fsdata->aaip_load != 1
              */
             } else if (SUSP_SIG(sue, 'A', 'A')) {
 
@@ -1364,10 +1364,17 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     continue;
                 }
 
-            /* >>> AAIP-2 : 
-                   SUSP_SIG(sue, 'A', 'L')
-                   read_aaip_AL() like read_aaip_AA()
-             */
+            } else if (SUSP_SIG(sue, 'A', 'L')) {
+
+                ret = read_aaip_AL(sue, &aa_string, &aa_size, &aa_len,
+                                   &prev_field, &aa_done, 0);
+                if (ret < 0) {
+                    /* notify and continue */
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
+                                 "Invalid AL entry");
+                    continue;
+                }
+
 
 /* This message is inflationary */
 /*
@@ -2024,13 +2031,15 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
             } else if (sue->data.ER.len_id[0] == 9 &&
                   (strncmp((char*)sue->data.ER.ext_id, "AAIP_0002", 9) == 0 ||
-                   strncmp((char*)sue->data.ER.ext_id, "AAIP_0100", 9) == 0)) {
+                   strncmp((char*)sue->data.ER.ext_id, "AAIP_0100", 9) == 0 ||
+                   strncmp((char*)sue->data.ER.ext_id, "AAIP_0200", 9) == 0)) {
 
                 /* Tolerate AAIP ER even if not supported */
-                iso_msg_debug(data->msgid,
-                              "Suitable AAIP ER found.");
+                iso_msg_debug(data->msgid, "Suitable AAIP ER found.");
 
-                if (((char*)sue->data.ER.ext_id)[6] == '1')
+                if (strncmp((char*)sue->data.ER.ext_id, "AAIP_0200", 9) == 0)
+                    data->aaip_version = 200;
+                else if (((char*)sue->data.ER.ext_id)[6] == '1')
                     data->aaip_version = 100;
                 else
                     data->aaip_version = 2;
@@ -2424,7 +2433,7 @@ int src_aa_to_node(IsoFileSource *src, IsoNode *node, int flag)
     data = (ImageFileSourceData*)src->data;
     fsdata = data->fs->data;
 
-    /* Obtain ownership of eventual AA string */
+    /* Obtain ownership of eventual AAIP string */
     ret = iso_file_source_get_aa_string(src, &aa_string, 1);
     if (ret != 1 || aa_string == NULL)
         return 1;

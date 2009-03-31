@@ -2,9 +2,9 @@
 
                  Arbitrary Attribute Interchange Protocol
 
-                                Version 1.0
+                                Version 2.0
 
-                                Feb 19 2009
+                                Mar 18 2009
 
                 Interchange of Persistent File Attributes
 
@@ -20,8 +20,8 @@ Goal is to have for each file an arbitrary number of attributes which consist
 of two components (Name and Value) of arbitrary length and to have a compact
 representation of ACLs.
 
-This document describes a SUSP entry with Signature Word "AA" which collides
-neither with SUSP 1.12 nor with RRIP 1.12. The AA entry has been designed
+This document describes a SUSP entry with Signature Word "AL" which collides
+neither with SUSP 1.12 nor with RRIP 1.12. The AL entry has been designed
 to be as similar to the RRIP entry SL as possible.
 The presence of AAIP shall be announced by a particular ER entry.
 
@@ -29,22 +29,22 @@ Since the size of a SUSP entry is limited to 255, multiple entries may be
 needed to describe one component. The CE mechanism of SUSP shall be used to
 address enough storage if needed.
 
-AA entries and the ER entry of AAIP shall only be present if the ER entry
+AL entries and the ER entry of AAIP shall only be present if the ER entry
 of RRIP is present.
 
 -------------------------------------------------------------------------------
 
 System Entries Provided by this Specification
 
-* AA
+* AL
 
-Description of the "AA" System Use Entry
+Description of the "AL" System Use Entry
 
 The entry has exactly the same layout as RRIP entry SL. One has to expect
 more data bytes than with SL, though, and any of the 256 possible byte values. 
 The reader shall be prepared to detect and handle oversized data.
 
-One or more AA entries form the Attribute List of a file object with
+One or more AL entries form the Attribute List of a file object with
 an even number of components. Each two consequtive components form a pair of
 Name and Value.
 
@@ -53,12 +53,12 @@ Names must not contain byte value 0x00. Names which begin by bytes 0x01 to 0x1f
 represent names in particular namespaces. See below: Namespaces.
 The meaning of any other names or name parts is not specified by this document.
 
-All AA entries except the last one shall have the CONTINUE flag set. An AA
+All AL entries except the last one shall have the CONTINUE flag set. An AL
 entry with CONTINUE set to 0 indicates the end of the Attribute List.
 
-The format of the AA System Use Field is as follows:
+The format of the AL System Use Field is as follows:
 
-  [1] "BP 1 to BP 2 - Signature Word" shall be (41)(41) ("AA").
+  [1] "BP 1 to BP 2 - Signature Word" shall be (41)(4C) ("AL").
 
   [2] "BP 3 - Length" shall specify as an 8-bit number the length in bytes of
       the AA entry recorded according to ISO 9660:7.1.1.
@@ -67,18 +67,18 @@ The format of the AA System Use Field is as follows:
 
   [4] "BP 5 - Flags" shall contain bit field flags numbered 0 to 7 starting
       with the least significant bit as follows:
-        0   CONTINUE  This AA entry continues in the next AA entry.
+        0   CONTINUE  This AL entry continues in the next AL entry.
       All other bits shall be set to 0.
 
   [5] "BP 6 to Length - Component Area" shall contain Component Records
       as described below.
 
-  | 'A' | 'A' | LENGTH | 1 | FLAGS | COMPONENT AREA |
+  | 'A' | 'L' | LENGTH | 1 | FLAGS | COMPONENT AREA |
   
 
-Within AA entries each component (Name or Value) shall be recorded as one
+Within AL entries each component (Name or Value) shall be recorded as one
 or more component records. If a component does not fit into the remaining
-space of an AA entry then it shall be continued in following AA entries.
+space of an AL entry then it shall be continued in following AL entries.
 
 All Component Records of a component except the last one shall have the
 CONTINUE flag set. A Component Record with CONTINUE set to 0 indicates the end
@@ -94,8 +94,8 @@ inform the author of this document if you find such a discrepancy.
 
 Component Records shall be recorded contiguously within each Component Area,
 starting in the first byte of the Component Area. The last Component Record
-in the Component Area of an AA System Use Entry may be continued in the
-Component Area of the next recorded AA System Use Entry in the same
+in the Component Area of an AL System Use Entry may be continued in the
+Component Area of the next recorded AL System Use Entry in the same
 System Use Area.
 
 Each Component Record shall have the following format:
@@ -103,7 +103,7 @@ Each Component Record shall have the following format:
   [A] "BP 1 - Component Flags" shall contain bit field flags numbered 0 to 7,
       starting with the least significant bit, as follows:
         0   CONTINUE  This Component Record continues in the next
-                      AA Component Record.
+                      AL Component Record.
         all others are RESERVED and shall be 0.
 
   [B] "BP 2 - Component Length (LEN_CP)" shall specify as an 8-bit number the
@@ -120,16 +120,16 @@ Each Component Record shall have the following format:
 
 
 Example: Two pairs of "name"="long...content" and "one"="more" encoded as
-         two AA entries
+         two AL entries
 
   Field 1 contains the Component Record of Name and one Component Record of
   Value :
-  { 'A', 'A', 255,   1,   1,
+  { 'A', 'L', 255,   1,   1,
       0,   4, 'n', 'a', 'm', 'e',
-      1, 255, 'l', 'o', 'n', 'g', ... 238 more bytes, 13 go to next AA ... }
+      1, 255, 'l', 'o', 'n', 'g', ... 238 more bytes, 13 go to next AL ... }
   Field 2 contains the rest of "long...content" and the complete second pair.
   It marks the end of the Attribute List :
-  { 'A', 'A',  38,   1,   0,
+  { 'A', 'L',  38,   1,   0,
               ... 13 remaining bytes of the Component Record in first entry ...
       0,   7, 'c', 'o', 'n', 't', 'e', 'n', 't',
       0,   3, 'o', 'n', 'e',
@@ -166,7 +166,9 @@ The reserved start bytes of names have the following meaning
     0x02   namespace "system."
     0x03   namespace "user."
     0x04   namespace "isofs."
-    0x05 to 0x1F shall not be used yet.
+    0x05   namespace "trusted."
+    0x06   namespace "security."
+    0x07 to 0x1F shall not be used yet.
 
 Examples:
    Name "user.abc" with and without short notation. Both is allowed.
@@ -249,7 +251,7 @@ An eventually needed qualifier is stored in one or more Qualifier Records.
  
 Example: From man 5 acl:  u::rw-,u:lisa:rw-,g::r--,g:toolies:rw-,m::r--,o::r--
          "lisa" has user number 123, "toolies" has group number 65534
-  { 'A', 'A',  20,   1,   0,
+  { 'A', 'L',  20,   1,   0,
       0,   0,
       0,  11, 0x16,
               0xAE,   1, 123,
@@ -260,7 +262,7 @@ Example: From man 5 acl:  u::rw-,u:lisa:rw-,g::r--,g:toolies:rw-,m::r--,o::r--
 
 Example: "Access" ACL and "default" ACL (0x81 is the switch mark)
          u::rwx,g::r-x,o::r-x,  du::rwx,dg::r-x,dm::rwx,do::r-x,du:lisa:rwx
-  { 'A', 'A',  20,  1,   0,
+  { 'A', 'L',  20,  1,   0,
       0,   0,
       0,  11, 0x17, 0x35, 0x65,
               0x81,
@@ -280,7 +282,7 @@ may not appear in the root of directory sub trees.
 
 An interested reader shall examine the Arbitrary Attributes of this Directory
 Entry in order to collect a translation table.
-The advised translation is: PX or AA Id number -> name -> local id number.
+The advised translation is: PX or AL Id number -> name -> local id number.
 
 The Qualifier Bytes of a TRANSLATE entry shall have the following format:
 
@@ -312,7 +314,7 @@ Example: A very long qualifier naming "His_Excellency_..._the_Boss" as user #1.
 Specification of the ER System Use Entry Values for AAIP:
 
 This ER system entry shall only be present if the ER entry of RRIP is present.
-To be compliant with SUSP-1.12, this ER entry must be present if AA entries
+To be compliant with SUSP-1.12, this ER entry must be present if AL entries
 are present, and ES entries have to mark RRIP and AAIP entries.
 If for some reason compliance with SUSP-1.10 is intended, then this ER entry
 and the ES entries must not be present, although SUSP-1.10 would allow ER.
@@ -320,10 +322,10 @@ and the ES entries must not be present, although SUSP-1.10 would allow ER.
 
 The Extension Version number for this version of AAIP shall be 1.
 
-The Extension Identifier field shall be "AAIP_0100" with Identifier Length 9.
+The Extension Identifier field shall be "AAIP_0200" with Identifier Length 9.
 
 The mandatory content form of the Extension Descriptor is 
-"AA PROVIDES VIA AAIP 1.0 SUPPORT FOR ARBITRARY FILE ATTRIBUTES IN ISO 9660 IMAGES"
+"AL PROVIDES VIA AAIP 2.0 SUPPORT FOR ARBITRARY FILE ATTRIBUTES IN ISO 9660 IMAGES"
 The Description Length is 81.
 
 The recommended content of the Extension Source is
@@ -367,11 +369,11 @@ Model Relations:
   [1:0..n]                                            [1:0..n] 
   Arbitrary Attribute ( [1:0..1] ACL )                Entry
   [1:2..2n]                                           [1:0..1]
-  Component  ( [1..m:1..n] AA Field )                 Qualifier
+  Component  ( [1..m:1..n] AL Field )                 Qualifier
   [1:1..n]                                            <<  one of >>
   Component Record                                  /              \
   [1..m:1..n]                              Translation Entry ,  Numeric Id
-  AA Field                                         |                 |
+  AL Field                                         |                 |
                                                  [1:1..n]          [1:1]
                                                      \              /
                                                       Qualifier Record
@@ -379,12 +381,30 @@ Model Relations:
 -------------------------------------------------------------------------------
 Revoked drafts:
 
-There was a draft AAIP 0.0 with ER signature "AAIP_2008A". It did not resemble
-the existing entry SL and therefore shall not be used by writers of ISO images.
+The following outdated versions may be interpreted at read time but they
+shall not be written any more.
+
+                                    AAIP-1.0
+
+Previous versions up to AAIP 1.0 used field signature "AA" rather than "AL".
+This nearly collides with "Apple ISO 9660 Extensions". The Apple "AA" field of
+version 1 has a length of 7, whereas the shortest first AAIP field "AA" had
+length 9.
+
+Beginning with AAIP 2.0, the field name has been changed to "AL".
+If a reader interprets old AAIP "AA" fields, then it must take precautions to
+distinguish them from Apple "AA" fields. But it is well compliant with AAIP 2.0
+to just ignore any kind of "AA" fields.
+
+AAIP 1.0 had ER signature "AAIP_0100".
+
+                                    AAIP-0.2
 
 AAIP 0.2 with ER signature "AAIP_0002" allowed to announce and use a different
-signature than "AA". This has been revoked because ES entries serve the purpose
+signature than "AA". This was revoked because ES entries serve the purpose
 to distinguish AAIP entries from eventual "AA" entries of any other extension.
+Regrettably no reader (kernel) was found which neatly interprets ES. Many do
+not even recognize the RRIP-1.12 ER signatures "IEEE_P1282", "IEEE_1282".
 
 AAIP 0.2 defined two ACL types which did not make it into AAIP 1.0
                  2  ACL_USER       of arbitrary user, with name as qualifier
@@ -392,14 +412,34 @@ AAIP 0.2 defined two ACL types which did not make it into AAIP 1.0
 Their job was transferred to ACL_USER_N and ACL_GROUP_N which have numeric
 qualifiers.
 
+                                    AAIP-0.0
+
+There was a draft AAIP 0.0 with ER signature "AAIP_2008A". It did not resemble
+the existing entry SL and was never implemented.
+
 -------------------------------------------------------------------------------
 References:
 
-ECMA-119  http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
+ECMA-119 aka ISO 9660
+  http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
 
-SUSP 1.12 ftp://ftp.ymi.com/pub/rockridge/susp112.ps
+SUSP 1.12 (entries CE , PD , SP , ST , ER , ES)
+  ftp://ftp.ymi.com/pub/rockridge/susp112.ps
 
-RRIP 1.12 ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
-(especially entry SL)
+RRIP 1.12 (entries PX , PN , SL , NM , CL , PL , RE , TF , SF , obsolete: RR)
+  ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
+
+Apple ISO 9660 Extensions (entries AA and BA)
+  http://developer.apple.com/technotes/fl/fl_36.html
+
+Amiga AS entry
+  http://www.estamos.de/makecd/Rock_Ridge_Amiga_Specific
+
+zisofs entry ZF (prepared by zisofs-tools, written by mkisofs)
+  http://freshmeat.net/projects/zisofs-tools/
+
+Program mkisofs emits entry XA
+  ftp://ftp.berlios.de/pub/cdrecord/alpha
 
 -------------------------------------------------------------------------------
+

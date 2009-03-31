@@ -435,6 +435,8 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
 }
 
 
+/* AA is the field signature of AAIP versions < 2.0
+*/
 int read_aaip_AA(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag)
@@ -443,8 +445,7 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
 
      if (*is_done) {
 
-         /* AAIP-2
-            To coexist with Apple ISO :
+         /* To coexist with Apple ISO :
             Gracefully react on eventually trailing Apple AA
          */
          if (sue->version[0] != 1 || sue->len_sue[0] == 7)
@@ -457,8 +458,7 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
      /* Eventually create or grow storage */
      if (*aa_size == 0 || *aa_string == NULL) {
 
-         /* AAIP-2
-            Gracefully react on eventually leading Apple AA
+         /* Gracefully react on eventually leading Apple AA
          */
          if (sue->version[0] != 1 || sue->len_sue[0] < 9) {
              return ISO_SUCCESS;
@@ -470,8 +470,7 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
      } else if (*aa_len + sue->len_sue[0] > *aa_size) {
 
          if (sue->version[0] != 1) {
-             /* AAIP-2
-                Apple ISO within the AAIP field group is not AAIP compliant
+             /* Apple ISO within the AAIP field group is not AAIP compliant
              */
              return ISO_WRONG_RR;
          }
@@ -492,25 +491,92 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
      /* Compose new SUSP header with signature aa[], cont == 0 */
      aapt = *aa_string + *aa_len;
 
-     /* >>> AAIP-2
-            Change to new signature (AL ?)
-      */
      aapt[0] = 'A';
+
+#ifdef Libisofs_aaip_2_0
+     aapt[1] = 'L';
+#else /* Libisofs_aaip_2_0 */
      aapt[1] = 'A';
+#endif /* ! Libisofs_aaip_2_0 */
 
      aapt[2] = sue->len_sue[0];
      aapt[3] = 1;
      aapt[4] = 0;
      /* Append sue payload */
+
+#ifdef Libisofs_aaip_2_0
+     memcpy(aapt + 5, sue->data.AL.comps, sue->len_sue[0] - 5);
+     *is_done = !(sue->data.AL.flags[0] & 1);
+#else /* Libisofs_aaip_2_0 */
      memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0] - 5);
+     *is_done = !(sue->data.AA.flags[0] & 1);
+#endif /* ! Libisofs_aaip_2_0 */
 
      *aa_len += sue->len_sue[0];
-     *is_done = !(sue->data.AA.flags[0] & 1);
 
      return ISO_SUCCESS;
 }
 
-/* >>> AAIP-2
-       read_aaip_AL() like read_aaip_AA()
- */
+
+/* AL is the obsolete field signature of AAIP versions >= 2.0
+*/
+int read_aaip_AL(struct susp_sys_user_entry *sue,
+                 unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
+                 size_t *prev_field, int *is_done, int flag)
+{
+     unsigned char *aapt;
+
+     if (*is_done)
+         return ISO_WRONG_RR;
+     if (sue->version[0] != 1)
+         return ISO_WRONG_RR;
+
+     /* Eventually create or grow storage */
+     if (*aa_size == 0 || *aa_string == NULL) {
+         *aa_size = *aa_len + sue->len_sue[0];
+         *aa_string = calloc(*aa_size, 1);
+         *aa_len = 0;
+     } else if (*aa_len + sue->len_sue[0] > *aa_size) {
+         *aa_size += *aa_len + sue->len_sue[0];
+         *aa_string = realloc(*aa_string, *aa_size);
+     }
+     if (*aa_string == NULL)
+         return ISO_OUT_OF_MEM;
+
+     if (*aa_len > 0) {
+         /* Mark prev_field as being continued */
+         (*aa_string)[*prev_field + 4] = 1;
+     }
+
+     *prev_field = *aa_len;
+
+     /* Compose new SUSP header with signature aa[], cont == 0 */
+     aapt = *aa_string + *aa_len;
+
+     aapt[0] = 'A';
+
+#ifdef Libisofs_aaip_2_0
+     aapt[1] = 'L';
+#else /* Libisofs_aaip_2_0 */
+     aapt[1] = 'A';
+#endif /* ! Libisofs_aaip_2_0 */
+
+     aapt[2] = sue->len_sue[0];
+     aapt[3] = 1;
+     aapt[4] = 0;
+     /* Append sue payload */
+
+#ifdef Libisofs_aaip_2_0
+     memcpy(aapt + 5, sue->data.AL.comps, sue->len_sue[0] - 5);
+     *is_done = !(sue->data.AL.flags[0] & 1);
+#else /* Libisofs_aaip_2_0 */
+     memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0] - 5);
+     *is_done = !(sue->data.AA.flags[0] & 1);
+#endif /* ! Libisofs_aaip_2_0 */
+
+     *aa_len += sue->len_sue[0];
+
+     return ISO_SUCCESS;
+}
+
 
