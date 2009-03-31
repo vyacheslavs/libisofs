@@ -3829,8 +3829,7 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  * @param src        The file source object to be inquired.
  * @param aa_string  Returns a pointer to the AAIP string data. If no AAIP
  *                   string is available, *aa_string becomes NULL.
- *                   (See doc/susp_aaip_0_2.txt for the meaning of AAIP and
- *                    libisofs/aaip_0_2.h for encoding and decoding.)
+ *                   (See doc/susp_aaip_2_0.txt for the meaning of AAIP.) 
  *                   The caller is responsible for finally calling free()
  *                   on non-NULL results.
  * @param flag       Bitfield for control purposes
@@ -4334,7 +4333,7 @@ IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
  *
  * An AAIP string contains the Attribute List with the xattr and ACL of a node
  * in the image tree. It is formatted according to libisofs specification
- * AAIP-1.0 and ready to be written into the System Use Area resp. Continuation
+ * AAIP-2.0 and ready to be written into the System Use Area resp. Continuation
  * Area of a directory entry in an ISO image.
  *
  * Applications are not supposed to manipulate AAIP strings directly.
@@ -4992,7 +4991,7 @@ struct burn_source {
 #define Libisofs_file_src_cmp_sizE yes
 
 
-/* Disambiguation : change to AAIP-2.0 with field signature "AL"
+/* Protocol Upgrade : change to AAIP-2.0 with field signature "AL"
 */
 #define Libisofs_aaip_2_0 yes
 
