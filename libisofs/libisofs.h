@@ -4717,6 +4717,11 @@ struct iso_external_filter_command
      *       not attempt to attach a filter to files smaller than 2049 bytes.
      */
     int behavior;
+
+    /* An optional instance id.
+     * Set to NULL if no individual name for this object is intended.
+     */
+    char *name;
 };
 
 typedef struct iso_external_filter_command IsoExternalFilterCommand;
