@@ -4709,8 +4709,14 @@ struct iso_external_filter_command
     char **argv;
 
     /* A bit field which controls behavior variations:
+
+#ifdef Libisofs_extf_old_behavior_bit_0
      * bit0= Shortcut: 0 sized input will surely yield 0 sized output
-     * bit1= Do not install filter if the output is not smaller than the input
+#else
+     * bit0= Do not install filter if the input has size 0.
+#endif
+
+     * bit1= Do not install filter if the output is not smaller than the input.
      * bit2= Do not install filter if the number of output blocks is
      *       not smaller than the number of input blocks. Block size is 2048.
      *       Assume that non-empty input yields non-empty output and thus do
