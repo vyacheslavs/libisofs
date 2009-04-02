@@ -4695,6 +4695,11 @@ struct iso_external_filter_command
      */
     int refcount;
 
+    /* An optional instance id.
+     * Set to empty text if no individual name for this object is intended.
+     */
+    char *name;
+
     /* Absolute local filesystem path to the executable program. */
     char *path;
 
@@ -4709,25 +4714,25 @@ struct iso_external_filter_command
     char **argv;
 
     /* A bit field which controls behavior variations:
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-     * bit0= Shortcut: 0 sized input will surely yield 0 sized output
-#else
      * bit0= Do not install filter if the input has size 0.
-#endif
-
      * bit1= Do not install filter if the output is not smaller than the input.
      * bit2= Do not install filter if the number of output blocks is
      *       not smaller than the number of input blocks. Block size is 2048.
      *       Assume that non-empty input yields non-empty output and thus do
      *       not attempt to attach a filter to files smaller than 2049 bytes.
+     * bit3= suffix was removed rather than to be added.
+     *       (Removal and adding suffixes is the task of the application.
+     *        This behavior bit serves only as reminder for the application.)
      */
     int behavior;
 
-    /* An optional instance id.
-     * Set to NULL if no individual name for this object is intended.
+    /* The eventual suffix which is supposed to be added to the IsoFile name
+     * resp. to be removed from the name.
+     * (This is to be done by the application, not by calls
+     *  iso_file_add_external_filter() or iso_file_remove_filter().
+     *  The value recorded here serves only as reminder for the application.)
      */
-    char *name;
+    char *suffix;
 };
 
 typedef struct iso_external_filter_command IsoExternalFilterCommand;
@@ -4779,6 +4784,27 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
  * @since 0.6.18
  */
 int iso_file_remove_filter(IsoFile *file, int flag);
+
+
+/* ts A90402 */
+/**
+ * Obtain the IsoExternalFilterCommand which is associated with the top filter
+ * stream from a data file.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param cmd
+ *      Will return the external IsoExternalFilterCommand. This does not
+ *      increment .refcount.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, 0 if the top stream of the file is not an external filter
+ *      <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_file_get_external_filter(IsoFile *file, IsoExternalFilterCommand **cmd,
+                                 int flag);
 
 
 /* ------------------------------------------------------------------------- */

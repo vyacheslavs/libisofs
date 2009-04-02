@@ -46,11 +46,6 @@ typedef struct
     int out_eof;
     uint8_t pipebuf[2048]; /* buffers in case of EAGAIN on write() */
     int pipebuf_fill;
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-    int is_0_run;
-#endif
-
 } ExternalFilterRuntime;
 
 
@@ -72,11 +67,6 @@ int extf_running_new(ExternalFilterRuntime **running, int send_fd, int recv_fd,
     o->out_eof = 0;
     memset(o->pipebuf, 0, sizeof(o->pipebuf));
     o->pipebuf_fill = 0;
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-    o->is_0_run = 0;
-#endif
-
     return 1;
 }
 
@@ -128,25 +118,9 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
         return ISO_NULL_POINTER;
     }
     data = (ExternalFilterStreamData*)stream->data;
-
     if (data->running != NULL) {
         return ISO_FILE_ALREADY_OPENED;
     }
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-    if (data->cmd->behavior & 1) {
-        if (iso_stream_get_size(data->orig) == 0) {
-            /* Do not fork. Place message for .read and .close */;
-            ret = extf_running_new(&running, -1, -1, 0, 0);
-            if (ret < 0) {
-                return ret;
-            }
-            running->is_0_run = 1;
-            data->running = running;
-            return 1;
-        }
-    }
-#endif /* Libisofs_extf_old_behavior_bit_0 */
 
     if (data->size < 0 && !(flag & 1)) {
         /* Do the size determination run now, so that the size gets cached
@@ -260,11 +234,6 @@ static
 int extf_stream_close(IsoStream *stream)
 {
     int ret, status;
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-    int is_0_run;
-#endif
-
     ExternalFilterStreamData *data;
 
     if (stream == NULL) {
@@ -276,34 +245,18 @@ int extf_stream_close(IsoStream *stream)
         return 1;
     }
 
-#ifdef Libisofs_extf_old_behavior_bit_0
-    is_0_run = data->running->is_0_run;
-    if (!is_0_run) {
-#endif
+    if(data->running->recv_fd != -1)
+        close(data->running->recv_fd);
+    if(data->running->send_fd != -1)
+        close(data->running->send_fd);
 
-        if(data->running->recv_fd != -1)
-            close(data->running->recv_fd);
-        if(data->running->send_fd != -1)
-            close(data->running->send_fd);
-
-        ret = waitpid(data->running->pid, &status, WNOHANG);
-        if (ret == 0 && data->running->pid != 0) {
-            kill(data->running->pid, SIGKILL);
-            waitpid(data->running->pid, &status, 0);
-        }
-
-#ifdef Libisofs_extf_old_behavior_bit_0
+    ret = waitpid(data->running->pid, &status, WNOHANG);
+    if (ret == 0 && data->running->pid != 0) {
+        kill(data->running->pid, SIGKILL);
+        waitpid(data->running->pid, &status, 0);
     }
-#endif
-
     free(data->running);
     data->running = NULL;
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-    if (is_0_run)
-        return 1;
-#endif
-
     return iso_stream_close(data->orig);
 }
 
@@ -324,13 +277,7 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
     if (running == NULL) {
         return ISO_FILE_NOT_OPENED;
     }
-
-#ifdef Libisofs_extf_old_behavior_bit_0
-    if (running->out_eof || running->is_0_run) {
-#else
     if (running->out_eof) {
-#endif
-
         return 0;
     }
 
@@ -506,6 +453,7 @@ int extf_update_size(IsoStream *stream)
 }
 
 
+static
 IsoStream *extf_get_input_stream(IsoStream *stream, int flag)
 {
     ExternalFilterStreamData *data;
@@ -632,11 +580,7 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
     IsoStream *stream;
     off_t original_size = 0, filtered_size = 0;
 
-#ifdef Libisofs_extf_old_behavior_bit_0
-    if (cmd->behavior & (2 | 4)) {
-#else
     if (cmd->behavior & (1 | 2 | 4)) {
-#endif
         original_size = iso_file_get_size(file);
         if (original_size <= 0 ||
             ((cmd->behavior & 4) && original_size <= 2048)) {
@@ -667,5 +611,20 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
         return 2;
     }
     return ISO_SUCCESS;
+}
+
+
+int iso_file_get_external_filter(IsoFile *file, IsoExternalFilterCommand **cmd,
+                                 int flag)
+{
+    IsoStream *stream;
+    ExternalFilterStreamData *data;
+
+    stream = iso_file_get_stream(file);
+    if (stream->class != &extf_stream_class)
+        return 0;
+    data = stream->data;
+    *cmd = data->cmd;
+    return 1;
 }
 
