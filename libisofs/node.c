@@ -1483,6 +1483,27 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
 }
 
 
+/* ts A90403 */
+/* API */
+int iso_node_lookup_attr(IsoNode *node, char *name,
+                         size_t *value_length, char **value, int flag)
+{
+    void *xipt;
+    unsigned char *aa_string = NULL;
+    int ret;
+
+    *value_length= 0;
+    *value= NULL;
+    ret = iso_node_get_xinfo(node, aaip_xinfo_func, &xipt);
+    if (ret != 1)
+        return 0;
+    aa_string = (unsigned char *) xipt;
+    ret = iso_aa_lookup_attr(aa_string, name, value_length, value, 0);
+    return ret;
+}
+
+
+/* API */
 int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag)
 {

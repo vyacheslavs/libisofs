@@ -54,5 +54,32 @@ Registered:
       18 Mar 2009 by Thomas Schmitt for libisofs.
                  
 -------------------------------------------------------------------------------
+
+Name:
+      isofs.st
+
+Purpose:
+      Records a time point at least 1 second before any nodes were added to a
+      freshly loaded or created ISO image. Nodes in the image which have
+      younger timestamps are suspect to have changed their content during
+      image production and might bear inconsistent content.
+      The RRIP timestamps have a blind second during which a change after
+      node registration would not be recognizable for incremental backups
+      which are based in "isofs.di" rather than on content comparison.
+      This attribute shall eventually be attached to the root directory entry
+      and be global for the whole image.
+
+Format of Value:
+      Shall hold UTC seconds since 1970 as decimal number string without
+      terminating 0-byte.
+
+Example:
+      { '1', '2', '3', '8', '7', '4', '2', '2', '9', '6' }
+
+Registered:
+      03 Apr 2009 by Thomas Schmitt for xorriso.
+                 
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 

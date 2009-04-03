@@ -4454,7 +4454,7 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node);
  * For all other ACL purposes use iso_node_get_acl_text().
  *
  * @param node
- *      The node that is to be manipulated.
+ *      The node that is to be inquired.
  * @param num_attrs
  *      Will return the number of name-value pairs
  * @param names
@@ -4476,6 +4476,29 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node);
  */
 int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag);
+
+
+/* ts A90403 */
+/**
+ * Obtain the value of a particular xattr name. Eventually make a copy of
+ * that value and add a trailing 0 byte for caller convenience.
+ * @param node
+ *      The node that is to be inquired.
+ * @param name
+ *      The xattr name that shall be looked up.
+ * @param value_length
+ *      Will return the lenght of value
+ * @param value
+ *      Will return a string of 8-bit bytes. free() it when no longer needed.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1= name found , 0= name not found , <0 indicates error error
+ *
+ * @since 0.6.18
+ */
+int iso_node_lookup_attr(IsoNode *node, char *name,
+                         size_t *value_length, char **value, int flag);
 
 /**
  * Set the list of xattr which is associated with the node.
@@ -4667,9 +4690,9 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag);
 
 
-/* ------------------------------------------------------------------------- */
+/* ---------------------------- External Filters --------------------------- */
 
-/* >>> ts A90325 */
+/* ts A90325 */
 /**
  * Representation of an external program that shall serve as filter for
  * an IsoStream. This object may be shared among many IsoStream objects.
