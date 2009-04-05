@@ -230,8 +230,8 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
 
 
         /* <<< TEST <<<
-        ret= ISO_FILE_READ_ERROR;
         */
+        ret= ISO_FILE_READ_ERROR;
 
         if (ret < 0) {
             /* Dispose pipes and child */
@@ -669,8 +669,9 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
     /* Run a full filter process getsize so that the size is cached */
     stream = iso_file_get_stream(file);
     filtered_size = iso_stream_get_size(stream);
-    if (ret < 0) {
-        return ret;
+    if (filtered_size < 0) {
+        iso_file_remove_filter(file, 0);
+        return filtered_size;
     }
     if (((cmd->behavior & 2) && filtered_size >= original_size) ||
         ((cmd->behavior & 4) && filtered_size / 2048 >= original_size / 2048)){
