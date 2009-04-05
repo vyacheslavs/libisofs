@@ -17,6 +17,7 @@
 #include "../fsource.h"
 
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
@@ -25,6 +26,9 @@
 #include <errno.h>
 #include <string.h>
 
+#ifdef Libisofs_external_filters_selecT
+#include <sys/select.h>
+#endif
 
 /*
  * A filter that starts an external process and uses its stdin and stdout
@@ -230,8 +234,8 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
 
 
         /* <<< TEST <<<
-        */
         ret= ISO_FILE_READ_ERROR;
+        */
 
         if (ret < 0) {
             /* Dispose pipes and child */
@@ -320,6 +324,59 @@ int extf_stream_open(IsoStream *stream)
 {
     return extf_stream_open_flag(stream, 0);
 }
+
+
+#ifdef Libisofs_external_filters_selecT
+
+/* Performance is weaker than with non-blocking i/o and usleep(). */
+
+static
+int extf_wait_for_io(int fd_in, int fd_out, int microsec, int flag)
+{
+    struct timeval wt;
+    fd_set rds,wts,exs;
+    int ready, fd_max;
+
+    fd_max = fd_out;
+    if (fd_in > fd_out)
+        fd_max = fd_in;
+
+    FD_ZERO(&rds);
+    FD_ZERO(&wts);
+    FD_ZERO(&exs);
+    if (fd_in >= 0) {
+        FD_SET(fd_in,&rds);
+        FD_SET(fd_in,&exs);
+    }
+    if (fd_out >= 0) {
+        FD_SET(fd_out,&rds);
+        FD_SET(fd_in,&exs);
+    }
+    wt.tv_sec =  microsec/1000000;
+    wt.tv_usec = microsec%1000000;
+    ready = select(fd_max + 1, &rds, &wts, &exs, &wt);
+    if (ready <= 0)
+        return 0;
+    if (fd_in >= 0) {
+        if (FD_ISSET(fd_in, &rds))
+            return 1;
+    }
+    if (fd_out >= 0) {
+        if (FD_ISSET(fd_out, &rds))
+            return 2;
+    }
+    if (fd_in >= 0) {
+        if (FD_ISSET(fd_in, &exs))
+            return -1;
+    }
+    if (fd_out >= 0) {
+        if (FD_ISSET(fd_out, &exs))
+            return -2;
+    }
+    return(0);
+}
+
+#endif /* Libisofs_external_filters_selecT */
 
 
 static
@@ -417,10 +474,25 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
             if (ret == -1) {
                 if (errno == EAGAIN) {
 
+#ifdef Libisofs_external_filters_selecT
+
                     /* >>> ??? should one replace non-blocking read()
                                by select () ? */
 
+                    /* This saves 10 % CPU load but needs 50 % more real time*/
+
+                    ret = extf_wait_for_io(running->recv_fd, running->send_fd,
+                                           100000, 0);
+                    if (ret < 0)
+                        usleep(1000); /* To make sure sufficient laziness */
+
+#else
+
+                    /* No sleeping needs 90 % more CPU and saves 6 % time */
                     usleep(1000); /* go lazy because the filter is slow */
+
+#endif /* NIX */
+
     continue;
                 }
 
