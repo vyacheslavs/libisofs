@@ -4743,7 +4743,7 @@ struct iso_external_filter_command
      *       not smaller than the number of input blocks. Block size is 2048.
      *       Assume that non-empty input yields non-empty output and thus do
      *       not attempt to attach a filter to files smaller than 2049 bytes.
-     * bit3= suffix was removed rather than to be added.
+     * bit3= suffix removed rather than added.
      *       (Removal and adding suffixes is the task of the application.
      *        This behavior bit serves only as reminder for the application.)
      */
@@ -4811,23 +4811,24 @@ int iso_file_remove_filter(IsoFile *file, int flag);
 
 /* ts A90402 */
 /**
- * Obtain the IsoExternalFilterCommand which is associated with the top filter
- * stream from a data file.
- * @param file
- *      The data file node which shall show filtered content.
+ * Obtain the IsoExternalFilterCommand which is eventually associated with the
+ * given stream. (Typically obtained from an IsoFile by iso_file_get_stream()
+ * or from an IsoStream by iso_stream_get_input_stream()).
+ * @param stream
+ *      The stream to be inquired.
  * @param cmd
  *      Will return the external IsoExternalFilterCommand. This does not
  *      increment .refcount.
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0.
  * @return
- *      1 on success, 0 if the top stream of the file is not an external filter
+ *      1 on success, 0 if the stream is not an external filter
  *      <0 on error
  *
  * @since 0.6.18
  */
-int iso_file_get_external_filter(IsoFile *file, IsoExternalFilterCommand **cmd,
-                                 int flag);
+int iso_stream_get_external_filter(IsoStream *stream,
+                                   IsoExternalFilterCommand **cmd, int flag);
 
 
 /* ------------------------------------------------------------------------- */

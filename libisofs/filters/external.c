@@ -757,13 +757,11 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
 }
 
 
-int iso_file_get_external_filter(IsoFile *file, IsoExternalFilterCommand **cmd,
-                                 int flag)
+int iso_stream_get_external_filter(IsoStream *stream,
+                                   IsoExternalFilterCommand **cmd, int flag)
 {
-    IsoStream *stream;
     ExternalFilterStreamData *data;
 
-    stream = iso_file_get_stream(file);
     if (stream->class != &extf_stream_class)
         return 0;
     data = stream->data;
