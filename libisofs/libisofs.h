@@ -2859,6 +2859,8 @@ dev_t iso_special_get_dev(IsoSpecial *special);
 
 /**
  * Get the IsoStream that represents the contents of the given IsoFile.
+ * The stream may be a filter stream which itself get its input from a
+ * further stream. This may be inwuired by iso_stream_get_input_stream().
  *
  * If you iso_stream_open() the stream, iso_stream_close() it before
  * image generation begins.
