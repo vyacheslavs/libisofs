@@ -2860,7 +2860,7 @@ dev_t iso_special_get_dev(IsoSpecial *special);
 /**
  * Get the IsoStream that represents the contents of the given IsoFile.
  * The stream may be a filter stream which itself get its input from a
- * further stream. This may be inwuired by iso_stream_get_input_stream().
+ * further stream. This may be inquired by iso_stream_get_input_stream().
  *
  * If you iso_stream_open() the stream, iso_stream_close() it before
  * image generation begins.
@@ -4819,8 +4819,8 @@ int iso_file_remove_filter(IsoFile *file, int flag);
  * @param stream
  *      The stream to be inquired.
  * @param cmd
- *      Will return the external IsoExternalFilterCommand. This does not
- *      increment .refcount.
+ *      Will return the external IsoExternalFilterCommand. Valid only if
+ *      the call returns 1. This does not increment cmd->refcount.
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0.
  * @return
