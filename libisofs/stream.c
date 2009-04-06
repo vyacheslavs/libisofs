@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <stdio.h>
 
 ino_t serial_id = (ino_t)1;
 ino_t mem_serial_id = (ino_t)1;
@@ -638,6 +639,8 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
         strcpy(name, "BOOT CATALOG");
     } else if (!strncmp(type, "mem ", 4)) {
         strcpy(name, "MEM SOURCE");
+    } else if (!strncmp(type, "extf", 4)) {
+        strcpy(name, "EXTERNAL FILTER");
     } else {
         strcpy(name, "UNKNOWN SOURCE");
     }
@@ -651,5 +654,36 @@ IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
     if (class->version < 2)
         return NULL;
     return class->get_input_stream(stream, 0);
+}
+
+/* ts A90406 API */
+char *iso_stream_get_source_path(IsoStream *stream, int flag)
+{
+    char *path = NULL, ivd[80], *raw_path = NULL;
+
+    if (stream == NULL) {
+        return NULL;
+    }
+    if (stream->class == &fsrc_stream_class) {
+        FSrcStreamData *fsrc_data = stream->data;
+
+        path = iso_file_source_get_path(fsrc_data->src);
+    } else if (stream->class == &cut_out_stream_class) {
+        struct cut_out_stream *cout_data = stream->data;
+
+        raw_path = iso_file_source_get_path(cout_data->src);
+        sprintf(ivd, " %.f %.f",
+                (double) cout_data->offset, (double) cout_data->size);
+        path= calloc(strlen(raw_path) + strlen(ivd) + 1, 1);
+        if (path == NULL) {
+            goto ex;
+        }
+        strcpy(path, raw_path);
+        strcat(path, ivd);
+    }
+ex:;
+    if (raw_path != NULL)
+        free(raw_path);
+    return path;
 }
 

@@ -4067,20 +4067,22 @@ int iso_stream_update_size(IsoStream *stream);
 void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                       ino_t *ino_id);
 
-/* ts A90328 */
+/* ts A90406 */
 /**
- * Obtain the eventual input stream of a filter stream.
+ * Try to get eventual source path string of a stream. Meaning and availability
+ * of this string depends on the stream.class . Expect valid results with
+ * types "fsrc" and "cout".
  * @param stream
- *      The eventual filter stream to be inquired.
+ *     The stream to be inquired.
  * @param flag
- *      Bitfield for control purposes. Submit 0 for now.
+ *     Bitfield for control purposes, unused yet, submit 0
  * @return
- *      The input stream, if one exists. Elsewise NULL.
- *      No extra reference to the stream is taken by this call.
- * 
+ *     A copy of the path string. Apply free() when no longer needed.
+ *     NULL if no path string is available.
+ *
  * @since 0.6.18
- */    
-IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
+ */
+char *iso_stream_get_source_path(IsoStream *stream, int flag);
 
 
 /************ Error codes and return values for libisofs ********************/
@@ -4809,6 +4811,22 @@ int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
  * @since 0.6.18
  */
 int iso_file_remove_filter(IsoFile *file, int flag);
+
+
+/* ts A90328 */
+/**
+ * Obtain the eventual input stream of a filter stream.
+ * @param stream
+ *      The eventual filter stream to be inquired.
+ * @param flag
+ *      Bitfield for control purposes. Submit 0 for now.
+ * @return
+ *      The input stream, if one exists. Elsewise NULL.
+ *      No extra reference to the stream is taken by this call.
+ * 
+ * @since 0.6.18
+ */    
+IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
 
 
 /* ts A90402 */
