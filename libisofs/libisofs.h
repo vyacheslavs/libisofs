@@ -5035,13 +5035,6 @@ struct burn_source {
 /* ----------------------------- Bug Fixes ----------------------------- */
 
 
-/* Bug fix   : Use correct size of 237 if the ER of RRIP-1.10 shal be written
-               (rather than size 182 of RRIP-1.12)
-
-*/
-#define Libisofs_rrip_1_10_er_bugfiX yes
-
-
 /* Portability: Avoid use of function alloca().
 
                 Solaris demands to include <alloca,h>, FreeBSD has no such

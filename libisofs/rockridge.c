@@ -1045,20 +1045,12 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
              * ER needs a Continuation Area, thus we also need a CE entry
              */
             su_size += 7 + 28; /* SP + CE */
-
-#ifdef Libisofs_rrip_1_10_er_bugfiX
-
             /* ER of RRIP */
             if (t->rrip_version_1_10) {
                 *ce = 237;
             } else {
                 *ce = 182;
             }
-
-#else
-            *ce = 182;
-#endif
-
             if (t->aaip) {
                 *ce += 160; /* ER of AAIP */
             }
@@ -1149,11 +1141,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     char *name = NULL;
     char *dest = NULL;
     size_t aaip_er_len= 0;
-
-#ifdef Libisofs_rrip_1_10_er_bugfiX
     size_t rrip_er_len= 182;
-#endif
-
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
     size_t aaip_sua_free= 0, aaip_len= 0;
@@ -1524,8 +1512,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * Note that SP entry was already added above
              */
 
-#ifdef Libisofs_rrip_1_10_er_bugfiX
-
             if (t->rrip_version_1_10) {
                 rrip_er_len = 237;
             } else {
@@ -1543,25 +1529,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
             /* Allocate the necessary CE space */
             ret = susp_add_CE(t, rrip_er_len + aaip_er_len + aaip_len, info);
-
-#else /* Libisofs_rrip_1_10_er_bugfiX */
-
-            if (t->aaip && !t->aaip_susp_1_10) {
-                aaip_er_len = 160;
-            }
-
-            /* Compute length of AAIP string of root node */
-            aaip_sua_free= 0;
-            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, 1);
-            if (ret < 0)
-                goto add_susp_cleanup;
-
-            /* Allocate the necessary CE space */
-            ret = susp_add_CE(t, 182 + aaip_er_len + aaip_len, info);
-                                                    /* 182 is RRIP-ER length */
-
-#endif /* ! Libisofs_rrip_1_10_er_bugfiX */
-
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
