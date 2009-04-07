@@ -5081,12 +5081,5 @@ struct burn_source {
 */
 #define Libisofs_with_iso_iconV yes
 
-/* Experiment: Regarding (fs_id == 0 && dev_id == 0 && ino_id == 0)
-                  as always unique.
-   LOOKS DANGEROUS: iso_rbtree_insert() seems to need equality
-
- #ifdef Libisofs_file_src_cmp_non_zerO yes
-*/
-
 
 #endif /*LIBISO_LIBISOFS_H_*/
