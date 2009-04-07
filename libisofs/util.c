@@ -198,12 +198,7 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
 
     inbytes = strlen(str);
     outbytes = (inbytes + 1) * MB_LEN_MAX;
-
-#ifdef Libisofs_avoid_using_allocA
     out = calloc(outbytes, 1);
-#else
-    out = alloca(outbytes);
-#endif
     if (out == NULL) {
         retval = ISO_OUT_OF_MEM;
         goto ex;
@@ -254,14 +249,9 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     }
     memcpy(*output, out, ret - out + 1);
     retval = ISO_SUCCESS;
-
 ex:;
-
-#ifdef Libisofs_avoid_using_allocA
     if (out != NULL)
         free(out);
-#endif
-
     return retval;
 }
 
@@ -286,13 +276,7 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
 
     inbytes = len;
     outbytes = (inbytes + 1) * MB_LEN_MAX;
-
-#ifdef Libisofs_avoid_using_allocA
     out = calloc(outbytes, 1);
-#else
-    out = alloca(outbytes);
-#endif
-
     if (out == NULL) {
         retval = ISO_OUT_OF_MEM;
         goto ex;
@@ -342,14 +326,9 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
     }
     memcpy(*output, out, ret - out + 1);
     retval = ISO_SUCCESS;
-
 ex:;
-
-#ifdef Libisofs_avoid_using_allocA
     if (out != NULL)
         free(out);
-#endif
-
     return retval;
 }
 
@@ -973,17 +952,11 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
 {
     char *dot, *retval = NULL;
     int lname, lext, lnname, lnext, pos, i;
-
-#ifdef Libisofs_avoid_using_allocA
     char *dest = NULL;
 
     dest = calloc(len + 1 + 1, 1);
     if (dest == NULL)
         goto ex;
-#else
-    char *dest = alloca(len + 1 + 1);
-#endif
-
 
     if (src == NULL) {
         goto ex;
@@ -1071,12 +1044,8 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
     retval = strdup(dest);
 
 ex:;
-
-#ifdef Libisofs_avoid_using_allocA
     if (dest != NULL)
         free(dest);
-#endif
-
     return retval;
 }
 
@@ -1612,11 +1581,7 @@ char *ucs2str(const char *buf, size_t len)
     outbytes = (inbytes+1) * MB_LEN_MAX;
     
     /* ensure enought space */
-#ifdef Libisofs_avoid_using_allocA
     out = calloc(outbytes, 1);
-#else
-    out = alloca(outbytes);
-#endif
 
     /* convert to local charset */
 
@@ -1662,12 +1627,8 @@ char *ucs2str(const char *buf, size_t len)
     retval = strdup(out);
 
 ex:;
-
-#ifdef Libisofs_avoid_using_allocA
     if (out != NULL)
         free(out);
-#endif
-
     return retval;
 }
 

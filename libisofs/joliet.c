@@ -298,13 +298,8 @@ int joliet_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
     int ret, pos;
     uint16_t *ucsnumber;
     char fmt[16];
-
-#ifdef Libisofs_avoid_using_allocA
     char nstr[72]; /* The only caller of this function allocates dest with 66
                       elements and limits digits to < 8 */
-#else
-    char *nstr = alloca(digits + 1);
-#endif
 
     sprintf(fmt, "%%0%dd", digits);
     sprintf(nstr, fmt, number);
@@ -380,10 +375,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
          * A max of 7 characters is good enought, it allows handling up to
          * 9,999,999 files with same name.
          */
-
-#ifdef Libisofs_avoid_using_allocA
          /* Important: joliet_create_mangled_name() relies on digits < 72 */
-#endif
 
         while (digits < 8) {
             int ok, k;

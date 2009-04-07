@@ -5034,14 +5034,7 @@ struct burn_source {
 
 /* ----------------------------- Bug Fixes ----------------------------- */
 
-
-/* Portability: Avoid use of function alloca().
-
-                Solaris demands to include <alloca,h>, FreeBSD has no such
-                file. It seems wiser to replace alloca() by calloc() and free()
-*/
-#define Libisofs_avoid_using_allocA yes
-
+/* currently none being tested */
 
 /* ---------------------------- Improvements --------------------------- */
 
