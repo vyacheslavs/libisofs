@@ -1585,7 +1585,7 @@ char *ucs2str(const char *buf, size_t len)
 
     /* convert to local charset */
 
-#ifdef Libisofs_setlocale_in_iniT
+#ifndef Libisofs_setlocale_in_iniT
     /* ??? ts Nov 25 2008 :
        Shouldn't this go to library initialization or even to app ?
     */

@@ -2216,7 +2216,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->aaip_load = !opts->noaaip;
     data->aaip_version = -1;
 
-#ifdef Libisofs_setlocale_in_iniT
+#ifndef Libisofs_setlocale_in_iniT
     /* ??? ts Nov 25 2008 :
        Shouldn't this go to library initialization or even to app ?
     */

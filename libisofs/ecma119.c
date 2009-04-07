@@ -927,7 +927,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
     target->catalog = src->bootcat;
 
-#ifdef Libisofs_setlocale_in_iniT
+#ifndef Libisofs_setlocale_in_iniT
     /* default to locale charset */
     /* ??? ts Nov 25 2008 :
        Shouldn't this go to library initialization or even to app ?
