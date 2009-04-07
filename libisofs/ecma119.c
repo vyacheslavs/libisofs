@@ -419,11 +419,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
 }
 
 static
-#ifdef Libisofs_use_parent_for_dot_doT
 int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
-#else
-int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
-#endif
 {
     int ret;
     uint8_t buffer[BLOCK_SIZE];
@@ -466,11 +462,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
         }
     }
     len = 34 + info.suf_len;
-#ifdef Libisofs_use_parent_for_dot_doT
     write_one_dir_record(t, parent, 1, buf, 1, &info, 0);
-#else
-    write_one_dir_record(t, dir, 1, buf, 1, &info, 0);
-#endif
     buf += len;
 
     for (i = 0; i < dir->info.dir->nchildren; i++) {
@@ -527,24 +519,13 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir)
 }
 
 static
-#ifdef Libisofs_use_parent_for_dot_doT
-
-/* ts A90309 : todo ? : rename parameter "root" to "dir" */
-
 int write_dirs(Ecma119Image *t, Ecma119Node *root, Ecma119Node *parent)
-#else
-int write_dirs(Ecma119Image *t, Ecma119Node *root)
-#endif
 {
     int ret;
     size_t i;
 
     /* write all directory entries for this dir */
-#ifdef Libisofs_use_parent_for_dot_doT
     ret = write_one_dir(t, root, parent);
-#else
-    ret = write_one_dir(t, root);
-#endif
     if (ret < 0) {
         return ret;
     }
@@ -553,11 +534,7 @@ int write_dirs(Ecma119Image *t, Ecma119Node *root)
     for (i = 0; i < root->info.dir->nchildren; i++) {
         Ecma119Node *child = root->info.dir->children[i];
         if (child->type == ECMA119_DIR) {
-#ifdef Libisofs_use_parent_for_dot_doT
             ret = write_dirs(t, child, root);
-#else
-            ret = write_dirs(t, child);
-#endif
             if (ret < 0) {
                 return ret;
             }
@@ -676,11 +653,7 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
     t = writer->target;
 
     /* first of all, we write the directory structure */
-#ifdef Libisofs_use_parent_for_dot_doT
     ret = write_dirs(t, t->root, t->root);
-#else
-    ret = write_dirs(t, t->root);
-#endif
     if (ret < 0) {
         return ret;
     }

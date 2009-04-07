@@ -5035,14 +5035,6 @@ struct burn_source {
 /* ----------------------------- Bug Fixes ----------------------------- */
 
 
-/* Bug Fix   : Augment ecma119.c:write_dirs() by parameter parent
-               and use that one for the second directory entry 001 = "..".
-
-               Everything else seems wrong.
-*/
-#define  Libisofs_use_parent_for_dot_doT yes
-
-
 /* Bug fix   : Use correct size of 237 if the ER of RRIP-1.10 shal be written
                (rather than size 182 of RRIP-1.12)
 

@@ -491,7 +491,7 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
                     /* No sleeping needs 90 % more CPU and saves 6 % time */
                     usleep(1000); /* go lazy because the filter is slow */
 
-#endif /* NIX */
+#endif /* ! Libisofs_external_filters_selecT */
 
     continue;
                 }
