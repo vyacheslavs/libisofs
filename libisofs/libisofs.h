@@ -5044,12 +5044,6 @@ struct burn_source {
 #define Libisofs_setlocale_in_iniT yes
 
 
-/* Stabilization: Trying to avoid the risk of losing file content by duplicate
-                  inodes. iso_file_src_cmp() shall compare sizes too.
-*/
-#define Libisofs_file_src_cmp_sizE yes
-
-
 /* Protocol Upgrade : change to AAIP-2.0 with field signature "AL"
 */
 #define Libisofs_aaip_2_0 yes

@@ -23,13 +23,7 @@ int iso_file_src_cmp(const void *n1, const void *n2)
     unsigned int fs_id1, fs_id2;
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
-
-#ifdef Libisofs_file_src_cmp_sizE
-
     off_t size1, size2;
-
-#endif /* Libisofs_file_src_cmp_sizE */
-
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
 
@@ -53,9 +47,6 @@ int iso_file_src_cmp(const void *n1, const void *n2)
             return -1;
         } else if (dev_id1 < dev_id2) {
             return 1;
-
-#ifdef Libisofs_file_src_cmp_sizE
-
         } else if (ino_id1 < ino_id2) {
             return -1;
         } else if (ino_id1 > ino_id2) {
@@ -69,15 +60,6 @@ int iso_file_src_cmp(const void *n1, const void *n2)
                 return 1;
             }
             return 0;
-
-#else /* Libisofs_file_src_cmp_sizE */
-
-        } else {
-            /* files belong to same device in same fs */
-            return (ino_id1 < ino_id2) ? -1 : (ino_id1 > ino_id2) ? 1 : 0;
-
-#endif /* ! Libisofs_file_src_cmp_sizE */
-
         }
     }
 }
