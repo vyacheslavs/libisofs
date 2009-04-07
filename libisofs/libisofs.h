@@ -5060,8 +5060,7 @@ struct burn_source {
 
 
 /* Experiment: Revoke Ticket 144, use data file LBAs again.
-               (will work only if not Libisofs_new_fs_image_inO
-                and wll only be safe with Libisofs_file_src_cmp_sizE)
+               (will work only if not Libisofs_new_fs_image_inO)
  #define Libisofs_ino_from_lbA yes
 */
 
