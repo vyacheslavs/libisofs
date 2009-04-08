@@ -47,7 +47,7 @@ The block pointers are stored as an array of 4-byte values which are in ISO
 The data part begins immediately after the pointer array. In principle it
 consists of the variable length output blocks as delivered by zlib function
 compress2() when fed with the fixed size input blocks.
-A special case of output block is defined:
+A special case of input and output block is defined:
 - Zero-length blocks represent a block full of 0-bytes.
   They do not get processed by compress2() but have to be implemented as
   bypass of compress2().
@@ -94,20 +94,19 @@ Its fields are:
                                                             UNCOMPRESSED SIZE |
 
 ISO 9660:7.3.3 means 4-byte word in both byte orders, first little endian, then
-big endian. I.e. the decimal number 513 is represented in 8 bytes as:
-  { 0x02, 0x01, 0x00, 0x00,   0x00, 0x00, 0x01, 0x02 }
-
+big endian.
 Example (uncompressed file size = 1,234,567 bytes):
-  { 'Z',  "F',   16,    1,   'p',  'z',   16,   15,
-   0x87, 0xD6, 0x12, 0x00,  0x00, 0x12, 0xD6, 0x87 }
+  { 'Z',  "F',   16,    1,  'p',  'z',   16,   15,
+   0x87, 0xD6, 0x12, 0x00, 0x00, 0x12, 0xD6, 0x87 }
 
 -------------------------------------------------------------------------------
 Revoked specification aspects:
 
 The comments in zisofs-tools-1.0.8 indicate a special case of output block:
   "a block the length of which is equal to the block size is unencoded."
-This was never implemented and it is questionable whether it can be added to
-the existing implementations in an unambigous way.
+This was not implemented in zisofs-tools and in the Linux kernel. It has to
+be doubted that it can be added to the existing reader implementations in an
+unambigous way.
 Therefore that rule is not part of this description and shall not be
 implemented.
 
