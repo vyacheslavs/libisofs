@@ -183,6 +183,22 @@ fi
 AC_SUBST(XATTR_DEF)
 
 
+dnl ts A90409
+AC_ARG_ENABLE(zlib,
+[  --enable-zlib     Enable use of zlib by libisofs, default=yes],
+               , enable_zlib=yes)
+if test x$enable_zlib = xyes; then
+dnl Check whether there is the header for zlib. 
+dnl If not, erase this macro which would enable use of compress2() and others.
+dnl The empty parameter after "compress2" causes -lz.
+    ZLIB_DEF="-DLibisofs_with_zliB"
+    AC_CHECK_HEADER(zlib.h, AC_CHECK_LIB(z, compress2, , ZLIB_DEF= ), ZLIB_DEF= )
+else
+    ZLIB_DEF=
+fi
+AC_SUBST(ZLIB_DEF)
+
+
 AC_CONFIG_FILES([
 	Makefile
 	doc/doxygen.conf

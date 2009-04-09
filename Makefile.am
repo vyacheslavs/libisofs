@@ -14,9 +14,9 @@ lib_LTLIBRARIES = libisofs/libisofs.la
 libisofs_libisofs_la_LDFLAGS = \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 
-# ts A90123 : Eventually enabling system adapters for ACL and EA
-
-libisofs_libisofs_la_CFLAGS = $(LIBACL_DEF) $(XATTR_DEF)
+# Eventually enabling system adapters for ACL and EA.
+# ts A90409: Eventually enabling use of zlib.
+libisofs_libisofs_la_CFLAGS = $(LIBACL_DEF) $(XATTR_DEF) $(ZLIB_DEF)
 
 # ts A90114 : added aaip_0_2.*
 
@@ -44,6 +44,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/filter.c \
 	libisofs/filters/xor_encrypt.c \
 	libisofs/filters/external.c \
+	libisofs/filters/zisofs.c \
 	libisofs/util.h \
 	libisofs/util.c \
 	libisofs/util_rbtree.c \

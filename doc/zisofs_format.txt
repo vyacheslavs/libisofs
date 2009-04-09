@@ -39,18 +39,21 @@ array tells the start of the next block which begins immediately after the
 end of its predecessor. A final pointer gives the first invalid byte address
 and thus marks the end of the last block.
 
-The block pointers are stored as an array of 4-byte values which are in ISO
-9660:7.3.1 format directly after the file header, i.e. beginning at byte 16.
+So there are ceil(input_size / block_size) + 1 block pointers.
+They are stored as an array of 4-byte values which are in ISO 9660:7.3.1 format
+directly after the file header, i.e. beginning at byte 16.
 
                                  Data Part
 
 The data part begins immediately after the pointer array. In principle it
 consists of the variable length output blocks as delivered by zlib function
 compress2() when fed with the fixed size input blocks.
+
 A special case of input and output block is defined:
-- Zero-length blocks represent a block full of 0-bytes.
-  They do not get processed by compress2() but have to be implemented as
-  bypass of compress2().
+Zero-length blocks represent a block full of 0-bytes.
+Such input blocks do not get processed by compress2() but shall be mapped to
+0-sized output directly. Vice versa 0-sized blocks have to bypass uncompress()
+when being read.
 
 
                          ZF System Use Entry Format
@@ -116,6 +119,9 @@ References:
 zisofs-tools
   http://freshmeat.net/projects/zisofs-tools/
 
+zlib:
+  /usr/include/zlib.h
+
 cdrtools with mkisofs
   ftp://ftp.berlios.de/pub/cdrecord/alpha
 
@@ -127,7 +133,4 @@ SUSP 1.12
 
 RRIP 1.12
   ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
-
-zlib:
-  /usr/include/zlib.h
 

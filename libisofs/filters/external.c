@@ -655,7 +655,7 @@ int extf_filter_get_filter(FilterContext *filter, IsoStream *original,
         return ISO_OUT_OF_MEM;
     }
     data = malloc(sizeof(ExternalFilterStreamData));
-    if (str == NULL) {
+    if (data == NULL) {
         free(str);
         return ISO_OUT_OF_MEM;
     }

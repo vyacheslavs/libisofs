@@ -811,7 +811,10 @@ struct IsoStream_Iface
 
     /**
      * Attempts to read up to count bytes from the given stream into
-     * the buffer starting at buf.
+     * the buffer starting at buf. The implementation has to make sure that
+     * either the full desired count of bytes is delivered or that the
+     * next call to this function will return EOF or error.
+     * I.e. only the last read block may be shorter than parameter count.
      *
      * The stream must be open() before calling this, and close() when no
      * more needed.
@@ -4085,251 +4088,6 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 char *iso_stream_get_source_path(IsoStream *stream, int flag);
 
 
-/************ Error codes and return values for libisofs ********************/
-
-/** successfully execution */
-#define ISO_SUCCESS                     1
-
-/**
- * special return value, it could be or not an error depending on the
- * context.
- */
-#define ISO_NONE                        0
-
-/** Operation canceled (FAILURE,HIGH, -1) */
-#define ISO_CANCELED                    0xE830FFFF
-
-/** Unknown or unexpected fatal error (FATAL,HIGH, -2) */
-#define ISO_FATAL_ERROR                 0xF030FFFE
-
-/** Unknown or unexpected error (FAILURE,HIGH, -3) */
-#define ISO_ERROR                       0xE830FFFD
-
-/** Internal programming error. Please report this bug (FATAL,HIGH, -4) */
-#define ISO_ASSERT_FAILURE              0xF030FFFC
-
-/**
- * NULL pointer as value for an arg. that doesn't allow NULL (FAILURE,HIGH, -5)
- */
-#define ISO_NULL_POINTER                0xE830FFFB
-
-/** Memory allocation error (FATAL,HIGH, -6) */
-#define ISO_OUT_OF_MEM                  0xF030FFFA
-
-/** Interrupted by a signal (FATAL,HIGH, -7) */
-#define ISO_INTERRUPTED                 0xF030FFF9
-
-/** Invalid parameter value (FAILURE,HIGH, -8) */
-#define ISO_WRONG_ARG_VALUE             0xE830FFF8
-
-/** Can't create a needed thread (FATAL,HIGH, -9) */
-#define ISO_THREAD_ERROR                0xF030FFF7
-
-/** Write error (FAILURE,HIGH, -10) */
-#define ISO_WRITE_ERROR                 0xE830FFF6
-
-/** Buffer read error (FAILURE,HIGH, -11) */
-#define ISO_BUF_READ_ERROR              0xE830FFF5
-
-/** Trying to add to a dir a node already added to a dir (FAILURE,HIGH, -64) */
-#define ISO_NODE_ALREADY_ADDED          0xE830FFC0
-
-/** Node with same name already exists (FAILURE,HIGH, -65) */
-#define ISO_NODE_NAME_NOT_UNIQUE        0xE830FFBF
-
-/** Trying to remove a node that was not added to dir (FAILURE,HIGH, -65) */
-#define ISO_NODE_NOT_ADDED_TO_DIR       0xE830FFBE
-
-/** A requested node does not exist  (FAILURE,HIGH, -66) */
-#define ISO_NODE_DOESNT_EXIST           0xE830FFBD
-
-/**
- * Try to set the boot image of an already bootable image (FAILURE,HIGH, -67)
- */
-#define ISO_IMAGE_ALREADY_BOOTABLE      0xE830FFBC
-
-/** Trying to use an invalid file as boot image (FAILURE,HIGH, -68) */
-#define ISO_BOOT_IMAGE_NOT_VALID        0xE830FFBB
-
-/**
- * Error on file operation (FAILURE,HIGH, -128)
- * (take a look at more specified error codes below)
- */
-#define ISO_FILE_ERROR                  0xE830FF80
-
-/** Trying to open an already opened file (FAILURE,HIGH, -129) */
-#define ISO_FILE_ALREADY_OPENED         0xE830FF7F
-
-/* @deprecated use ISO_FILE_ALREADY_OPENED instead */
-#define ISO_FILE_ALREADY_OPENNED        0xE830FF7F
-
-/** Access to file is not allowed (FAILURE,HIGH, -130) */
-#define ISO_FILE_ACCESS_DENIED          0xE830FF7E
-
-/** Incorrect path to file (FAILURE,HIGH, -131) */
-#define ISO_FILE_BAD_PATH               0xE830FF7D
-
-/** The file does not exist in the filesystem (FAILURE,HIGH, -132) */
-#define ISO_FILE_DOESNT_EXIST           0xE830FF7C
-
-/** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
-#define ISO_FILE_NOT_OPENED             0xE830FF7B
-
-/* @deprecated use ISO_FILE_NOT_OPENED instead */
-#define ISO_FILE_NOT_OPENNED            ISO_FILE_NOT_OPENED
-
-/** Directory used where no dir is expected (FAILURE,HIGH, -134) */
-#define ISO_FILE_IS_DIR                 0xE830FF7A
-
-/** Read error (FAILURE,HIGH, -135) */
-#define ISO_FILE_READ_ERROR             0xE830FF79
-
-/** Not dir used where a dir is expected (FAILURE,HIGH, -136) */
-#define ISO_FILE_IS_NOT_DIR             0xE830FF78
-
-/** Not symlink used where a symlink is expected (FAILURE,HIGH, -137) */
-#define ISO_FILE_IS_NOT_SYMLINK         0xE830FF77
-
-/** Can't seek to specified location (FAILURE,HIGH, -138) */
-#define ISO_FILE_SEEK_ERROR             0xE830FF76
-
-/** File not supported in ECMA-119 tree and thus ignored (WARNING,MEDIUM, -139) */
-#define ISO_FILE_IGNORED                0xD020FF75
-
-/* A file is bigger than supported by used standard  (WARNING,MEDIUM, -140) */
-#define ISO_FILE_TOO_BIG                0xD020FF74
-
-/* File read error during image creation (MISHAP,HIGH, -141) */
-#define ISO_FILE_CANT_WRITE             0xE430FF73
-
-/* Can't convert filename to requested charset (WARNING,MEDIUM, -142) */
-#define ISO_FILENAME_WRONG_CHARSET      0xD020FF72
-/* This was once a HINT. Deprecated now. */
-#define ISO_FILENAME_WRONG_CHARSET_OLD  0xC020FF72
-
-/* File can't be added to the tree (SORRY,HIGH, -143) */
-#define ISO_FILE_CANT_ADD               0xE030FF71
-
-/**
- * File path break specification constraints and will be ignored
- * (WARNING,MEDIUM, -144)
- */
-#define ISO_FILE_IMGPATH_WRONG          0xD020FF70
-
-/**
- * Offset greater than file size (FAILURE,HIGH, -145)
- * @since 0.6.4
- */
-#define ISO_FILE_OFFSET_TOO_BIG         0xE830FF6A
-
-/** Charset conversion error (FAILURE,HIGH, -256) */
-#define ISO_CHARSET_CONV_ERROR          0xE830FF00
-
-/**
- * Too many files to mangle, i.e. we cannot guarantee unique file names
- * (FAILURE,HIGH, -257)
- */
-#define ISO_MANGLE_TOO_MUCH_FILES       0xE830FEFF
-
-/* image related errors */
-
-/**
- * Wrong or damaged Primary Volume Descriptor (FAILURE,HIGH, -320)
- * This could mean that the file is not a valid ISO image.
- */
-#define ISO_WRONG_PVD                   0xE830FEC0
-
-/** Wrong or damaged RR entry (SORRY,HIGH, -321) */
-#define ISO_WRONG_RR                    0xE030FEBF
-
-/** Unsupported RR feature (SORRY,HIGH, -322) */
-#define ISO_UNSUPPORTED_RR              0xE030FEBE
-
-/** Wrong or damaged ECMA-119 (FAILURE,HIGH, -323) */
-#define ISO_WRONG_ECMA119               0xE830FEBD
-
-/** Unsupported ECMA-119 feature (FAILURE,HIGH, -324) */
-#define ISO_UNSUPPORTED_ECMA119         0xE830FEBC
-
-/** Wrong or damaged El-Torito catalog (SORRY,HIGH, -325) */
-#define ISO_WRONG_EL_TORITO             0xE030FEBB
-
-/** Unsupported El-Torito feature (SORRY,HIGH, -326) */
-#define ISO_UNSUPPORTED_EL_TORITO       0xE030FEBA
-
-/** Can't patch an isolinux boot image (SORRY,HIGH, -327) */
-#define ISO_ISOLINUX_CANT_PATCH         0xE030FEB9
-
-/** Unsupported SUSP feature (SORRY,HIGH, -328) */
-#define ISO_UNSUPPORTED_SUSP            0xE030FEB8
-
-/** Error on a RR entry that can be ignored (WARNING,HIGH, -329) */
-#define ISO_WRONG_RR_WARN               0xD030FEB7
-
-/** Error on a RR entry that can be ignored (HINT,MEDIUM, -330) */
-#define ISO_SUSP_UNHANDLED              0xC020FEB6
-
-/** Multiple ER SUSP entries found (WARNING,HIGH, -331) */
-#define ISO_SUSP_MULTIPLE_ER            0xD030FEB5
-
-/** Unsupported volume descriptor found (HINT,MEDIUM, -332) */
-#define ISO_UNSUPPORTED_VD              0xC020FEB4
-
-/** El-Torito related warning (WARNING,HIGH, -333) */
-#define ISO_EL_TORITO_WARN              0xD030FEB3
-
-/** Image write cancelled (MISHAP,HIGH, -334) */
-#define ISO_IMAGE_WRITE_CANCELED        0xE430FEB2
-
-/** El-Torito image is hidden (WARNING,HIGH, -335) */
-#define ISO_EL_TORITO_HIDDEN            0xD030FEB1
-
-/** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
-#define ISO_DATA_SOURCE_SORRY     0xE030FCFF
-
-/** Read error occured with IsoDataSource (MISHAP,HIGH, -513) */
-#define ISO_DATA_SOURCE_MISHAP    0xE430FCFF
-
-/** Read error occured with IsoDataSource (FAILURE,HIGH, -513) */
-#define ISO_DATA_SOURCE_FAILURE   0xE830FCFF
-
-/** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
-#define ISO_DATA_SOURCE_FATAL     0xF030FCFF
-
-
-/** AAIP info with ACL or xattr in ISO image will be ignored
-                                                          (NOTE, HIGH, -336) */
-#define ISO_AAIP_IGNORED          0xB030FEB0
-
-/** Error with decoding ACL from AAIP info (FAILURE, HIGH, -337) */
-#define ISO_AAIP_BAD_ACL          0xE830FEAF
-
-/** Error with encoding ACL for AAIP (FAILURE, HIGH, -338) */
-#define ISO_AAIP_BAD_ACL_TEXT     0xE830FEAE
-
-/** AAIP processing for ACL or xattr not enabled at compile time
-                                                       (FAILURE, HIGH, -339) */
-#define ISO_AAIP_NOT_ENABLED      0xE830FEAD
-
-/** Error with decoding AAIP info for ACL or xattr (FAILURE, HIGH, -340) */
-#define ISO_AAIP_BAD_AASTRING     0xE830FEAC
-
-/** Error with reading ACL or xattr from local file (FAILURE, HIGH, -341) */
-#define ISO_AAIP_NO_GET_LOCAL     0xE830FEAB
-
-/** Error with attaching ACL or xattr to local file (FAILURE, HIGH, -342) */
-#define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
-
-/** Unallowed attempt to set an xattr with non-userspace name
-                                                    (FAILURE, HIGH, -343) */
-#define ISO_AAIP_NON_USER_NAME    0xE830FEA9
-
-/* ts A90325 */
-/** Too many references on a single IsoExternalFilterCommand
-                                                    (FAILURE, HIGH, -344) */
-#define ISO_EXTF_TOO_OFTEN        0xE830FEA8
-
-
 /* --------------------------------- AAIP --------------------------------- */
 
 /**
@@ -4694,6 +4452,320 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag);
 
 
+/************ Error codes and return values for libisofs ********************/
+
+/** successfully execution */
+#define ISO_SUCCESS                     1
+
+/**
+ * special return value, it could be or not an error depending on the
+ * context.
+ */
+#define ISO_NONE                        0
+
+/** Operation canceled (FAILURE,HIGH, -1) */
+#define ISO_CANCELED                    0xE830FFFF
+
+/** Unknown or unexpected fatal error (FATAL,HIGH, -2) */
+#define ISO_FATAL_ERROR                 0xF030FFFE
+
+/** Unknown or unexpected error (FAILURE,HIGH, -3) */
+#define ISO_ERROR                       0xE830FFFD
+
+/** Internal programming error. Please report this bug (FATAL,HIGH, -4) */
+#define ISO_ASSERT_FAILURE              0xF030FFFC
+
+/**
+ * NULL pointer as value for an arg. that doesn't allow NULL (FAILURE,HIGH, -5)
+ */
+#define ISO_NULL_POINTER                0xE830FFFB
+
+/** Memory allocation error (FATAL,HIGH, -6) */
+#define ISO_OUT_OF_MEM                  0xF030FFFA
+
+/** Interrupted by a signal (FATAL,HIGH, -7) */
+#define ISO_INTERRUPTED                 0xF030FFF9
+
+/** Invalid parameter value (FAILURE,HIGH, -8) */
+#define ISO_WRONG_ARG_VALUE             0xE830FFF8
+
+/** Can't create a needed thread (FATAL,HIGH, -9) */
+#define ISO_THREAD_ERROR                0xF030FFF7
+
+/** Write error (FAILURE,HIGH, -10) */
+#define ISO_WRITE_ERROR                 0xE830FFF6
+
+/** Buffer read error (FAILURE,HIGH, -11) */
+#define ISO_BUF_READ_ERROR              0xE830FFF5
+
+/** Trying to add to a dir a node already added to a dir (FAILURE,HIGH, -64) */
+#define ISO_NODE_ALREADY_ADDED          0xE830FFC0
+
+/** Node with same name already exists (FAILURE,HIGH, -65) */
+#define ISO_NODE_NAME_NOT_UNIQUE        0xE830FFBF
+
+/** Trying to remove a node that was not added to dir (FAILURE,HIGH, -65) */
+#define ISO_NODE_NOT_ADDED_TO_DIR       0xE830FFBE
+
+/** A requested node does not exist  (FAILURE,HIGH, -66) */
+#define ISO_NODE_DOESNT_EXIST           0xE830FFBD
+
+/**
+ * Try to set the boot image of an already bootable image (FAILURE,HIGH, -67)
+ */
+#define ISO_IMAGE_ALREADY_BOOTABLE      0xE830FFBC
+
+/** Trying to use an invalid file as boot image (FAILURE,HIGH, -68) */
+#define ISO_BOOT_IMAGE_NOT_VALID        0xE830FFBB
+
+/**
+ * Error on file operation (FAILURE,HIGH, -128)
+ * (take a look at more specified error codes below)
+ */
+#define ISO_FILE_ERROR                  0xE830FF80
+
+/** Trying to open an already opened file (FAILURE,HIGH, -129) */
+#define ISO_FILE_ALREADY_OPENED         0xE830FF7F
+
+/* @deprecated use ISO_FILE_ALREADY_OPENED instead */
+#define ISO_FILE_ALREADY_OPENNED        0xE830FF7F
+
+/** Access to file is not allowed (FAILURE,HIGH, -130) */
+#define ISO_FILE_ACCESS_DENIED          0xE830FF7E
+
+/** Incorrect path to file (FAILURE,HIGH, -131) */
+#define ISO_FILE_BAD_PATH               0xE830FF7D
+
+/** The file does not exist in the filesystem (FAILURE,HIGH, -132) */
+#define ISO_FILE_DOESNT_EXIST           0xE830FF7C
+
+/** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
+#define ISO_FILE_NOT_OPENED             0xE830FF7B
+
+/* @deprecated use ISO_FILE_NOT_OPENED instead */
+#define ISO_FILE_NOT_OPENNED            ISO_FILE_NOT_OPENED
+
+/** Directory used where no dir is expected (FAILURE,HIGH, -134) */
+#define ISO_FILE_IS_DIR                 0xE830FF7A
+
+/** Read error (FAILURE,HIGH, -135) */
+#define ISO_FILE_READ_ERROR             0xE830FF79
+
+/** Not dir used where a dir is expected (FAILURE,HIGH, -136) */
+#define ISO_FILE_IS_NOT_DIR             0xE830FF78
+
+/** Not symlink used where a symlink is expected (FAILURE,HIGH, -137) */
+#define ISO_FILE_IS_NOT_SYMLINK         0xE830FF77
+
+/** Can't seek to specified location (FAILURE,HIGH, -138) */
+#define ISO_FILE_SEEK_ERROR             0xE830FF76
+
+/** File not supported in ECMA-119 tree and thus ignored (WARNING,MEDIUM, -139) */
+#define ISO_FILE_IGNORED                0xD020FF75
+
+/* A file is bigger than supported by used standard  (WARNING,MEDIUM, -140) */
+#define ISO_FILE_TOO_BIG                0xD020FF74
+
+/* File read error during image creation (MISHAP,HIGH, -141) */
+#define ISO_FILE_CANT_WRITE             0xE430FF73
+
+/* Can't convert filename to requested charset (WARNING,MEDIUM, -142) */
+#define ISO_FILENAME_WRONG_CHARSET      0xD020FF72
+/* This was once a HINT. Deprecated now. */
+#define ISO_FILENAME_WRONG_CHARSET_OLD  0xC020FF72
+
+/* File can't be added to the tree (SORRY,HIGH, -143) */
+#define ISO_FILE_CANT_ADD               0xE030FF71
+
+/**
+ * File path break specification constraints and will be ignored
+ * (WARNING,MEDIUM, -144)
+ */
+#define ISO_FILE_IMGPATH_WRONG          0xD020FF70
+
+/**
+ * Offset greater than file size (FAILURE,HIGH, -145)
+ * @since 0.6.4
+ */
+#define ISO_FILE_OFFSET_TOO_BIG         0xE830FF6A
+
+/** Charset conversion error (FAILURE,HIGH, -256) */
+#define ISO_CHARSET_CONV_ERROR          0xE830FF00
+
+/**
+ * Too many files to mangle, i.e. we cannot guarantee unique file names
+ * (FAILURE,HIGH, -257)
+ */
+#define ISO_MANGLE_TOO_MUCH_FILES       0xE830FEFF
+
+/* image related errors */
+
+/**
+ * Wrong or damaged Primary Volume Descriptor (FAILURE,HIGH, -320)
+ * This could mean that the file is not a valid ISO image.
+ */
+#define ISO_WRONG_PVD                   0xE830FEC0
+
+/** Wrong or damaged RR entry (SORRY,HIGH, -321) */
+#define ISO_WRONG_RR                    0xE030FEBF
+
+/** Unsupported RR feature (SORRY,HIGH, -322) */
+#define ISO_UNSUPPORTED_RR              0xE030FEBE
+
+/** Wrong or damaged ECMA-119 (FAILURE,HIGH, -323) */
+#define ISO_WRONG_ECMA119               0xE830FEBD
+
+/** Unsupported ECMA-119 feature (FAILURE,HIGH, -324) */
+#define ISO_UNSUPPORTED_ECMA119         0xE830FEBC
+
+/** Wrong or damaged El-Torito catalog (SORRY,HIGH, -325) */
+#define ISO_WRONG_EL_TORITO             0xE030FEBB
+
+/** Unsupported El-Torito feature (SORRY,HIGH, -326) */
+#define ISO_UNSUPPORTED_EL_TORITO       0xE030FEBA
+
+/** Can't patch an isolinux boot image (SORRY,HIGH, -327) */
+#define ISO_ISOLINUX_CANT_PATCH         0xE030FEB9
+
+/** Unsupported SUSP feature (SORRY,HIGH, -328) */
+#define ISO_UNSUPPORTED_SUSP            0xE030FEB8
+
+/** Error on a RR entry that can be ignored (WARNING,HIGH, -329) */
+#define ISO_WRONG_RR_WARN               0xD030FEB7
+
+/** Error on a RR entry that can be ignored (HINT,MEDIUM, -330) */
+#define ISO_SUSP_UNHANDLED              0xC020FEB6
+
+/** Multiple ER SUSP entries found (WARNING,HIGH, -331) */
+#define ISO_SUSP_MULTIPLE_ER            0xD030FEB5
+
+/** Unsupported volume descriptor found (HINT,MEDIUM, -332) */
+#define ISO_UNSUPPORTED_VD              0xC020FEB4
+
+/** El-Torito related warning (WARNING,HIGH, -333) */
+#define ISO_EL_TORITO_WARN              0xD030FEB3
+
+/** Image write cancelled (MISHAP,HIGH, -334) */
+#define ISO_IMAGE_WRITE_CANCELED        0xE430FEB2
+
+/** El-Torito image is hidden (WARNING,HIGH, -335) */
+#define ISO_EL_TORITO_HIDDEN            0xD030FEB1
+
+/** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
+#define ISO_DATA_SOURCE_SORRY     0xE030FCFF
+
+/** Read error occured with IsoDataSource (MISHAP,HIGH, -513) */
+#define ISO_DATA_SOURCE_MISHAP    0xE430FCFF
+
+/** Read error occured with IsoDataSource (FAILURE,HIGH, -513) */
+#define ISO_DATA_SOURCE_FAILURE   0xE830FCFF
+
+/** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
+#define ISO_DATA_SOURCE_FATAL     0xF030FCFF
+
+
+/** AAIP info with ACL or xattr in ISO image will be ignored
+                                                          (NOTE, HIGH, -336) */
+#define ISO_AAIP_IGNORED          0xB030FEB0
+
+/** Error with decoding ACL from AAIP info (FAILURE, HIGH, -337) */
+#define ISO_AAIP_BAD_ACL          0xE830FEAF
+
+/** Error with encoding ACL for AAIP (FAILURE, HIGH, -338) */
+#define ISO_AAIP_BAD_ACL_TEXT     0xE830FEAE
+
+/** AAIP processing for ACL or xattr not enabled at compile time
+                                                       (FAILURE, HIGH, -339) */
+#define ISO_AAIP_NOT_ENABLED      0xE830FEAD
+
+/** Error with decoding AAIP info for ACL or xattr (FAILURE, HIGH, -340) */
+#define ISO_AAIP_BAD_AASTRING     0xE830FEAC
+
+/** Error with reading ACL or xattr from local file (FAILURE, HIGH, -341) */
+#define ISO_AAIP_NO_GET_LOCAL     0xE830FEAB
+
+/** Error with attaching ACL or xattr to local file (FAILURE, HIGH, -342) */
+#define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
+
+/** Unallowed attempt to set an xattr with non-userspace name
+                                                    (FAILURE, HIGH, -343) */
+#define ISO_AAIP_NON_USER_NAME    0xE830FEA9
+
+/* ts A90325 */
+/** Too many references on a single IsoExternalFilterCommand
+                                                    (FAILURE, HIGH, -344) */
+#define ISO_EXTF_TOO_OFTEN        0xE830FEA8
+
+/* ts A90409 */
+/** Use of zlib was not enabled at compile time (FAILURE, HIGH, -345) */
+#define ISO_ZLIB_NOT_ENABLED      0xE830FEA7
+
+/* ts A90409 */
+/** Cannot apply zisofs filter to file >= 4 GiB  (FAILURE, HIGH, -346) */
+#define ISO_ZISOFS_TOO_LARGE      0xE830FEA6
+
+
+/* --------------------------- Filters in General -------------------------- */
+
+/*
+ * A filter is an IsoStreams which uses another IsoStream as input. It gets
+ * attached to an IsoFile by specialized calls iso_file_add_*_filter() which
+ * replace its current IsoStream by the filter stream which takes over the
+ * current IsoStream as input.
+ * The consequences are:
+ *   iso_file_get_stream() will return the filter stream.
+ *   iso_stream_get_size() will return the (cached) size of the filtered data,
+ *   iso_stream_open()     will start eventual child processes,
+ *   iso_stream_close()    will kill eventual child processes,
+ *   iso_stream_read()     will return filtered data. E.g. as data file content
+ *                         during ISO image generation.
+ *
+ * There are external filters which run child processes
+ *   iso_file_add_external_filter()
+ * and internal filters
+ *   iso_file_add_zisofs_filter()
+ * which may or may not be available depending on compile time settings and
+ * installed software packages like libz.
+ */
+
+/* ts A90328 */
+/**
+ * Delete the top filter stream from a data file. This is the most recent one
+ * which was added by iso_file_add_*_filter().
+ * Caution: One should not do this while the IsoStream of the file is opened.
+ *          For now there is no general way to determine this state.
+ *          Filter stream implementations are urged to eventually call .close()
+ *          inside method .free() . This will close the input stream too.
+ * @param file
+ *      The data file node which shall get rid of one layer of content
+ *      filtering.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, 0 if no filter was present
+ *      <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_file_remove_filter(IsoFile *file, int flag);
+
+
+/* ts A90328 */
+/**
+ * Obtain the eventual input stream of a filter stream.
+ * @param stream
+ *      The eventual filter stream to be inquired.
+ * @param flag
+ *      Bitfield for control purposes. Submit 0 for now.
+ * @return
+ *      The input stream, if one exists. Elsewise NULL.
+ *      No extra reference to the stream is taken by this call.
+ * 
+ * @since 0.6.18
+ */    
+IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
+
+
 /* ---------------------------- External Filters --------------------------- */
 
 /* ts A90325 */
@@ -4769,13 +4841,6 @@ typedef struct iso_external_filter_command IsoExternalFilterCommand;
  * Install an external filter command on top of the content stream of a data
  * file. The filter process must be repeatable. It will be run once by this
  * call in order to cache the output size.
- * This call creates a new IsoStream which uses the existing IsoStream of the
- * data file as input.
- * iso_file_get_stream() will return the filter stream.
- * iso_stream_get_size() will return the cached size of the filtered data,
- * iso_stream_open()     will start again the external filter process,
- * iso_stream_close()    will kill it,
- * iso_stream_read()     will return filtered data.
  * @param file
  *      The data file node which shall show filtered content.
  * @param cmd
@@ -4790,43 +4855,6 @@ typedef struct iso_external_filter_command IsoExternalFilterCommand;
  */
 int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
                                  int flag);
-
-/* ts A90328 */
-/**
- * Delete the top filter stream from a data file. This is the most recent one
- * which was added by iso_file_add_*_filter().
- * Caution: One should not do this while the IsoStream of the file is opened.
- *          For now there is no general way to determine this state.
- *          Filter stream implementations are urged to eventually call .close()
- *          inside method .free() . This will close the input stream too.
- * @param file
- *      The data file node which shall get rid of one layer of content
- *      filtering.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0.
- * @return
- *      1 on success, 0 if no filter was present
- *      <0 on error
- *
- * @since 0.6.18
- */
-int iso_file_remove_filter(IsoFile *file, int flag);
-
-
-/* ts A90328 */
-/**
- * Obtain the eventual input stream of a filter stream.
- * @param stream
- *      The eventual filter stream to be inquired.
- * @param flag
- *      Bitfield for control purposes. Submit 0 for now.
- * @return
- *      The input stream, if one exists. Elsewise NULL.
- *      No extra reference to the stream is taken by this call.
- * 
- * @since 0.6.18
- */    
-IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
 
 
 /* ts A90402 */
@@ -4849,6 +4877,33 @@ IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
  */
 int iso_stream_get_external_filter(IsoStream *stream,
                                    IsoExternalFilterCommand **cmd, int flag);
+
+
+/* ---------------------------- Internal Filters --------------------------- */
+
+
+/* ts A90409 */
+/**
+ * Install a zisofs filter on top of the content stream of a data * file.
+ * zisofs is a compression format which is decompressed by some Linux kernels.
+ * See also doc/zisofs_format.txt .
+ * The filter will not be installed if its output size is not smaller than
+ * the size of the input stream.
+ * This is only enabled if the use of libz was enabled at compile time.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= Do not install filter if the number of output blocks is
+ *            not smaller than the number of input blocks. Block size is 2048.
+ *      bit1= Install a decompression filter rather than one for compression.
+ * @return
+ *      1 on success, 2 if filter installation revoked
+ *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
+ *
+ * @since 0.6.18
+ */
+int iso_file_add_zisofs_filter(IsoFile *file, int flag);
 
 
 /* ------------------------------------------------------------------------- */

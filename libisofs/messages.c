@@ -249,6 +249,10 @@ const char *iso_error_to_msg(int errcode)
         return "Unallowed attempt to set an xattr with non-userspace name";
     case ISO_EXTF_TOO_OFTEN:
         return "Too many references on a single external filter command";
+    case ISO_ZLIB_NOT_ENABLED:
+        return "Use of zlib was not enabled at compile time";
+    case ISO_ZISOFS_TOO_LARGE:
+        return "Cannot apply zisofs filter to file >= 4 GiB";
     default:
         return "Unknown error";
     }
