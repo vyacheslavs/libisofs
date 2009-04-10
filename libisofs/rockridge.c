@@ -767,6 +767,109 @@ int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno)
 }
 
 
+/**
+ * see doc/zisofs_format.txt : "ZF System Use Entry Format"
+ */
+static
+int zisofs_add_ZF(Ecma119Image *t, struct susp_info *susp, int to_ce,
+                  int header_size_div4, int block_size_log2,
+                  uint32_t uncompressed_size, int flag)
+{
+    unsigned char *ZF = malloc(16);
+
+    if (ZF == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    ZF[0] = 'Z';
+    ZF[1] = 'F';
+    ZF[2] = (unsigned char) 16;
+    ZF[3] = (unsigned char) 1;
+    ZF[4] = (unsigned char) 'p';
+    ZF[5] = (unsigned char) 'z';
+    ZF[6] = (unsigned char) header_size_div4;
+    ZF[7] = (unsigned char) block_size_log2;
+    iso_bb(&ZF[8], uncompressed_size, 4);
+    if (to_ce) {
+        return susp_append_ce(t, susp, ZF);
+    } else {
+        return susp_append(t, susp, ZF);
+    }
+}
+
+
+/* @param flag bit0= Do not add data but only count sua_free and ce_len
+*/
+static
+int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
+                 size_t *sua_free, size_t *ce_len, int flag)
+{
+    int ret, will_copy = 1, stream_type = 0, do_zf = 0;
+    int header_size_div4 = 0, block_size_log2 = 0;
+    uint32_t uncompressed_size = 0;
+    IsoStream *stream = NULL, *input_stream;
+    IsoFile *file;
+
+    /* Intimate friendship with this function in filters/zisofs.c */
+    int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
+                              int *header_size_div4, int *block_size_log2,
+                              uint32_t *uncompressed_size, int flag);
+
+
+    if (iso_node_get_type(n->node) != LIBISO_FILE)
+        return 2;
+    file = (IsoFile *) n->node;
+
+    if (t->appendable && file->from_old_session) 
+        will_copy = 0;
+
+    stream = iso_file_get_stream(file);
+    while (!will_copy) { /* Obtain most original stream (image stream) */
+        input_stream = iso_stream_get_input_stream(stream, 0);
+        if (input_stream == NULL)
+    break;
+        stream = input_stream;
+    }
+
+    /* Determine stream type : 1=ziso , -1=osiz , 0=other */
+    ret = ziso_is_zisofs_stream(stream, &stream_type, &header_size_div4,
+                                &block_size_log2, &uncompressed_size, 0);
+    if (ret < 0)
+        return ret;
+
+    if (stream_type == 1 && will_copy) {
+           do_zf = 1;
+    } else if (stream_type == -1 && !will_copy) {
+           do_zf = 1;
+
+    /* >>> } else if (t->zisofs_magic) { */
+
+           /* >>> open stream via temporary osiz filter and read 0 bytes.
+                  If no error: do_zf = 1; */;
+           /* >>> obtain
+                  header_size_div4, block_size_log2, uncompressed_size */;
+
+    }
+    if (!do_zf)
+        return 2;
+
+    /* Account for field size */
+    if (*sua_free < 16 || *ce_len > 0) {
+        *ce_len += 16;
+    } else {
+        *sua_free -= 16;
+    }
+    if (flag & 1)
+        return 1;
+
+    /* write ZF field */
+    ret = zisofs_add_ZF(t, info, (*ce_len > 0), header_size_div4,
+                       block_size_log2, uncompressed_size, 0);
+    if (ret < 0)
+        return ret;
+    return 1;
+}
+
+
 int aaip_xinfo_func(void *data, int flag)
 {
     if (flag & 1) {
@@ -932,6 +1035,13 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
 
     }
 
+    /* Find out whether ZF is to be added and account for its bytes */
+    sua_free = space - *su_size;
+    add_zf_field(t, n, NULL, &sua_free, ce, 1);
+    *su_size = space - sua_free;
+    if (*ce > 0 && !(flag & 1))
+        goto unannounced_ca;
+
     /* obtain num_aapt from node */
     xipt = NULL;
     num_aapt = 0;
@@ -949,6 +1059,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         if (*ce > 0 && !(flag & 1))
             goto unannounced_ca;
     }
+
     return 1;
 
 unannounced_ca:;
@@ -1095,6 +1206,9 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     uint8_t *aapt;
     void *xipt;
     size_t num_aapt= 0;
+
+    if (!t->aaip)
+        return 1;
 
     ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
     if (ret == 1) {
@@ -1483,16 +1597,18 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
         }
 
-        /* Obtain AAIP field string from node
+        /* Eventually write zisofs ZF field */
+        ret = add_zf_field(t, n, info, &sua_free, &ce_len, 0);
+        if (ret < 0)
+            goto add_susp_cleanup;
+
+        /* Eventually obtain AAIP field string from node
            and write it to directory entry or CE area.
         */
-        ret = ISO_SUCCESS;
+        ret = add_aa_string(t, n, info, &sua_free, &ce_len, 0);
+        if (ret < 0)
+            goto add_susp_cleanup;
 
-        if (t->aaip) {
-            ret = add_aa_string(t, n, info, &sua_free, &ce_len, 0);
-            if (ret < 0)
-                goto add_susp_cleanup;
-        }
 
     } else {
 

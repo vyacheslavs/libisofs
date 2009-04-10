@@ -90,7 +90,7 @@ Its fields are:
       ISO 9660:7.1.1.
       (This is a copy of header byte 13, resp. header BP 14.)
       Implementations shall be able to handle values 15, 16 and 17 i.e.
-      block sizes 32 kB, 64 kB, and 128 kB.
+      block sizes 32 kiB, 64 kiB, and 128 kiB.
 
   [7] "BP 9 to BP 16 - Uncompressed Size" shall tell the number of uncompressed
       bytes represented by the given extent. This field shall be recorded
@@ -103,8 +103,8 @@ Its fields are:
 
 ISO 9660:7.3.3 means 4-byte word in both byte orders, first little endian, then
 big endian.
-Example (block size 32 kB, uncompressed file size = 1,234,567 bytes):
-  { 'Z',  "F',   16,    1,  'p',  'z',   16,   15,
+Example (block size 32 kiB, uncompressed file size = 1,234,567 bytes):
+  { 'Z',  "F',   16,    1,  'p',  'z',    4,   15,
    0x87, 0xD6, 0x12, 0x00, 0x00, 0x12, 0xD6, 0x87 }
 
 -------------------------------------------------------------------------------
@@ -112,10 +112,8 @@ Revoked specification aspects:
 
 The comments in zisofs-tools-1.0.8 indicate a special case of output block:
   "a block the length of which is equal to the block size is unencoded."
-This was not implemented in zisofs-tools and in the Linux kernel. It has to
-be doubted that it can be added to the existing reader implementations in an
-unambigous way.
-Therefore that rule is not part of this description and shall not be
+This is not implemented in zisofs-tools and in the Linux kernel.
+Therefore that rule is not part of this description and must not be
 implemented.
 
 -------------------------------------------------------------------------------
