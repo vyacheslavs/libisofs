@@ -782,6 +782,8 @@ struct IsoStream_Iface
      * "mem " -> Read from memory
      * "boot" -> Boot catalog
      * "extf" -> External filter program
+     * "ziso" -> zisofs compression
+     * "osiz" -> zisofs uncompression
      * "user" -> User supplied stream
      */
     char type[4];
@@ -4704,6 +4706,18 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
 /** Cannot apply zisofs filter to file >= 4 GiB  (FAILURE, HIGH, -346) */
 #define ISO_ZISOFS_TOO_LARGE      0xE830FEA6
 
+/* ts A90409 */
+/** Filter input differs from previous run  (FAILURE, HIGH, -347) */
+#define ISO_FILTER_WRONG_INPUT    0xE830FEA5
+
+/* ts A90409 */
+/** zlib compression/decompression error  (FAILURE, HIGH, -348) */
+#define ISO_ZLIB_COMPR_ERR        0xE830FEA4
+
+/* ts A90409 */
+/** Input stream is not in zisofs format  (FAILURE, HIGH, -349) */
+#define ISO_ZISOFS_WRONG_INPUT    0xE830FEA3
+ 
 
 /* --------------------------- Filters in General -------------------------- */
 
@@ -4897,8 +4911,10 @@ int iso_stream_get_external_filter(IsoStream *stream,
  *      bit0= Do not install filter if the number of output blocks is
  *            not smaller than the number of input blocks. Block size is 2048.
  *      bit1= Install a decompression filter rather than one for compression.
+ *      bit2= Only inquire availability of zisofs filtering. file may be NULL.
+ *            If available return 2, else return error.
  * @return
- *      1 on success, 2 if filter installation revoked
+ *      1 on success, 2 if filter available but installation revoked
  *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
  *
  * @since 0.6.18

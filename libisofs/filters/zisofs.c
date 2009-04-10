@@ -66,6 +66,8 @@ typedef struct
     off_t in_counter;
     off_t out_counter;
 
+    int error_ret;
+
 } ZisofsFilterRuntime;
 
 
@@ -108,6 +110,7 @@ int ziso_running_new(ZisofsFilterRuntime **running, int flag)
     o->block_counter = 0;
     o->in_counter = 0;
     o->out_counter = 0;
+    o->error_ret = 0;
 
     if (flag & 1)
         return 1;
@@ -169,6 +172,8 @@ static ino_t ziso_ino_id = 0;
  * Methods for the IsoStreamIface of an External Filter object.
  */
 
+static
+int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired);
 
 /*
  * @param flag  bit0= original stream is not open
@@ -189,6 +194,13 @@ int ziso_stream_close_flag(IsoStream *stream, int flag)
     ziso_running_destroy(&(data->running), 0);
     if (flag & 1)
         return 1;
+
+    if (stream->class->read == ziso_stream_uncompress &&
+        data->block_pointers != NULL) {
+        /* No permanent block pointers needed for uncompression */
+        free(data->block_pointers);
+        data->block_pointers = NULL;
+    }
     return iso_stream_close(data->orig);
 }
 
@@ -224,7 +236,8 @@ int ziso_stream_open_flag(IsoStream *stream, int flag)
         stream->class->get_size(stream);
     }
 
-    ret = ziso_running_new(&running, 0);
+    ret = ziso_running_new(&running,
+                           stream->class->read == ziso_stream_uncompress);
     if (ret < 0) {
         return ret;
     }
@@ -246,20 +259,18 @@ int ziso_stream_open(IsoStream *stream)
 
 
 static
-int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
+int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
 {
+
+#ifdef Libisofs_with_zliB
+
     int ret, todo, i;
     ZisofsFilterStreamData *data;
     ZisofsFilterRuntime *rng;
     size_t fill = 0;
     off_t orig_size, next_pt;
     char *cbuf = buf;
-
-#ifdef Libisofs_with_zliB
     uLongf buf_len;
-#else
-    unsigned long buf_len;
-#endif
 
     if (stream == NULL) {
         return ISO_NULL_POINTER;
@@ -268,6 +279,9 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
     rng= data->running;
     if (rng == NULL) {
         return ISO_FILE_NOT_OPENED;
+    }
+    if (rng->error_ret < 0) {
+        return rng->error_ret;
     }
 
     while (1) {
@@ -278,11 +292,7 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
                 memcpy(rng->block_buffer, zisofs_magic, 8);
                 orig_size = iso_stream_get_size(data->orig);
                 if (orig_size > 4294967295.0) {
-
-                    /* >>> cannot compress file >= 4 GiB to zisofs */;
-                    /* <<< need better error code (or fallback strategy ?) */
-                    return ISO_FILE_READ_ERROR;
-
+                    return (rng->error_ret = ISO_ZISOFS_TOO_LARGE);
                 }
                 data->orig_size = orig_size;
                 iso_lsb((unsigned char *) (rng->block_buffer + 8),
@@ -304,13 +314,13 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
                 /* Initialize block pointer writing */
                 rng->block_pointer_rpos = 0;
                 rng->block_pointer_fill = data->orig_size / rng->block_size
-                                     + 1 + !!(orig_size % rng->block_size);
+                                   + 1 + !!(data->orig_size % rng->block_size);
                 if (data->block_pointers == NULL) {
                     /* On the first pass, create pointer array with all 0s */
                     data->block_pointers = calloc(rng->block_pointer_fill, 4);
                     if (data->block_pointers == NULL) {
                         rng->block_pointer_fill = 0;
-                        return ISO_OUT_OF_MEM;
+                        return (rng->error_ret = ISO_OUT_OF_MEM);
                     }
                 }
             }
@@ -335,21 +345,16 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
             }
         }
         if (rng->state == 2 && rng->buffer_rpos >= rng->buffer_fill) {
-            /* >>> Delivering data blocks */;
+            /* Delivering data blocks */;
 
             ret = iso_stream_read(data->orig, rng->read_buffer,
                                   rng->block_size);
             if (ret > 0) {
                 rng->in_counter += ret;
-
                 if (rng->in_counter > data->orig_size) {
-
-                    /* >>> Input size overflow */
-                    /* <<< need better error code */
-                    return ISO_FILE_READ_ERROR;
-
+                    /* Input size became larger */
+                    return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
                 }
-
                 /* Check whether all 0 : represent as 0-length block */;
                 for (i = 0; i < ret; i++)
                     if (rng->read_buffer[i])
@@ -358,45 +363,28 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
                     buf_len = 0;
                 } else {
                     buf_len = rng->buffer_size;
-
-#ifdef Libisofs_with_zliB
                     ret = compress2((Bytef *) rng->block_buffer, &buf_len,
                                    (Bytef *) rng->read_buffer, (uLong) ret, 9);
                     if (ret != Z_OK) {
-#else
-                    {
-#endif
-                        /* >>> compression failed */
-                        /* <<< need better error code */
-                        return ISO_FILE_READ_ERROR;
-
+                        return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
                     }
-
                 }
                 rng->buffer_fill = buf_len;
                 rng->buffer_rpos = 0;
 
                 next_pt = data->block_pointers[rng->block_counter] + buf_len;
 
-                /* >>> check for data->size overflow */;
                 if (data->size >= 0 && next_pt > data->size) {
-
-                    /* >>> Compression yields more bytes than on first run */
-                    /* <<< need better error code */
-                    return ISO_FILE_READ_ERROR;
-
+                    /* Compression yields more bytes than on first run */
+                    return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
                 }
 
-                /* >>> record resp. check block pointer */;
+                /* Record resp. check block pointer */
                 rng->block_counter++;
                 if (data->block_pointers[rng->block_counter] > 0) {
-                    /* >>> check */;
                     if (next_pt != data->block_pointers[rng->block_counter] ) {
-
-                        /* >>> block pointers mismatch , content has changed */
-                        /* <<< need better error code */
-                        return ISO_FILE_READ_ERROR;
-
+                        /* block pointers mismatch , content has changed */
+                        return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
                     }
                 } else {
                     data->block_pointers[rng->block_counter] = next_pt;
@@ -404,9 +392,13 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
 
             } else if (ret == 0) {
                 rng->state = 3;
+                if (rng->in_counter != data->orig_size) {
+                    /* Input size shrunk */
+                    return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
+                }
                 return fill;
             } else
-                return ret;
+                return (rng->error_ret = ret);
             if (rng->buffer_fill == 0) {
     continue;
             }
@@ -429,6 +421,175 @@ int ziso_stream_read(IsoStream *stream, void *buf, size_t desired)
         }
     }
     return ISO_FILE_READ_ERROR; /* should never be hit */
+
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+
+#endif
+
+}
+
+
+/* Note: A call with desired==0 directly after .open() only checks the file
+         head and loads the uncompressed size from that head.
+*/
+static
+int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
+{
+
+#ifdef Libisofs_with_zliB
+
+    int ret, todo, i, header_size, bs_log2, block_max = 1;
+    ZisofsFilterStreamData *data;
+    ZisofsFilterRuntime *rng;
+    size_t fill = 0;
+    char *cbuf = buf;
+    uLongf buf_len;
+    char zisofs_head[16];
+
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    data = stream->data;
+    rng= data->running;
+    if (rng == NULL) {
+        return ISO_FILE_NOT_OPENED;
+    }
+    if (rng->error_ret < 0) {
+        return rng->error_ret;
+    }
+
+    while (1) {
+        if (rng->state == 0) {
+            /* Reading file header */
+            ret = iso_stream_read(data->orig, zisofs_head, 16);
+            if (ret < 0)
+                return (rng->error_ret = ret);
+            header_size = ((unsigned char *) zisofs_head)[12] * 4;
+            bs_log2 = ((unsigned char *) zisofs_head)[13];
+            if (ret != 16 || memcmp(zisofs_head, zisofs_magic, 8) != 0 ||
+                header_size < 16 || bs_log2 < 15 || bs_log2 > 17) {
+                return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT);
+            }
+            rng->block_size = 1 << bs_log2;
+            if (header_size > 16) {
+                /* Skip surplus header bytes */
+                ret = iso_stream_read(data->orig, zisofs_head, header_size-16);
+                if (ret < 0)
+                    return (rng->error_ret = ret);
+                if (ret != header_size - 16)
+                   return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT); 
+            }
+            data->size = iso_read_lsb(((uint8_t *) zisofs_head) + 8, 4);
+
+            if (desired == 0) {
+                return 0;
+            }
+
+            /* Create and read pointer array */
+            rng->block_pointer_rpos = 0;
+            rng->block_pointer_fill = data->size / rng->block_size
+                                     + 1 + !!(data->size % rng->block_size);
+            data->block_pointers = calloc(rng->block_pointer_fill, 4);
+            if (data->block_pointers == NULL) {
+                rng->block_pointer_fill = 0;
+                return (rng->error_ret = ISO_OUT_OF_MEM);
+            }
+            ret = iso_stream_read(data->orig, data->block_pointers,
+                                  rng->block_pointer_fill * 4);
+            if (ret < 0)
+                return (rng->error_ret = ret);
+            if (ret != rng->block_pointer_fill * 4)
+               return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT);
+            for (i = 0; i < rng->block_pointer_fill; i++) {
+                 data->block_pointers[i] =
+                      iso_read_lsb((uint8_t *) (data->block_pointers + i), 4);
+                 if (i > 0)
+                     if (data->block_pointers[i] - data->block_pointers[i - 1]
+                         > block_max)
+                         block_max = data->block_pointers[i]
+                                     - data->block_pointers[i - 1];
+            }
+
+            rng->read_buffer = calloc(block_max, 1);
+            rng->block_buffer = calloc(rng->block_size, 1);
+            if (rng->read_buffer == NULL || rng->block_buffer == NULL)
+                return (rng->error_ret = ISO_OUT_OF_MEM);
+            rng->state = 2; /* block pointers are read */
+            rng->buffer_fill = rng->buffer_rpos = 0;
+        }
+
+        if (rng->state == 2 && rng->buffer_rpos >= rng->buffer_fill) {
+            /* Delivering data blocks */;
+            i = ++(rng->block_pointer_rpos);
+            if (i >= rng->block_pointer_fill) {
+                /* More data blocks than announced */
+                return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
+            }
+            todo = data->block_pointers[i] - data->block_pointers[i- 1];
+            if (todo == 0) {
+                memset(rng->read_buffer, 0, rng->block_size);
+                rng->buffer_fill = rng->block_size;
+                if (rng->in_counter + rng->buffer_fill > data->size &&
+                    i == rng->block_pointer_fill - 1)
+                    rng->buffer_fill = data->size - rng->in_counter;
+                rng->in_counter += rng->buffer_fill;
+            } else {
+                ret = iso_stream_read(data->orig, rng->read_buffer, todo);
+                if (ret > 0) {
+                    rng->in_counter += ret;
+                    buf_len = rng->block_size;
+                    ret = uncompress((Bytef *) rng->block_buffer, &buf_len,
+                                     (Bytef *) rng->read_buffer, (uLong) ret);
+                    if (ret != Z_OK)
+                        return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
+                    rng->buffer_fill = buf_len;
+                    if (buf_len < rng->block_size &&
+                        i != rng->block_pointer_fill - 1)
+                        return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT);
+                } else if(ret == 0) {
+                    rng->state = 3;
+                    if (rng->out_counter != data->size) {
+                        /* Input size shrunk */
+                        return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
+                    }
+                    return fill;
+                } else
+                    return (rng->error_ret = ret);
+            }
+            rng->buffer_rpos = 0;
+
+            if (rng->out_counter + rng->buffer_fill > data->size) {
+                /* Uncompression yields more bytes than announced by header */
+                return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
+            }
+        }
+        if (rng->state == 3 && rng->buffer_rpos >= rng->buffer_fill) {
+            return 0; /* EOF */
+        }
+
+        /* Transfer from rng->block_buffer to buf */
+        todo = desired - fill;
+        if (todo > rng->buffer_fill - rng->buffer_rpos)
+            todo = rng->buffer_fill - rng->buffer_rpos;
+        memcpy(cbuf + fill, rng->block_buffer + rng->buffer_rpos, todo);
+        fill += todo;
+        rng->buffer_rpos += todo;
+        rng->out_counter += todo;
+
+        if (fill >= desired) {
+           return fill;
+        }
+    }
+    return (rng->error_ret = ISO_FILE_READ_ERROR); /* should never be hit */
+
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+
+#endif
+
 }
 
 
@@ -455,11 +616,18 @@ off_t ziso_stream_get_size(IsoStream *stream)
     if (ret < 0) {
         return ret;
     }
-    while (1) {
-        ret = ziso_stream_read(stream, buf, bufsize);
-        if (ret <= 0)
-            break;
-        count += ret;
+    if (stream->class->read == ziso_stream_uncompress) {
+        /* It is enough to read the header part of a compressed file */
+        ret = ziso_stream_uncompress(stream, buf, 0);
+        count = data->size;
+    } else {
+        /* The size of the compression result has to be counted */
+        while (1) {
+            ret = stream->class->read(stream, buf, bufsize);
+            if (ret <= 0)
+        break;
+            count += ret;
+        }
     }
     ret_close = ziso_stream_close(stream);
     if (ret < 0)
@@ -488,7 +656,7 @@ void ziso_stream_get_id(IsoStream *stream, unsigned int *fs_id,
 
     data = stream->data;
     *fs_id = ISO_FILTER_FS_ID;
-    *dev_id = ISO_FILTER_ZISOFSL_DEV_ID;
+    *dev_id = ISO_FILTER_ZISOFS_DEV_ID;
     *ino_id = data->id;
 }
 
@@ -534,13 +702,28 @@ IsoStream *ziso_get_input_stream(IsoStream *stream, int flag)
 }
 
 
-IsoStreamIface ziso_stream_class = {
+IsoStreamIface ziso_stream_compress_class = {
     2,
     "ziso",
     ziso_stream_open,
     ziso_stream_close,
     ziso_stream_get_size,
-    ziso_stream_read,
+    ziso_stream_compress,
+    ziso_stream_is_repeatable,
+    ziso_stream_get_id,
+    ziso_stream_free,
+    ziso_update_size,
+    ziso_get_input_stream
+};
+
+
+IsoStreamIface ziso_stream_uncompress_class = {
+    2,
+    "osiz",
+    ziso_stream_open,
+    ziso_stream_close,
+    ziso_stream_get_size,
+    ziso_stream_uncompress,
     ziso_stream_is_repeatable,
     ziso_stream_get_id,
     ziso_stream_free,
@@ -556,13 +739,12 @@ void ziso_filter_free(FilterContext *filter)
 }
 
 
-/* To be called by iso_file_add_filter().
- * The FilterContext input parameter is not furtherly needed for the 
- * emerging IsoStream.
+/*
+ * @param flag bit1= Install a decompression filter
  */
 static
 int ziso_filter_get_filter(FilterContext *filter, IsoStream *original, 
-                           IsoStream **filtered)
+                           IsoStream **filtered, int flag)
 {
     IsoStream *str;
     ZisofsFilterStreamData *data;
@@ -594,7 +776,11 @@ int ziso_filter_get_filter(FilterContext *filter, IsoStream *original,
 
     str->refcount = 1;
     str->data = data;
-    str->class = &ziso_stream_class;
+    if (flag & 2) {
+        str->class = &ziso_stream_uncompress_class;
+    } else {
+        str->class = &ziso_stream_compress_class;
+    }
 
     *filtered = str;
 
@@ -602,10 +788,30 @@ int ziso_filter_get_filter(FilterContext *filter, IsoStream *original,
 }
 
 
+/* To be called by iso_file_add_filter().
+ * The FilterContext input parameter is not furtherly needed for the 
+ * emerging IsoStream.
+ */
+static
+int ziso_filter_get_compressor(FilterContext *filter, IsoStream *original, 
+                               IsoStream **filtered)
+{
+    return ziso_filter_get_filter(filter, original, filtered, 0);
+}
+
+static
+int ziso_filter_get_uncompressor(FilterContext *filter, IsoStream *original, 
+                                 IsoStream **filtered)
+{
+    return ziso_filter_get_filter(filter, original, filtered, 2);
+}
+
+
 /* Produce a parameter object suitable for iso_file_add_filter().
  * It may be disposed by free() after all those calls are made.
  *
- * This is quite a dummy as it dows not carry individual data.
+ * This is quite a dummy as it does not carry individual data.
+ * @param flag bit1= Install a decompression filter
  */
 static
 int ziso_create_context(FilterContext **filter, int flag)
@@ -620,14 +826,18 @@ int ziso_create_context(FilterContext **filter, int flag)
     f->version = 0;
     f->data = NULL;
     f->free = ziso_filter_free;
-    f->get_filter = ziso_filter_get_filter;
+    if (flag & 2)
+        f->get_filter = ziso_filter_get_uncompressor;
+    else
+        f->get_filter = ziso_filter_get_compressor;
     return ISO_SUCCESS;
 }
 
 
 /*
  * @param flag bit0= if_block_reduction rather than if_reduction
- *             >>> bit1= Install a decompression filter
+ *             bit1= Install a decompression filter
+ *             bit2= only inquire availability of zisofs filtering
  */
 int iso_file_add_zisofs_filter(IsoFile *file, int flag)
 {
@@ -639,15 +849,20 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag)
     IsoStream *stream;
     off_t original_size = 0, filtered_size = 0;
 
-    original_size = iso_file_get_size(file);
-    if (original_size <= 0) {
+    if (flag & 4)
         return 2;
-    }
-    if (original_size > 4294967295.0) {
-        return ISO_ZISOFS_TOO_LARGE;
+
+    original_size = iso_file_get_size(file);
+    if (!(flag & 2)) {
+        if (original_size <= 0) {
+            return 2;
+        }
+        if (original_size > 4294967295.0) {
+            return ISO_ZISOFS_TOO_LARGE;
+        }
     }
 
-    ret = ziso_create_context(&f, 0);
+    ret = ziso_create_context(&f, flag & 2);
     if (ret < 0) {
         return ret;
     }
@@ -663,8 +878,8 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag)
         iso_file_remove_filter(file, 0);
         return filtered_size;
     }
-    if ((filtered_size >= original_size && !(flag & 1)) ||
-        filtered_size / 2048 >= original_size / 2048){
+    if (((filtered_size >= original_size && !(flag & 1)) ||
+          filtered_size / 2048 >= original_size / 2048) && !(flag & 2)){
         ret = iso_file_remove_filter(file, 0);
         if (ret < 0) {
             return ret;

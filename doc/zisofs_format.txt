@@ -29,6 +29,10 @@ The file header has this layout (quoted from zisofs-tools-1.0.8/mkzftree.c):
 So its size is 16.
 7.3.1 means little endian 4-byte words. 7.1.1. means unsigned single bytes.
 
+Readers shall be able to handle log2(block_size) values 15, 16 and 17
+i.e.  block sizes 32 kB, 64 kB, and 128 kB.
+
+
                                Block Pointers
 
 There are ceil(input_size / block_size) input resp. output blocks.
@@ -42,6 +46,7 @@ and thus marks the end of the last block.
 So there are ceil(input_size / block_size) + 1 block pointers.
 They are stored as an array of 4-byte values which are in ISO 9660:7.3.1 format
 directly after the file header, i.e. beginning at byte 16.
+
 
                                  Data Part
 
@@ -98,7 +103,7 @@ Its fields are:
 
 ISO 9660:7.3.3 means 4-byte word in both byte orders, first little endian, then
 big endian.
-Example (uncompressed file size = 1,234,567 bytes):
+Example (block size 32 kB, uncompressed file size = 1,234,567 bytes):
   { 'Z',  "F',   16,    1,  'p',  'z',   16,   15,
    0x87, 0xD6, 0x12, 0x00, 0x00, 0x12, 0xD6, 0x87 }
 

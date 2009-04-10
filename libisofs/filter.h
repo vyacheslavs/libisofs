@@ -22,7 +22,7 @@
 #define ISO_FILTER_EXTERNAL_DEV_ID   2
 
 /* libisofs/filters/zisofs.c */
-#define ISO_FILTER_ZISOFSL_DEV_ID    3
+#define ISO_FILTER_ZISOFS_DEV_ID    3
 
 
 typedef struct filter_context FilterContext;
