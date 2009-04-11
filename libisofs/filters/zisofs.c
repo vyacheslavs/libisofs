@@ -146,6 +146,15 @@ static unsigned char zisofs_magic[9] =
                               {0x37, 0xE4, 0x53, 0x96, 0xC9, 0xDB, 0xD6, 0x07};
 
 
+#ifdef Libisofs_with_zliB
+/* Parameter for compress2() , see <zlib.h> */
+/* >>> make this globally adjustable ? (problem with existing instances)
+   >>> individually adjustable ? (eats another 1 to 8 bytes)
+*/
+#define Libisofs_zisofs_compr_leveL Z_DEFAULT_COMPRESSION
+#endif /* Libisofs_with_zliB */
+
+
 /*
  * The common data payload of an individual Zisofs Filter IsoStream
  */
@@ -386,7 +395,8 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                 } else {
                     buf_len = rng->buffer_size;
                     ret = compress2((Bytef *) rng->block_buffer, &buf_len,
-                                   (Bytef *) rng->read_buffer, (uLong) ret, 9);
+                                    (Bytef *) rng->read_buffer, (uLong) ret,
+                                    Libisofs_zisofs_compr_leveL);
                     if (ret != Z_OK) {
                         return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
                     }
@@ -557,10 +567,9 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
             if (todo == 0) {
                 memset(rng->block_buffer, 0, rng->block_size);
                 rng->buffer_fill = rng->block_size;
-                if (rng->in_counter + rng->buffer_fill > data->size &&
+                if (rng->out_counter + rng->buffer_fill > data->size &&
                     i == rng->block_pointer_fill - 1)
-                    rng->buffer_fill = data->size - rng->in_counter;
-                rng->in_counter += rng->buffer_fill;
+                    rng->buffer_fill = data->size - rng->out_counter;
             } else {
                 ret = iso_stream_read(data->orig, rng->read_buffer, todo);
                 if (ret > 0) {
@@ -893,7 +902,7 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag)
 
     original_size = iso_file_get_size(file);
     if (!(flag & 2)) {
-        if (original_size <= 0) {
+        if (original_size <= 0 || ((flag & 1) && original_size <= 2048)) {
             return 2;
         }
         if (original_size > 4294967295.0) {
