@@ -4922,6 +4922,23 @@ int iso_stream_get_external_filter(IsoStream *stream,
  */
 int iso_file_add_zisofs_filter(IsoFile *file, int flag);
 
+/**
+ * Inquire the number of zisofs compression and uncompression filters which
+ * are in use.
+ * @param ziso_count
+ *      Will return the number of currently installed compression filters.
+ * @param osiz_count
+ *      Will return the number of currently installed uncompression filters.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_zisofs_get_refcounts(off_t *ziso_count, off_t *osiz_count, int flag);
+
+
 
 /* ------------------------------------------------------------------------- */
 

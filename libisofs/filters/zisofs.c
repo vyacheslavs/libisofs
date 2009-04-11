@@ -145,6 +145,14 @@ failed:
 static unsigned char zisofs_magic[9] =
                               {0x37, 0xE4, 0x53, 0x96, 0xC9, 0xDB, 0xD6, 0x07};
 
+/* Counts the number of active compression filters */
+static off_t ziso_ref_count = 0;
+
+/* Counts the number of active uncompression filters */
+static off_t ziso_osiz_ref_count = 0;
+
+
+
 
 #ifdef Libisofs_with_zliB
 /* Parameter for compress2() , see <zlib.h> */
@@ -700,6 +708,7 @@ static
 void ziso_stream_free(IsoStream *stream)
 {
     ZisofsFilterStreamData *data;
+    ZisofsComprStreamData *nstd;
 
     if (stream == NULL) {
         return;
@@ -708,11 +717,15 @@ void ziso_stream_free(IsoStream *stream)
     if (data->running != NULL) {
         ziso_stream_close(stream);
     }
-    if (stream->class->read != &ziso_stream_uncompress) {
-        ZisofsComprStreamData *nstd;
+    if (stream->class->read == &ziso_stream_uncompress) {
+        if (--ziso_osiz_ref_count < 0)
+            ziso_osiz_ref_count = 0;
+    } else {
         nstd = stream->data;
         if (nstd->block_pointers != NULL)
             free((char *) nstd->block_pointers);
+        if (--ziso_ref_count < 0)
+            ziso_ref_count = 0;
     }
     iso_stream_unref(data->orig);
     free(data);
@@ -824,10 +837,12 @@ int ziso_filter_get_filter(FilterContext *filter, IsoStream *original,
         unstd->header_size_div4 = 0;
         unstd->block_size_log2 = 0;
         str->class = &ziso_stream_uncompress_class;
+        ziso_osiz_ref_count++;
     } else {
         cnstd->orig_size = 0;
         cnstd->block_pointers = NULL;
         str->class = &ziso_stream_compress_class;
+        ziso_ref_count++;
     }
 
     *filtered = str;
@@ -950,9 +965,19 @@ int ziso_add_filter(IsoFile *file, int flag)
 }
 
 
+/* API function */
 int iso_file_add_zisofs_filter(IsoFile *file, int flag)
 {
     return ziso_add_filter(file, flag & ~8);
+}
+
+
+/* API function */
+int iso_zisofs_get_refcounts(off_t *ziso_count, off_t *osiz_count, int flag)
+{
+    *ziso_count = ziso_ref_count;
+    *osiz_count = ziso_osiz_ref_count;
+    return ISO_SUCCESS;
 }
 
 
