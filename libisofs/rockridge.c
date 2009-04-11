@@ -806,7 +806,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     int ret, will_copy = 1, stream_type = 0, do_zf = 0;
     int header_size_div4 = 0, block_size_log2 = 0;
     uint32_t uncompressed_size = 0;
-    IsoStream *stream = NULL, *input_stream;
+    IsoStream *stream = NULL, *input_stream, *next_stream;
     IsoFile *file;
 
     /* Intimate friendship with this function in filters/zisofs.c */
@@ -822,12 +822,15 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     if (t->appendable && file->from_old_session) 
         will_copy = 0;
 
-    stream = iso_file_get_stream(file);
-    while (!will_copy) { /* Obtain most original stream (image stream) */
-        input_stream = iso_stream_get_input_stream(stream, 0);
+    next_stream = stream = iso_file_get_stream(file);
+    while (!will_copy) { /* Obtain second-most original stream
+                            (the eventual osiz filter on the image stream) */
+        input_stream = iso_stream_get_input_stream(next_stream, 0);
         if (input_stream == NULL)
     break;
-        stream = input_stream;
+        
+        stream = next_stream;
+        next_stream = input_stream;
     }
 
     /* Determine stream type : 1=ziso , -1=osiz , 0=other */
@@ -1048,7 +1051,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     if (t->aaip) {
         ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
         if (ret == 1) {
-           num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
+            num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
         }
     }
     /* let the expert decide where to add num_aapt */

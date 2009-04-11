@@ -287,6 +287,12 @@ struct image_fs_data
 
     unsigned int opened : 2; /**< 0 not opened, 1 opened file, 2 opened dir */
 
+#ifdef Libisofs_with_zliB
+    uint8_t header_size_div4;
+    uint8_t block_size_log2;
+    uint32_t uncompressed_size;
+#endif
+
     /* info for content reading */
     struct
     {
@@ -1109,6 +1115,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     size_t cs_value_length = 0;
     char msg[160];
 
+    uint8_t zisofs_alg[2], zisofs_hs4 = 0, zisofs_bsl2 = 0;
+    uint32_t zisofs_usize = 0;
 
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
@@ -1375,6 +1383,21 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     continue;
                 }
 
+#ifdef Libisofs_with_zliB
+
+            } else if (SUSP_SIG(sue, 'Z', 'F')) {
+
+                ret = read_zisofs_ZF(sue, zisofs_alg, &zisofs_hs4,
+                                     &zisofs_bsl2, &zisofs_usize, 0);
+                if (ret < 0 || zisofs_alg[0] != 'p' || zisofs_alg[1] != 'z') {
+                    /* notify and continue */
+                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
+                                 "Invalid ZF entry");
+                    zisofs_hs4 = 0;
+                    continue;
+                }
+
+#endif /* Libisofs_with_zliB */
 
 /* This message is inflationary */
 /*
@@ -1653,7 +1676,11 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         ifsdata = (*src)->data;
         ifsrc = (*src);
         free(ifsdata->name); /* we will assign a new one */
+        ifsdata->name = NULL;
         atts.st_size += (off_t)ifsdata->info.st_size;
+        if (ifsdata->aa_string != NULL)
+            free(ifsdata->aa_string);
+        ifsdata->aa_string = NULL;
     }
 
     /* fill data */
@@ -1666,6 +1693,16 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     ifsdata->info = atts;
     ifsdata->name = name;
     ifsdata->aa_string = aa_string;
+
+#ifdef Libisofs_with_zliB
+    if (zisofs_hs4 > 0) {
+        ifsdata->header_size_div4 = zisofs_hs4;
+        ifsdata->block_size_log2 = zisofs_bsl2;
+        ifsdata->uncompressed_size = zisofs_usize;
+    } else {
+        ifsdata->header_size_div4 = 0;
+    }
+#endif
 
     /* save extents */
     ifsdata->sections = realloc(ifsdata->sections,
@@ -2466,6 +2503,14 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     char *name;
     ImageFileSourceData *data;
 
+#ifdef Libisofs_with_zliB
+    /* Intimate friendship with this function in filters/zisofs.c */
+    int ziso_add_osiz_filter(IsoFile *file, uint8_t header_size_div4,
+                             uint8_t block_size_log2,
+                             uint32_t uncompressed_size, int flag);
+#endif /* Libisofs_with_zliB */
+
+
     if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -2544,6 +2589,22 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
                 file->stream = stream;
                 file->node.type = LIBISO_FILE;
+
+#ifdef Libisofs_with_zliB
+
+                if (data->header_size_div4 > 0) {
+                    ret = ziso_add_osiz_filter(file, data->header_size_div4,
+                                               data->block_size_log2,
+                                               data->uncompressed_size, 0);
+                    if (ret < 0) {
+                        free(name);
+                        iso_stream_unref(stream);
+                        return ret;
+                    }
+                }
+
+#endif /* Libisofs_with_zliB */
+
                 new = (IsoNode*) file;
                 new->refcount = 0;
 

@@ -579,4 +579,31 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
      return ISO_SUCCESS;
 }
 
+/**
+ * Reads the zisofs parameters from a ZF field (see doc/zisofs_format.txt).
+ * 
+ * @return 
+ *      1 on success, < 0 on error
+ */
+int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
+                   uint8_t *header_size_div4, uint8_t *block_size_log2,
+                   uint32_t *uncompressed_size, int flag)
+{
+    if (zf == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (zf->sig[0] != 'Z' || zf->sig[1] != 'F') {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (zf->len_sue[0] != 16) {
+        return ISO_WRONG_RR;
+    }
+    algorithm[0] = zf->data.ZF.parameters[0];
+    algorithm[1] = zf->data.ZF.parameters[1];
+    *header_size_div4 = zf->data.ZF.parameters[2];
+    *block_size_log2 = zf->data.ZF.parameters[3];
+    *uncompressed_size = iso_read_bb(&(zf->data.ZF.parameters[4]), 4, NULL);
+    return ISO_SUCCESS;
+}
+
 

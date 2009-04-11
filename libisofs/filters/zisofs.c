@@ -886,8 +886,9 @@ int ziso_create_context(FilterContext **filter, int flag)
  * @param flag bit0= if_block_reduction rather than if_reduction
  *             bit1= Install a decompression filter
  *             bit2= only inquire availability of zisofs filtering
+ *             bit3= do not inquire size
  */
-int iso_file_add_zisofs_filter(IsoFile *file, int flag)
+int ziso_add_filter(IsoFile *file, int flag)
 {
 
 #ifdef Libisofs_with_zliB
@@ -919,6 +920,9 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag)
     if (ret < 0) {
         return ret;
     }
+    if (flag & 8) /* size will be filled in by caller */
+        return ISO_SUCCESS;
+
     /* Run a full filter process getsize so that the size is cached */
     stream = iso_file_get_stream(file);
     filtered_size = iso_stream_get_size(stream);
@@ -944,6 +948,41 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag)
 #endif /* ! Libisofs_with_zliB */
 
 }
+
+
+int iso_file_add_zisofs_filter(IsoFile *file, int flag)
+{
+    return ziso_add_filter(file, flag & ~8);
+}
+
+
+int ziso_add_osiz_filter(IsoFile *file, uint8_t header_size_div4,
+                         uint8_t block_size_log2, uint32_t uncompressed_size,
+                         int flag)
+{   
+
+#ifdef Libisofs_with_zliB
+
+    int ret;
+    ZisofsUncomprStreamData *unstd;
+
+    ret = ziso_add_filter(file, 2 | 8);
+    if (ret < 0)
+        return ret;
+    unstd = iso_file_get_stream(file)->data;
+    unstd->header_size_div4 = header_size_div4;
+    unstd->block_size_log2 = block_size_log2;
+    unstd->std.size = uncompressed_size;
+    return ISO_SUCCESS;
+    
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+    
+#endif /* ! Libisofs_with_zliB */
+    
+}   
+
 
 
 /* Determine stream type : 1=ziso , -1=osiz , 0=other 

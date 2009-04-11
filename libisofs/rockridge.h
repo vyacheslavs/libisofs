@@ -10,18 +10,29 @@
 
 /**
  * This header defines the functions and structures needed to add RockRidge
- * extensions to an ISO image. 
+ * extensions to an ISO image. It also handles AAIP and zisofs extensions.
  * 
  * References:
  * 
  * - SUSP (IEEE 1281).
  * System Use Sharing Protocol, draft standard version 1.12.
+ * See ftp://ftp.ymi.com/pub/rockridge/susp112.ps
  * 
  * - RRIP (IEEE 1282)
  * Rock Ridge Interchange Protocol, Draft Standard version 1.12.
+ * See ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
  * 
  * - ECMA-119 (ISO-9660)
- * Volume and File Structure of CDROM for Information Interchange.
+ * Volume and File Structure of CDROM for Information Interchange. See
+ * http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
+ *
+ * - AAIP
+ * Arbitrary Attribute Interchange Protocol. See doc/susp_aaip_2_0.txt
+ *
+ * - zisofs
+ * Blockwise compression of data file content with transparent read support
+ * in the Linux kernel. See doc/zisofs_format.txt
+ *
  */
 
 #ifndef LIBISO_ROCKRIDGE_H
@@ -133,6 +144,12 @@ struct aaip_AL {
 };
 
 
+/** zisofs entry  (see doc/zisofs_format.txt) */
+struct zisofs_ZF {
+    uint8_t parameters[1]; /* begins with BP 5 */
+};
+
+
 /**
  * Struct for a SUSP System User Entry (SUSP, 4.1)
  */
@@ -153,6 +170,7 @@ struct susp_sys_user_entry
         struct rr_SL SL;
         struct aaip_AA AA;
         struct aaip_AL AL;
+        struct zisofs_ZF ZF;
     } data; /* 5 to 4+len_sue */
 };
 
@@ -315,5 +333,14 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
                  size_t *prev_field, int *is_done, int flag);
 
+/**
+ * Reads the zisofs parameters from a ZF field (see doc/zisofs_format.txt).
+ *
+ * @return
+ *      1 on success, < 0 on error
+ */
+int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
+                   uint8_t *header_size_div4, uint8_t *block_size_log2,
+                   uint32_t *uncompressed_size, int flag);
 
 #endif /* LIBISO_ROCKRIDGE_H */

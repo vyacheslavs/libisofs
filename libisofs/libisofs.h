@@ -4913,6 +4913,7 @@ int iso_stream_get_external_filter(IsoStream *stream,
  *      bit1= Install a decompression filter rather than one for compression.
  *      bit2= Only inquire availability of zisofs filtering. file may be NULL.
  *            If available return 2, else return error.
+ *      bit3= is reserved for internal use and will be forced to 0
  * @return
  *      1 on success, 2 if filter available but installation revoked
  *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED

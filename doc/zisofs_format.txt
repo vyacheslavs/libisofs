@@ -1,11 +1,13 @@
 
-                      Description of the zisofs Format
+                        Description of the zisofs Format
 
-                 as of zisofs-tools-1.0.8 by H. Peter Anvin
-                 and cdrtools-2.01.01a39 by Joerg Schilling
+                   as of zisofs-tools-1.0.8 by H. Peter Anvin
+                   and cdrtools-2.01.01a39 by Joerg Schilling
  
-     For libburnia-project.org by Thomas Schmitt <scdbackup@gmx.net>
-                              Apr 7 2009
+       For libburnia-project.org by Thomas Schmitt <scdbackup@gmx.net>
+       - distribute freely , please report any errors or ambiguities -
+
+                                Apr 11 2009
 
 
 The zisofs format was invented by H. Peter Anvin. It compresses data file
@@ -30,7 +32,7 @@ So its size is 16.
 7.3.1 means little endian 4-byte words. 7.1.1. means unsigned single bytes.
 
 Readers shall be able to handle log2(block_size) values 15, 16 and 17
-i.e.  block sizes 32 kB, 64 kB, and 128 kB.
+i.e. block sizes 32 kB, 64 kB, and 128 kB. Writers must not use other sizes.
 
 
                                Block Pointers
@@ -80,17 +82,16 @@ Its fields are:
   [4] "BP 5 to BP 6 - Algorithm"  shall be (70)(7A) ("pz") to indicate 
       "paged zlib".
 
-  [5] "BP 7 - Header Size" shall specify as an 8-bit number the number of
+  [5] "BP 7 - Header Size Div 4" shall specify as an 8-bit number the number of
       4-byte words in the header part of the file data recorded according
       to ISO 9660:7.1.1.
       (This is a copy of header byte 12, resp. header BP 13).
 
-  [6] "BP 8 - Block Size" shall specify as an 8-bit number the binary
+  [6] "BP 8 - Log2 of Block Size" shall specify as an 8-bit number the binary
       logarithm of the compression block size recorded according to
       ISO 9660:7.1.1.
-      (This is a copy of header byte 13, resp. header BP 14.)
-      Implementations shall be able to handle values 15, 16 and 17 i.e.
-      block sizes 32 kiB, 64 kiB, and 128 kiB.
+      (This is a copy of header byte 13, resp. header BP 14.
+       The value has to be 15, 16 or 17 i.e. 32 kiB, 64 kiB, or 128 kiB.)
 
   [7] "BP 9 to BP 16 - Uncompressed Size" shall tell the number of uncompressed
       bytes represented by the given extent. This field shall be recorded
@@ -98,8 +99,8 @@ Its fields are:
       (This number is the same as in header bytes 8 to 11, resp header BP 9
        to BP 12.)
 
-  | 'Z' | 'F' | LENGTH | 1 | 'p' | 'z' | HEADER SIZE | BLOCK SIZE | 
-                                                            UNCOMPRESSED SIZE |
+  | 'Z' | 'F' | LENGTH | 1 | 'p' | 'z' | HEADER SIZE DIV 4 | LOG2 BLOCK SIZE
+  | UNCOMPRESSED SIZE |
 
 ISO 9660:7.3.3 means 4-byte word in both byte orders, first little endian, then
 big endian.
@@ -107,13 +108,16 @@ Example (block size 32 kiB, uncompressed file size = 1,234,567 bytes):
   { 'Z',  "F',   16,    1,  'p',  'z',    4,   15,
    0x87, 0xD6, 0x12, 0x00, 0x00, 0x12, 0xD6, 0x87 }
 
+
 -------------------------------------------------------------------------------
 Revoked specification aspects:
 
-The comments in zisofs-tools-1.0.8 indicate a special case of output block:
+A comment in zisofs-tools-1.0.8 indicates a special case of output block:
   "a block the length of which is equal to the block size is unencoded."
-This is not implemented in zisofs-tools and in the Linux kernel.
-Therefore that rule is not part of this description and must not be
+This is not implemented in zisofs-tools and in the Linux kernel. Existing
+zisofs enhanced ISO images might contain encoded blocks which could be
+mistaken for unencoded blocks.
+Therefore this rule is not part of this description and must not be
 implemented.
 
 -------------------------------------------------------------------------------
