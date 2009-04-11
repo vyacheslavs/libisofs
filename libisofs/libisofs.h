@@ -4717,7 +4717,12 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
 /* ts A90409 */
 /** Input stream is not in zisofs format  (FAILURE, HIGH, -349) */
 #define ISO_ZISOFS_WRONG_INPUT    0xE830FEA3
- 
+
+/* ts A90411 */
+/** Cannot set global zisofs parameters while filters exist
+                                                       (FAILURE, HIGH, -350) */
+#define ISO_ZISOFS_PARAM_LOCK     0xE830FEA2
+
 
 /* --------------------------- Filters in General -------------------------- */
 
@@ -4938,6 +4943,59 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag);
  */
 int iso_zisofs_get_refcounts(off_t *ziso_count, off_t *osiz_count, int flag);
 
+
+/**
+ * Parameter set for iso_zisofs_set_params().
+ *
+ * @since 0.6.18
+ */
+struct iso_zisofs_ctrl {
+
+    /* Set to 0 for this version of the structure */
+    int version;
+
+    /* Compression level for zlib function compress2(). From <zlib.h>:
+     *  "between 0 and 9:
+     *   1 gives best speed, 9 gives best compression, 0 gives no compression"
+     * Default is 6.
+     */
+    int compression_level;
+
+    /* Log2 of the block size for compression filters. Allowed values are:
+     *   15 = 32 kiB ,  16 = 64 kiB ,  17 = 128 kiB
+     */
+    uint8_t block_size_log2;
+
+};
+
+/**
+ * Set the global parameters for zisofs filtering.
+ * This is only allowed while no zisofs compression filters are installed.
+ * i.e. ziso_count returned by iso_zisofs_get_refcounts() has to be 0.
+ * @param params
+ *      Pointer to a structure with the intended settings.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag);
+
+
+/**
+ * Get the current global parameters for zisofs filtering.
+ * @param params
+ *      Pointer to a caller provided structure which shall take the settings.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
 
 
 /* ------------------------------------------------------------------------- */

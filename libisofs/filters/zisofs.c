@@ -42,8 +42,8 @@
 
 
 /* Sizes to be used for compression. Decompression learns from input header. */
-#define Libisofs_zisofs_block_log2 15
-#define Libisofs_zisofs_block_sizE 32768
+static uint8_t ziso_block_size_log2 = 15;
+static int ziso_block_size = 32768;
 
 
 /* Individual runtime properties exist only as long as the stream is opened.
@@ -122,11 +122,11 @@ int ziso_running_new(ZisofsFilterRuntime **running, int flag)
     if (flag & 1)
         return 1;
 
-    o->block_size = Libisofs_zisofs_block_sizE;
+    o->block_size = ziso_block_size;
 #ifdef Libisofs_with_zliB
-    o->buffer_size= compressBound((uLong) Libisofs_zisofs_block_sizE);
+    o->buffer_size= compressBound((uLong) ziso_block_size);
 #else
-    o->buffer_size= 2 * Libisofs_zisofs_block_sizE;
+    o->buffer_size= 2 * ziso_block_size;
 #endif
     o->read_buffer = calloc(o->block_size, 1);
     o->block_buffer = calloc(o->buffer_size, 1);
@@ -152,14 +152,11 @@ static off_t ziso_ref_count = 0;
 static off_t ziso_osiz_ref_count = 0;
 
 
-
-
 #ifdef Libisofs_with_zliB
 /* Parameter for compress2() , see <zlib.h> */
-/* >>> make this globally adjustable ? (problem with existing instances)
-   >>> individually adjustable ? (eats another 1 to 8 bytes)
-*/
-#define Libisofs_zisofs_compr_leveL Z_DEFAULT_COMPRESSION
+
+static int ziso_compression_level = 6;
+
 #endif /* Libisofs_with_zliB */
 
 
@@ -337,7 +334,7 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                 iso_lsb((unsigned char *) (rng->block_buffer + 8),
                         (uint32_t) orig_size, 4);
                 rng->block_buffer[12] = 4;
-                rng->block_buffer[13] = Libisofs_zisofs_block_log2;
+                rng->block_buffer[13] = ziso_block_size_log2;
                 rng->block_buffer[14] = rng->block_buffer[15] = 0;
                 rng->buffer_fill = 16;
                 rng->buffer_rpos = 0;
@@ -404,7 +401,7 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                     buf_len = rng->buffer_size;
                     ret = compress2((Bytef *) rng->block_buffer, &buf_len,
                                     (Bytef *) rng->read_buffer, (uLong) ret,
-                                    Libisofs_zisofs_compr_leveL);
+                                    ziso_compression_level);
                     if (ret != Z_OK) {
                         return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
                     }
@@ -1026,7 +1023,7 @@ int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
         *stream_type = 1;
         cnstd = stream->data;
         *header_size_div4 = 4;
-        *block_size_log2 = Libisofs_zisofs_block_log2;
+        *block_size_log2 = ziso_block_size_log2;
         *uncompressed_size = cnstd->orig_size;
         return 1;
     } else if(stream->class == &ziso_stream_uncompress_class) {
@@ -1039,5 +1036,49 @@ int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
         return 1;
     }
     return 0;
+}
+
+
+int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag)
+{
+
+#ifdef Libisofs_with_zliB
+
+    if (params->compression_level < 0 || params->compression_level > 9 ||
+        params->block_size_log2 < 15 || params->block_size_log2  > 17) {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (ziso_ref_count > 0) {
+        return ISO_ZISOFS_PARAM_LOCK;
+    }
+    ziso_compression_level = params->compression_level;
+    ziso_block_size_log2 = params->block_size_log2;
+    ziso_block_size = 1 << ziso_block_size_log2;
+    return 1;
+    
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+    
+#endif /* ! Libisofs_with_zliB */
+    
+}
+
+
+int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag)
+{
+
+#ifdef Libisofs_with_zliB
+
+    params->compression_level = ziso_compression_level;
+    params->block_size_log2 = ziso_block_size_log2;
+    return 1;
+
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+    
+#endif /* ! Libisofs_with_zliB */
+    
 }
 

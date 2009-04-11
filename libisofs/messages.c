@@ -259,6 +259,8 @@ const char *iso_error_to_msg(int errcode)
         return "zlib compression/decompression error";
     case ISO_ZISOFS_WRONG_INPUT:
         return "Input stream is not in zisofs format";
+    case ISO_ZISOFS_PARAM_LOCK:
+        return "Cannot set global zisofs parameters while filters exist";
     default:
         return "Unknown error";
     }
