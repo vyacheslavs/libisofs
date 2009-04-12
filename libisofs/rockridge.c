@@ -806,7 +806,8 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     int ret, will_copy = 1, stream_type = 0, do_zf = 0;
     int header_size_div4 = 0, block_size_log2 = 0;
     uint32_t uncompressed_size = 0;
-    IsoStream *stream = NULL, *input_stream, *next_stream;
+    IsoStream *stream = NULL, *input_stream, *last_stream, *first_stream;
+    IsoStream *first_filter = NULL;
     IsoFile *file;
 
     /* Intimate friendship with this function in filters/zisofs.c */
@@ -819,18 +820,34 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
         return 2;
     file = (IsoFile *) n->node;
 
+    /* Inspect: last_stream < ... < first_filter < first_stream */
+    /* The content is in zisofs format if:
+       It gets copied and
+           the last stream is a ziso stream,
+           or it had a ZF entry and is unfiltered
+           >>> or its last stream delivers a zisofs file header
+       or it stays uncopied and
+           the first filter is an osiz stream,
+           or it had a ZF entry
+           >>> or its first stream delivers a zisofs file header
+    */
+
     if (t->appendable && file->from_old_session) 
         will_copy = 0;
 
-    next_stream = stream = iso_file_get_stream(file);
-    while (!will_copy) { /* Obtain second-most original stream
-                            (the eventual osiz filter on the image stream) */
-        input_stream = iso_stream_get_input_stream(next_stream, 0);
+    first_filter = first_stream = last_stream = iso_file_get_stream(file);
+    while (1) {
+        input_stream = iso_stream_get_input_stream(first_stream, 0);
         if (input_stream == NULL)
     break;
-        
-        stream = next_stream;
-        next_stream = input_stream;
+        first_filter = first_stream;
+        first_stream = input_stream;
+    }
+    if (will_copy) {
+        stream = last_stream;
+    } else {
+        /* (the eventual osiz filter on the image stream) */
+        stream = first_filter;
     }
 
     /* Determine stream type : 1=ziso , -1=osiz , 0=other */
@@ -840,18 +857,33 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
         return ret;
 
     if (stream_type == 1 && will_copy) {
-           do_zf = 1;
+        do_zf = 1;
     } else if (stream_type == -1 && !will_copy) {
-           do_zf = 1;
-
-    /* >>> } else if (t->zisofs_magic) { */
-
-           /* >>> open stream via temporary osiz filter and read 0 bytes.
-                  If no error: do_zf = 1; */;
-           /* >>> obtain
-                  header_size_div4, block_size_log2, uncompressed_size */;
-
+        do_zf = 1;
+    } else if(first_stream == last_stream || !will_copy) {
+        /* Try whether the image side stream remembers a ZF field */
+        ret = iso_stream_get_src_zf(first_stream, &header_size_div4,
+                                    &block_size_log2, &uncompressed_size, 0);
+        if (ret == 1 && header_size_div4 > 0)
+            do_zf = 1;
     }
+
+#ifdef Libisofs_not_yeT
+    if (t->zisofs_magic && (flag & 1) && !do_zf) {
+
+        if (will_copy) {
+            stream = last_stream;
+        } else {
+            stream = first_stream;
+        }
+        /* >>> open stream via temporary osiz filter and read 0 bytes.
+               If no error: do_zf = 1; */;
+        /* >>> obtain
+               header_size_div4, block_size_log2, uncompressed_size */;
+        /* >>> record info for runs with !(flag&1) : as n->node->xinfo */;
+    }
+#endif
+
     if (!do_zf)
         return 2;
 

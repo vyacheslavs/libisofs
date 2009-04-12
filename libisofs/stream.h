@@ -62,4 +62,16 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
  */
 int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
 
+/**
+ * Obtain eventual zisofs ZF field entry parameters from a file source out
+ * of a loaded ISO image.
+ * To make hope for non-zero reply the stream has to be the original stream
+ * of an IsoFile with .from_old_session==1. The call is safe with any stream
+ * type, though, unless fsrc_stream_class would be used without FSrcStreamData.
+ * @return  1= returned parameters are valid, 0=no ZF info found , <0 error
+ */
+int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
+                          int *block_size_log2, uint32_t *uncompressed_size,
+                          int flag);
+
 #endif /*STREAM_H_*/

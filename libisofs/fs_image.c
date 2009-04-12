@@ -1008,6 +1008,33 @@ IsoFileSourceIface ifs_class = {
 
 };
 
+
+/* Used from libisofs/stream.c : iso_stream_get_src_zf() */
+int iso_ifs_source_get_zf(IsoFileSource *src, int *header_size_div4,
+                          int *block_size_log2, uint32_t *uncompressed_size,
+                          int flag)
+{
+
+#ifdef Libisofs_with_zliB
+
+    ImageFileSourceData *data;
+
+    if (src->class != &ifs_class)
+        return 0;
+    data = src->data;
+    *header_size_div4 = data->header_size_div4;
+    *block_size_log2 = data->block_size_log2;
+    *uncompressed_size = data->uncompressed_size;
+    return 1;
+
+#else
+
+    return 0;
+
+#endif /* ! Libisofs_with_zliB */
+}     
+
+
 /**
  * Read a file name from a directory record, doing the needed charset
  * conversion

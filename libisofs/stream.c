@@ -225,6 +225,30 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
     return ISO_SUCCESS;
 }
 
+
+int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
+                          int *block_size_log2, uint32_t *uncompressed_size,
+                          int flag)
+{
+    int ret;
+    FSrcStreamData *data;
+    IsoFileSource *src;
+
+    /* Intimate friendship with libisofs/fs_image.c */
+    int iso_ifs_source_get_zf(IsoFileSource *src, int *header_size_div4,
+                  int *block_size_log2, uint32_t *uncompressed_size, int flag);
+
+    if (stream->class != &fsrc_stream_class)
+        return 0;
+    data = stream->data;
+    src = data->src;
+
+    ret = iso_ifs_source_get_zf(src, header_size_div4, block_size_log2,
+                                uncompressed_size, 0);
+    return ret;
+}
+
+
 struct cut_out_stream
 {
     IsoFileSource *src;
