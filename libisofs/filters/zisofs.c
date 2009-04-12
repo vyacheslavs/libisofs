@@ -565,7 +565,12 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
             /* Delivering data blocks */;
             i = ++(rng->block_pointer_rpos);
             if (i >= rng->block_pointer_fill) {
-                /* More data blocks than announced */
+                if (rng->out_counter == data->size) {
+                    rng->state = 3;
+                    rng->block_pointer_rpos--;
+                    return fill;
+                }
+                /* More data blocks needed than announced */
                 return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
             }
             todo = rng->block_pointers[i] - rng->block_pointers[i- 1];

@@ -1142,8 +1142,10 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     size_t cs_value_length = 0;
     char msg[160];
 
+#ifdef Libisofs_with_zliB
     uint8_t zisofs_alg[2], zisofs_hs4 = 0, zisofs_bsl2 = 0;
     uint32_t zisofs_usize = 0;
+#endif
 
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
         return ISO_NULL_POINTER;
