@@ -468,6 +468,29 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
 }
 
 
+static
+int ziso_parse_zisofs_head(IsoStream *stream, int *header_size_div4,
+                           int *block_size_log2, uint32_t *uncompressed_size,
+                           int flag)
+{
+    int ret;
+    char zisofs_head[16];
+
+    ret = iso_stream_read(stream, zisofs_head, 16);
+    if (ret < 0)
+        return ret;
+    *header_size_div4 = ((unsigned char *) zisofs_head)[12];
+    *block_size_log2 = ((unsigned char *) zisofs_head)[13];
+    if (ret != 16 || memcmp(zisofs_head, zisofs_magic, 8) != 0 ||
+        *header_size_div4 < 4 ||
+        *block_size_log2 < 15 || *block_size_log2 > 17) {
+        return ISO_ZISOFS_WRONG_INPUT;
+    }
+    *uncompressed_size = iso_read_lsb(((uint8_t *) zisofs_head) + 8, 4);
+    return 1;
+}
+
+
 /* Note: A call with desired==0 directly after .open() only checks the file
          head and loads the uncompressed size from that head.
 */
@@ -484,7 +507,12 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
     size_t fill = 0;
     char *cbuf = buf;
     uLongf buf_len;
+
+#ifndef NIX
+    uint32_t uncompressed_size;
+#else
     char zisofs_head[16];
+#endif
 
     if (stream == NULL) {
         return ISO_NULL_POINTER;
@@ -502,6 +530,16 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
     while (1) {
         if (rng->state == 0) {
             /* Reading file header */
+
+#ifndef NIX
+            ret = ziso_parse_zisofs_head(data->orig, &header_size, &bs_log2,
+                                         &uncompressed_size, 0);
+            if (ret < 0)
+                return (rng->error_ret = ret);
+            nstd->header_size_div4 = header_size;
+            header_size *= 4;
+            data->size = uncompressed_size;
+#else
             ret = iso_stream_read(data->orig, zisofs_head, 16);
             if (ret < 0)
                 return (rng->error_ret = ret);
@@ -511,18 +549,25 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
                 header_size < 16 || bs_log2 < 15 || bs_log2 > 17) {
                 return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT);
             }
+            data->size = iso_read_lsb(((uint8_t *) zisofs_head) + 8, 4);
+            nstd->header_size_div4 = header_size / 4;
+#endif /* NIX */
+
+            nstd->block_size_log2 = bs_log2;
             rng->block_size = 1 << bs_log2;
             if (header_size > 16) {
                 /* Skip surplus header bytes */
+
+/* >>> This must be a loop 
                 ret = iso_stream_read(data->orig, zisofs_head, header_size-16);
                 if (ret < 0)
                     return (rng->error_ret = ret);
                 if (ret != header_size - 16)
+*/
                    return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT); 
+
+
             }
-            data->size = iso_read_lsb(((uint8_t *) zisofs_head) + 8, 4);
-            nstd->header_size_div4 = header_size / 4;
-            nstd->block_size_log2 = bs_log2;
 
             if (desired == 0) {
                 return 0;
@@ -1012,26 +1057,29 @@ int ziso_add_osiz_filter(IsoFile *file, uint8_t header_size_div4,
 
 
 
-/* Determine stream type : 1=ziso , -1=osiz , 0=other 
+/* Determine stream type : 1=ziso , -1=osiz , 0=other , 2=ziso_by_content
    and eventual ZF field parameters
+   @param flag bit0= allow ziso_by_content which is based on content reading
+               bit1= do not inquire stream->class for filters
 */
 int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
                           int *header_size_div4, int *block_size_log2,
                           uint32_t *uncompressed_size, int flag)
 {
+    int ret, close_ret;
     ZisofsFilterStreamData *data;
     ZisofsComprStreamData *cnstd;
     ZisofsUncomprStreamData *unstd;
 
     *stream_type = 0; 
-    if (stream->class == &ziso_stream_compress_class) {
+    if (stream->class == &ziso_stream_compress_class && !(flag & 2)) {
         *stream_type = 1;
         cnstd = stream->data;
         *header_size_div4 = 4;
         *block_size_log2 = ziso_block_size_log2;
         *uncompressed_size = cnstd->orig_size;
         return 1;
-    } else if(stream->class == &ziso_stream_uncompress_class) {
+    } else if(stream->class == &ziso_stream_uncompress_class && !(flag & 2)) {
         *stream_type = -1;
         data = stream->data;
         unstd = stream->data;
@@ -1040,7 +1088,24 @@ int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
         *uncompressed_size = data->size;
         return 1;
     }
-    return 0;
+    if (!(flag & 1))
+        return 0;
+
+    ret = iso_stream_open(stream);
+    if (ret < 0) 
+        return ret;
+    ret = ziso_parse_zisofs_head(stream, header_size_div4,
+                                 block_size_log2, uncompressed_size, 0);
+    if (ret == 1) {
+        *stream_type = 2;
+    } else {
+        ret = 0;
+    }
+    close_ret = iso_stream_close(stream);
+    if (close_ret < 0) 
+        return close_ret;
+
+    return ret;
 }
 
 

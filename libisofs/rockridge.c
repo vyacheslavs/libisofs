@@ -809,6 +809,8 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     IsoStream *stream = NULL, *input_stream, *last_stream, *first_stream;
     IsoStream *first_filter = NULL;
     IsoFile *file;
+    void *xipt;
+    struct zisofs_zf_info *zf;
 
     /* Intimate friendship with this function in filters/zisofs.c */
     int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
@@ -867,22 +869,19 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
         if (ret == 1 && header_size_div4 > 0)
             do_zf = 1;
     }
-
-#ifdef Libisofs_not_yeT
-    if (t->zisofs_magic && (flag & 1) && !do_zf) {
-
-        if (will_copy) {
-            stream = last_stream;
-        } else {
-            stream = first_stream;
+    if (!do_zf) {
+        /* Look for an xinfo mark of a zisofs header */
+        ret = iso_node_get_xinfo((IsoNode *) file, zisofs_zf_xinfo_func,
+                                 &xipt);
+        if (ret == 1) {
+            zf = xipt;
+            header_size_div4 = zf->header_size_div4;
+            block_size_log2 = zf->block_size_log2;
+            uncompressed_size = zf->uncompressed_size;
+            if (header_size_div4 > 0)
+                do_zf = 1;
         }
-        /* >>> open stream via temporary osiz filter and read 0 bytes.
-               If no error: do_zf = 1; */;
-        /* >>> obtain
-               header_size_div4, block_size_log2, uncompressed_size */;
-        /* >>> record info for runs with !(flag&1) : as n->node->xinfo */;
     }
-#endif
 
     if (!do_zf)
         return 2;

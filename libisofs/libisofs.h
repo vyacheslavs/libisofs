@@ -1421,33 +1421,38 @@ int iso_write_opts_set_always_gmt(IsoWriteOpts *opts, int gmt);
 int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
 
 /**
- * Set the type of the image to create. Libisofs support two kind of images:
- * stand-alone and appendable.
+ * Set the type of image creation in case there was already an existing
+ * image imported. Libisofs supports two types of creation:
+ * stand-alone and appended.
  *
- * A stand-alone image is an image that is valid alone, and that can be
- * mounted by its own. This is the kind of image you will want to create
- * in most cases. A stand-alone image can be burned in an empty CD or DVD,
- * or write to an .iso file for future burning or distribution.
+ * A stand-alone image is an image that does not need the old image any more
+ * for being mounted by the operating system or imported by libisofs. It may
+ * be written beginning with byte 0 of optical media or disk file objects. 
+ * There will be no distinction between files from the old image and those
+ * which have been added by the new image generation.
  *
- * On the other side, an appendable image is not self contained, it refers
- * to serveral files that are stored outside the image. Its usage is for
- * multisession discs, where you add data in a new session, while the
- * previous session data can still be accessed. In those cases, the old
- * data is not written again. Instead, the new image refers to it, and thus
- * it's only valid when appended to the original. Note that in those cases
- * the image will be written after the original, and thus you will want
- * to use a ms_block greater than 0.
+ * On the other side, an appended image is not self contained. It may refer
+ * to files that stay stored in the imported existing image.
+ * This usage model is inspired by CD multi-session. It demands that the
+ * appended image is finally written to the same media resp. disk file
+ * as the imported image at an address behind the end of that imported image.
+ * The exact address may depend on media peculiarities and thus has to be
+ * announced by the application via iso_write_opts_set_ms_block().
+ * The real address where the data will be written is under control of the
+ * consumer of the struct burn_source which takes the output of libisofs
+ * image generation. It may be the one announced to libisofs or an intermediate
+ * one. Nevertheless, the image will be readable only at the announced address.
  *
- * Note that if you haven't import a previous image (by means of
- * iso_image_import()), the image will always be a stand-alone image, as
- * there is no previous data to refer to.
+ * If you have not imported a previous image by iso_image_import(), then the
+ * image will always be a stand-alone image, as there is no previous data to
+ * refer to. 
  *
- * @param appendable
- *      1 to create an appendable image, 0 for an stand-alone one.
+ * @param append
+ *      1 to create an appended image, 0 for an stand-alone one.
  *
  * @since 0.6.2
  */
-int iso_write_opts_set_appendable(IsoWriteOpts *opts, int appendable);
+int iso_write_opts_set_appendable(IsoWriteOpts *opts, int append);
 
 /**
  * Set the start block of the image. It is supposed to be the lba where the
@@ -1540,7 +1545,8 @@ int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
 /**
  * Create a burn_source and a thread which immediately begins to generate
  * the image. That burn_source can be used with libburn as a data source
- * for a track. For its public declaration see libburn.h.
+ * for a track. A copy of its public declaration in libburn.h can be found
+ * further below in this text.
  *
  * If image generation shall be aborted by the application program, then
  * the .cancel() method of the burn_source must be called to end the
@@ -4727,7 +4733,7 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
 /* --------------------------- Filters in General -------------------------- */
 
 /*
- * A filter is an IsoStreams which uses another IsoStream as input. It gets
+ * A filter is an IsoStream which uses another IsoStream as input. It gets
  * attached to an IsoFile by specialized calls iso_file_add_*_filter() which
  * replace its current IsoStream by the filter stream which takes over the
  * current IsoStream as input.
@@ -4745,6 +4751,10 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
  *   iso_file_add_zisofs_filter()
  * which may or may not be available depending on compile time settings and
  * installed software packages like libz.
+ *
+ * During image generation filters get not in effect if the original IsoStream
+ * is an "fsrc" stream based on a file in the loaded ISO image and if the
+ * image generation type is set to 1 by iso_write_opts_set_appendable().
  */
 
 /* ts A90328 */
@@ -4983,7 +4993,6 @@ struct iso_zisofs_ctrl {
  */
 int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag);
 
-
 /**
  * Get the current global parameters for zisofs filtering.
  * @param params
@@ -4996,6 +5005,39 @@ int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag);
  * @since 0.6.18
  */
 int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
+
+
+/* ts A90413 */
+/**
+ * Check for the given node or for its subtree whether the data file content
+ * effectively bears zisofs file headers and eventually mark the outcome
+ * by an xinfo data record if not already marked by a zisofs compressor filter.
+ * This does not install any filter but only a hint for image generation
+ * that the already compressed files shall get written with zisofs ZF entries.
+ * Use this if you insert the compressed reults of program mkzftree from disk
+ * into the image.
+ * @param node
+ *      The node which shall be checked and eventually marked.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ *      bit0= prepare for a run with iso_write_opts_set_appendable(,1).
+ *            Take into account that files from the imported image
+ *            do not get their content filtered.
+ *      bit1= permission to overwrite existing zisofs_zf_info
+ *      bit2= if no zisofs header is found:
+ *            create xinfo with parameters which indicate no zisofs
+ *      bit3= no tree recursion if node is a directory
+ *      bit4= skip files which stem from the imported image
+ * @return
+ *      0= no zisofs data found
+ *      1= zf xinfo added
+ *      2= found existing zf xinfo and flag bit1 was not set
+ *      3= both encountered: 1 and 2
+ *      <0 means error
+ *
+ * @since 0.6.18
+ */
+int iso_node_zf_by_magic(IsoNode *node, int flag);
 
 
 /* ------------------------------------------------------------------------- */

@@ -11,6 +11,8 @@
 #include "node.h"
 #include "stream.h"
 #include "aaip_0_2.h"
+#include "messages.h"
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -2113,5 +2115,129 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node)
 ex:;
     iso_node_get_acl_text((IsoNode *) node, &a_text, &d_text, 1 << 15);
     return st_mode;
+}
+
+
+/* Function to identify and manage ZF parameters.
+ * data is supposed to be a pointer to struct zisofs_zf_info
+ */
+int zisofs_zf_xinfo_func(void *data, int flag)
+{
+    if (flag & 1) {
+        free(data);
+    }
+    return 1;
+}
+
+
+/* Checks whether a file effectively bears a zisofs file header and eventually
+ * marks this by a struct zisofs_zf_info as xinfo of the file node.
+ * @param flag bit0= inquire the most original stream of the file
+ *             bit1= permission to overwrite existing zisofs_zf_info
+ *             bit2= if no zisofs header is found:
+ *                   create xinfo with parameters which indicate no zisofs
+ * @return 1= zf xinfo added, 0= no zisofs data found ,
+ *         2= found existing zf xinfo and flag bit1 was not set
+ *         <0 means error
+ */
+int iso_file_zf_by_magic(IsoFile *file, int flag)
+{
+    int ret, stream_type, header_size_div4, block_size_log2;
+    uint32_t uncompressed_size;
+    IsoStream *stream, *input_stream;
+    struct zisofs_zf_info *zf = NULL;
+    void *xipt;
+
+    /* Intimate friendship with this function in filters/zisofs.c */
+    int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
+                              int *header_size_div4, int *block_size_log2,
+                              uint32_t *uncompressed_size, int flag);
+
+    ret = iso_node_get_xinfo((IsoNode *) file, zisofs_zf_xinfo_func, &xipt);
+    if (ret == 1) {
+        if (!(flag & 2))
+            return 2;
+        ret = iso_node_remove_xinfo((IsoNode *) file, zisofs_zf_xinfo_func);
+        if (ret < 0)
+            return ret;
+    }
+    input_stream = stream = iso_file_get_stream(file);
+    while (flag & 1) {
+        input_stream = iso_stream_get_input_stream(stream, 0);
+        if (input_stream == NULL)
+    break;
+        stream = input_stream;
+    }
+    ret = ziso_is_zisofs_stream(stream, &stream_type, &header_size_div4,
+                                &block_size_log2, &uncompressed_size, 3);
+    if (ret < 0)
+        return ret;
+    if (ret != 1 || stream_type != 2) {
+        if (flag & 4)
+            return 0;
+        header_size_div4 = 0;
+        block_size_log2 = 0;
+        uncompressed_size = 0;
+    }
+    zf = calloc(1, sizeof(struct zisofs_zf_info));
+    if (zf == NULL)
+        return ISO_OUT_OF_MEM;
+    zf->uncompressed_size = uncompressed_size;
+    zf->header_size_div4 = header_size_div4;
+    zf->block_size_log2 = block_size_log2;
+    ret = iso_node_add_xinfo((IsoNode *) file, zisofs_zf_xinfo_func, zf);
+    return ret;
+}
+
+
+/* API */
+int iso_node_zf_by_magic(IsoNode *node, int flag)
+{
+    int ret = 1, total_ret = 0, hflag;
+    IsoFile *file;
+    IsoNode *pos;
+    IsoDir *dir;
+
+    if (node->type == LIBISO_FILE)
+        return iso_file_zf_by_magic((IsoFile *) node, flag);
+    if (node->type != LIBISO_DIR || (flag & 8))
+        return 0;
+
+    dir = (IsoDir *) node;
+    pos = dir->children;
+    while (pos) {
+        ret = 1;
+        if (pos->type == LIBISO_FILE) {
+            file = (IsoFile *) pos;
+            if ((flag & 16) && file->from_old_session)
+                return 0;
+            if (!((flag & 1) && file->from_old_session)) {
+                if (strncmp(file->stream->class->type, "ziso", 4) == 0)
+                    return 1; /* The stream is enough of marking */
+                if (strncmp(file->stream->class->type, "osiz", 4) == 0) {
+                    if (flag & 2)
+                        iso_node_remove_xinfo(pos, zisofs_zf_xinfo_func);
+                    return 0; /* Will not be zisofs format */
+                }
+            }
+            hflag = flag & ~6;
+            if ((flag & 1) && file->from_old_session)
+                hflag |= 1;
+            ret = iso_file_zf_by_magic(file, hflag);
+        } else if (pos->type == LIBISO_DIR) {
+            ret = iso_node_zf_by_magic(pos, flag);
+        }
+        if (ret < 0) {
+            total_ret = ret;
+            ret = iso_msg_submit(-1, ret, 0, NULL);
+            if (ret < 0) {
+                return ret; /* cancel due error threshold */
+            }
+        } else if (total_ret >= 0) {
+            total_ret |= ret;
+        }
+        pos = pos->next;
+    }
+    return total_ret;
 }
 

@@ -366,4 +366,37 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
                        size_t *value_length, char **value, int flag);
 
 
+/**
+ * Function to identify and manage ZF parameters which do not stem from ZF
+ * fields (those are known to the FileSource) and do not stem from filters
+ * ("ziso" knows them globally, "osiz" knows them individually) but rather
+ * from an inspection of the file content header for zisofs magic number and
+ * plausible parameters.
+ * The parameters get attached in struct zisofs_zf_info as xinfo to an IsoNode.
+ */
+int zisofs_zf_xinfo_func(void *data, int flag);
+
+/**
+ * Parameter structure which is to be managed by zisofs_zf_xinfo_func.
+ */
+struct zisofs_zf_info {
+    uint32_t uncompressed_size;
+    uint8_t header_size_div4;
+    uint8_t block_size_log2;
+};
+
+/**
+ * Checks whether a file effectively bears a zisofs file header and eventually
+ * marks this by a struct zisofs_zf_info as xinfo of the file node.
+ * @param flag bit0= inquire the most original stream of the file
+ *             bit1= permission to overwrite existing zisofs_zf_info
+ *             bit2= if no zisofs header is found:
+                     create xinfo with parameters which indicate no zisofs
+ * @return 1= zf xinfo added, 0= no zisofs data found ,
+ *         2= found existing zf xinfo and flag bit1 was not set
+ *         <0 means error
+ */ 
+int iso_file_zf_by_magic(IsoFile *file, int flag);
+
+
 #endif /*LIBISO_NODE_H_*/
