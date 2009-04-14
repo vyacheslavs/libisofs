@@ -45,6 +45,7 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/filters/xor_encrypt.c \
 	libisofs/filters/external.c \
 	libisofs/filters/zisofs.c \
+	libisofs/filters/gzip.c \
 	libisofs/util.h \
 	libisofs/util.c \
 	libisofs/util_rbtree.c \

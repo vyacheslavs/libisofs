@@ -4749,6 +4749,7 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
  *   iso_file_add_external_filter()
  * and internal filters
  *   iso_file_add_zisofs_filter()
+ *   iso_file_add_gzip_filter()
  * which may or may not be available depending on compile time settings and
  * installed software packages like libz.
  *
@@ -4913,7 +4914,7 @@ int iso_stream_get_external_filter(IsoStream *stream,
 
 /* ts A90409 */
 /**
- * Install a zisofs filter on top of the content stream of a data * file.
+ * Install a zisofs filter on top of the content stream of a data file.
  * zisofs is a compression format which is decompressed by some Linux kernels.
  * See also doc/zisofs_format.txt .
  * The filter will not be installed if its output size is not smaller than
@@ -5038,6 +5039,50 @@ int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
  * @since 0.6.18
  */
 int iso_node_zf_by_magic(IsoNode *node, int flag);
+
+
+/* ts A90414 */
+/**
+ * Install a gzip or gunzip filter on top of the content stream of a data file.
+ * gzip is a compression format which is used by programs gzip and gunzip.
+ * The filter will not be installed if its output size is not smaller than
+ * the size of the input stream.
+ * This is only enabled if the use of libz was enabled at compile time.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= Do not install filter if the number of output blocks is
+ *            not smaller than the number of input blocks. Block size is 2048.
+ *      bit1= Install a decompression filter rather than one for compression.
+ *      bit2= Only inquire availability of gzip filtering. file may be NULL.
+ *            If available return 2, else return error.
+ *      bit3= is reserved for internal use and will be forced to 0
+ * @return
+ *      1 on success, 2 if filter available but installation revoked
+ *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
+ *
+ * @since 0.6.18
+ */
+int iso_file_add_gzip_filter(IsoFile *file, int flag);
+
+
+/* ts A90414 */
+/**
+ * Inquire the number of gzip compression and uncompression filters which
+ * are in use.
+ * @param gzip_count
+ *      Will return the number of currently installed compression filters.
+ * @param gunzip_count
+ *      Will return the number of currently installed uncompression filters.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 
 
 /* ------------------------------------------------------------------------- */

@@ -212,7 +212,7 @@ static ino_t ziso_ino_id = 0;
 
 
 /*
- * Methods for the IsoStreamIface of an External Filter object.
+ * Methods for the IsoStreamIface of an Zisofs Filter object.
  */
 
 static

@@ -24,6 +24,9 @@
 /* libisofs/filters/zisofs.c */
 #define ISO_FILTER_ZISOFS_DEV_ID    3
 
+/* libisofs/filters/gzip.c */
+#define ISO_FILTER_GZIP_DEV_ID    4
+
 
 typedef struct filter_context FilterContext;
 
