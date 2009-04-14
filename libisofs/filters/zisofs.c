@@ -846,8 +846,8 @@ int ziso_filter_get_filter(FilterContext *filter, IsoStream *original,
 {
     IsoStream *str;
     ZisofsFilterStreamData *data;
-    ZisofsComprStreamData *cnstd;
-    ZisofsUncomprStreamData *unstd;
+    ZisofsComprStreamData *cnstd = NULL;
+    ZisofsUncomprStreamData *unstd = NULL;
 
     if (filter == NULL || original == NULL || filtered == NULL) {
         return ISO_NULL_POINTER;
