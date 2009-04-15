@@ -1448,7 +1448,6 @@ ex:;
 }
 
 
-/* ts A90319 */
 /**
  * Search given name. Eventually calloc() and copy value. Add trailing 0 byte
  * for caller convenience.
@@ -1485,7 +1484,6 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
 }
 
 
-/* ts A90403 */
 /* API */
 int iso_node_lookup_attr(IsoNode *node, char *name,
                          size_t *value_length, char **value, int flag)

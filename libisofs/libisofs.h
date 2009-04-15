@@ -1711,9 +1711,6 @@ int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
  */
 int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
 
-
-/* ts A90319 */
-#define Libisofs_has_auto_input_charseT yes
 /**
  * Enable or disable methods to automatically choose an input charset.
  * This eventually overrides the name set via iso_read_opts_set_input_charset()
@@ -4078,7 +4075,6 @@ int iso_stream_update_size(IsoStream *stream);
 void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
                       ino_t *ino_id);
 
-/* ts A90406 */
 /**
  * Try to get eventual source path string of a stream. Meaning and availability
  * of this string depends on the stream.class . Expect valid results with
@@ -4248,7 +4244,6 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
               char ***names, size_t **value_lengths, char ***values, int flag);
 
 
-/* ts A90403 */
 /**
  * Obtain the value of a particular xattr name. Eventually make a copy of
  * that value and add a trailing 0 byte for caller convenience.
@@ -4458,6 +4453,350 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
  */
 int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag);
+
+
+/* --------------------------- Filters in General -------------------------- */
+
+/*
+ * A filter is an IsoStream which uses another IsoStream as input. It gets
+ * attached to an IsoFile by specialized calls iso_file_add_*_filter() which
+ * replace its current IsoStream by the filter stream which takes over the
+ * current IsoStream as input.
+ * The consequences are:
+ *   iso_file_get_stream() will return the filter stream.
+ *   iso_stream_get_size() will return the (cached) size of the filtered data,
+ *   iso_stream_open()     will start eventual child processes,
+ *   iso_stream_close()    will kill eventual child processes,
+ *   iso_stream_read()     will return filtered data. E.g. as data file content
+ *                         during ISO image generation.
+ *
+ * There are external filters which run child processes
+ *   iso_file_add_external_filter()
+ * and internal filters
+ *   iso_file_add_zisofs_filter()
+ *   iso_file_add_gzip_filter()
+ * which may or may not be available depending on compile time settings and
+ * installed software packages like libz.
+ *
+ * During image generation filters get not in effect if the original IsoStream
+ * is an "fsrc" stream based on a file in the loaded ISO image and if the
+ * image generation type is set to 1 by iso_write_opts_set_appendable().
+ */
+
+/**
+ * Delete the top filter stream from a data file. This is the most recent one
+ * which was added by iso_file_add_*_filter().
+ * Caution: One should not do this while the IsoStream of the file is opened.
+ *          For now there is no general way to determine this state.
+ *          Filter stream implementations are urged to eventually call .close()
+ *          inside method .free() . This will close the input stream too.
+ * @param file
+ *      The data file node which shall get rid of one layer of content
+ *      filtering.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, 0 if no filter was present
+ *      <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_file_remove_filter(IsoFile *file, int flag);
+
+/**
+ * Obtain the eventual input stream of a filter stream.
+ * @param stream
+ *      The eventual filter stream to be inquired.
+ * @param flag
+ *      Bitfield for control purposes. Submit 0 for now.
+ * @return
+ *      The input stream, if one exists. Elsewise NULL.
+ *      No extra reference to the stream is taken by this call.
+ * 
+ * @since 0.6.18
+ */    
+IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
+
+
+/* ---------------------------- External Filters --------------------------- */
+
+/**
+ * Representation of an external program that shall serve as filter for
+ * an IsoStream. This object may be shared among many IsoStream objects.
+ * It is to be created and disposed by the application.
+ *
+ * The filter will act as proxy between the original IsoStream of an IsoFile.
+ * Up to completed image generation it will be run at least twice: 
+ * for IsoStream.class.get_size() and for .open() with subsequent .read().
+ * So the original IsoStream has to return 1 by its .class.is_repeatable().
+ * The filter program has to be repeateable too. I.e. it must produce the same
+ * output on the same input.
+ *
+ * @since 0.6.18
+ */
+struct iso_external_filter_command
+{
+    /* Will indicate future extensions. It has to be 0 for now. */
+    int version;
+
+    /* Tells how many IsoStream objects depend on this command object.
+     * One may only dispose an IsoExternalFilterCommand when this count is 0.
+     * Initially this value has to be 0.
+     */
+    int refcount;
+
+    /* An optional instance id.
+     * Set to empty text if no individual name for this object is intended.
+     */
+    char *name;
+
+    /* Absolute local filesystem path to the executable program. */
+    char *path;
+
+    /* Tells the number of arguments. */
+    int argc;
+
+    /* NULL terminated list suitable for system call execv(3).
+     * I.e. argv[0] points to the alleged program name,
+     *      argv[1] to argv[argc] point to program arguments (if argc > 0)
+     *      argv[argc+1] is NULL
+     */
+    char **argv;
+
+    /* A bit field which controls behavior variations:
+     * bit0= Do not install filter if the input has size 0.
+     * bit1= Do not install filter if the output is not smaller than the input.
+     * bit2= Do not install filter if the number of output blocks is
+     *       not smaller than the number of input blocks. Block size is 2048.
+     *       Assume that non-empty input yields non-empty output and thus do
+     *       not attempt to attach a filter to files smaller than 2049 bytes.
+     * bit3= suffix removed rather than added.
+     *       (Removal and adding suffixes is the task of the application.
+     *        This behavior bit serves only as reminder for the application.)
+     */
+    int behavior;
+
+    /* The eventual suffix which is supposed to be added to the IsoFile name
+     * resp. to be removed from the name.
+     * (This is to be done by the application, not by calls
+     *  iso_file_add_external_filter() or iso_file_remove_filter().
+     *  The value recorded here serves only as reminder for the application.)
+     */
+    char *suffix;
+};
+
+typedef struct iso_external_filter_command IsoExternalFilterCommand;
+
+/**
+ * Install an external filter command on top of the content stream of a data
+ * file. The filter process must be repeatable. It will be run once by this
+ * call in order to cache the output size.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param cmd
+ *      The external program and its arguments which shall do the filtering.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, 2 if filter installation revoked (e.g. cmd.behavior bit1)
+ *      <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
+                                 int flag);
+
+/**
+ * Obtain the IsoExternalFilterCommand which is eventually associated with the
+ * given stream. (Typically obtained from an IsoFile by iso_file_get_stream()
+ * or from an IsoStream by iso_stream_get_input_stream()).
+ * @param stream
+ *      The stream to be inquired.
+ * @param cmd
+ *      Will return the external IsoExternalFilterCommand. Valid only if
+ *      the call returns 1. This does not increment cmd->refcount.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0.
+ * @return
+ *      1 on success, 0 if the stream is not an external filter
+ *      <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_stream_get_external_filter(IsoStream *stream,
+                                   IsoExternalFilterCommand **cmd, int flag);
+
+
+/* ---------------------------- Internal Filters --------------------------- */
+
+
+/**
+ * Install a zisofs filter on top of the content stream of a data file.
+ * zisofs is a compression format which is decompressed by some Linux kernels.
+ * See also doc/zisofs_format.txt .
+ * The filter will not be installed if its output size is not smaller than
+ * the size of the input stream.
+ * This is only enabled if the use of libz was enabled at compile time.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= Do not install filter if the number of output blocks is
+ *            not smaller than the number of input blocks. Block size is 2048.
+ *      bit1= Install a decompression filter rather than one for compression.
+ *      bit2= Only inquire availability of zisofs filtering. file may be NULL.
+ *            If available return 2, else return error.
+ *      bit3= is reserved for internal use and will be forced to 0
+ * @return
+ *      1 on success, 2 if filter available but installation revoked
+ *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
+ *
+ * @since 0.6.18
+ */
+int iso_file_add_zisofs_filter(IsoFile *file, int flag);
+
+/**
+ * Inquire the number of zisofs compression and uncompression filters which
+ * are in use.
+ * @param ziso_count
+ *      Will return the number of currently installed compression filters.
+ * @param osiz_count
+ *      Will return the number of currently installed uncompression filters.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_zisofs_get_refcounts(off_t *ziso_count, off_t *osiz_count, int flag);
+
+
+/**
+ * Parameter set for iso_zisofs_set_params().
+ *
+ * @since 0.6.18
+ */
+struct iso_zisofs_ctrl {
+
+    /* Set to 0 for this version of the structure */
+    int version;
+
+    /* Compression level for zlib function compress2(). From <zlib.h>:
+     *  "between 0 and 9:
+     *   1 gives best speed, 9 gives best compression, 0 gives no compression"
+     * Default is 6.
+     */
+    int compression_level;
+
+    /* Log2 of the block size for compression filters. Allowed values are:
+     *   15 = 32 kiB ,  16 = 64 kiB ,  17 = 128 kiB
+     */
+    uint8_t block_size_log2;
+
+};
+
+/**
+ * Set the global parameters for zisofs filtering.
+ * This is only allowed while no zisofs compression filters are installed.
+ * i.e. ziso_count returned by iso_zisofs_get_refcounts() has to be 0.
+ * @param params
+ *      Pointer to a structure with the intended settings.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag);
+
+/**
+ * Get the current global parameters for zisofs filtering.
+ * @param params
+ *      Pointer to a caller provided structure which shall take the settings.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
+
+
+/**
+ * Check for the given node or for its subtree whether the data file content
+ * effectively bears zisofs file headers and eventually mark the outcome
+ * by an xinfo data record if not already marked by a zisofs compressor filter.
+ * This does not install any filter but only a hint for image generation
+ * that the already compressed files shall get written with zisofs ZF entries.
+ * Use this if you insert the compressed reults of program mkzftree from disk
+ * into the image.
+ * @param node
+ *      The node which shall be checked and eventually marked.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ *      bit0= prepare for a run with iso_write_opts_set_appendable(,1).
+ *            Take into account that files from the imported image
+ *            do not get their content filtered.
+ *      bit1= permission to overwrite existing zisofs_zf_info
+ *      bit2= if no zisofs header is found:
+ *            create xinfo with parameters which indicate no zisofs
+ *      bit3= no tree recursion if node is a directory
+ *      bit4= skip files which stem from the imported image
+ * @return
+ *      0= no zisofs data found
+ *      1= zf xinfo added
+ *      2= found existing zf xinfo and flag bit1 was not set
+ *      3= both encountered: 1 and 2
+ *      <0 means error
+ *
+ * @since 0.6.18
+ */
+int iso_node_zf_by_magic(IsoNode *node, int flag);
+
+
+/**
+ * Install a gzip or gunzip filter on top of the content stream of a data file.
+ * gzip is a compression format which is used by programs gzip and gunzip.
+ * The filter will not be installed if its output size is not smaller than
+ * the size of the input stream.
+ * This is only enabled if the use of libz was enabled at compile time.
+ * @param file
+ *      The data file node which shall show filtered content.
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= Do not install filter if the number of output blocks is
+ *            not smaller than the number of input blocks. Block size is 2048.
+ *      bit1= Install a decompression filter rather than one for compression.
+ *      bit2= Only inquire availability of gzip filtering. file may be NULL.
+ *            If available return 2, else return error.
+ *      bit3= is reserved for internal use and will be forced to 0
+ * @return
+ *      1 on success, 2 if filter available but installation revoked
+ *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
+ *
+ * @since 0.6.18
+ */
+int iso_file_add_gzip_filter(IsoFile *file, int flag);
+
+
+/**
+ * Inquire the number of gzip compression and uncompression filters which
+ * are in use.
+ * @param gzip_count
+ *      Will return the number of currently installed compression filters.
+ * @param gunzip_count
+ *      Will return the number of currently installed uncompression filters.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, <0 on error
+ *
+ * @since 0.6.18
+ */
+int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 
 
 /************ Error codes and return values for libisofs ********************/
@@ -4699,394 +5038,32 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                                                     (FAILURE, HIGH, -343) */
 #define ISO_AAIP_NON_USER_NAME    0xE830FEA9
 
-/* ts A90325 */
+
 /** Too many references on a single IsoExternalFilterCommand
                                                     (FAILURE, HIGH, -344) */
 #define ISO_EXTF_TOO_OFTEN        0xE830FEA8
 
-/* ts A90409 */
 /** Use of zlib was not enabled at compile time (FAILURE, HIGH, -345) */
 #define ISO_ZLIB_NOT_ENABLED      0xE830FEA7
 
-/* ts A90409 */
 /** Cannot apply zisofs filter to file >= 4 GiB  (FAILURE, HIGH, -346) */
 #define ISO_ZISOFS_TOO_LARGE      0xE830FEA6
 
-/* ts A90409 */
 /** Filter input differs from previous run  (FAILURE, HIGH, -347) */
 #define ISO_FILTER_WRONG_INPUT    0xE830FEA5
 
-/* ts A90409 */
 /** zlib compression/decompression error  (FAILURE, HIGH, -348) */
 #define ISO_ZLIB_COMPR_ERR        0xE830FEA4
 
-/* ts A90409 */
 /** Input stream is not in zisofs format  (FAILURE, HIGH, -349) */
 #define ISO_ZISOFS_WRONG_INPUT    0xE830FEA3
 
-/* ts A90411 */
 /** Cannot set global zisofs parameters while filters exist
                                                        (FAILURE, HIGH, -350) */
 #define ISO_ZISOFS_PARAM_LOCK     0xE830FEA2
 
-/* ts A90415 */
 /** Premature EOF of zlib input stream  (FAILURE, HIGH, -351) */
 #define ISO_ZLIB_EARLY_EOF        0xE830FEA1
-
-
-/* --------------------------- Filters in General -------------------------- */
-
-/*
- * A filter is an IsoStream which uses another IsoStream as input. It gets
- * attached to an IsoFile by specialized calls iso_file_add_*_filter() which
- * replace its current IsoStream by the filter stream which takes over the
- * current IsoStream as input.
- * The consequences are:
- *   iso_file_get_stream() will return the filter stream.
- *   iso_stream_get_size() will return the (cached) size of the filtered data,
- *   iso_stream_open()     will start eventual child processes,
- *   iso_stream_close()    will kill eventual child processes,
- *   iso_stream_read()     will return filtered data. E.g. as data file content
- *                         during ISO image generation.
- *
- * There are external filters which run child processes
- *   iso_file_add_external_filter()
- * and internal filters
- *   iso_file_add_zisofs_filter()
- *   iso_file_add_gzip_filter()
- * which may or may not be available depending on compile time settings and
- * installed software packages like libz.
- *
- * During image generation filters get not in effect if the original IsoStream
- * is an "fsrc" stream based on a file in the loaded ISO image and if the
- * image generation type is set to 1 by iso_write_opts_set_appendable().
- */
-
-/* ts A90328 */
-/**
- * Delete the top filter stream from a data file. This is the most recent one
- * which was added by iso_file_add_*_filter().
- * Caution: One should not do this while the IsoStream of the file is opened.
- *          For now there is no general way to determine this state.
- *          Filter stream implementations are urged to eventually call .close()
- *          inside method .free() . This will close the input stream too.
- * @param file
- *      The data file node which shall get rid of one layer of content
- *      filtering.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0.
- * @return
- *      1 on success, 0 if no filter was present
- *      <0 on error
- *
- * @since 0.6.18
- */
-int iso_file_remove_filter(IsoFile *file, int flag);
-
-
-/* ts A90328 */
-/**
- * Obtain the eventual input stream of a filter stream.
- * @param stream
- *      The eventual filter stream to be inquired.
- * @param flag
- *      Bitfield for control purposes. Submit 0 for now.
- * @return
- *      The input stream, if one exists. Elsewise NULL.
- *      No extra reference to the stream is taken by this call.
- * 
- * @since 0.6.18
- */    
-IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag);
-
-
-/* ---------------------------- External Filters --------------------------- */
-
-/* ts A90325 */
-/**
- * Representation of an external program that shall serve as filter for
- * an IsoStream. This object may be shared among many IsoStream objects.
- * It is to be created and disposed by the application.
- *
- * The filter will act as proxy between the original IsoStream of an IsoFile.
- * Up to completed image generation it will be run at least twice: 
- * for IsoStream.class.get_size() and for .open() with subsequent .read().
- * So the original IsoStream has to return 1 by its .class.is_repeatable().
- * The filter program has to be repeateable too. I.e. it must produce the same
- * output on the same input.
- *
- * @since 0.6.18
- */
-struct iso_external_filter_command
-{
-    /* Will indicate future extensions. It has to be 0 for now. */
-    int version;
-
-    /* Tells how many IsoStream objects depend on this command object.
-     * One may only dispose an IsoExternalFilterCommand when this count is 0.
-     * Initially this value has to be 0.
-     */
-    int refcount;
-
-    /* An optional instance id.
-     * Set to empty text if no individual name for this object is intended.
-     */
-    char *name;
-
-    /* Absolute local filesystem path to the executable program. */
-    char *path;
-
-    /* Tells the number of arguments. */
-    int argc;
-
-    /* NULL terminated list suitable for system call execv(3).
-     * I.e. argv[0] points to the alleged program name,
-     *      argv[1] to argv[argc] point to program arguments (if argc > 0)
-     *      argv[argc+1] is NULL
-     */
-    char **argv;
-
-    /* A bit field which controls behavior variations:
-     * bit0= Do not install filter if the input has size 0.
-     * bit1= Do not install filter if the output is not smaller than the input.
-     * bit2= Do not install filter if the number of output blocks is
-     *       not smaller than the number of input blocks. Block size is 2048.
-     *       Assume that non-empty input yields non-empty output and thus do
-     *       not attempt to attach a filter to files smaller than 2049 bytes.
-     * bit3= suffix removed rather than added.
-     *       (Removal and adding suffixes is the task of the application.
-     *        This behavior bit serves only as reminder for the application.)
-     */
-    int behavior;
-
-    /* The eventual suffix which is supposed to be added to the IsoFile name
-     * resp. to be removed from the name.
-     * (This is to be done by the application, not by calls
-     *  iso_file_add_external_filter() or iso_file_remove_filter().
-     *  The value recorded here serves only as reminder for the application.)
-     */
-    char *suffix;
-};
-
-typedef struct iso_external_filter_command IsoExternalFilterCommand;
-
-/* ts A90326 */
-/**
- * Install an external filter command on top of the content stream of a data
- * file. The filter process must be repeatable. It will be run once by this
- * call in order to cache the output size.
- * @param file
- *      The data file node which shall show filtered content.
- * @param cmd
- *      The external program and its arguments which shall do the filtering.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0.
- * @return
- *      1 on success, 2 if filter installation revoked (e.g. cmd.behavior bit1)
- *      <0 on error
- *
- * @since 0.6.18
- */
-int iso_file_add_external_filter(IsoFile *file, IsoExternalFilterCommand *cmd,
-                                 int flag);
-
-
-/* ts A90402 */
-/**
- * Obtain the IsoExternalFilterCommand which is eventually associated with the
- * given stream. (Typically obtained from an IsoFile by iso_file_get_stream()
- * or from an IsoStream by iso_stream_get_input_stream()).
- * @param stream
- *      The stream to be inquired.
- * @param cmd
- *      Will return the external IsoExternalFilterCommand. Valid only if
- *      the call returns 1. This does not increment cmd->refcount.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0.
- * @return
- *      1 on success, 0 if the stream is not an external filter
- *      <0 on error
- *
- * @since 0.6.18
- */
-int iso_stream_get_external_filter(IsoStream *stream,
-                                   IsoExternalFilterCommand **cmd, int flag);
-
-
-/* ---------------------------- Internal Filters --------------------------- */
-
-
-/* ts A90409 */
-/**
- * Install a zisofs filter on top of the content stream of a data file.
- * zisofs is a compression format which is decompressed by some Linux kernels.
- * See also doc/zisofs_format.txt .
- * The filter will not be installed if its output size is not smaller than
- * the size of the input stream.
- * This is only enabled if the use of libz was enabled at compile time.
- * @param file
- *      The data file node which shall show filtered content.
- * @param flag
- *      Bitfield for control purposes
- *      bit0= Do not install filter if the number of output blocks is
- *            not smaller than the number of input blocks. Block size is 2048.
- *      bit1= Install a decompression filter rather than one for compression.
- *      bit2= Only inquire availability of zisofs filtering. file may be NULL.
- *            If available return 2, else return error.
- *      bit3= is reserved for internal use and will be forced to 0
- * @return
- *      1 on success, 2 if filter available but installation revoked
- *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
- *
- * @since 0.6.18
- */
-int iso_file_add_zisofs_filter(IsoFile *file, int flag);
-
-/**
- * Inquire the number of zisofs compression and uncompression filters which
- * are in use.
- * @param ziso_count
- *      Will return the number of currently installed compression filters.
- * @param osiz_count
- *      Will return the number of currently installed uncompression filters.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
- * @return
- *      1 on success, <0 on error
- *
- * @since 0.6.18
- */
-int iso_zisofs_get_refcounts(off_t *ziso_count, off_t *osiz_count, int flag);
-
-
-/**
- * Parameter set for iso_zisofs_set_params().
- *
- * @since 0.6.18
- */
-struct iso_zisofs_ctrl {
-
-    /* Set to 0 for this version of the structure */
-    int version;
-
-    /* Compression level for zlib function compress2(). From <zlib.h>:
-     *  "between 0 and 9:
-     *   1 gives best speed, 9 gives best compression, 0 gives no compression"
-     * Default is 6.
-     */
-    int compression_level;
-
-    /* Log2 of the block size for compression filters. Allowed values are:
-     *   15 = 32 kiB ,  16 = 64 kiB ,  17 = 128 kiB
-     */
-    uint8_t block_size_log2;
-
-};
-
-/**
- * Set the global parameters for zisofs filtering.
- * This is only allowed while no zisofs compression filters are installed.
- * i.e. ziso_count returned by iso_zisofs_get_refcounts() has to be 0.
- * @param params
- *      Pointer to a structure with the intended settings.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
- * @return
- *      1 on success, <0 on error
- *
- * @since 0.6.18
- */
-int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag);
-
-/**
- * Get the current global parameters for zisofs filtering.
- * @param params
- *      Pointer to a caller provided structure which shall take the settings.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
- * @return
- *      1 on success, <0 on error
- *
- * @since 0.6.18
- */
-int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
-
-
-/* ts A90413 */
-/**
- * Check for the given node or for its subtree whether the data file content
- * effectively bears zisofs file headers and eventually mark the outcome
- * by an xinfo data record if not already marked by a zisofs compressor filter.
- * This does not install any filter but only a hint for image generation
- * that the already compressed files shall get written with zisofs ZF entries.
- * Use this if you insert the compressed reults of program mkzftree from disk
- * into the image.
- * @param node
- *      The node which shall be checked and eventually marked.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
- *      bit0= prepare for a run with iso_write_opts_set_appendable(,1).
- *            Take into account that files from the imported image
- *            do not get their content filtered.
- *      bit1= permission to overwrite existing zisofs_zf_info
- *      bit2= if no zisofs header is found:
- *            create xinfo with parameters which indicate no zisofs
- *      bit3= no tree recursion if node is a directory
- *      bit4= skip files which stem from the imported image
- * @return
- *      0= no zisofs data found
- *      1= zf xinfo added
- *      2= found existing zf xinfo and flag bit1 was not set
- *      3= both encountered: 1 and 2
- *      <0 means error
- *
- * @since 0.6.18
- */
-int iso_node_zf_by_magic(IsoNode *node, int flag);
-
-
-/* ts A90414 */
-/**
- * Install a gzip or gunzip filter on top of the content stream of a data file.
- * gzip is a compression format which is used by programs gzip and gunzip.
- * The filter will not be installed if its output size is not smaller than
- * the size of the input stream.
- * This is only enabled if the use of libz was enabled at compile time.
- * @param file
- *      The data file node which shall show filtered content.
- * @param flag
- *      Bitfield for control purposes
- *      bit0= Do not install filter if the number of output blocks is
- *            not smaller than the number of input blocks. Block size is 2048.
- *      bit1= Install a decompression filter rather than one for compression.
- *      bit2= Only inquire availability of gzip filtering. file may be NULL.
- *            If available return 2, else return error.
- *      bit3= is reserved for internal use and will be forced to 0
- * @return
- *      1 on success, 2 if filter available but installation revoked
- *      <0 on error, e.g. ISO_ZLIB_NOT_ENABLED
- *
- * @since 0.6.18
- */
-int iso_file_add_gzip_filter(IsoFile *file, int flag);
-
-
-/* ts A90414 */
-/**
- * Inquire the number of gzip compression and uncompression filters which
- * are in use.
- * @param gzip_count
- *      Will return the number of currently installed compression filters.
- * @param gunzip_count
- *      Will return the number of currently installed uncompression filters.
- * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
- * @return
- *      1 on success, <0 on error
- *
- * @since 0.6.18
- */
-int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 
 
 /* ------------------------------------------------------------------------- */

@@ -350,7 +350,7 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
     iconv_t conv;
 #endif
 
-    /* ts A90308 : that while loop smells like a potential show stopper */
+    /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
 
     size_t inbytes;
@@ -471,10 +471,10 @@ int str2ascii(const char *icharset, const char *input, char **output)
     iconv_t conv;
 #endif
 
-    /* ts A90308 : that while loop smells like a potential show stopper */
+    /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
 
-    /* ts A90308 : fallback in case that iconv() is too demanding for system */
+    /* Fallback in case that iconv() is too demanding for system */
     unsigned char *cpt;
 
     size_t numchars;
@@ -636,7 +636,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     iconv_t conv;
 #endif
     
-    /* ts A90308 : that while loop smells like a potential show stopper */
+    /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
 
     size_t numchars;

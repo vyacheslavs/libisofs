@@ -385,7 +385,6 @@ int rrip_SL_append_comp(size_t *n, uint8_t ***comps, char *s, int size, char fl)
 
 #ifdef Libisofs_with_rrip_rR
 
-/* ts A90307 */
 /**
  * Add to the given tree node a RR System Use Entry. This is an obsolete 
  * entry from before RRIP-1.10. Nevertheless mkisofs produces it and there
@@ -1336,7 +1335,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     }
 
 #ifdef Libisofs_with_rrip_rR
-    /* ts A90307 */
     ret = rrip_add_RR(t, node, info);
     if (ret < 0) {
         goto add_susp_cleanup;

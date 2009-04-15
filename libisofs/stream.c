@@ -670,7 +670,6 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
     }
 }
 
-/* ts A90328 API */
 IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
 {
     IsoStreamIface* class = stream->class;
@@ -680,7 +679,6 @@ IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
     return class->get_input_stream(stream, 0);
 }
 
-/* ts A90406 API */
 char *iso_stream_get_source_path(IsoStream *stream, int flag)
 {
     char *path = NULL, ivd[80], *raw_path = NULL;

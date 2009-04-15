@@ -80,7 +80,6 @@ struct iso_read_opts
      */
     char *input_charset;
 
-    /* ts A90319 */
     /**
      * Enable or disable methods to automatically choose an input charset.
      * This eventually overrides input_charset.
@@ -166,7 +165,6 @@ typedef struct
     char *input_charset; /**< Input charset for RR names */
     char *local_charset; /**< For RR names, will be set to the locale one */
 
-    /* ts A90319 */
     /**
      * Enable or disable methods to automatically choose an input charset.
      * This eventually overrides input_charset.
@@ -263,7 +261,6 @@ typedef struct
     uint32_t imgblock; /**< Block for El-Torito boot image */
     uint32_t catblock; /**< Block for El-Torito catalog */
 
-    /* ts A90303 */
     /* Inode number generator counter */
     ino_t inode_counter;
 
@@ -1073,7 +1070,6 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
 }
 
 
-/* ts A90303 */
 /**
  * A global counter for default inode numbers for the ISO image filesystem.
  * @param fs    The filesystem where the number shall be used
@@ -1102,12 +1098,9 @@ ino_t fs_give_ino_number(IsoImageFilesystem *fs, int flag)
  * @param src
  *      if not-NULL, it points to a multi-extent file returned by a previous
  *      call to this function.
- *
- * ts A90320
  * @param flag
  *      bit0= this is the root node attribute load call
  *            (parameter parent is not reliable for this)
- *
  * @return
  *      2 node is still incomplete (multi-extent)
  *      1 success, 0 record ignored (not an error, can be a relocated dir),
@@ -1466,7 +1459,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             return ret;
         }
 
-        /* ts A90319 */
         if ((flag & 1)  && aa_string != NULL) {
             ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
                                      &cs_value_length, &cs_value, 0);
@@ -2468,7 +2460,6 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         ret = ISO_OUT_OF_MEM;
         goto fs_cleanup;
     }
-    /* ts A90319 */
     data->auto_input_charset = opts->auto_input_charset;
 
     /* and finally return. Note that we keep the DataSource opened */
@@ -3332,7 +3323,7 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
         FSrcStreamData *data;
         ImageFileSourceData *ifsdata;
 
-        /* ts A90328 : Get the most original stream */
+        /* Get the most original stream */
         while (1) {
             input_stream = iso_stream_get_input_stream(stream, 0);
             if (input_stream == NULL || input_stream == stream)
@@ -3340,7 +3331,7 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
             stream = input_stream;
         }
 
-        /* ts A90327 : From here on it must be a stream with FSrcStreamData. */
+        /* From here on it must be a stream with FSrcStreamData. */
         /* ??? Shall one rather check :
                 stream->class == extern IsoStreamIface fsrc_stream_class
                (its storage location is global in stream.c)

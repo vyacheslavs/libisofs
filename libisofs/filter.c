@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -49,7 +50,6 @@ int iso_file_add_filter(IsoFile *file, FilterContext *filter, int flag)
 }
 
 
-/* ts A90328 */
 int iso_file_remove_filter(IsoFile *file, int flag)
 {
     IsoStream *file_stream, *input_stream;

@@ -1052,7 +1052,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     continue;
 #endif
 
-        /* ts A90228 : exposing address of data start to IsoWriteOpts */
+        /* Exposing address of data start to IsoWriteOpts */
         if (i == file_src_writer_index) {
             opts->data_start_lba = target->curblock;
         }
