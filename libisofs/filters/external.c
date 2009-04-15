@@ -243,9 +243,6 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
             return ret;
         }
         stream_open = 1;
-
-        /* >>> ??? should one replace non-blocking read() by select () ? */
-
         /* Make filter outlet non-blocking */
         ret = fcntl(recv_pipe[0], F_GETFL);
         if (ret != -1) {
@@ -401,9 +398,6 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
 
     while (1) {
         if (running->in_eof && !blocking) {
-
-            /* >>> ??? should one replace non-blocking read() by select () ? */
-
             /* Make filter outlet blocking */
             ret = fcntl(running->recv_fd, F_GETFL);
             if (ret != -1) {
@@ -415,9 +409,6 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
 
         /* Try to read desired amount from filter */;
         while (1) {
-
-            /* >>> ??? should one replace non-blocking read() by select () ? */
-
             ret = read(running->recv_fd, ((char *) buf) + fill,
                        desired - fill);
             if (ret < 0) {
@@ -436,9 +427,6 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
         }
 
         if (running->in_eof) {
-
-            /* >>> ??? should one replace non-blocking read() by select () ? */
-
             usleep(1000); /* just in case it is still non-blocking */
     continue;
         }
@@ -476,10 +464,8 @@ int extf_stream_read(IsoStream *stream, void *buf, size_t desired)
 
 #ifdef Libisofs_external_filters_selecT
 
-                    /* >>> ??? should one replace non-blocking read()
-                               by select () ? */
-
-                    /* This saves 10 % CPU load but needs 50 % more real time*/
+                    /* This select() based waiting saves 10 % CPU load but
+                       needs 50 % more real time */
 
                     ret = extf_wait_for_io(running->recv_fd, running->send_fd,
                                            100000, 0);

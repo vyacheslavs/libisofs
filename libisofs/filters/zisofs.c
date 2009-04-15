@@ -507,12 +507,8 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
     size_t fill = 0;
     char *cbuf = buf;
     uLongf buf_len;
-
-#ifndef NIX
     uint32_t uncompressed_size;
-#else
-    char zisofs_head[16];
-#endif
+    char waste_word[4];
 
     if (stream == NULL) {
         return ISO_NULL_POINTER;
@@ -530,8 +526,6 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
     while (1) {
         if (rng->state == 0) {
             /* Reading file header */
-
-#ifndef NIX
             ret = ziso_parse_zisofs_head(data->orig, &header_size, &bs_log2,
                                          &uncompressed_size, 0);
             if (ret < 0)
@@ -539,34 +533,15 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
             nstd->header_size_div4 = header_size;
             header_size *= 4;
             data->size = uncompressed_size;
-#else
-            ret = iso_stream_read(data->orig, zisofs_head, 16);
-            if (ret < 0)
-                return (rng->error_ret = ret);
-            header_size = ((unsigned char *) zisofs_head)[12] * 4;
-            bs_log2 = ((unsigned char *) zisofs_head)[13];
-            if (ret != 16 || memcmp(zisofs_head, zisofs_magic, 8) != 0 ||
-                header_size < 16 || bs_log2 < 15 || bs_log2 > 17) {
-                return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT);
-            }
-            data->size = iso_read_lsb(((uint8_t *) zisofs_head) + 8, 4);
-            nstd->header_size_div4 = header_size / 4;
-#endif /* NIX */
-
             nstd->block_size_log2 = bs_log2;
             rng->block_size = 1 << bs_log2;
-            if (header_size > 16) {
-                /* Skip surplus header bytes */
-
-/* >>> This must be a loop 
-                ret = iso_stream_read(data->orig, zisofs_head, header_size-16);
-                if (ret < 0)
-                    return (rng->error_ret = ret);
-                if (ret != header_size - 16)
-*/
-                   return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT); 
-
-
+            for (i = 16; i < header_size; i += 4) {
+                 /* Skip surplus header words */
+                 ret = iso_stream_read(data->orig, waste_word, 4);
+                 if (ret < 0)
+                     return (rng->error_ret = ret);
+                 if (ret != 4)
+                     return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT); 
             }
 
             if (desired == 0) {

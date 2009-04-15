@@ -827,11 +827,13 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
        It gets copied and
            the last stream is a ziso stream,
            or it had a ZF entry and is unfiltered
-           >>> or its last stream delivers a zisofs file header
+           or it has a zf xinfo record (because its last stream delivered a
+                                        zisofs file header when inquired)
        or it stays uncopied and
            the first filter is an osiz stream,
            or it had a ZF entry
-           >>> or its first stream delivers a zisofs file header
+           or it has a zf xinfo record (because its first stream delivered a 
+                                        zisofs file header when inquired)
     */
 
     if (t->appendable && file->from_old_session) 

@@ -261,6 +261,8 @@ const char *iso_error_to_msg(int errcode)
         return "Input stream is not in zisofs format";
     case ISO_ZISOFS_PARAM_LOCK:
         return "Cannot set global zisofs parameters while filters exist";
+    case ISO_ZLIB_EARLY_EOF:
+        return "Premature EOF of zlib input stream";
     default:
         return "Unknown error";
     }

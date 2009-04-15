@@ -138,7 +138,10 @@ static off_t gunzip_ref_count = 0;
 #ifdef Libisofs_with_zliB
 /* Parameter for deflateInit2() , see <zlib.h> */
 
-/* >>> ??? get this from zisofs.c ziso_compression_level ? */
+/* ??? get this from zisofs.c ziso_compression_level ?
+ * ??? have an own global parameter API ?
+ * For now level 6 seems to be a fine compromise between speed and size.
+ */
 static int gzip_compression_level = 6;
 
 #endif /* Libisofs_with_zliB */
@@ -359,10 +362,8 @@ int gzip_stream_convert(IsoStream *stream, void *buf, size_t desired, int flag)
                 return (rng->error_ret = ret);
             if (ret == 0) {
                 if (flag & 2) {
-
-                    /* >>> ??? what to do on (early) input EOF ? */;
-                    return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
-
+                    /* Early input EOF */
+                    return (rng->error_ret = ISO_ZLIB_EARLY_EOF);
                 } else {
                     /* Tell zlib by the next call that it is over */
                     rng->do_flush = Z_FINISH;

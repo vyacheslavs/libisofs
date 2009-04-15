@@ -4729,6 +4729,10 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                                                        (FAILURE, HIGH, -350) */
 #define ISO_ZISOFS_PARAM_LOCK     0xE830FEA2
 
+/* ts A90415 */
+/** Premature EOF of zlib input stream  (FAILURE, HIGH, -351) */
+#define ISO_ZLIB_EARLY_EOF        0xE830FEA1
+
 
 /* --------------------------- Filters in General -------------------------- */
 
