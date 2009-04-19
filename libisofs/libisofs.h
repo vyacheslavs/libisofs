@@ -4078,7 +4078,9 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
 /**
  * Try to get eventual source path string of a stream. Meaning and availability
  * of this string depends on the stream.class . Expect valid results with
- * types "fsrc" and "cout".
+ * types "fsrc" and "cout". Result formats are
+ * fsrc: result of file_source_get_path()
+ * cout: result of file_source_get_path() " " offset " " size 
  * @param stream
  *     The stream to be inquired.
  * @param flag
