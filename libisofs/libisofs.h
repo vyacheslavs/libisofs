@@ -772,7 +772,7 @@ struct IsoStream_Iface
      * Version 1 (since 0.6.8) 
      *    update_size() added.
      * Version 2 (since 0.6.18)
-     *    get_input_stream() added. A filter stream should have version 2.
+     *    get_input_stream() added. A filter stream must have version 2.
      */
     int version;
 
@@ -784,6 +784,8 @@ struct IsoStream_Iface
      * "extf" -> External filter program
      * "ziso" -> zisofs compression
      * "osiz" -> zisofs uncompression
+     * "gzip" -> gzip compression
+     * "pizg" -> gzip uncompression (gunzip)
      * "user" -> User supplied stream
      */
     char type[4];
