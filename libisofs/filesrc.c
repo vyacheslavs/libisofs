@@ -30,6 +30,13 @@ int iso_file_src_cmp(const void *n1, const void *n2)
     iso_stream_get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
     iso_stream_get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
 
+#ifdef Libisofs_file_src_cmp_non_zerO
+    if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0)
+        return -1;
+    if (fs_id2 == 0 && dev_id2 == 0 && ino_id2 == 0)
+        return 1;
+#endif
+
     if (fs_id1 < fs_id2) {
         return -1;
     } else if (fs_id1 > fs_id2) {

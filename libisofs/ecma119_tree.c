@@ -108,6 +108,10 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 
     /* TODO #00009 : add true support for harlinks and inode numbers */
     ecma->nlink = 1;
+
+    /* >>> ts A90426 : unite this with fs_give_ino_number() when it gets
+                       an inode recycling mode
+    */
     ecma->ino = ++img->ino;
 
     *node = ecma;

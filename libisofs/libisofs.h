@@ -5283,6 +5283,15 @@ struct burn_source {
  #define Libisofs_ino_from_lbA yes
 */
 
+/* Experiment: Regarding (fs_id == 0 && dev_id == 0 && ino_id == 0)
+               as always unique.
+   WAS DANGEROUS: In a previous experiment iso_rbtree_insert() needed equality.
+                  Now i changed the test in there, so that identical IsoFileSrc
+                  objects are considered equal regardless of their id.
+                  STILL UNTESTED.
+ 
+ #define Libisofs_file_src_cmp_non_zerO yes
+*/
 
 /* Experiment: Write obsolete RR entries with Rock Ridge.
                I suspect Solaris wants to see them.

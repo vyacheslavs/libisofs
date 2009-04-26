@@ -2786,6 +2786,8 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
 
 #else /* Libisofs_new_fs_image_inO */
 
+    /* ts A90426 : >>> need a unique inode for El-Torito boot image */
+
     atts.st_ino = fsdata->imgblock; /* not the best solution, but... */
 
 #endif /* ! Libisofs_new_fs_image_inO */
