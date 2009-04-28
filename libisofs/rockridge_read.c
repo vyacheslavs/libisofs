@@ -169,11 +169,15 @@ int read_rr_PX(struct susp_sys_user_entry *px, struct stat *st)
     st->st_nlink = iso_read_bb(px->data.PX.links, 4, NULL);
     st->st_uid = iso_read_bb(px->data.PX.uid, 4, NULL);
     st->st_gid = iso_read_bb(px->data.PX.gid, 4, NULL);
+    st->st_ino = 0;
     if (px->len_sue[0] == 44) {
         /* this corresponds to RRIP 1.12, so we have inode serial number */
         st->st_ino = iso_read_bb(px->data.PX.serial, 4, NULL);
+
+        /* ts A90426 : Indicate that st_ino is valid */
+        return 2;
     }
-    return ISO_SUCCESS;
+    return 1;
 }
 
 /**

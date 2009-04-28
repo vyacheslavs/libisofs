@@ -13,6 +13,14 @@
 #include "fsource.h"
 #include "builder.h"
 
+/* Size of a inode recycling window. Each new window causes a tree traversal.
+   Window memory consumption is ISO_USED_INODE_RANGE / 8.
+   This must be a power of 2 smaller than 30 bit and larger than 8 bit.
+   Here: 32 kB memory for 256k inodes.
+*/
+#define ISO_USED_INODE_RANGE (1 << 18)
+
+
 /*
  * Image is a context for image manipulation.
  * Global objects such as the message_queues must belogn to that
@@ -121,6 +129,59 @@ struct Iso_Image
      */
     void *user_data;
     void (*user_data_free)(void *ptr);
+
+    /* ts A90427 */
+    /**
+     * Inode number management. inode_counter is taken over from
+     * IsoImageFilesystem._ImageFsData after image import.
+     * It is to be used with img_give_ino_number()
+     */
+    ino_t inode_counter;
+    /*
+     * A bitmap of used inode numbers in an interval beginning at
+     * used_inodes_start and holding ISO_USED_INODE_RANGE bits.
+     * If a bit is set, then the corresponding inode number is occupied.
+     * This interval is kept around inode_counter and eventually gets
+     * advanced by ISO_USED_INODE_RANGE numbers in a tree traversal
+     * done by img_collect_inos().
+     */
+    uint8_t *used_inodes;
+    ino_t used_inodes_start;
+
 };
+
+
+    
+/* ts A90428 */
+/* Collect the bitmap of used inode numbers in the range of
+   _ImageFsData.used_inodes_start + ISO_USED_INODE_RANGE
+   @param flag bit0= recursion is active
+*/
+int img_collect_inos(IsoImage *image, IsoDir *dir, int flag);
+
+/* ts A90428 */
+/**
+ * A global counter for inode numbers for the ISO image filesystem.
+ * On image import it gets maxed by the eventual inode numbers from PX
+ * entries. Up to the first 32 bit rollover it simply increments the counter.
+ * After the first rollover it uses a look ahead bitmap which gets filled
+ * by a full tree traversal. It covers the next inode numbers to come
+ * (somewhere between 1 and ISO_USED_INODE_RANGE which is quite many)
+ * and advances when being exhausted.
+ * @param image The image where the number shall be used
+ * @param flag  bit0= reset count (Caution: image must get new inos then)
+ * @return
+ *     Since ino_t 0 is used as default and considered self-unique, 
+ *     the value 0 should only be returned in case of error.
+ */ 
+ino_t img_give_ino_number(IsoImage *image, int flag);
+
+/* ts A90428 */
+/* @param flag bit0= overwrite any ino, else only ino == 0
+               bit1= install inode with non-data, non-directory files
+               bit2= install inode with directories
+               bit3= with bit2: install inode on parameter dir
+*/
+int img_make_inos(IsoImage *image, IsoDir *dir, int flag);
 
 #endif /*LIBISO_IMAGE_H_*/

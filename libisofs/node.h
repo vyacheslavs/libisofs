@@ -399,4 +399,29 @@ struct zisofs_zf_info {
 int iso_file_zf_by_magic(IsoFile *file, int flag);
 
 
+
+/* ts A90427 : might become API */
+/*
+ * @param flag
+ *     bit0= do only retrieve id if node is in imported ISO image
+ *           or has an explicit xinfo inode number
+ * @return
+ *     1= reply is valid from stream, 2= reply is valid from xinfo
+ *     0= no id available,           <0= error
+ */
+int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
+                    ino_t *ino_id, int flag);
+
+/* ts A90427 */
+/* Set a new unique inode ISO image number to the given node.
+ * This number shall eventually persist during image generation.
+ */
+int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag);
+
+/* ts A90427 */
+/* Use this with extreme care. Duplicate inode numbers will indicate hardlink
+ * relationship between the nodes.
+ */
+int iso_node_set_ino(IsoNode *node, ino_t ino, int flag);
+
 #endif /*LIBISO_NODE_H_*/

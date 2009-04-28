@@ -95,7 +95,10 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 static
 int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 {
+    int ret;
     Ecma119Node *ecma;
+    unsigned int fs_id;
+    dev_t dev_id;
 
     ecma = calloc(1, sizeof(Ecma119Node));
     if (ecma == NULL) {
@@ -109,10 +112,27 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
     /* TODO #00009 : add true support for harlinks and inode numbers */
     ecma->nlink = 1;
 
-    /* >>> ts A90426 : unite this with fs_give_ino_number() when it gets
-                       an inode recycling mode
-    */
+    /* >>> One needs to find groups of nodes with identical id numbers
+           resp. with other reasons for being hard links.
+           This will replace the file source unifier by rbtree
+           in iso_file_src_create() and iso_file_src_add().
+     */
+
+    /*ts A90428 */
+#ifdef Libisofs_hardlink_prooF
+
+    ret = iso_node_get_id(iso, &fs_id, &dev_id, &(ecma->ino), 1);
+    if (ret < 0) {
+        return ret;
+    } else if (ret == 0) {
+        ecma->ino = img_give_ino_number(img->image, 0);
+    }
+
+#else /* Libisofs_hardlink_prooF */
+    
     ecma->ino = ++img->ino;
+
+#endif /* ! Libisofs_hardlink_prooF */
 
     *node = ecma;
     return ISO_SUCCESS;

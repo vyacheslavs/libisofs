@@ -8,6 +8,7 @@
  */
 
 #include "libisofs.h"
+#include "image.h"
 #include "node.h"
 #include "stream.h"
 #include "aaip_0_2.h"
@@ -2237,5 +2238,114 @@ int iso_node_zf_by_magic(IsoNode *node, int flag)
         pos = pos->next;
     }
     return total_ret;
+}
+
+
+/* <<< ts A90427 : to some other source module ? In what .h ? */
+int iso_px_ino_xinfo_func(void *data, int flag)
+{
+    if (flag == 1) {
+        free(data);
+    }
+    return 1;
+}
+
+
+/* ts A90427 */
+/*
+ * @param flag
+ *     bit0= do only retrieve id if node is in imported ISO image
+ *           or has an explicit xinfo inode number
+ * @return
+ *     1= reply is valid from stream, 2= reply is valid from xinfo
+ *     0= no id available,           <0= error
+ */
+int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
+                    ino_t *ino_id, int flag)
+{
+    int ret;
+    IsoFile *file;
+    void *xipt;
+    
+    ret = iso_node_get_xinfo(node, iso_px_ino_xinfo_func, &xipt);
+    if (ret < 0)
+        return ret;
+    if (ret == 1) {
+        *fs_id = ISO_IMAGE_FS_ID;
+        *dev_id = 0;
+        *ino_id = *((ino_t *) xipt);
+        return 2;
+    }
+
+    if (node->type == LIBISO_FILE) {
+        file= (IsoFile *) node;
+        iso_stream_get_id(file->stream, fs_id, dev_id, ino_id);
+        if (*fs_id != ISO_IMAGE_FS_ID && (flag & 1))
+            return 0;
+        return 1;
+    }
+    return 0;
+}
+
+
+/* ts A90427 */
+static
+int iso_node_set_ino_xinfo(IsoNode *node, ino_t ino, int flag)
+{
+    int ret;
+    void *xipt;
+
+    if (flag & 1) {
+        ret = iso_node_remove_xinfo(node, iso_px_ino_xinfo_func);
+        if (ret < 0)
+            return ret;
+    }
+    xipt = calloc(1, sizeof(ino_t));
+    if (xipt == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(xipt, &ino, sizeof(ino_t));
+    ret = iso_node_add_xinfo(node, iso_px_ino_xinfo_func, xipt);
+    return ret;
+}
+
+
+/* ts A90427 */
+int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
+{
+    int ret;
+    IsoFile *file;
+    void *xipt;
+    
+    ret = iso_node_get_xinfo(node, iso_px_ino_xinfo_func, &xipt);
+    if (ret < 0)
+        return ret;
+    if (ret == 1) {
+        ret = iso_node_set_ino_xinfo(node, ino, 1);
+        if (ret < 0)
+            return ret;
+        return 2;
+    }
+    if (node->type == LIBISO_FILE) {
+        file= (IsoFile *) node;
+        ret = iso_stream_set_image_ino(file->stream, ino, 0);
+        if (ret < 0 || ret == 1)
+            return ret;
+    }
+    ret = iso_node_set_ino_xinfo(node, ino, 0);
+    if (ret < 0)
+        return ret;
+    return 2;
+}
+
+
+/* ts A90427 */
+int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag)
+{
+    int ret;
+    ino_t ino;
+
+    ino = img_give_ino_number(image, 0);
+    ret = iso_node_set_ino(node, ino, 0);
+    return ret;
 }
 

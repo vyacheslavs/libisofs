@@ -263,7 +263,9 @@ void susp_iter_free(SuspIterator *iter);
  * Fills a struct stat with the values of a Rock Ridge PX entry (RRIP, 4.1.1).
  * 
  * @return 
- *      1 on success, < 0 on error
+ *    < 0 on error
+ *      1 on success with no inode number,
+ *      2 on success with inode number,
  */
 int read_rr_PX(struct susp_sys_user_entry *px, struct stat *st);
 

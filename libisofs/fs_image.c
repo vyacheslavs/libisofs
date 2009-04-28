@@ -88,6 +88,14 @@ struct iso_read_opts
      *       attribute "isofs.cs" of root directory
      */
     int auto_input_charset;
+
+    /* ts A90425 */
+    /**
+     * Hand out new inode numbers and overwrite eventually read PX inode
+     * numbers. This will split apart any hardlinks.
+     */
+    int make_new_ino : 1 ;
+
 };
 
 /**
@@ -136,6 +144,7 @@ enum read_rr_ext {
     RR_EXT_110 = 1, /*< RR extensions conforming version 1.10 */
     RR_EXT_112 = 2 /*< RR extensions conforming version 1.12 */
 };
+
 
 /**
  * Private data for the image IsoFilesystem
@@ -263,6 +272,15 @@ typedef struct
 
     /* Inode number generator counter */
     ino_t inode_counter;
+
+    /* ts A90425 */
+    /* PX inode number status
+       bit0= there were nodes with PX inode numbers
+       bit1= there were nodes with PX but without inode numbers
+       bit2= there were nodes without PX
+       bit3= there were nodes with faulty PX
+     */
+    int px_ino_status;
 
 } _ImageFsData;
 
@@ -1070,6 +1088,8 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
 }
 
 
+#ifndef Libisofs_hardlink_prooF
+
 /**
  * A global counter for default inode numbers for the ISO image filesystem.
  * @param fs    The filesystem where the number shall be used
@@ -1087,10 +1107,12 @@ ino_t fs_give_ino_number(IsoImageFilesystem *fs, int flag)
     if (fsdata->inode_counter == 0) {
 
         /* >>> raise alert because of inode rollover */;
-     
+
     }
     return fsdata->inode_counter;
 }
+
+#endif /* ! Libisofs_hardlink_prooF */
 
 
 /**
@@ -1135,6 +1157,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     size_t cs_value_length = 0;
     char msg[160];
 
+    int has_px = 0;
+
 #ifdef Libisofs_with_zliB
     uint8_t zisofs_alg[2], zisofs_hs4 = 0, zisofs_bsl2 = 0;
     uint32_t zisofs_usize = 0;
@@ -1147,6 +1171,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     fsdata = (_ImageFsData*)fs->data;
 
     memset(&atts, 0, sizeof(struct stat));
+    atts.st_nlink = 1;
 
     /*
      * First of all, check for unsupported ECMA-119 features
@@ -1275,12 +1300,23 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 continue;
 
             if (SUSP_SIG(sue, 'P', 'X')) {
+                /* ts A90426 */
+                has_px = 1;
                 ret = read_rr_PX(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
                     ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
                                          "Invalid PX entry");
+                    fsdata->px_ino_status |= 8;
+                } if (ret == 2) {
+                    if (fsdata->inode_counter < atts.st_ino) 
+                        fsdata->inode_counter = atts.st_ino;
+                    fsdata->px_ino_status |= 1;
+
+                } else {
+                    fsdata->px_ino_status |= 2;
                 }
+
             } else if (SUSP_SIG(sue, 'T', 'F')) {
                 ret = read_rr_TF(sue, &atts);
                 if (ret < 0) {
@@ -1536,6 +1572,11 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         }
     }
 
+    /* ts A90426 */
+    if (!has_px) {
+        fsdata->px_ino_status |= 4;
+    }
+
     /*
      * if we haven't RR extensions, or no NM entry is present,
      * we use the name in directory record
@@ -1596,11 +1637,28 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         /* but the real name is the name of the placeholder */
         ifsdata = (ImageFileSourceData*) (*src)->data;
         ifsdata->name = name;
+
+        /* >>> ts A90427 : What about final treatment ?
+                           How does directory relocation relate to inode
+                           numbers and hard links ?
+         */
+
         return ISO_SUCCESS;
     }
 
+#ifdef Libisofs_hardlink_prooF
+
+    /* ts A90426 :
+       Production of missing inode numbers is delayed until the image is
+       complete. Then all nodes which shall get a new inode number will
+       be served.
+    */
+
+#else /* Libisofs_hardlink_prooF */
 
 #ifdef Libisofs_new_fs_image_inO
+
+    /* >>> ts A90426 : this ifdef shall become a read option */
 
     if (fsdata->rr != RR_EXT_112) {
         if (fsdata->rr == 0) {
@@ -1610,6 +1668,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     atts.st_ino = fs_give_ino_number(fs, 0);
 
 #else /* Libisofs_new_fs_image_inO */
+
 
     /* ts Nov 25 2008: TODO
        This seems not fully consistent with read_rr_PX() which decides
@@ -1642,13 +1701,16 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         /* Ticket 144: This produces duplicate numbers with empty files.
         */
         atts.st_ino = (ino_t) iso_read_bb(record->block, 4, NULL);
-#endif
+#endif /* ! Libisofs_patch_ticket_144 */
+
         if (fsdata->rr == 0) {
             atts.st_nlink = 1;
         }
     }
 
 #endif /* ! Libisofs_new_fs_image_inO */
+
+#endif /* ! Libisofs_hardlink_prooF */
 
     /*
      * if we haven't RR extensions, or a needed TF time stamp is not present,
@@ -1974,7 +2036,6 @@ void ifs_fs_free(IsoFilesystem *fs)
     free(data->copyright_file_id);
     free(data->abstract_file_id);
     free(data->biblio_file_id);
-
     free(data->input_charset);
     free(data->local_charset);
     free(data);
@@ -2273,6 +2334,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->msgid = msgid;
     data->aaip_load = !opts->noaaip;
     data->aaip_version = -1;
+    data->inode_counter = 0;
+    data->px_ino_status = 0;
 
 #ifndef Libisofs_setlocale_in_iniT
     /* ??? ts Nov 25 2008 :
@@ -2718,15 +2781,35 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     ret = src_aa_to_node(src, new, 0);
     if (ret < 0) {
-        /* todo: stuff any possible memory leak here */
-        if (name != NULL)
-            free(name);
-        free(new);
-        return ret;
+        goto failure;
     }
+
+#ifdef Libisofs_hardlink_prooF
+
+    /* ts A90428 */
+    /* Attach ino as xinfo if valid and no IsoStream is involved */
+    if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG
+        && (info.st_mode & S_IFMT) != S_IFDIR) {
+
+        /* >>> ??? is there any sense in equipping directories with
+                   persistent inode numbers ? */
+
+        ret = iso_node_set_ino(new, info.st_ino, 0);
+        if (ret < 0)
+            goto failure;
+    }
+
+#endif /* Libisofs_hardlink_prooF */
 
     *node = new;
     return ISO_SUCCESS;
+
+failure:;
+    /* todo: stuff any possible memory leak here */
+    if (name != NULL)
+        free(name);
+    free(new);
+    return ret;
 }
 
 /**
@@ -2763,7 +2846,8 @@ int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
  * accessible from the ISO filesystem.
  */
 static
-int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
+int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image,
+                            IsoFileSource **src)
 {
     int ret;
     struct stat atts;
@@ -2780,17 +2864,24 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoFileSource **src)
     memset(&atts, 0, sizeof(struct stat));
     atts.st_mode = S_IFREG;
 
+#ifdef Libisofs_hardlink_prooF
+
+    /* ts A90427 : img_give_ino_number() is coordinated with existing inos */
+    atts.st_ino = img_give_ino_number(image, 0);
+
+#else /* Libisofs_hardlink_prooF */
+
 #ifdef Libisofs_new_fs_image_inO
 
     atts.st_ino = fs_give_ino_number(fs, 0);
 
 #else /* Libisofs_new_fs_image_inO */
 
-    /* ts A90426 : >>> need a unique inode for El-Torito boot image */
-
     atts.st_ino = fsdata->imgblock; /* not the best solution, but... */
 
 #endif /* ! Libisofs_new_fs_image_inO */
+
+#endif /* ! Libisofs_hardlink_prooF */
 
     atts.st_nlink = 1;
 
@@ -2953,12 +3044,40 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         goto import_revert;
     }
 
+#ifdef Libisofs_hardlink_prooF
+
+    /* ts A90428 */
+    /* Take over inode management from IsoImageFilesystem.
+       data->inode_counter is supposed to hold the maximum PX inode number.
+     */
+    image->inode_counter = data->inode_counter;
+
+    /* ts A90426 */
+    if ((data->px_ino_status & (2 | 4 | 8)) || opts->make_new_ino) {
+
+        /* >>> ??? is there any benefit with stable ino for directories ?
+                   if so: add 4 to img_make_inos(flag)
+        */
+        ret = img_make_inos(image, image->root, 8 | 2 | !!opts->make_new_ino);
+        if (ret < 0) {
+            iso_node_builder_unref(image->builder);
+            goto import_revert;
+        }
+
+    /* <<< debugging */
+    } else {
+        /* <<< just for the duplicate inode check */
+        img_collect_inos(image, image->root, 0);
+    }
+
+#endif /* ! Libisofs_hardlink_prooF */
+
     if (data->eltorito) {
         /* if catalog and image nodes were not filled, we create them here */
         if (image->bootcat->image->image == NULL) {
             IsoFileSource *src;
             IsoNode *node;
-            ret = create_boot_img_filesrc(fs, &src);
+            ret = create_boot_img_filesrc(fs, image, &src);
             if (ret < 0) {
                 iso_node_builder_unref(image->builder);
                 goto import_revert;

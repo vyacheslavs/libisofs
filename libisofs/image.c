@@ -14,6 +14,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /**
  * Create a new image, empty.
@@ -73,6 +74,9 @@ int iso_image_new(const char *name, IsoImage **image)
     }
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
+    img->inode_counter = 0;
+    img->used_inodes = NULL;
+    img->used_inodes_start = 0;
     *image = img;
     return ISO_SUCCESS;
 }
@@ -119,6 +123,11 @@ void iso_image_unref(IsoImage *image)
         free(image->copyright_file_id);
         free(image->abstract_file_id);
         free(image->biblio_file_id);
+
+        /* ts A90428 */
+        if (image->used_inodes != NULL)
+            free(image->used_inodes);
+
         free(image);
     }
 }
@@ -316,5 +325,219 @@ void iso_image_set_ignore_aclea(IsoImage *image, int what)
 {
     image->builder_ignore_acl = (what & 1);
     image->builder_ignore_ea = !!(what & 2);
+}
+
+
+/* ts A90428 */
+static
+int img_register_ino(IsoImage *image, IsoNode *node, int flag)
+{
+    int ret;
+    ino_t ino;
+    unsigned int fs_id;
+    dev_t dev_id;
+
+    ret = iso_node_get_id(node, &fs_id, &dev_id, &ino, 1);
+    if (ret < 0)
+       return ret;
+    if (ret > 0 && ino >= image->used_inodes_start &&
+        ino < image->used_inodes_start + ISO_USED_INODE_RANGE) {
+
+        /* <<< */
+        if (ino &&
+            image->used_inodes[(ino - image->used_inodes_start) / 8]
+              & (1 << (ino % 8)))
+            fprintf(stderr,
+                    "libisofs_DEBUG: found duplicate inode number %.f\n",
+                    (double) ino);
+
+        image->used_inodes[(ino - image->used_inodes_start) / 8]
+                                                           |= (1 << (ino % 8));
+    }
+    return 1;
+}
+
+
+/* ts A90428 */
+/* Collect the bitmap of used inode numbers in the range of
+   _ImageFsData.used_inodes_start + ISO_USED_INODE_RANGE
+   @param flag bit0= recursion is active
+*/
+int img_collect_inos(IsoImage *image, IsoDir *dir, int flag)
+{
+    int ret, register_dir = 1;
+    IsoDirIter *iter;
+    IsoNode *node;
+    IsoDir *subdir;
+
+    if (dir == NULL)
+        dir = image->root;
+    if (image->used_inodes == NULL) {
+        image->used_inodes = calloc(ISO_USED_INODE_RANGE / 8, 1);
+        if (image->used_inodes == NULL)
+            return ISO_OUT_OF_MEM;
+    } else if(!(flag & 1)) {
+        memset(image->used_inodes, 0, ISO_USED_INODE_RANGE / 8);
+    } else {
+        register_dir = 0;
+    }
+    if (register_dir) {
+        node = (IsoNode *) dir;
+        ret = img_register_ino(image, node, 0);
+        if (ret < 0)
+            return ret;
+    }
+
+    ret = iso_dir_get_children(dir, &iter);
+    if (ret < 0)
+        return ret;
+    while (iso_dir_iter_next(iter, &node) == 1 ) {
+        ret = img_register_ino(image, node, 0);
+        if (ret < 0)
+        if (ret < 0)
+            goto ex;
+        if (iso_node_get_type(node) == LIBISO_DIR) {
+            subdir = (IsoDir *) node;
+            ret = img_collect_inos(image, subdir, flag | 1);
+            if (ret < 0)
+                goto ex;
+        }
+    }
+    ret = 1;
+ex:;
+    iso_dir_iter_free(iter);
+    return ret;
+}
+
+
+/* ts A90428 */
+/**
+ * A global counter for inode numbers for the ISO image filesystem.
+ * On image import it gets maxed by the eventual inode numbers from PX
+ * entries. Up to the first 32 bit rollover it simply increments the counter.
+ * After the first rollover it uses a look ahead bitmap which gets filled
+ * by a full tree traversal. It covers the next inode numbers to come
+ * (somewhere between 1 and ISO_USED_INODE_RANGE which is quite many)
+ * and advances when being exhausted.
+ * @param image The image where the number shall be used
+ * @param flag  bit0= reset count (Caution: image must get new inos then)
+ * @return
+ *     Since ino_t 0 is used as default and considered self-unique,
+ *     the value 0 should only be returned in case of error.
+ */
+ino_t img_give_ino_number(IsoImage *image, int flag)
+{
+    int ret;
+    ino_t new_ino, ino_idx;
+    static uint64_t limit = 0xffffffff;
+
+    if (flag & 1) {
+        image->inode_counter = 0;
+        if (image->used_inodes != NULL)
+            free(image->used_inodes);
+        image->used_inodes = NULL;
+        image->used_inodes_start = 0;
+    }
+    new_ino = image->inode_counter + 1;
+    if (image->used_inodes == NULL) {
+        if (new_ino > 0 && new_ino <= limit) {
+            image->inode_counter = new_ino;
+            return image->inode_counter;
+        }
+    }
+    /* Look for free number in used territory */
+    while (1) {
+        if (new_ino <= 0 || new_ino > limit ||
+            new_ino >= image->used_inodes_start + ISO_USED_INODE_RANGE ) {
+
+            /* Collect a bitmap of used inode numbers ahead */
+
+            image->used_inodes_start += ISO_USED_INODE_RANGE;
+            if (image->used_inodes_start > 0xffffffff ||
+                image->used_inodes_start <= 0) 
+                image->used_inodes_start = 0;
+            ret = img_collect_inos(image, NULL, 0);
+            if (ret < 0)
+                goto return_result; /* >>> need error return value */
+
+            new_ino = image->used_inodes_start + !image->used_inodes_start;
+        }
+        ino_idx = (new_ino - image->used_inodes_start) / 8;
+        if (!(image->used_inodes[ino_idx] & (1 << (new_ino % 8)))) {
+            image->used_inodes[ino_idx] |= (1 << (new_ino % 8));
+    break;
+        }
+        new_ino++;
+    }
+return_result:;
+    image->inode_counter = new_ino;
+    return image->inode_counter;
+}
+
+
+/* @param flag bit0= overwrite any ino, else only ino == 0
+               bit1= install inode with non-data, non-directory files
+               bit2= install inode with directories
+*/
+static
+int img_update_ino(IsoImage *image, IsoNode *node, int flag)
+{
+    int ret;
+    ino_t ino;
+    unsigned int fs_id;
+    dev_t dev_id;
+
+    ret = iso_node_get_id(node, &fs_id, &dev_id, &ino, 1);
+    if (ret < 0)
+        return ret;
+    if (ret == 0)
+       ino = 0;
+    if (((flag & 1) || ino == 0) &&
+        (iso_node_get_type(node) == LIBISO_FILE || (flag & 2)) &&
+        ((flag & 4) || iso_node_get_type(node) != LIBISO_DIR)) {
+        ret = iso_node_set_unique_id(node, image, 0);
+        if (ret < 0)
+            return ret;
+    }
+    return 1;
+}
+
+
+/* @param flag bit0= overwrite any ino, else only ino == 0
+               bit1= install inode with non-data, non-directory files
+               bit2= install inode with directories
+               bit3= with bit2: install inode on parameter dir
+*/
+int img_make_inos(IsoImage *image, IsoDir *dir, int flag)
+{
+    int ret;
+    IsoDirIter *iter;
+    IsoNode *node;
+    IsoDir *subdir;
+
+    if (flag & 8) {
+        node = (IsoNode *) dir;
+        ret = img_update_ino(image, node, flag & 7);
+        if (ret < 0)
+            goto ex;
+    }
+    ret = iso_dir_get_children(dir, &iter);
+    if (ret < 0)
+        return ret;
+    while (iso_dir_iter_next(iter, &node) == 1) {
+        ret = img_update_ino(image, node, flag & 7);
+        if (ret < 0)
+            goto ex;
+        if (iso_node_get_type(node) == LIBISO_DIR) {
+            subdir = (IsoDir *) node;
+            ret = img_make_inos(image, subdir, flag & ~8);
+            if (ret < 0)
+                goto ex;
+        }
+    }
+    ret = 1;
+ex:;
+    iso_dir_iter_free(iter);
+    return ret;
 }
 

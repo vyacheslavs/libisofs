@@ -156,27 +156,31 @@ demo_isoms_SOURCES = demo/iso_ms.c
 # demo_isogrow_SOURCES = demo/iso_grow.c
 
 
-## Build unit test
+## ts A90428 , ticket 147, The test code does not use the API and is totally
+##                         outdated in its creation of mocked objects.
+##                         A volunteer is needed to rewrite it using the API. 
+
+# ## Build unit test
  
-check_PROGRAMS = \
-	test/test
-	
-test_test_CPPFLAGS = -Ilibisofs
-test_test_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD) -lcunit
-test_test_LDFLAGS = -L.. -lm
-	
-test_test_SOURCES = \
-	test/test.h \
-	test/test.c \
-	test/test_node.c \
-	test/test_image.c \
-	test/test_tree.c \
-	test/test_util.c \
-	test/test_rockridge.c \
-	test/test_stream.c \
-	test/mocked_fsrc.h \
-	test/mocked_fsrc.c
+# check_PROGRAMS = \
+# 	test/test
+# 	
+# test_test_CPPFLAGS = -Ilibisofs
+# test_test_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD) -lcunit
+# test_test_LDFLAGS = -L.. -lm
+# 	
+# test_test_SOURCES = \
+# 	test/test.h \
+# 	test/test.c \
+# 	test/test_node.c \
+# 	test/test_image.c \
+# 	test/test_tree.c \
+# 	test/test_util.c \
+# 	test/test_rockridge.c \
+# 	test/test_stream.c \
+# 	test/mocked_fsrc.h \
+# 	test/mocked_fsrc.c
 
 ## ========================================================================= ##
 

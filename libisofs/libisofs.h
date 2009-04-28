@@ -5002,18 +5002,6 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 /** El-Torito image is hidden (WARNING,HIGH, -335) */
 #define ISO_EL_TORITO_HIDDEN            0xD030FEB1
 
-/** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
-#define ISO_DATA_SOURCE_SORRY     0xE030FCFF
-
-/** Read error occured with IsoDataSource (MISHAP,HIGH, -513) */
-#define ISO_DATA_SOURCE_MISHAP    0xE430FCFF
-
-/** Read error occured with IsoDataSource (FAILURE,HIGH, -513) */
-#define ISO_DATA_SOURCE_FAILURE   0xE830FCFF
-
-/** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
-#define ISO_DATA_SOURCE_FATAL     0xF030FCFF
-
 
 /** AAIP info with ACL or xattr in ISO image will be ignored
                                                           (NOTE, HIGH, -336) */
@@ -5068,6 +5056,25 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 
 /** Premature EOF of zlib input stream  (FAILURE, HIGH, -351) */
 #define ISO_ZLIB_EARLY_EOF        0xE830FEA1
+
+
+/* ! PLACE NEW ERROR CODES HERE ! */
+
+
+/** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
+#define ISO_DATA_SOURCE_SORRY     0xE030FCFF
+
+/** Read error occured with IsoDataSource (MISHAP,HIGH, -513) */
+#define ISO_DATA_SOURCE_MISHAP    0xE430FCFF
+
+/** Read error occured with IsoDataSource (FAILURE,HIGH, -513) */
+#define ISO_DATA_SOURCE_FAILURE   0xE830FCFF
+
+/** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
+#define ISO_DATA_SOURCE_FATAL     0xF030FCFF
+
+
+/* ! PLACE NEW ERROR CODES ABOVE. NOT HERE ! */
 
 
 /* ------------------------------------------------------------------------- */
@@ -5268,7 +5275,22 @@ struct burn_source {
 #define Libisofs_aaip_2_0 yes
 
 
+/* Encapsulation : Use iso_iconv*() wrappers.
+                   They can print errno messages and they
+                   can avoid iconv() if the identical mapping is desired.
+                   One could install own simple conversion capabilities.
+*/
+#define Libisofs_with_iso_iconV yes
+
+
 /* ---------------------------- Experiments ---------------------------- */
+
+
+/* Hardlinks : Override Libisofs_new_fs_image_inO and preserve inode numbers
+               from session to session.
+               >>> STILL IMMATURE. DO NOT USE YET.
+*/
+#define Libisofs_hardlink_prooF yes
 
 
 /* Experiment: Ignore PX inode numbers,
@@ -5300,13 +5322,6 @@ struct burn_source {
  #define Libisofs_with_rrip_rR yes
 */
 
-
-/* Experiment: Use iso_iconv*() wrappers.
-               They can print errno messages and they
-               can avoid iconv() if the identical mapping is desired.
-               One could install own simple conversion capabilities.
-*/
-#define Libisofs_with_iso_iconV yes
 
 
 #endif /*LIBISO_LIBISOFS_H_*/

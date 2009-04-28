@@ -74,4 +74,12 @@ int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
                           int *block_size_log2, uint32_t *uncompressed_size,
                           int flag);
 
+/* ts A90427 */
+/**
+ * Set the inode number of a stream that is based on FSrcStreamData, i.e.
+ * stems from the imported ISO image.
+ * @return 1 = ok , 0 = not an ISO image stream , <0 = error
+ */
+int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag);
+
 #endif /*STREAM_H_*/

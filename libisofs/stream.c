@@ -672,8 +672,12 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
 
 IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
 {
-    IsoStreamIface* class = stream->class;
+    IsoStreamIface* class;
 
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    class = stream->class;
     if (class->version < 2)
         return NULL;
     return class->get_input_stream(stream, 0);
@@ -707,5 +711,20 @@ ex:;
     if (raw_path != NULL)
         free(raw_path);
     return path;
+}
+
+/* ts A90427 */
+/* @return 1 = ok , 0 = not an ISO image stream , <0 = error */
+int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
+{
+    if (stream == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (stream->class == &fsrc_stream_class) {
+        FSrcStreamData *fsrc_data = stream->data;
+        fsrc_data->ino_id = ino;
+        return 1;
+    }
+   return 0;
 }
 
