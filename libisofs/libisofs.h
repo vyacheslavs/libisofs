@@ -5288,13 +5288,14 @@ struct burn_source {
 
 /* Hardlinks : Override Libisofs_new_fs_image_inO and preserve inode numbers
                from session to session.
-               >>> STILL IMMATURE. DO NOT USE YET.
 */
 #define Libisofs_hardlink_prooF yes
 
 
 /* Experiment: Ignore PX inode numbers,
                have boot image inode number counted by fs_give_ino_number()
+
+   Overridden if Libisofs_hardlink_prooF is defined.
 */
 #define Libisofs_new_fs_image_inO yes
 

@@ -341,7 +341,8 @@ int img_register_ino(IsoImage *image, IsoNode *node, int flag)
     if (ret < 0)
        return ret;
     if (ret > 0 && ino >= image->used_inodes_start &&
-        ino < image->used_inodes_start + ISO_USED_INODE_RANGE) {
+        ino <= image->used_inodes_start + (ISO_USED_INODE_RANGE - 1)) {
+                                   /* without -1 : rollover hazard on 32 bit */
 
         /* <<< */
         if (ino &&
@@ -366,7 +367,7 @@ int img_register_ino(IsoImage *image, IsoNode *node, int flag)
 int img_collect_inos(IsoImage *image, IsoDir *dir, int flag)
 {
     int ret, register_dir = 1;
-    IsoDirIter *iter;
+    IsoDirIter *iter = NULL;
     IsoNode *node;
     IsoDir *subdir;
 
@@ -405,7 +406,8 @@ int img_collect_inos(IsoImage *image, IsoDir *dir, int flag)
     }
     ret = 1;
 ex:;
-    iso_dir_iter_free(iter);
+    if (iter != NULL)
+        iso_dir_iter_free(iter);
     return ret;
 }
 
@@ -511,7 +513,7 @@ int img_update_ino(IsoImage *image, IsoNode *node, int flag)
 int img_make_inos(IsoImage *image, IsoDir *dir, int flag)
 {
     int ret;
-    IsoDirIter *iter;
+    IsoDirIter *iter = NULL;
     IsoNode *node;
     IsoDir *subdir;
 
@@ -537,7 +539,8 @@ int img_make_inos(IsoImage *image, IsoDir *dir, int flag)
     }
     ret = 1;
 ex:;
-    iso_dir_iter_free(iter);
+    if (iter != NULL)
+        iso_dir_iter_free(iter);
     return ret;
 }
 
