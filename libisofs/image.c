@@ -395,7 +395,6 @@ int img_collect_inos(IsoImage *image, IsoDir *dir, int flag)
     while (iso_dir_iter_next(iter, &node) == 1 ) {
         ret = img_register_ino(image, node, 0);
         if (ret < 0)
-        if (ret < 0)
             goto ex;
         if (iso_node_get_type(node) == LIBISO_DIR) {
             subdir = (IsoDir *) node;
