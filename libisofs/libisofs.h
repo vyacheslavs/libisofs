@@ -1653,12 +1653,33 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For eventual writing of this information see iso_write_opts_set_aaip().
  *
- * @param noaaip     1 = do not read AAIP information
- *                   0 = read AAIP information if available
- *                   All other values are reserved.
+ * @param noaaip
+ *     1 = Do not read AAIP information
+ *     0 = Read AAIP information if available
+ *     All other values are reserved.
  * @since 0.6.14
  */
 int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip);
+
+/**
+ * Control discarding of eventual inode numbers from existing images.
+ * Such numbers may come from RRIP 1.12 entries PX. If not discarded they
+ * get written unchanged when the file object gets written into an ISO image. 
+ * If this inode number is missing with a file in the imported image,
+ * or if it has been discarded during image reading, then a unique inode number
+ * will be generated at some time before the file gets written into an ISO
+ * image.
+ * Two image nodes which have the same inode number represent two hardlinks
+ * of the same file object. So discarding the numbers splits hardlinks.
+ *
+ * @param new_inos
+ *     1 = Discard imported inode numbers and finally hand out a unique new
+ *         one to each single file before it gets written into an ISO image.
+ *     0 = Keep eventual inode numbers from PX entries.
+ *         All other values are reserved.
+ * @since 0.6.20
+ */
+int iso_read_opts_set_new_inos(IsoReadOpts *opts, int new_inos);
 
 /**
  * Whether to prefer Joliet over RR. libisofs usually prefers RR over
@@ -5285,7 +5306,7 @@ struct burn_source {
 
 /* ---------------------------- Experiments ---------------------------- */
 
-/* Hardlinks : During image generation accompany the ree of IsoFileSrc
+/* Hardlinks : During image generation accompany the tree of IsoFileSrc
                by a sorted structure of Ecma119Node.
                The sorting order shall bring together candidates for being
                hardlink siblings resp. having identical content.

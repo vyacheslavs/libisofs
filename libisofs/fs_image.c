@@ -63,6 +63,13 @@ struct iso_read_opts
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
     unsigned int noaaip : 1; /* Do not read AAIP extension for xattr and ACL */
 
+    /* ts A90425 */
+    /**
+     * Hand out new inode numbers and overwrite eventually read PX inode
+     * numbers. This will split apart any hardlinks.
+     */
+    unsigned int make_new_ino : 1 ;
+
     /**
      * When both Joliet and RR extensions are present, the RR tree is used.
      * If you prefer using Joliet, set this to 1.
@@ -88,13 +95,6 @@ struct iso_read_opts
      *       attribute "isofs.cs" of root directory
      */
     int auto_input_charset;
-
-    /* ts A90425 */
-    /**
-     * Hand out new inode numbers and overwrite eventually read PX inode
-     * numbers. This will split apart any hardlinks.
-     */
-    int make_new_ino : 1 ;
 
 };
 
@@ -269,6 +269,10 @@ typedef struct
     short load_size; /**< Number of sectors to load. */
     uint32_t imgblock; /**< Block for El-Torito boot image */
     uint32_t catblock; /**< Block for El-Torito catalog */
+
+    /* ts A90501 */
+    /* Whether inode numbers from PX entries shall be discarded */
+    unsigned int make_new_ino : 1 ;
 
     /* Inode number generator counter */
     ino_t inode_counter;
@@ -2334,6 +2338,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->msgid = msgid;
     data->aaip_load = !opts->noaaip;
     data->aaip_version = -1;
+    data->make_new_ino = opts->make_new_ino;
     data->inode_counter = 0;
     data->px_ino_status = 0;
 
@@ -2585,6 +2590,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     IsoNode *new;
     char *name;
     ImageFileSourceData *data;
+    _ImageFsData *fsdata;
 
 #ifdef Libisofs_with_zliB
     /* Intimate friendship with this function in filters/zisofs.c */
@@ -2599,6 +2605,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
     data = (ImageFileSourceData*)src->data;
+    fsdata = data->fs->data;
 
     name = iso_file_source_get_name(src);
 
@@ -2613,7 +2620,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFREG:
         {
             /* source is a regular file */
-            _ImageFsData *fsdata = data->fs->data;
 
             /* El-Torito images have only one section */
             if (fsdata->eltorito && data->sections[0].block == fsdata->catblock) {
@@ -2788,7 +2794,8 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     /* ts A90428 */
     /* Attach ino as xinfo if valid and no IsoStream is involved */
-    if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG) {
+    if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG &&
+        !fsdata->make_new_ino) {
         ret = iso_node_set_ino(new, info.st_ino, 0);
         if (ret < 0)
             goto failure;
@@ -2940,7 +2947,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
                      IsoReadImageFeatures **features)
 {
-    int ret;
+    int ret, hflag;
     IsoImageFilesystem *fs;
     IsoFilesystem *fsback;
     IsoNodeBuilder *blback;
@@ -3049,11 +3056,14 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
     /* ts A90426 */
     if ((data->px_ino_status & (2 | 4 | 8)) || opts->make_new_ino) {
-        /* Attach new inode numbers to any node which doe not have one,
+        /* Attach new inode numbers to any node which does not have one,
            resp. to all nodes in case of opts->make_new_ino 
         */
-        ret = img_make_inos(image, image->root,
-                            8 | 4 | 2 | !!opts->make_new_ino);
+        if (opts->make_new_ino)
+            hflag = 1; /* Equip all data files with new unique inos */
+        else
+            hflag = 2 | 4 | 8; /* Equip any file type if it has ino == 0 */
+        ret = img_make_inos(image, image->root, hflag);
         if (ret < 0) {
             iso_node_builder_unref(image->builder);
             goto import_revert;
@@ -3290,6 +3300,16 @@ int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip)
         return ISO_NULL_POINTER;
     }
     opts->noaaip = noaaip ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+
+int iso_read_opts_set_new_inos(IsoReadOpts *opts, int new_inos)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->make_new_ino = new_inos ? 1 : 0;
     return ISO_SUCCESS;
 }
 
