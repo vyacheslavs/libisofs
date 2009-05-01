@@ -112,19 +112,15 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
     /* TODO #00009 : add true support for harlinks and inode numbers */
     ecma->nlink = 1;
 
-    /* >>> One needs to find groups of nodes with identical id numbers
-           resp. with other reasons for being hard links.
-           This will replace the file source unifier by rbtree
-           in iso_file_src_create() and iso_file_src_add().
-     */
-
-    /*ts A90428 */
 #ifdef Libisofs_hardlink_prooF
 
+    /*ts A90428 */
+    /* Looking only for valid ISO image inode numbers. */
     ret = iso_node_get_id(iso, &fs_id, &dev_id, &(ecma->ino), 1);
     if (ret < 0) {
         return ret;
     } else if (ret == 0) {
+        /* What has not got a valid ISO image inode yet, gets it now. */
         ecma->ino = img_give_ino_number(img->image, 0);
     }
 
