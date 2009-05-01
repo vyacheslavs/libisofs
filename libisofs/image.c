@@ -495,7 +495,7 @@ int img_update_ino(IsoImage *image, IsoNode *node, int flag)
     if (ret == 0)
        ino = 0;
     if (((flag & 1) || ino == 0) &&
-        (iso_node_get_type(node) == LIBISO_FILE || (flag & 2)) &&
+        (iso_node_get_type(node) == LIBISO_FILE || (flag & (2 | 4))) &&
         ((flag & 4) || iso_node_get_type(node) != LIBISO_DIR)) {
         ret = iso_node_set_unique_id(node, image, 0);
         if (ret < 0)

@@ -2788,12 +2788,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     /* ts A90428 */
     /* Attach ino as xinfo if valid and no IsoStream is involved */
-    if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG
-        && (info.st_mode & S_IFMT) != S_IFDIR) {
-
-        /* >>> ??? is there any sense in equipping directories with
-                   persistent inode numbers ? */
-
+    if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG) {
         ret = iso_node_set_ino(new, info.st_ino, 0);
         if (ret < 0)
             goto failure;
@@ -3054,11 +3049,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
     /* ts A90426 */
     if ((data->px_ino_status & (2 | 4 | 8)) || opts->make_new_ino) {
-
-        /* >>> ??? is there any benefit with stable ino for directories ?
-                   if so: add 4 to img_make_inos(flag)
+        /* Attach new inode numbers to any node which doe not have one,
+           resp. to all nodes in case of opts->make_new_ino 
         */
-        ret = img_make_inos(image, image->root, 8 | 2 | !!opts->make_new_ino);
+        ret = img_make_inos(image, image->root,
+                            8 | 4 | 2 | !!opts->make_new_ino);
         if (ret < 0) {
             iso_node_builder_unref(image->builder);
             goto import_revert;

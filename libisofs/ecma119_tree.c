@@ -850,6 +850,19 @@ int ecma119_tree_create(Ecma119Image *img)
     }
     img->root = root;
 
+#ifdef Libisofs_hardlink_matcheR
+
+    /* ts A90430 */
+    
+    /* >>> if there are Ecma119Node.ino == 0 : */
+         >>> Sort tree according to id tuples and IsoFileSrc identity.
+         >>> Hand out image inode numbers to all Ecma119Node.ino == 0 .
+             Same sorting rank gets same inode number.
+         >>> Set Ecma119Node.nlink according to final ino outcome
+     */
+
+#endif /* ! Libisofs_hardlink_matcheR */
+
     iso_msg_debug(img->image->id, "Sorting the low level tree...");
     sort_tree(root);
 

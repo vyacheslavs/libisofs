@@ -63,7 +63,11 @@ struct ecma119_node
     IsoNode *node; /*< reference to the iso node */
 
     /* TODO #00009 : add true support for harlinks and inode numbers */
+
+    /* >>> ts A90501 : Shouldn't this be uint32_t
+                       as this is what PX will take ? */
     ino_t ino;
+
     nlink_t nlink;
 
     /**< file, symlink, special, directory or placeholder */
