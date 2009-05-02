@@ -3014,7 +3014,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
         /* ts A90501 */
         /* Attach ino as xinfo if valid */
-        if (ret > 0 && info.st_ino != 0 && !data->make_new_ino) {
+        if (info.st_ino != 0 && !data->make_new_ino) {
             ret = iso_node_set_ino(&(image->root->node), info.st_ino, 0);
             if (ret < 0)
                 goto import_revert;
