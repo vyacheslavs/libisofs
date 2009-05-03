@@ -408,6 +408,7 @@ int iso_file_zf_by_magic(IsoFile *file, int flag);
  * @return
  *     1= reply is valid from stream, 2= reply is valid from xinfo
  *     0= no id available,           <0= error
+ *     (fs_id, dev_id, ino_id) will be (0,0,0) in case of return <= 0
  */
 int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
                     ino_t *ino_id, int flag);

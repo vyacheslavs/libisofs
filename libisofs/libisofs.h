@@ -5307,18 +5307,21 @@ struct burn_source {
 /* ---------------------------- Experiments ---------------------------- */
 
 /* Hardlinks : During image generation accompany the tree of IsoFileSrc
-               by a sorted structure of Ecma119Node.
+               by a sorted array of Ecma119Node.
                The sorting order shall bring together candidates for being
                hardlink siblings resp. having identical content.
 
-               This has to be in sync with the IsoFileSrc unification by
-               IsoRBTree and iso_file_src_cmp() which cannot be obsoleted
-               because Joliet and ISO1999 depend on it.
+               This is in sync with the IsoFileSrc unification by IsoRBTree
+               and iso_file_src_cmp().
+               That tree cannot be obsoleted because Joliet and ISO1999 depend
+               on it. On the other hand, the Ecma119Node array includes objects
+               which have no IsoFileSrc attached. So both, tree and array, are
+               needed.
 
-               ! INCOMPLETE AND UNDECIDED ! DO NOT USE YET !
+               ! VERY EXPERIMENTAL ! DO NOT USE YET !
 
-#define Libisofs_hardlink_matcheR yes
 */
+#define Libisofs_hardlink_matcheR yes
 
 
 /* Hardlinks : Override Libisofs_new_fs_image_inO and preserve inode numbers

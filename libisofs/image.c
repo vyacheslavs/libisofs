@@ -343,15 +343,6 @@ int img_register_ino(IsoImage *image, IsoNode *node, int flag)
     if (ret > 0 && ino >= image->used_inodes_start &&
         ino <= image->used_inodes_start + (ISO_USED_INODE_RANGE - 1)) {
                                    /* without -1 : rollover hazard on 32 bit */
-
-        /* <<< */
-        if (ino &&
-            image->used_inodes[(ino - image->used_inodes_start) / 8]
-              & (1 << (ino % 8)))
-            fprintf(stderr,
-                    "libisofs_DEBUG: found duplicate inode number %.f\n",
-                    (double) ino);
-
         image->used_inodes[(ino - image->used_inodes_start) / 8]
                                                            |= (1 << (ino % 8));
     }

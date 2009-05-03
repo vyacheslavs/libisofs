@@ -1662,8 +1662,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
 #ifdef Libisofs_new_fs_image_inO
 
-    /* >>> ts A90426 : this ifdef shall become a read option */
-
     if (fsdata->rr != RR_EXT_112) {
         if (fsdata->rr == 0) {
             atts.st_nlink = 1;
@@ -3080,11 +3078,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             iso_node_builder_unref(image->builder);
             goto import_revert;
         }
-
-    /* <<< debugging */
-    } else {
-        /* <<< just for the duplicate inode check */
-        img_collect_inos(image, image->root, 0);
     }
 
 #endif /* ! Libisofs_hardlink_prooF */

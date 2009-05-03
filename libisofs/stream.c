@@ -738,10 +738,8 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     off_t size1, size2;
 
     if (s1 == s2) {
-        return 0; /* Normally just a shortcut.
-                     But important if Libisofs_file_src_cmp_non_zerO */
+        return 0;
     }
-
     iso_stream_get_id(s1, &fs_id1, &dev_id1, &ino_id1);
     iso_stream_get_id(s2, &fs_id2, &dev_id2, &ino_id2);
 

@@ -114,6 +114,8 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 
 #ifdef Libisofs_hardlink_prooF
 
+    /* >>> ts A90503 : this is obsolete with Libisofs_hardlink_matcheR */
+
     /*ts A90428 */
     /* Looking only for valid ISO image inode numbers. */
     ret = iso_node_get_id(iso, &fs_id, &dev_id, &(ecma->ino), 1);
@@ -831,6 +833,175 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
     return ISO_SUCCESS;
 }
 
+/*
+ * @param flag
+ *     bit0= recursion
+ *     bit1= count nodes rather than fill them into *nodes
+ * @return
+ *     <0 error
+ *     bit0= saw ino == 0
+ *     bit1= saw ino != 0
+ */
+static
+int make_node_array(Ecma119Image *img, Ecma119Node *dir,
+                    Ecma119Node **nodes, size_t nodes_size, size_t *node_count,
+                    int flag)
+{
+    int ret, result = 0;
+    size_t i;
+    Ecma119Node *child;
+
+    if (!(flag & 1)) {
+        *node_count = 0;
+        if (!(flag & 2)) {
+            /* Register the tree root node */
+            if (*node_count >= nodes_size) {
+                iso_msg_submit(img->image->id, ISO_ASSERT_FAILURE, 0,
+                         "Programming error: Overflow of hardlink sort array");
+                return ISO_ASSERT_FAILURE;
+            }
+            nodes[*node_count] = dir;
+        }
+        result|= (dir->ino == 0 ? 1 : 2);
+        (*node_count)++;
+    }
+        
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        child = dir->info.dir->children[i];
+        if (!(flag & 2)) {
+            if (*node_count >= nodes_size) {
+                iso_msg_submit(img->image->id, ISO_ASSERT_FAILURE, 0,
+                         "Programming error: Overflow of hardlink sort array");
+                return ISO_ASSERT_FAILURE;
+            }
+            nodes[*node_count] = child;
+        }
+        result|= (child->ino == 0 ? 1 : 2);
+        (*node_count)++;
+
+        if (child->type == ECMA119_DIR) {
+            ret = make_node_array(img, child,
+                                  nodes, nodes_size, node_count, flag | 1);
+            if (ret < 0)
+                return ret;
+        }
+    }
+    return result;
+}
+
+/* ts A90503 */
+static
+int ecma119_node_cmp(const void *v1, const void *v2)
+{
+    int ret1, ret2;
+    Ecma119Node *n1, *n2;
+    unsigned int fs_id1, fs_id2;
+    dev_t dev_id1, dev_id2;
+    ino_t ino_id1, ino_id2;
+
+    n1 = *((Ecma119Node **) v1);
+    n2 = *((Ecma119Node **) v2);
+    if (n1 == n2)
+        return 0;
+
+    /* Imported or explicite ISO image node id has absolute priority */
+    ret1 = (iso_node_get_id(n1->node, &fs_id1, &dev_id1, &ino_id1, 1) > 0);
+    ret2 = (iso_node_get_id(n2->node, &fs_id2, &dev_id2, &ino_id2, 1) > 0);
+    if (ret1 != ret2)
+        return (ret1 < ret2 ? -1 : 1);
+    if (ret1) {
+        /* fs_id and dev_id do not matter here.
+           Both nodes have explicite inode numbers of the emerging image.
+         */
+        return (ino_id1 < ino_id2 ? -1 : ino_id1 > ino_id2 ? 1 : 0);
+    }
+    
+    if (n1->type < n2->type)
+        return -1;
+    if (n1->type > n2->type)
+        return 1;
+
+    if (n1->type == ECMA119_FILE) {
+       ret1 = iso_file_src_cmp(n2->info.file, n2->info.file);
+       return ret1;
+
+    /* >>> Create means to inquire ECMA119_SYMLINK and ECMA119_SPECIAL
+           for their original fs,dev,ino tuple  */
+    } else {
+
+       return (v1 < v2 ? -1 : 1); /* case v1 == v2 is handled above */
+    }
+    return 0;
+}
+
+/* ts A90503 */
+static
+int family_set_ino(Ecma119Image *img, Ecma119Node **nodes, size_t family_start,
+                   size_t next_family, ino_t img_ino, int flag)
+{
+    size_t i;
+
+    if (img_ino == 0) {
+        img_ino = img_give_ino_number(img->image, 0);
+    }
+    for (i = family_start; i < next_family; i++) {
+        nodes[i]->ino = img_ino;
+        nodes[i]->nlink = next_family - family_start;
+    }
+    return 1;
+}
+
+/* ts A90503 */
+static
+int match_hardlinks(Ecma119Image *img, Ecma119Node *dir, int flag)
+{
+    int ret;
+    size_t nodes_size = 0, node_count = 0, i, family_start;
+    Ecma119Node **nodes = NULL;
+    unsigned int fs_id;
+    dev_t dev_id;
+    ino_t img_ino = 0;
+
+    ret = make_node_array(img, dir, nodes, nodes_size, &node_count, 2);
+    if (ret < 0)
+        return ret;
+    nodes_size = node_count;
+    nodes = (Ecma119Node **) calloc(sizeof(Ecma119Node *), nodes_size);
+    if (nodes == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = make_node_array(img, dir, nodes, nodes_size, &node_count, 0);
+    if (ret < 0)
+        goto ex;
+
+    /* Sort according to id tuples and IsoFileSrc identity. */
+    qsort(nodes, node_count, sizeof(Ecma119Node *), ecma119_node_cmp);
+
+    /* Hand out image inode numbers to all Ecma119Node.ino == 0 .
+       Same sorting rank gets same inode number.
+    */
+    iso_node_get_id(nodes[0]->node, &fs_id, &dev_id, &img_ino, 1);
+    family_start = 0;
+    for (i = 1; i < node_count; i++) {
+        if (ecma119_node_cmp(nodes + (i - 1), nodes + i) == 0) {
+            /* Still in same ino family */
+            if (img_ino == 0) { /* Just in case any member knows its img_ino */
+                iso_node_get_id(nodes[0]->node, &fs_id, &dev_id, &img_ino, 1);
+           }
+    continue;
+        }
+        family_set_ino(img, nodes, family_start, i, img_ino, 0);
+        iso_node_get_id(nodes[i]->node, &fs_id, &dev_id, &img_ino, 1);
+        family_start = i;
+    }
+    family_set_ino(img, nodes, family_start, i, img_ino, 0);
+
+    ret = ISO_SUCCESS;
+ex:;
+    if (nodes != NULL)
+        free((char *) nodes);
+    return ret;
+}
+
 int ecma119_tree_create(Ecma119Image *img)
 {
     int ret;
@@ -848,14 +1019,12 @@ int ecma119_tree_create(Ecma119Image *img)
 
 #ifdef Libisofs_hardlink_matcheR
 
-    /* ts A90430 */
-    
-    /* >>> if there are Ecma119Node.ino == 0 : */
-         >>> Sort tree according to id tuples and IsoFileSrc identity.
-         >>> Hand out image inode numbers to all Ecma119Node.ino == 0 .
-             Same sorting rank gets same inode number.
-         >>> Set Ecma119Node.nlink according to final ino outcome
-     */
+    /* ts A90503 */
+    iso_msg_debug(img->image->id, "Matching hardlinks...");
+    ret = match_hardlinks(img, img->root, 0);
+    if (ret < 0) {
+        return ret;
+    }
 
 #endif /* ! Libisofs_hardlink_matcheR */
 

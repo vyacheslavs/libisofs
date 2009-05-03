@@ -2259,6 +2259,7 @@ int iso_px_ino_xinfo_func(void *data, int flag)
  * @return
  *     1= reply is valid from stream, 2= reply is valid from xinfo
  *     0= no id available,           <0= error
+ *     (fs_id, dev_id, ino_id) will be (0,0,0) in case of return <= 0
  */
 int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
                     ino_t *ino_id, int flag)
@@ -2269,7 +2270,7 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
     
     ret = iso_node_get_xinfo(node, iso_px_ino_xinfo_func, &xipt);
     if (ret < 0)
-        return ret;
+        goto no_id;
     if (ret == 1) {
         *fs_id = ISO_IMAGE_FS_ID;
         *dev_id = 0;
@@ -2280,11 +2281,18 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
     if (node->type == LIBISO_FILE) {
         file= (IsoFile *) node;
         iso_stream_get_id(file->stream, fs_id, dev_id, ino_id);
-        if (*fs_id != ISO_IMAGE_FS_ID && (flag & 1))
-            return 0;
+        if (*fs_id != ISO_IMAGE_FS_ID && (flag & 1)) {
+            ret = 0;
+            goto no_id;
+        }
         return 1;
     }
-    return 0;
+    ret = 0;
+no_id:;
+    *fs_id = 0;
+    *dev_id = 0;
+    *ino_id = 0;
+    return ret;
 }
 
 
