@@ -728,3 +728,52 @@ int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
    return 0;
 }
 
+/* ts A90502 */
+/* The former core of iso_file_src_cmp() */
+int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
+{
+    unsigned int fs_id1, fs_id2;
+    dev_t dev_id1, dev_id2;
+    ino_t ino_id1, ino_id2;
+    off_t size1, size2;
+
+    if (s1 == s2) {
+        return 0; /* Normally just a shortcut.
+                     But important if Libisofs_file_src_cmp_non_zerO */
+    }
+
+    iso_stream_get_id(s1, &fs_id1, &dev_id1, &ino_id1);
+    iso_stream_get_id(s2, &fs_id2, &dev_id2, &ino_id2);
+
+#ifdef Libisofs_file_src_cmp_non_zerO
+    if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0) {
+        return -1;
+    } else if (fs_id2 == 0 && dev_id2 == 0 && ino_id2 == 0)
+        return 1;
+    }
+#endif
+
+    if (fs_id1 < fs_id2) {
+        return -1;
+    } else if (fs_id1 > fs_id2) {
+        return 1;
+    }
+    /* files belong to the same fs */
+    if (dev_id1 > dev_id2) {
+        return -1;
+    } else if (dev_id1 < dev_id2) {
+        return 1;
+    } else if (ino_id1 < ino_id2) {
+        return -1;
+    } else if (ino_id1 > ino_id2) {
+        return 1;
+    }
+    size1 = iso_stream_get_size(s1);
+    size2 = iso_stream_get_size(s2);
+    if (size1 < size2) {
+        return -1;
+    } else if (size1 > size2) {
+        return 1;
+    }
+    return 0;
+}

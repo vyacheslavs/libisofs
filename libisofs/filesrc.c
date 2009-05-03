@@ -12,20 +12,18 @@
 #include "writer.h"
 #include "messages.h"
 #include "image.h"
+#include "stream.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 
-/* ts A90427 : introduced test (n1 == n2) and flattened block nesting
+/* ts A90502 : outsourced comparison to iso_stream_cmp_ino()
 */
 int iso_file_src_cmp(const void *n1, const void *n2)
 {
+    int ret;
     const IsoFileSrc *f1, *f2;
-    unsigned int fs_id1, fs_id2;
-    dev_t dev_id1, dev_id2;
-    ino_t ino_id1, ino_id2;
-    off_t size1, size2;
 
     if (n1 == n2) {
         return 0; /* Normally just a shortcut.
@@ -35,40 +33,8 @@ int iso_file_src_cmp(const void *n1, const void *n2)
     f1 = (const IsoFileSrc *)n1;
     f2 = (const IsoFileSrc *)n2;
 
-    iso_stream_get_id(f1->stream, &fs_id1, &dev_id1, &ino_id1);
-    iso_stream_get_id(f2->stream, &fs_id2, &dev_id2, &ino_id2);
-
-#ifdef Libisofs_file_src_cmp_non_zerO
-    if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0) {
-        return -1;
-    } else if (fs_id2 == 0 && dev_id2 == 0 && ino_id2 == 0)
-        return 1;
-    }
-#endif
-
-    if (fs_id1 < fs_id2) {
-        return -1;
-    } else if (fs_id1 > fs_id2) {
-        return 1;
-    }
-    /* files belong to the same fs */
-    if (dev_id1 > dev_id2) {
-        return -1;
-    } else if (dev_id1 < dev_id2) {
-        return 1;
-    } else if (ino_id1 < ino_id2) {
-        return -1;
-    } else if (ino_id1 > ino_id2) {
-        return 1;
-    }
-    size1 = iso_stream_get_size(f1->stream);
-    size2 = iso_stream_get_size(f2->stream);
-    if (size1 < size2) {
-        return -1;
-    } else if (size1 > size2) {
-        return 1;
-    }
-    return 0;
+    ret = iso_stream_cmp_ino(f1->stream, f2->stream, 0);
+    return ret;
 }
 
 int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
