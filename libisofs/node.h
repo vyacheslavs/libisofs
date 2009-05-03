@@ -122,7 +122,7 @@ struct Iso_File
      * Higher weighting files are written at the beginning of image
      */
     int sort_weight;
-    IsoStream *stream;
+    IsoStream *stream;                    /* Knows fs_id, st_dev, and st_ino */
 };
 
 struct Iso_Symlink
@@ -130,12 +130,34 @@ struct Iso_Symlink
     IsoNode node;
 
     char *dest;
+
+#ifdef Libisofs_hardlink_matcheR
+    /* If the IsoNode represents an object in an existing filesystem then
+       the following three numbers should unique identify it.
+       (0,0,0) will always be taken as unique.
+     */
+    unsigned int fs_id;
+    dev_t st_dev;
+    ino_t st_ino;
+#endif
+
 };
 
 struct Iso_Special
 {
     IsoNode node;
     dev_t dev;
+
+#ifdef Libisofs_hardlink_matcheR
+    /* If the IsoNode represents an object in an existing filesystem then
+       the following three numbers should unique identify it.
+       (0,0,0) will always be taken as unique.
+     */
+    unsigned int fs_id;
+    dev_t st_dev;
+    ino_t st_ino;
+#endif
+
 };
 
 struct iso_dir_iter_iface

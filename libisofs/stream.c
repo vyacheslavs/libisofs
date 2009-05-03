@@ -742,15 +742,6 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     }
     iso_stream_get_id(s1, &fs_id1, &dev_id1, &ino_id1);
     iso_stream_get_id(s2, &fs_id2, &dev_id2, &ino_id2);
-
-#ifdef Libisofs_file_src_cmp_non_zerO
-    if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0) {
-        return -1;
-    } else if (fs_id2 == 0 && dev_id2 == 0 && ino_id2 == 0)
-        return 1;
-    }
-#endif
-
     if (fs_id1 < fs_id2) {
         return -1;
     } else if (fs_id1 > fs_id2) {
@@ -773,5 +764,12 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     } else if (size1 > size2) {
         return 1;
     }
+
+#ifdef Libisofs_hardlink_matcheR
+    if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0) {
+        return (s1 < s2 ? -1 : 1);
+    }
+#endif
+
     return 0;
 }

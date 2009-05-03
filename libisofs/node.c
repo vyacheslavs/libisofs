@@ -1309,6 +1309,13 @@ int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link)
     new->node.name = name;
     new->dest = dest;
     new->node.mode = S_IFLNK;
+
+#ifdef Libisofs_hardlink_matcheR
+    new->fs_id = 0;
+    new->st_dev = 0;
+    new->st_ino = 0;
+#endif
+
     *link = new;
     return ISO_SUCCESS;
 }
@@ -1340,6 +1347,12 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
 
     new->node.mode = mode;
     new->dev = dev;
+
+#ifdef Libisofs_hardlink_matcheR
+    new->fs_id = 0;
+    new->st_dev = 0;
+    new->st_ino = 0;
+#endif
 
     *special = new;
     return ISO_SUCCESS;
@@ -2286,7 +2299,16 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
             goto no_id;
         }
         return 1;
+
+#ifdef Libisofs_hardlink_matcheR
+
+    /* >>> check for id tuples of  LIBISO_SYMLINK and  LIBISO_SPECIAL */;
+
+#endif
+
     }
+
+
     ret = 0;
 no_id:;
     *fs_id = 0;
@@ -2338,6 +2360,14 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
         ret = iso_stream_set_image_ino(file->stream, ino, 0);
         if (ret < 0 || ret == 1)
             return ret;
+
+#ifdef Libisofs_hardlink_matcheR
+
+    /* >>> check for id tuples of  LIBISO_SYMLINK and  LIBISO_SPECIAL :
+           if fs_id = ISO_IMAGE_FS_ID then overwite .st_ino */;
+
+#endif
+
     }
     ret = iso_node_set_ino_xinfo(node, ino, 0);
     if (ret < 0)

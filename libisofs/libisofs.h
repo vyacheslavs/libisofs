@@ -5333,7 +5333,7 @@ struct burn_source {
 /* Experiment: Ignore PX inode numbers,
                have boot image inode number counted by fs_give_ino_number()
 
-   Overridden if Libisofs_hardlink_prooF is defined.
+   <<< Overridden if Libisofs_hardlink_prooF is defined.
 */
 #define Libisofs_new_fs_image_inO yes
 
@@ -5341,18 +5341,12 @@ struct burn_source {
 
 /* Experiment: Revoke Ticket 144, use data file LBAs again.
                (will work only if not Libisofs_new_fs_image_inO)
+
+  <<< Overridden if Libisofs_hardlink_prooF is defined.
+
  #define Libisofs_ino_from_lbA yes
 */
 
-/* Experiment: Regarding (fs_id == 0 && dev_id == 0 && ino_id == 0)
-               as always unique.
-   WAS DANGEROUS: In a previous experiment iso_rbtree_insert() needed equality.
-                  Now i changed the test in there, so that identical IsoFileSrc
-                  objects are considered equal regardless of their id.
-                  STILL UNTESTED.
- 
- #define Libisofs_file_src_cmp_non_zerO yes
-*/
 
 /* Experiment: Write obsolete RR entries with Rock Ridge.
                I suspect Solaris wants to see them.

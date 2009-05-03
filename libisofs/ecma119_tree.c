@@ -925,10 +925,31 @@ int ecma119_node_cmp(const void *v1, const void *v2)
        ret1 = iso_file_src_cmp(n2->info.file, n2->info.file);
        return ret1;
 
-    /* >>> Create means to inquire ECMA119_SYMLINK and ECMA119_SPECIAL
-           for their original fs,dev,ino tuple  */
-    } else {
+#ifdef Libisofs_hardlink_matcheR
 
+    } else if (n1->type == ECMA119_SYMLINK) {
+       IsoSymlink *t1, *t2;
+
+       t1 = (IsoSymlink *) (n1->node);
+       t2 = (IsoSymlink *) (n2->node);
+       return (t1->fs_id < t2->fs_id ? -1 : t1->fs_id > t2->fs_id ? 1 :
+               t1->st_dev < t2->st_dev ? -1 : t1->st_dev > t2->st_dev ? 1 :
+               t1->st_ino < t2->st_ino ? -1 : t1->st_ino > t2->st_ino ? 1 :
+               t1->fs_id || t1->st_dev || t1->st_ino ? 0 : (v1 < v2 ? -1 : 1));
+
+    } else if (n1->type == ECMA119_SPECIAL) {
+       IsoSpecial *t1, *t2;
+
+       t1 = (IsoSpecial *) (n1->node);
+       t2 = (IsoSpecial *) (n2->node);
+       return (t1->fs_id < t2->fs_id ? -1 : t1->fs_id > t2->fs_id ? 1 :
+               t1->st_dev < t2->st_dev ? -1 : t1->st_dev > t2->st_dev ? 1 :
+               t1->st_ino < t2->st_ino ? -1 : t1->st_ino > t2->st_ino ? 1 :
+               t1->fs_id || t1->st_dev || t1->st_ino ? 0 : (v1 < v2 ? -1 : 1));
+
+#endif /* Libisofs_hardlink_matcheR */
+
+    } else {
        return (v1 < v2 ? -1 : 1); /* case v1 == v2 is handled above */
     }
     return 0;
