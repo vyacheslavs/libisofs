@@ -2279,6 +2279,8 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
 {
     int ret;
     IsoFile *file;
+    IsoSymlink *symlink;
+    IsoSpecial *special;
     void *xipt;
     
     ret = iso_node_get_xinfo(node, iso_px_ino_xinfo_func, &xipt);
@@ -2302,7 +2304,25 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
 
 #ifdef Libisofs_hardlink_matcheR
 
-    /* >>> check for id tuples of  LIBISO_SYMLINK and  LIBISO_SPECIAL */;
+    } else if (node->type == LIBISO_SYMLINK) {
+        symlink = (IsoSymlink *) node;
+        if (symlink->fs_id != ISO_IMAGE_FS_ID && (flag & 1)) {
+            ret = 0;
+            goto no_id;
+        }
+        *fs_id = symlink->fs_id;
+        *dev_id = symlink->st_dev;
+        *ino_id = symlink->st_ino;
+
+    } else if (node->type == LIBISO_SPECIAL) {
+        special = (IsoSpecial *) node;
+        if (special->fs_id != ISO_IMAGE_FS_ID && (flag & 1)) {
+            ret = 0;
+            goto no_id;
+        }
+        *fs_id = special->fs_id;
+        *dev_id = special->st_dev;
+        *ino_id = special->st_ino;
 
 #endif
 
@@ -2344,6 +2364,8 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
 {
     int ret;
     IsoFile *file;
+    IsoSymlink *symlink;
+    IsoSpecial *special;
     void *xipt;
     
     ret = iso_node_get_xinfo(node, iso_px_ino_xinfo_func, &xipt);
@@ -2363,8 +2385,19 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
 
 #ifdef Libisofs_hardlink_matcheR
 
-    /* >>> check for id tuples of  LIBISO_SYMLINK and  LIBISO_SPECIAL :
-           if fs_id = ISO_IMAGE_FS_ID then overwite .st_ino */;
+    } else if (node->type == LIBISO_SYMLINK) {
+        symlink = (IsoSymlink *) node;
+        if (symlink->fs_id == ISO_IMAGE_FS_ID) {
+            symlink->st_ino = ino;
+            return 1;
+        }
+
+    } else if (node->type == LIBISO_SPECIAL) {
+        special = (IsoSpecial *) node;
+        if (special->fs_id == ISO_IMAGE_FS_ID) {
+            special->st_ino = ino;
+            return 1;
+        }
 
 #endif
 

@@ -92,6 +92,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     int ret;
     struct stat info;
     IsoNode *new;
+    IsoFilesystem *fs;
     char *name;
     unsigned char *aa_string;
     char *a_text = NULL, *d_text = NULL;
@@ -111,6 +112,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
     name = iso_file_source_get_name(src);
+    fs = iso_file_source_get_filesystem(src);
     new = NULL;
 
     switch (info.st_mode & S_IFMT) {
@@ -154,6 +156,13 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             }
             ret = iso_node_new_symlink(name, strdup(dest), &link);
             new = (IsoNode*) link;
+            if (fs != NULL) {
+                link->fs_id = fs->get_id(fs);
+                if (link->fs_id != 0) {
+                    link->st_ino = info.st_ino;
+                    link->st_dev = info.st_dev;
+                }
+            }
         }
         break;
     case S_IFSOCK:
@@ -166,6 +175,13 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             ret = iso_node_new_special(name, info.st_mode, info.st_rdev, 
                                        &special);
             new = (IsoNode*) special;
+            if (fs != NULL) {
+                special->fs_id = fs->get_id(fs);
+                if (special->fs_id != 0) {
+                    special->st_ino = info.st_ino;
+                    special->st_dev = info.st_dev;
+                }
+            }
         }
         break;
     }
