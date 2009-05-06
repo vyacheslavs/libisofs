@@ -675,7 +675,7 @@ IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
     IsoStreamIface* class;
 
     if (stream == NULL) {
-        return ISO_NULL_POINTER;
+        return NULL;
     }
     class = stream->class;
     if (class->version < 2)
@@ -737,6 +737,10 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     ino_t ino_id1, ino_id2;
     off_t size1, size2;
 
+    /* <<< */
+    static int report_counter = 0;
+    static int debug = 1;
+
     if (s1 == s2) {
         return 0;
     }
@@ -760,8 +764,30 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     size1 = iso_stream_get_size(s1);
     size2 = iso_stream_get_size(s2);
     if (size1 < size2) {
+
+        if (debug) {
+            if (report_counter < 5)
+                fprintf(stderr,
+      "\n\nlibisofs_DEBUG : Program error: same ino but differing size\n\n\n");
+            else if (report_counter == 5)
+                fprintf(stderr,
+      "\n\nlibisofs_DEBUG : Inode error: more of same ino but differing size\n\n\n");
+            report_counter++;
+        }
+
         return -1;
     } else if (size1 > size2) {
+
+        if (debug) {
+            if (report_counter < 5)
+                fprintf(stderr,
+      "\n\nlibisofs_DEBUG : Inode error: same ino but differing size\n\n\n");
+            else if (report_counter == 5)
+                fprintf(stderr,
+      "\n\nlibisofs_DEBUG : Program error: more of same ino but differing size\n\n\n");
+            report_counter++;
+        }
+
         return 1;
     }
 

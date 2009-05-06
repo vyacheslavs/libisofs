@@ -904,6 +904,7 @@ int ecma119_node_cmp(const void *v1, const void *v2)
     if (n1 == n2)
         return 0;
 
+
     /* Imported or explicite ISO image node id has absolute priority */
     ret1 = (iso_node_get_id(n1->node, &fs_id1, &dev_id1, &ino_id1, 1) > 0);
     ret2 = (iso_node_get_id(n2->node, &fs_id2, &dev_id2, &ino_id2, 1) > 0);
@@ -922,7 +923,7 @@ int ecma119_node_cmp(const void *v1, const void *v2)
         return 1;
 
     if (n1->type == ECMA119_FILE) {
-       ret1 = iso_file_src_cmp(n2->info.file, n2->info.file);
+       ret1 = iso_file_src_cmp(n1->info.file, n2->info.file);
        return ret1;
 
 #ifdef Libisofs_hardlink_matcheR
