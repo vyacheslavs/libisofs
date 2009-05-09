@@ -887,6 +887,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
     target->iso1999 = opts->iso1999;
+    target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
     target->always_gmt = opts->always_gmt;
     target->ino = 0;
@@ -901,6 +902,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->rrip_version_1_10 = opts->rrip_version_1_10;
+    target->rrip_1_10_px_ino = opts->rrip_1_10_px_ino;
     target->aaip_susp_1_10 = opts->aaip_susp_1_10;
     target->dir_rec_mtime = opts->dir_rec_mtime;
     target->sort_files = opts->sort_files;
@@ -1427,6 +1429,15 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable)
     return ISO_SUCCESS;
 }
 
+int iso_write_opts_set_hardlinks(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->hardlinks = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
 int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable)
 {
     if (opts == NULL) {
@@ -1523,6 +1534,15 @@ int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers)
         return ISO_NULL_POINTER;
     }
     opts->rrip_version_1_10 = oldvers ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_rrip_1_10_px_ino(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->rrip_1_10_px_ino = enable ? 1 : 0;
     return ISO_SUCCESS;
 }
 

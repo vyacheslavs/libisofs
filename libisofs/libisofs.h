@@ -1186,15 +1186,48 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
  */
 int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
 
+/* ts A90508 */
+/**
+ * Control generation of non-unique inode numbers for the emerging image.
+ * Inode numbers get written as "file serial number" with PX entries as of
+ * RRIP-1.12. They may mark families of hardlinks.
+ * RRIP-1.10 prescribes a PX entry without file serial number. If not overriden
+ * by iso_write_opts_set_rrip_1_10_px_ino() there will be no file serial
+ * written into RRIP-1.10 images.
+ *
+ * Inode number generation does not affect IsoNode objects which imported their
+ * inode numbers from the old ISO image (see iso_read_opts_set_new_inos())
+ * and which have not been altered since import. It rather applies to IsoNode
+ * objects which were newly added to the image, or to IsoNode which brought no
+ * inode number from the old image, or to IsoNode where certain properties 
+ * have been altered since image import.
+ *
+ * If two IsoNode are found with same imported inode number but differing
+ * properties, then one of them will get assigned a new unique inode number.
+ * I.e. the hardlink relation between both IsoNode objects ends.
+ *
+ * @param enable 
+ *     1 = Collect IsoNode objects which have identical data sources and
+ *         properties.
+ *     0 = Generate unique inode numbers for all IsoNode objects which do not
+ *         have a valid inode number from an imported ISO image.
+ *     All other values are reserved.
+ *
+ * @since 0.6.20
+ */
+int iso_write_opts_set_hardlinks(IsoWriteOpts *opts, int enable);
+
 /**
  * Control writing of AAIP informations for ACL and xattr.
  * For importing ACL and xattr when inserting nodes from external filesystems
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For loading of this information from images see iso_read_opts_set_no_aaip().
  *
- * @param enable     1 = write AAIP information from nodes into the image
- *                   0 = do not write AAIP information into the image
- *                   All other values are reserved.
+ * @param enable
+ *     1 = write AAIP information from nodes into the image
+ *     0 = do not write AAIP information into the image
+ *     All other values are reserved.
+ *
  * @since 0.6.14
  */
 int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
@@ -1289,6 +1322,19 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
  * @since 0.6.12
  */
 int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers);
+
+/* ts A90509 */
+/**
+ * Write field PX with file serial number (i.e. inode number) even if
+ * iso_write_opts_set_rrip_version_1_10(,1) is in effect.
+ * This clearly violates the RRIP-1.10 specs. But it is done by mkisofs since
+ * a while and no widespread protest is visible in the web.
+ * If this option is not enabled, then iso_write_opts_set_hardlinks() will
+ * only have an effect with iso_write_opts_set_rrip_version_1_10(,0).
+ * 
+ * @since 0.6.20
+ */
+int iso_write_opts_set_rrip_1_10_px_ino(IsoWriteOpts *opts, int enable);
 
 /**
  * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.

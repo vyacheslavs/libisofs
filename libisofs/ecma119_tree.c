@@ -889,80 +889,55 @@ int make_node_array(Ecma119Image *img, Ecma119Node *dir,
     return result;
 }
 
-/* ts A90503 */
+/* ts A90508 */
+/*
+ * @param flag
+ *     bit0= compare stat properties and attributes 
+ *     bit1= treat all nodes with image ino == 0 as unique
+ */
 static
-int ecma119_node_cmp(const void *v1, const void *v2)
+int ecma119_node_cmp_flag(const void *v1, const void *v2, int flag)
 {
-    int ret1, ret2;
+    int ret;
     Ecma119Node *n1, *n2;
-    unsigned int fs_id1, fs_id2;
-    dev_t dev_id1, dev_id2;
-    ino_t ino_id1, ino_id2;
 
     n1 = *((Ecma119Node **) v1);
     n2 = *((Ecma119Node **) v2);
     if (n1 == n2)
         return 0;
 
-
-    /* Imported or explicite ISO image node id has absolute priority */
-    ret1 = (iso_node_get_id(n1->node, &fs_id1, &dev_id1, &ino_id1, 1) > 0);
-    ret2 = (iso_node_get_id(n2->node, &fs_id2, &dev_id2, &ino_id2, 1) > 0);
-    if (ret1 != ret2)
-        return (ret1 < ret2 ? -1 : 1);
-    if (ret1) {
-        /* fs_id and dev_id do not matter here.
-           Both nodes have explicite inode numbers of the emerging image.
-         */
-        return (ino_id1 < ino_id2 ? -1 : ino_id1 > ino_id2 ? 1 : 0);
-    }
-    
-    if (n1->type < n2->type)
-        return -1;
-    if (n1->type > n2->type)
-        return 1;
-
-    if (n1->type == ECMA119_FILE) {
-       ret1 = iso_file_src_cmp(n1->info.file, n2->info.file);
-       return ret1;
-
-#ifdef Libisofs_hardlink_matcheR
-
-    } else if (n1->type == ECMA119_SYMLINK) {
-       IsoSymlink *t1, *t2;
-
-       t1 = (IsoSymlink *) (n1->node);
-       t2 = (IsoSymlink *) (n2->node);
-       return (t1->fs_id < t2->fs_id ? -1 : t1->fs_id > t2->fs_id ? 1 :
-               t1->st_dev < t2->st_dev ? -1 : t1->st_dev > t2->st_dev ? 1 :
-               t1->st_ino < t2->st_ino ? -1 : t1->st_ino > t2->st_ino ? 1 :
-               t1->fs_id || t1->st_dev || t1->st_ino ? 0 : (v1 < v2 ? -1 : 1));
-
-    } else if (n1->type == ECMA119_SPECIAL) {
-       IsoSpecial *t1, *t2;
-
-       t1 = (IsoSpecial *) (n1->node);
-       t2 = (IsoSpecial *) (n2->node);
-       return (t1->fs_id < t2->fs_id ? -1 : t1->fs_id > t2->fs_id ? 1 :
-               t1->st_dev < t2->st_dev ? -1 : t1->st_dev > t2->st_dev ? 1 :
-               t1->st_ino < t2->st_ino ? -1 : t1->st_ino > t2->st_ino ? 1 :
-               t1->fs_id || t1->st_dev || t1->st_ino ? 0 : (v1 < v2 ? -1 : 1));
-
-#endif /* Libisofs_hardlink_matcheR */
-
-    } else {
-       return (v1 < v2 ? -1 : 1); /* case v1 == v2 is handled above */
-    }
-    return 0;
+    ret = iso_node_cmp_flag(n1->node, n2->node, flag & (1 | 2));
+    return ret;
 }
+
+/* ts A90508 */
+static 
+int ecma119_node_cmp_hard(const void *v1, const void *v2)
+{
+    return ecma119_node_cmp_flag(v1, v2, 1);
+}   
+
+/* ts A90509 */
+static 
+int ecma119_node_cmp_nohard(const void *v1, const void *v2)
+{
+    return ecma119_node_cmp_flag(v1, v2, 1 | 2);
+}   
 
 /* ts A90503 */
 static
 int family_set_ino(Ecma119Image *img, Ecma119Node **nodes, size_t family_start,
-                   size_t next_family, ino_t img_ino, int flag)
+                   size_t next_family, ino_t img_ino, ino_t prev_ino, int flag)
 {
     size_t i;
 
+    if (img_ino != 0) {
+        /* Check whether this is the same img_ino as in the previous
+           family (e.g. by property divergence of imported hardlink).
+        */
+        if (img_ino == prev_ino)
+            img_ino = 0;
+    }
     if (img_ino == 0) {
         img_ino = img_give_ino_number(img->image, 0);
     }
@@ -982,7 +957,7 @@ int match_hardlinks(Ecma119Image *img, Ecma119Node *dir, int flag)
     Ecma119Node **nodes = NULL;
     unsigned int fs_id;
     dev_t dev_id;
-    ino_t img_ino = 0;
+    ino_t img_ino = 0, prev_ino = 0;
 
     ret = make_node_array(img, dir, nodes, nodes_size, &node_count, 2);
     if (ret < 0)
@@ -995,27 +970,34 @@ int match_hardlinks(Ecma119Image *img, Ecma119Node *dir, int flag)
     if (ret < 0)
         goto ex;
 
-    /* Sort according to id tuples and IsoFileSrc identity. */
-    qsort(nodes, node_count, sizeof(Ecma119Node *), ecma119_node_cmp);
+    /* Sort according to id tuples, IsoFileSrc identity, properties, xattr. */
+    if (img->hardlinks)
+        qsort(nodes, node_count, sizeof(Ecma119Node *), ecma119_node_cmp_hard);
+    else
+        qsort(nodes, node_count, sizeof(Ecma119Node *),
+              ecma119_node_cmp_nohard);
 
     /* Hand out image inode numbers to all Ecma119Node.ino == 0 .
        Same sorting rank gets same inode number.
+       Split those image inode number families where the sort criterion
+       differs.
     */
     iso_node_get_id(nodes[0]->node, &fs_id, &dev_id, &img_ino, 1);
     family_start = 0;
     for (i = 1; i < node_count; i++) {
-        if (ecma119_node_cmp(nodes + (i - 1), nodes + i) == 0) {
+        if (ecma119_node_cmp_hard(nodes + (i - 1), nodes + i) == 0) {
             /* Still in same ino family */
             if (img_ino == 0) { /* Just in case any member knows its img_ino */
                 iso_node_get_id(nodes[0]->node, &fs_id, &dev_id, &img_ino, 1);
            }
     continue;
         }
-        family_set_ino(img, nodes, family_start, i, img_ino, 0);
+        family_set_ino(img, nodes, family_start, i, img_ino, prev_ino, 0);
+        prev_ino = img_ino;
         iso_node_get_id(nodes[i]->node, &fs_id, &dev_id, &img_ino, 1);
         family_start = i;
     }
-    family_set_ino(img, nodes, family_start, i, img_ino, 0);
+    family_set_ino(img, nodes, family_start, i, img_ino, prev_ino, 0);
 
     ret = ISO_SUCCESS;
 ex:;

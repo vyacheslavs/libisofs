@@ -115,6 +115,14 @@ struct iso_write_opts {
      */
     unsigned int rrip_version_1_10 :1;
 
+    /* ts A90509 */
+    /** Write field PX with file serial number even with RRIP-1.10 */
+    unsigned int rrip_1_10_px_ino :1;
+
+    /* ts A90508 */
+    /* See iso_write_opts_set_hardlinks() */
+    unsigned int hardlinks:1;
+
     /**
      * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
      * I.e. without announcing it by an ER field and thus without the need
@@ -269,7 +277,10 @@ struct ecma119_image
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
 
-    unsigned int aaip :1;  /* whether to write eventual ACLs and EAs */
+    /* ts A90508 */
+    unsigned int hardlinks:1; /* see iso_write_opts_set_hardlinks() */
+
+    unsigned int aaip :1;     /* see iso_write_opts_set_aaip() */
 
     /* allways write timestamps in GMT */
     unsigned int always_gmt :1;
@@ -290,6 +301,10 @@ struct ecma119_image
 
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;
+
+    /* ts A90509 */
+    /** Write field PX with file serial number even with RRIP-1.10 */
+    unsigned int rrip_1_10_px_ino :1;
 
     /* Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12. */
     unsigned int aaip_susp_1_10 :1;
@@ -318,6 +333,8 @@ struct ecma119_image
      */
     int sort_files;
 
+
+    /* ts A90508 : <<< this is on its way out */
     /**
      * In the CD, each file must have an unique inode number. So each
      * time we add a new file, this is incremented.

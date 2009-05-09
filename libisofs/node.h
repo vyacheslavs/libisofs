@@ -447,4 +447,13 @@ int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag);
  */
 int iso_node_set_ino(IsoNode *node, ino_t ino, int flag);
 
+/* ts A90508 */
+/*  
+ * @param flag 
+ *     bit0= compare stat properties and attributes
+ *     bit1= treat all nodes with image ino == 0 as unique
+ *           (those with 0,0,0 are treated as unique anyway)
+ */
+int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag);
+
 #endif /*LIBISO_NODE_H_*/

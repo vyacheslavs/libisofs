@@ -102,7 +102,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 
     PX[0] = 'P';
     PX[1] = 'X';
-    if (!t->rrip_version_1_10) {
+    if (t->rrip_1_10_px_ino || !t->rrip_version_1_10 ) {
         PX[2] = 44;
     } else {
         PX[2] = 36;
@@ -112,7 +112,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     iso_bb(&PX[12], n->nlink, 4);
     iso_bb(&PX[20], px_get_uid(t, n), 4);
     iso_bb(&PX[28], px_get_gid(t, n), 4);
-    if (!t->rrip_version_1_10) {
+    if (t->rrip_1_10_px_ino || !t->rrip_version_1_10) {
         iso_bb(&PX[36], n->ino, 4);
     }
 
@@ -1144,7 +1144,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
 #endif
 
     /* PX and TF, we are sure they always fit in SUA */
-    if (!t->rrip_version_1_10) {
+    if (t->rrip_1_10_px_ino || !t->rrip_version_1_10) {
         su_size += 44 + 26;
     } else {
         su_size += 36 + 26;

@@ -2420,3 +2420,140 @@ int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag)
     return ret;
 }
 
+/* ts A90508 */
+/*
+ * @param flag
+ *     bit0= compare stat properties and attributes 
+ *     bit1= treat all nodes with image ino == 0 as unique
+ */
+int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
+{
+    int ret1, ret2;
+    unsigned int fs_id1, fs_id2;
+    dev_t dev_id1, dev_id2;
+    ino_t ino_id1, ino_id2;
+    IsoFile *f1 = NULL, *f2 = NULL;
+    IsoSymlink *l1 = NULL, *l2 = NULL;
+    IsoSpecial *s1 = NULL, *s2 = NULL;
+    void *x1, *x2;
+
+    if (n1 == n2)
+        return 0;
+
+    /* Imported or explicite ISO image node id has absolute priority */
+    ret1 = (iso_node_get_id(n1, &fs_id1, &dev_id1, &ino_id1, 1) > 0);
+    ret2 = (iso_node_get_id(n2, &fs_id2, &dev_id2, &ino_id2, 1) > 0);
+    if (ret1 != ret2)
+        return (ret1 < ret2 ? -1 : 1);
+    if (ret1) {
+        /* fs_id and dev_id do not matter here.
+           Both nodes have explicit inode numbers of the emerging image.
+         */
+        if (ino_id1 != ino_id2)
+            return (ino_id1 < ino_id2 ? -1 : 1);
+        goto inode_match;
+    }
+    
+    if (n1->type != n2->type)
+        return (n1->type < n2->type ? -1 : 1);
+
+    if (n1->type == LIBISO_FILE) {
+
+        f1 = (IsoFile *) n1;
+        f2 = (IsoFile *) n2;
+        ret1 = iso_stream_cmp_ino(f1->stream, f2->stream, 0);
+        if (ret1)
+            return ret1;
+        goto inode_match;
+
+#ifdef Libisofs_hardlink_matcheR
+
+    } else if (n1->type == LIBISO_SYMLINK) {
+
+        l1 = (IsoSymlink *) n1;
+        l2 = (IsoSymlink *) n2;
+        fs_id1 = l1->fs_id;
+        dev_id1 = l1->st_dev;
+        ino_id1 = l1->st_ino;
+        fs_id2 = l2->fs_id;
+        dev_id2 = l2->st_dev;
+        ino_id2 = l2->st_ino;
+
+    } else if (n1->type == LIBISO_SPECIAL) {
+
+        s1 = (IsoSpecial *) n1;
+        s2 = (IsoSpecial *) n2;
+        fs_id1 = s1->fs_id;
+        dev_id1 = s1->st_dev;
+        ino_id1 = s1->st_ino;
+        fs_id2 = s2->fs_id;
+        dev_id2 = s2->st_dev;
+        ino_id2 = s2->st_ino;
+
+#endif /* Libisofs_hardlink_matcheR */
+
+    } else {
+        return (n1 < n2 ? -1 : 1); /* case n1 == n2 is handled above */
+    }
+    if (fs_id1 != fs_id2)
+        return (fs_id1 < fs_id2 ? -1 : 1);
+    if (dev_id1 != dev_id2)
+        return (dev_id1 < dev_id2 ? -1 : 1);
+    if (ino_id1 != ino_id2)
+        return (ino_id1 < ino_id2 ? -1 : 1);
+    if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0)
+        return (n1 < n2 ? -1 : 1);
+
+inode_match:;
+    if (flag & 2) {
+        iso_node_get_id(n1, &fs_id1, &dev_id1, &ino_id1, 1);
+        iso_node_get_id(n2, &fs_id2, &dev_id2, &ino_id2, 1);
+        if (ino_id1 == 0 || ino_id2 == 0)
+            return (n1 < n2 ? -1 : 1);
+    }
+
+    if (!(flag & 1))
+        return 0;
+    if (n1->type == LIBISO_SYMLINK) {
+        ret1 = strcmp(l1->dest, l2->dest);
+        if (ret1)
+            return ret1;
+    } else if (n1->type == LIBISO_SPECIAL) {
+        if (s1->dev != s2->dev)
+            return (s1->dev < s2->dev ? -1 : 1);
+    }
+
+    if (n1->mode != n2->mode)
+        return (n1->mode < n2->mode ? -1 : 1);
+    if (n1->uid != n2->uid)
+        return (n1->uid < n2->uid ? -1 : 1);
+    if (n1->gid != n2->gid)
+        return (n1->gid < n2->gid ? -1 : 1);
+    if (n1->atime != n2->atime)
+        return (n1->atime < n2->atime ? -1 : 1);
+    if (n1->mtime != n2->mtime)
+        return (n1->mtime < n2->mtime ? -1 : 1);
+    if (n1->ctime != n2->ctime)
+        return (n1->ctime < n2->ctime ? -1 : 1);
+
+    /* >>> compare xinfo */;
+    /* :( cannot compare general xinfo because data length is not known :( */
+
+    /* compare aa_string */
+    ret1 = iso_node_get_xinfo(n1, aaip_xinfo_func, &x1);
+    ret2 = iso_node_get_xinfo(n2, aaip_xinfo_func, &x2);
+    if (ret1 != ret2)
+        return (ret1 < ret2 ? -1 : 1);
+    if (ret1 == 1) {
+        ret1 = aaip_count_bytes((unsigned char *) x1, 0);
+        ret2 = aaip_count_bytes((unsigned char *) x2, 0);
+        if (ret1 != ret2)
+            return (ret1 < ret2 ? -1 : 1);
+        ret1 = memcmp(x1, x2, ret1);
+        if (ret1)
+            return ret1;
+    }
+
+    return 0;
+}
+
