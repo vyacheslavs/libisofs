@@ -759,8 +759,11 @@ typedef struct IsoStream_Iface IsoStreamIface;
 extern ino_t serial_id;
 
 /**
- * Interface definition for IsoStream methods.
- *
+ * Interface definition for IsoStream methods. It is public to allow
+ * implementation of own stream types.
+ * The methods defined here typically make use of stream.data which points
+ * to the individual state data of stream instances.
+ * 
  * @since 0.6.4
  */
 struct IsoStream_Iface
@@ -773,6 +776,8 @@ struct IsoStream_Iface
      *    update_size() added.
      * Version 2 (since 0.6.18)
      *    get_input_stream() added. A filter stream must have version 2.
+     * Version 3 (since 0.6.20)
+     *    compare() added. A filter stream should have version 3.
      */
     int version;
 
@@ -856,7 +861,6 @@ struct IsoStream_Iface
     void (*free)(IsoStream *stream);
 
     /**
-     * Present if .version is 1 or higher:
      * Updates the size of the IsoStream with the current size of the
      * underlying source. After calling this, get_size() will return
      * the new size. This should never be called after
@@ -869,23 +873,60 @@ struct IsoStream_Iface
      *     1 if ok, < 0 on error (has to be a valid libisofs error code)
      *
      * @since 0.6.8
+     * Present if .version is 1 or higher.
      */
     int (*update_size)(IsoStream *stream);
 
     /**
-     * Present if .version is 2 or higher:
      * Obtains the eventual input stream of a filter stream.
+     *
      * @param stream
-     *      The eventual filter stream to be inquired.
+     *     The eventual filter stream to be inquired.
      * @param flag
-     *      Bitfield for control purposes. Submit 0 for now.
+     *     Bitfield for control purposes. Submit 0 for now.
      * @return
-     *      The input stream, if one exists. Elsewise NULL.
-     *      No extra reference to the stream is taken by this call.
+     *     The input stream, if one exists. Elsewise NULL.
+     *     No extra reference to the stream is taken by this call.
      *
      * @since 0.6.18
+     * Present if .version is 2 or higher.
      */
     IsoStream *(*get_input_stream)(IsoStream *stream, int flag);
+
+    /* ts A90511 */
+    /**
+     * Compare two streams whether they are based on the same input and will
+     * produce the same output. If in any doubt, then this comparison should
+     * indicate no match. A match might allow hardlinking of IsoFile objects.
+     * This function has to establish an equivalence and order relation: 
+     *   A = A, if A = B then B = A, if A = B and B = C then A = C,
+     *   if A < B then not B < A, if A < B and B < C then A < C
+     *
+     * A function s1.(*cmp_ino)() must only accept stream s2 if function
+     * s2.(*cmp_ino)() would accept s1. Best is to accept only the own stream
+     * type or to have the same function for a family of similar stream types.
+     *
+     * If the function cannot accept one of the given stream types, then
+     * the decision must be delegated to
+     *    iso_stream_cmp_ino(s1, s2, 1);
+     * This is also appropriate if one has reason to implement stream.cmp_ino()
+     * without special comparison algorithm.
+     * With filter streams the decision whether the underlying chains of
+     * streams match should be delegated to
+     *    iso_stream_cmp_ino(iso_stream_get_input_stream(s1, 0),
+     *                       iso_stream_get_input_stream(s2, 0), 0);
+     *
+     * @param s1
+     *     The first stream to compare. Expect foreign stream types.
+     * @param s2
+     *     The second stream to compare. Expect foreign stream types.
+     * @return
+     *     -1 if s1 is smaller s2 , 0 if s1 matches s2 , 1 if s1 is larger s2
+     *
+     * @since 0.6.20
+     * Present if .version is 3 or higher.
+     */
+    int (*cmp_ino)(IsoStream *s1, IsoStream *s2);
 
 };
 
@@ -4162,6 +4203,26 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
  */
 char *iso_stream_get_source_path(IsoStream *stream, int flag);
 
+/* ts A90502 */
+/**
+ * Compare two streams whether they are based on the same input and will
+ * produce the same output. If in any doubt, then this comparison will
+ * indicate no match.
+ *
+ * @param s1
+ *     The first stream to compare.
+ * @param s2
+ *     The second stream to compare.
+ * @return
+ *     -1 if s1 is smaller s2 , 0 if s1 matches s2 , 1 if s1 is larger s2
+ * @param flag
+ *     bit0= do not use s1->class->compare() even if available
+ *           (e.g. because iso_stream_cmp_ino(0 is called as fallback
+ *            from said stream->class->compare())
+ *
+ * @since 0.6.20
+ */
+int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag);
 
 /* --------------------------------- AAIP --------------------------------- */
 

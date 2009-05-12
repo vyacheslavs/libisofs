@@ -775,8 +775,12 @@ IsoStream *ziso_get_input_stream(IsoStream *stream, int flag)
 }
 
 
+static
+int ziso_cmp_ino(IsoStream *s1, IsoStream *s2);
+
+
 IsoStreamIface ziso_stream_compress_class = {
-    2,
+    3,
     "ziso",
     ziso_stream_open,
     ziso_stream_close,
@@ -786,12 +790,13 @@ IsoStreamIface ziso_stream_compress_class = {
     ziso_stream_get_id,
     ziso_stream_free,
     ziso_update_size,
-    ziso_get_input_stream
+    ziso_get_input_stream,
+    ziso_cmp_ino
 };
 
 
 IsoStreamIface ziso_stream_uncompress_class = {
-    2,
+    3,
     "osiz",
     ziso_stream_open,
     ziso_stream_close,
@@ -801,8 +806,23 @@ IsoStreamIface ziso_stream_uncompress_class = {
     ziso_stream_get_id,
     ziso_stream_free,
     ziso_update_size,
-    ziso_get_input_stream
+    ziso_get_input_stream,
+    ziso_cmp_ino
 };
+
+
+static
+int ziso_cmp_ino(IsoStream *s1, IsoStream *s2)
+{
+    if (s1->class != s2->class || (s1->class != &ziso_stream_compress_class &&
+                                   s2->class != &ziso_stream_uncompress_class))
+        iso_stream_cmp_ino(s1, s2, 1);
+    return iso_stream_cmp_ino(iso_stream_get_input_stream(s1, 0),
+                              iso_stream_get_input_stream(s2, 0), 0);
+}
+
+
+/* ------------------------------------------------------------------------- */
 
 
 static

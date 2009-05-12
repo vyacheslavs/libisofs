@@ -82,8 +82,5 @@ int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
  */
 int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag);
 
-/* ts A90502 */
-/* The former core of iso_file_src_cmp() */
-int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag);
 
 #endif /*STREAM_H_*/

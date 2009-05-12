@@ -521,8 +521,12 @@ IsoStream *gzip_get_input_stream(IsoStream *stream, int flag)
 }
 
 
+static
+int gzip_cmp_ino(IsoStream *s1, IsoStream *s2);
+
+
 IsoStreamIface gzip_stream_compress_class = {
-    2,
+    3,
     "gzip",
     gzip_stream_open,
     gzip_stream_close,
@@ -532,12 +536,13 @@ IsoStreamIface gzip_stream_compress_class = {
     gzip_stream_get_id,
     gzip_stream_free,
     gzip_update_size,
-    gzip_get_input_stream
+    gzip_get_input_stream,
+    gzip_cmp_ino
 };
 
 
 IsoStreamIface gzip_stream_uncompress_class = {
-    2,
+    3,
     "pizg",
     gzip_stream_open,
     gzip_stream_close,
@@ -547,8 +552,23 @@ IsoStreamIface gzip_stream_uncompress_class = {
     gzip_stream_get_id,
     gzip_stream_free,
     gzip_update_size,
-    gzip_get_input_stream
+    gzip_get_input_stream,
+    gzip_cmp_ino
 };
+
+    
+static
+int gzip_cmp_ino(IsoStream *s1, IsoStream *s2)
+{
+    if (s1->class != s2->class || (s1->class != &gzip_stream_compress_class &&
+                                   s2->class != &gzip_stream_compress_class))
+        return iso_stream_cmp_ino(s1, s2, 1);
+    return iso_stream_cmp_ino(iso_stream_get_input_stream(s1, 0),
+                              iso_stream_get_input_stream(s2, 0), 0);
+}   
+
+
+/* ------------------------------------------------------------------------- */
 
 
 static

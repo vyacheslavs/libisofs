@@ -728,10 +728,11 @@ int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
    return 0;
 }
 
-/* ts A90502 */
-/* The former core of iso_file_src_cmp() */
+/* ts A90511 */
+/* API */ 
 int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
 {
+    int ret;
     unsigned int fs_id1, fs_id2;
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
@@ -741,9 +742,19 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     static int report_counter = 0;
     static int debug = 1;
 
-    if (s1 == s2) {
+    if (s1 == s2)
         return 0;
+    if (s1 == NULL)
+        return -1;
+    if (s2 == NULL)
+        return 1;
+
+    if (s1->class->version >= 3 && !(flag & 1)) {
+       /* Filters may have smarter methods to compare themselves with others */
+       ret = s1->class->cmp_ino(s1, s2);
+       return ret;
     }
+
     iso_stream_get_id(s1, &fs_id1, &dev_id1, &ino_id1);
     iso_stream_get_id(s2, &fs_id2, &dev_id2, &ino_id2);
     if (fs_id1 < fs_id2) {

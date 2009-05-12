@@ -594,8 +594,13 @@ IsoStream *extf_get_input_stream(IsoStream *stream, int flag)
 }
 
 
+static
+int extf_cmp_ino(IsoStream *s1, IsoStream *s2);
+/* Function is defined after definition of extf_stream_class */
+
+
 IsoStreamIface extf_stream_class = {
-    2,
+    3,
     "extf",
     extf_stream_open,
     extf_stream_close,
@@ -605,9 +610,27 @@ IsoStreamIface extf_stream_class = {
     extf_stream_get_id,
     extf_stream_free,
     extf_update_size,
-    extf_get_input_stream
+    extf_get_input_stream,
+    extf_cmp_ino
 };
 
+
+static
+int extf_cmp_ino(IsoStream *s1, IsoStream *s2)
+{
+    ExternalFilterStreamData *data1, *data2;
+
+    if (s1->class != &extf_stream_class || s2->class != &extf_stream_class)
+        return iso_stream_cmp_ino(s1, s2, 1);
+    data1 = (ExternalFilterStreamData*) s1->data;
+    data2 = (ExternalFilterStreamData*) s2->data;
+    if (data1->cmd != data2->cmd)
+        return (data1->cmd < data2->cmd ? -1 : 1);
+    return iso_stream_cmp_ino(data1->orig, data2->orig, 0);
+}
+
+
+/* ------------------------------------------------------------------------- */
 
 static
 void extf_filter_free(FilterContext *filter)
