@@ -2232,7 +2232,7 @@ void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors);
 void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
 
 /**
- * Specifies that this image needs to be patched. This involves the writting
+ * Specifies that this image needs to be patched. This involves the writing
  * of a 56 bytes boot information table at offset 8 of the boot image file.
  * The original boot image file won't be modified.
  * This is needed for isolinux boot images.
@@ -2511,6 +2511,23 @@ time_t iso_node_get_ctime(const IsoNode *node);
  * @since 0.6.2
  */
 void iso_node_set_hidden(IsoNode *node, int hide_attrs);
+
+/* ts A90516 */
+/**
+ * Compare two nodes whether they are based on the same input and
+ * can be considered as hardlinks to the same file objects.
+ *
+ * @param n1
+ *     The first node to compare.
+ * @param n2
+ *     The second node to compare.
+ * @return
+ *     -1 if s1 is smaller s2 , 0 if s1 matches s2 , 1 if s1 is larger s2
+ * @param flag
+ *     Bitfield for control purposes, unused yet, submit 0
+ * @since 0.6.20
+ */
+int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag);
 
 /**
  * Add a new node to a dir. Note that this function don't add a new ref to

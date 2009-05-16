@@ -2313,6 +2313,7 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
         *fs_id = symlink->fs_id;
         *dev_id = symlink->st_dev;
         *ino_id = symlink->st_ino;
+        return 1;
 
     } else if (node->type == LIBISO_SPECIAL) {
         special = (IsoSpecial *) node;
@@ -2323,11 +2324,11 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
         *fs_id = special->fs_id;
         *dev_id = special->st_dev;
         *ino_id = special->st_ino;
+        return 1;
 
 #endif
 
     }
-
 
     ret = 0;
 no_id:;
@@ -2515,10 +2516,14 @@ inode_match:;
     if (!(flag & 1))
         return 0;
     if (n1->type == LIBISO_SYMLINK) {
+        l1 = (IsoSymlink *) n1;
+        l2 = (IsoSymlink *) n2;
         ret1 = strcmp(l1->dest, l2->dest);
         if (ret1)
             return ret1;
     } else if (n1->type == LIBISO_SPECIAL) {
+        s1 = (IsoSpecial *) n1;
+        s2 = (IsoSpecial *) n2;
         if (s1->dev != s2->dev)
             return (s1->dev < s2->dev ? -1 : 1);
     }
@@ -2557,3 +2562,9 @@ inode_match:;
     return 0;
 }
 
+/* ts A90516 */
+/* API */
+int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag)
+{
+    return iso_node_cmp_flag(n1, n2, 1 | 2);
+}
