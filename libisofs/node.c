@@ -2423,6 +2423,16 @@ int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag)
 
 /* ts A90508 */
 /*
+ * Note to programmers: It is crucial not to break the following constraints.
+ * Anti-symmetry: cmp(X,Y) == - cmp(Y,X)
+ * Transitivity : if cmp(A,B) < 0 && cmp(B,C) < 0 then cmp(A,C) < 0
+ *                if cmp(A,B) == 0 && cmp(B,C) == 0 then cmp(A,C) == 0
+ * A big transitivity hazard are tests which do not apply to some nodes.
+ * In this case for any A that is applicable and any B that is not applicable
+ * the comparison must have the same non-zero result. I.e. a pair of applicable
+ * and non-applicable node must return that non-zero result before the test
+ * for a pair of applicable nodes would happen.
+ * 
  * @param flag
  *     bit0= compare stat properties and attributes 
  *     bit1= treat all nodes with image ino == 0 as unique
@@ -2440,8 +2450,10 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
 
     if (n1 == n2)
         return 0;
+    if (n1->type != n2->type)
+        return (n1->type < n2->type ? -1 : 1);
 
-    /* Imported or explicite ISO image node id has absolute priority */
+    /* Imported or explicite ISO image node id has priority */
     ret1 = (iso_node_get_id(n1, &fs_id1, &dev_id1, &ino_id1, 1) > 0);
     ret2 = (iso_node_get_id(n2, &fs_id2, &dev_id2, &ino_id2, 1) > 0);
     if (ret1 != ret2)
@@ -2452,11 +2464,10 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
          */
         if (ino_id1 != ino_id2)
             return (ino_id1 < ino_id2 ? -1 : 1);
-        goto inode_match;
+        if (ino_id1 == 0) /* Image ino 0 is always unique */
+            return (n1 < n2 ? -1 : 1);
+        goto image_inode_match;
     }
-    
-    if (n1->type != n2->type)
-        return (n1->type < n2->type ? -1 : 1);
 
     if (n1->type == LIBISO_FILE) {
 
@@ -2506,12 +2517,15 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
         return (n1 < n2 ? -1 : 1);
 
 inode_match:;
+
     if (flag & 2) {
-        iso_node_get_id(n1, &fs_id1, &dev_id1, &ino_id1, 1);
-        iso_node_get_id(n2, &fs_id2, &dev_id2, &ino_id2, 1);
-        if (ino_id1 == 0 || ino_id2 == 0)
-            return (n1 < n2 ? -1 : 1);
+        /* What comes here has no predefined image ino resp. image_ino == 0 .
+           Regard this as not equal.
+        */
+        return (n1 < n2 ? -1 : 1);
     }
+
+image_inode_match:;
 
     if (!(flag & 1))
         return 0;
@@ -2566,5 +2580,5 @@ inode_match:;
 /* API */
 int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag)
 {
-    return iso_node_cmp_flag(n1, n2, 1 | 2);
+    return iso_node_cmp_flag(n1, n2, 1);
 }

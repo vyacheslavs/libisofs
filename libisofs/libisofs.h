@@ -898,9 +898,19 @@ struct IsoStream_Iface
      * Compare two streams whether they are based on the same input and will
      * produce the same output. If in any doubt, then this comparison should
      * indicate no match. A match might allow hardlinking of IsoFile objects.
+     *
      * This function has to establish an equivalence and order relation: 
-     *   A = A, if A = B then B = A, if A = B and B = C then A = C,
-     *   if A < B then not B < A, if A < B and B < C then A < C
+     *   cmp_ino(A,A) == 0
+     *   cmp_ino(A,B) == -cmp_ino(B,A) 
+     *   if cmp_ino(A,B) == 0 && cmp_ino(B,C) == 0 then cmp_ino(A,C) == 0
+     *   if cmp_ino(A,B) < 0 && cmp_ino(B,C) < 0 then cmp_ino(A,C) < 0
+     *
+     * A big hazard to the last constraint are tests which do not apply to some 
+     * types of streams. In this case for any A that is applicable and any B
+     * that is not applicable, cmp_ino(A,B) must have the same non-zero
+     * result. I.e. a pair of applicable and non-applicable streams must
+     * return that non-zero result before the test for a pair of applicable
+     * streams would happen.
      *
      * A function s1.(*cmp_ino)() must only accept stream s2 if function
      * s2.(*cmp_ino)() would accept s1. Best is to accept only the own stream
@@ -2494,7 +2504,7 @@ time_t iso_node_get_ctime(const IsoNode *node);
 /**
  * Set if the node will be hidden in RR/ISO tree, Joliet tree or both.
  *
- * If the file is setted as hidden in one tree, it won't be included there, so
+ * If the file is set as hidden in one tree, it won't be included there, so
  * it won't be visible in a OS accessing CD using that tree. For example,
  * GNU/Linux systems access to Rock Ridge / ISO9960 tree in order to see
  * what is recorded on CD, while MS Windows make use of the Joliet tree. If a
