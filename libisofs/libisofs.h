@@ -2640,7 +2640,7 @@ int iso_node_remove(IsoNode *node);
  * If node is the root node, the same node will be returned as its parent.
  *
  * This returns NULL if the node doesn't pertain to any tree
- * (it was removed/take).
+ * (it was removed/taken).
  *
  * @since 0.6.2
  */

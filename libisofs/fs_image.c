@@ -3510,3 +3510,30 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
     }
     return 0;
 }
+
+/* ts A90524 */
+/* Rank two IsoFileSource by their eventual old image LBAs.
+   Other IsoFileSource classes will be ranked only roughly.
+*/
+int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int flag)
+{
+    int i;
+    ImageFileSourceData *d1, *d2;
+
+    if (s1->class != s2->class)
+        return (s1->class < s2->class ? -1 : 1);
+    if (s1->class != &ifs_class)
+        return(0);
+
+    d1= s1->data;
+    d2= s2->data;
+    for (i = 0; i < d1->nsections; i++) {
+        if (i >= d2->nsections)
+            return 1;
+        if (d1->sections[i].block != d2->sections[i].block)
+            return (d1->sections[i].block < d2->sections[i].block ? -1 : 1);
+        if (d1->sections[i].size != d2->sections[i].size)
+            return (d1->sections[i].size < d2->sections[i].size ? -1 : 1);
+    }
+    return(0);
+}

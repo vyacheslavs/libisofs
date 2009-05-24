@@ -30,4 +30,11 @@
  */
 int iso_local_filesystem_new(IsoFilesystem **fs);
 
+
+/* ts A90524 */
+/* Rank two IsoFileSource by their eventual old image LBAs.
+   Other IsoFileSource classes will be ranked only roughly.
+*/
+int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int flag);
+
 #endif /*LIBISO_FSOURCE_H_*/

@@ -737,6 +737,7 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
     off_t size1, size2;
+    FSrcStreamData *fssd1, *fssd2;
 
     /* <<< */
     static int report_counter = 0;
@@ -800,6 +801,17 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
         }
 
         return 1;
+    }
+
+    if (s1->class != s2->class)
+        return (s1->class < s2->class ? -1 : 1);
+    if (s1->class == &fsrc_stream_class) {
+        /* Compare eventual image data section LBA and sizes */
+        fssd1= (FSrcStreamData *) s1->data;
+        fssd2= (FSrcStreamData *) s2->data;
+        ret = iso_ifs_sections_cmp(fssd1->src, fssd2->src, 0);
+        if (ret != 0)
+            return ret;
     }
 
 #ifdef Libisofs_hardlink_matcheR
