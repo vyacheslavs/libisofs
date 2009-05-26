@@ -128,13 +128,7 @@ size_t aaip_encode(size_t num_attrs, char **names,
  /* write the field headers */
  for(i= 0; i < number_of_fields; i++) {
    (*result)[i * 255 + 0]= 'A';
-
-#ifdef Libisofs_aaip_2_0
    (*result)[i * 255 + 1]= 'L';
-#else /* Libisofs_aaip_2_0 */
-   (*result)[i * 255 + 1]= 'A';
-#endif /* ! Libisofs_aaip_2_0 */
-
    if(i < number_of_fields - 1 || (mem_size % 255) == 0)
      (*result)[i * 255 + 2]= 255;
    else 
@@ -1186,16 +1180,9 @@ static int aaip_consume_aa_head(struct aaip_state *aaip,
  aaip->aa_head_missing-= todo;
  if(aaip->aa_head_missing == 0) {
    aaip_read_from_recs(aaip, aaip->recs_fill - 5, aa_head, 5, 0);
-
-#ifdef Libisofs_aaip_2_0
    if(aa_head[0] != 'A' || (aa_head[1] != 'L' && aa_head[1] != 'A') ||
       aa_head[3] != 1)
      return(-1);
-#else /* Libisofs_aaip_2_0 */
-   if(aa_head[0] != 'A' || aa_head[1] != 'A' || aa_head[3] != 1)
-     return(-1);
-#endif /* ! Libisofs_aaip_2_0 */
-
    aaip->aa_missing= aa_head[2];
    aaip->aa_ends= !(aa_head[4] & 1);
    aaip->recs_fill-= 5; /* AAIP field heads do not get delivered */

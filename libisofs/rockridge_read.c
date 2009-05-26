@@ -496,26 +496,14 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
      aapt = *aa_string + *aa_len;
 
      aapt[0] = 'A';
-
-#ifdef Libisofs_aaip_2_0
      aapt[1] = 'L';
-#else /* Libisofs_aaip_2_0 */
-     aapt[1] = 'A';
-#endif /* ! Libisofs_aaip_2_0 */
-
      aapt[2] = sue->len_sue[0];
      aapt[3] = 1;
      aapt[4] = 0;
-     /* Append sue payload */
 
-#ifdef Libisofs_aaip_2_0
+     /* Append sue payload */
      memcpy(aapt + 5, sue->data.AL.comps, sue->len_sue[0] - 5);
      *is_done = !(sue->data.AL.flags[0] & 1);
-#else /* Libisofs_aaip_2_0 */
-     memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0] - 5);
-     *is_done = !(sue->data.AA.flags[0] & 1);
-#endif /* ! Libisofs_aaip_2_0 */
-
      *aa_len += sue->len_sue[0];
 
      return ISO_SUCCESS;
@@ -558,26 +546,14 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
      aapt = *aa_string + *aa_len;
 
      aapt[0] = 'A';
-
-#ifdef Libisofs_aaip_2_0
      aapt[1] = 'L';
-#else /* Libisofs_aaip_2_0 */
-     aapt[1] = 'A';
-#endif /* ! Libisofs_aaip_2_0 */
-
      aapt[2] = sue->len_sue[0];
      aapt[3] = 1;
      aapt[4] = 0;
-     /* Append sue payload */
 
-#ifdef Libisofs_aaip_2_0
+     /* Append sue payload */
      memcpy(aapt + 5, sue->data.AL.comps, sue->len_sue[0] - 5);
      *is_done = !(sue->data.AL.flags[0] & 1);
-#else /* Libisofs_aaip_2_0 */
-     memcpy(aapt + 5, sue->data.AA.comps, sue->len_sue[0] - 5);
-     *is_done = !(sue->data.AA.flags[0] & 1);
-#endif /* ! Libisofs_aaip_2_0 */
-
      *aa_len += sue->len_sue[0];
 
      return ISO_SUCCESS;

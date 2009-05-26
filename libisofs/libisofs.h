@@ -5419,11 +5419,7 @@ struct burn_source {
 
 /* ---------------------------- Improvements --------------------------- */
 
-
-/* Protocol Upgrade : change to AAIP-2.0 with field signature "AL"
-*/
-#define Libisofs_aaip_2_0 yes
-
+/* currently none being tested */
 
 /* ---------------------------- Experiments ---------------------------- */
 
