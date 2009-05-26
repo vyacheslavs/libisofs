@@ -1691,20 +1691,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
          * to generate those serial numbers, and we use extend block instead.
          * It BREAKS POSIX SEMANTICS, but its suitable for our needs
          */
-
-#ifndef Libisofs_ino_from_lbA
-#define Libisofs_patch_ticket_144 yes
-#endif
-#ifdef Libisofs_patch_ticket_144
-
         atts.st_ino = fs_give_ino_number(fs, 0);
-
-#else
-        /* Ticket 144: This produces duplicate numbers with empty files.
-        */
-        atts.st_ino = (ino_t) iso_read_bb(record->block, 4, NULL);
-#endif /* ! Libisofs_patch_ticket_144 */
-
         if (fsdata->rr == 0) {
             atts.st_nlink = 1;
         }

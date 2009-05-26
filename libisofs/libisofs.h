@@ -5455,16 +5455,6 @@ struct burn_source {
 #define Libisofs_new_fs_image_inO yes
 
 
-
-/* Experiment: Revoke Ticket 144, use data file LBAs again.
-               (will work only if not Libisofs_new_fs_image_inO)
-
-  <<< Overridden if Libisofs_hardlink_prooF is defined.
-
- #define Libisofs_ino_from_lbA yes
-*/
-
-
 /* Experiment: Write obsolete RR entries with Rock Ridge.
                I suspect Solaris wants to see them.
                DID NOT HELP: Solaris knows only RRIP_1991A.
