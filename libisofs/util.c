@@ -32,9 +32,6 @@
 #endif
 
 
-#ifdef Libisofs_with_iso_iconV
-
-
 /* Produce possibly inflationary error messages directly to stderr */
 static int iso_iconv_debug = 0;
 
@@ -141,8 +138,6 @@ int iso_iconv_close(struct iso_iconv_handle *handle, int flag)
     return ret;
 }
 
-#endif /* Libisofs_with_iso_iconV */
-
 
 int int_pow(int base, int power)
 {
@@ -183,13 +178,8 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     size_t inbytes;
     size_t outbytes;
     size_t n;
-
-#ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
     int conv_ret;
-#else
-    iconv_t conv;
-#endif
 
     char *out = NULL;
     char *src;
@@ -204,43 +194,22 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
         goto ex;
     }
 
-#ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, (char *) ocharset, (char *) icharset, 0);
     if (conv_ret <= 0) {
-#else
-    conv = iconv_open(ocharset, icharset);
-    if (conv == (iconv_t)(-1)) {
-#endif
-
         retval = ISO_CHARSET_CONV_ERROR;
         goto ex;
     }
-
     src = (char *)str;
     ret = (char *)out;
-
-#ifdef Libisofs_with_iso_iconV
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
     if (n == -1) {
         /* error */
         iso_iconv_close(&conv, 0);
-#else
-    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-    if (n == -1) {
-        /* error */
-        iconv_close(conv);
-#endif
-
         retval = ISO_CHARSET_CONV_ERROR;
         goto ex;
     }
     *ret = '\0';
-
-#ifdef Libisofs_with_iso_iconV
     iso_iconv_close(&conv, 0);
-#else
-    iconv_close(conv);
-#endif
 
     *output = malloc(ret - out + 1);
     if (*output == NULL) {
@@ -261,14 +230,8 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
     size_t inbytes;
     size_t outbytes;
     size_t n;
-
-#ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
     int conv_ret;
-#else
-    iconv_t conv;
-#endif
-
     char *out = NULL;
     char *src;
     char *ret;
@@ -281,43 +244,22 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
         retval = ISO_OUT_OF_MEM;
         goto ex;
     }
-
-#ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, (char *) ocharset, (char *) icharset, 0);
     if (conv_ret <= 0) {
-#else
-    conv = iconv_open(ocharset, icharset);
-    if (conv == (iconv_t)(-1)) {
-#endif
-
         retval = ISO_CHARSET_CONV_ERROR;
         goto ex;
     }
     src = (char *)str;
     ret = (char *)out;
-
-#ifdef Libisofs_with_iso_iconV
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
     if (n == -1) {
         /* error */
         iso_iconv_close(&conv, 0);
-#else
-    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-    if (n == -1) {
-        /* error */
-        iconv_close(conv);
-#endif
-
         retval = ISO_CHARSET_CONV_ERROR;
         goto ex;
     }
     *ret = '\0';
-
-#ifdef Libisofs_with_iso_iconV
     iso_iconv_close(&conv, 0);
-#else
-    iconv_close(conv);
-#endif
 
     *output = malloc(ret - out + 1);
     if (*output == NULL) {
@@ -342,13 +284,8 @@ ex:;
 static
 int str2wchar(const char *icharset, const char *input, wchar_t **output)
 {
-    
-#ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
     int conv_ret;
-#else
-    iconv_t conv;
-#endif
 
     /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
@@ -364,15 +301,8 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
         return ISO_NULL_POINTER;
     }
 
-
-#ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, "WCHAR_T", (char *) icharset, 0);
     if (conv_ret <= 0) {
-#else
-    conv = iconv_open("WCHAR_T", icharset);
-    if (conv == (iconv_t)-1) {
-#endif
-
         return ISO_CHARSET_CONV_ERROR;
     }
 
@@ -388,13 +318,7 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
     ret = (char *)wstr;
     src = (char *)input;
 
-
-#ifdef Libisofs_with_iso_iconV
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-#else
-    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-#endif
-
     while (n == -1) {
 
         if (errno == E2BIG) {
@@ -424,34 +348,16 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
             loop_counter++;
             if (loop_counter > loop_limit)
                 goto conv_error;
-
-#ifdef Libisofs_with_iso_iconV
             n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-#else
-            n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-#endif
-
         }
     }
-
-#ifdef Libisofs_with_iso_iconV
     iso_iconv_close(&conv, 0);
-#else
-    iconv_close(conv);
-#endif
-
     *( (wchar_t *)ret )='\0';
     *output = wstr;
     return ISO_SUCCESS;
 
 conv_error:;
-
-#ifdef Libisofs_with_iso_iconV
     iso_iconv_close(&conv, 0);
-#else
-    iconv_close(conv);
-#endif
-
     free(wstr);
     return ISO_CHARSET_CONV_ERROR;
 }
@@ -463,13 +369,8 @@ int str2ascii(const char *icharset, const char *input, char **output)
     char *ret;
     char *ret_;
     char *src;
-    
-#ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
     int conv_ret;
-#else
-    iconv_t conv;
-#endif
 
     /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
@@ -509,27 +410,14 @@ int str2ascii(const char *icharset, const char *input, char **output)
     ret = ret_;
 
     /* initialize iconv */
-
-#ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, "ASCII", "WCHAR_T", 0);
     if (conv_ret <= 0) {
-#else
-    conv = iconv_open("ASCII", "WCHAR_T");
-    if (conv == (iconv_t)-1) {
-#endif
-
         free(wsrc_);
         free(ret_);
         goto fallback;
     }
 
-
-#ifdef Libisofs_with_iso_iconV
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-#else
-    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-#endif
-
     while (n == -1) {
         /* The destination buffer is too small. Stops here. */
         if (errno == E2BIG)
@@ -563,21 +451,9 @@ int str2ascii(const char *icharset, const char *input, char **output)
         loop_counter++;
         if (loop_counter > loop_limit)
             break;
-
-#ifdef Libisofs_with_iso_iconV
         n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-#else
-        n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-#endif
-
     }
-
-#ifdef Libisofs_with_iso_iconV
     iso_iconv_close(&conv, 0);
-#else
-    iconv_close(conv);
-#endif
-
     *ret='\0';
     free(wsrc_);
 
@@ -628,13 +504,8 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     char *src;
     char *ret;
     char *ret_;
-
-#ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
     int conv_ret;
-#else
-    iconv_t conv;
-#endif
     
     /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
@@ -670,27 +541,14 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     ret = ret_;
 
     /* initialize iconv */
-
-#ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, "UCS-2BE", "WCHAR_T", 0);
     if (conv_ret <= 0) {
-#else
-    conv = iconv_open("UCS-2BE", "WCHAR_T");
-    if (conv == (iconv_t)-1) {
-#endif
-
         free(wsrc_);
         free(ret_);
         return ISO_CHARSET_CONV_ERROR;
     }
 
-
-#ifdef Libisofs_with_iso_iconV
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-#else
-    n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-#endif
-
     while (n == -1) {
         /* The destination buffer is too small. Stops here. */
         if (errno == E2BIG)
@@ -724,20 +582,9 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
         loop_counter++;
         if (loop_counter > loop_limit)
             break;
-
-#ifdef Libisofs_with_iso_iconV
         n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-#else
-        n = iconv(conv, &src, &inbytes, &ret, &outbytes);
-#endif
-
     }
-
-#ifdef Libisofs_with_iso_iconV
     iso_iconv_close(&conv, 0);
-#else
-    iconv_close(conv);
-#endif
 
     /* close the ucs string */
     set_ucsbe((uint16_t*) ret, '\0');
@@ -1566,14 +1413,8 @@ char *ucs2str(const char *buf, size_t len)
 {
     size_t outbytes, inbytes;
     char *str, *src, *out = NULL, *retval = NULL;
-
-#ifdef Libisofs_with_iso_iconV
     struct iso_iconv_handle conv;
     int conv_ret;
-#else
-    iconv_t conv;
-#endif
-
     size_t n;
     
     inbytes = len;
@@ -1584,29 +1425,15 @@ char *ucs2str(const char *buf, size_t len)
     out = calloc(outbytes, 1);
 
     /* convert to local charset */
-
-#ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, iso_get_local_charset(0), "UCS-2BE", 0);
     if (conv_ret <= 0) {
-#else
-    conv = iconv_open(iso_get_local_charset(0), "UCS-2BE");
-    if (conv == (iconv_t)(-1)) {
-#endif
-
         goto ex;
     }
     src = (char *)buf;
     str = (char *)out;
 
-    
-#ifdef Libisofs_with_iso_iconV
     n = iso_iconv(&conv, &src, &inbytes, &str, &outbytes, 0);
     iso_iconv_close(&conv, 0);
-#else
-    n = iconv(conv, &src, &inbytes, &str, &outbytes);
-    iconv_close(conv);
-#endif
-
     if (n == -1) {
         /* error */
         goto ex;

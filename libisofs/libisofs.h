@@ -5425,14 +5425,6 @@ struct burn_source {
 #define Libisofs_aaip_2_0 yes
 
 
-/* Encapsulation : Use iso_iconv*() wrappers.
-                   They can print errno messages and they
-                   can avoid iconv() if the identical mapping is desired.
-                   One could install own simple conversion capabilities.
-*/
-#define Libisofs_with_iso_iconV yes
-
-
 /* ---------------------------- Experiments ---------------------------- */
 
 /* Hardlinks : During image generation accompany the tree of IsoFileSrc
