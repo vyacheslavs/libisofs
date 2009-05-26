@@ -2340,13 +2340,6 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->inode_counter = 0;
     data->px_ino_status = 0;
 
-#ifndef Libisofs_setlocale_in_iniT
-    /* ??? ts Nov 25 2008 :
-       Shouldn't this go to library initialization or even to app ?
-    */
-    setlocale(LC_CTYPE, "");
-#endif
-
     data->local_charset = strdup(iso_get_local_charset(0));
     if (data->local_charset == NULL) {
         ret = ISO_OUT_OF_MEM;

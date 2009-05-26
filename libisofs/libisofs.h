@@ -5420,11 +5420,6 @@ struct burn_source {
 /* ---------------------------- Improvements --------------------------- */
 
 
-/* Cleanup : make call setlocale() at init time resp. never
-*/
-#define Libisofs_setlocale_in_iniT yes
-
-
 /* Protocol Upgrade : change to AAIP-2.0 with field signature "AL"
 */
 #define Libisofs_aaip_2_0 yes

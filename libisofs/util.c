@@ -1585,13 +1585,6 @@ char *ucs2str(const char *buf, size_t len)
 
     /* convert to local charset */
 
-#ifndef Libisofs_setlocale_in_iniT
-    /* ??? ts Nov 25 2008 :
-       Shouldn't this go to library initialization or even to app ?
-    */
-    setlocale(LC_CTYPE, "");
-#endif
-
 #ifdef Libisofs_with_iso_iconV
     conv_ret = iso_iconv_open(&conv, iso_get_local_charset(0), "UCS-2BE", 0);
     if (conv_ret <= 0) {
