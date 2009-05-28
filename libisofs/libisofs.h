@@ -5434,9 +5434,6 @@ struct burn_source {
                on it. On the other hand, the Ecma119Node array includes objects
                which have no IsoFileSrc attached. So both, tree and array, are
                needed.
-
-               ! VERY EXPERIMENTAL ! DO NOT USE YET !
-
 */
 #define Libisofs_hardlink_matcheR yes
 
