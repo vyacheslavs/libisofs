@@ -198,11 +198,6 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
                 }
             }
 
-            /* ts A90424 : Maybe one can try again to introduce an id
-                           tuple which is not considered equal to itself
-                           by the compare test.
-                           The last attempt caused a loop here.
-            */
             if (q->data == data) {
                 comp = 0;
             } else {

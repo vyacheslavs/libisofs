@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -713,7 +714,6 @@ ex:;
     return path;
 }
 
-/* ts A90427 */
 /* @return 1 = ok , 0 = not an ISO image stream , <0 = error */
 int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
 {
@@ -728,7 +728,6 @@ int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
    return 0;
 }
 
-/* ts A90511 */
 /* API */ 
 int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
 {

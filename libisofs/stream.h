@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -74,7 +75,6 @@ int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
                           int *block_size_log2, uint32_t *uncompressed_size,
                           int flag);
 
-/* ts A90427 */
 /**
  * Set the inode number of a stream that is based on FSrcStreamData, i.e.
  * stems from the imported ISO image.

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -130,7 +131,6 @@ struct Iso_Image
     void *user_data;
     void (*user_data_free)(void *ptr);
 
-    /* ts A90427 */
     /**
      * Inode number management. inode_counter is taken over from
      * IsoImageFilesystem._ImageFsData after image import.
@@ -152,14 +152,12 @@ struct Iso_Image
 
 
     
-/* ts A90428 */
 /* Collect the bitmap of used inode numbers in the range of
    _ImageFsData.used_inodes_start + ISO_USED_INODE_RANGE
    @param flag bit0= recursion is active
 */
 int img_collect_inos(IsoImage *image, IsoDir *dir, int flag);
 
-/* ts A90428 */
 /**
  * A global counter for inode numbers for the ISO image filesystem.
  * On image import it gets maxed by the eventual inode numbers from PX
@@ -176,7 +174,6 @@ int img_collect_inos(IsoImage *image, IsoDir *dir, int flag);
  */ 
 ino_t img_give_ino_number(IsoImage *image, int flag);
 
-/* ts A90428 */
 /* @param flag bit0= overwrite any ino, else only ino == 0
                bit1= install inode with non-data, non-directory files
                bit2= install inode with directories

@@ -2254,7 +2254,6 @@ int iso_node_zf_by_magic(IsoNode *node, int flag)
 }
 
 
-/* ts A90427 */
 int iso_px_ino_xinfo_func(void *data, int flag)
 {
     if (flag == 1) {
@@ -2264,7 +2263,6 @@ int iso_px_ino_xinfo_func(void *data, int flag)
 }
 
 
-/* ts A90427 */
 /*
  * @param flag
  *     bit0= do only retrieve id if node is in imported ISO image
@@ -2339,7 +2337,6 @@ no_id:;
 }
 
 
-/* ts A90427 */
 static
 int iso_node_set_ino_xinfo(IsoNode *node, ino_t ino, int flag)
 {
@@ -2360,7 +2357,6 @@ int iso_node_set_ino_xinfo(IsoNode *node, ino_t ino, int flag)
 }
 
 
-/* ts A90427 */
 int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
 {
     int ret;
@@ -2410,7 +2406,6 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
 }
 
 
-/* ts A90427 */
 int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag)
 {
     int ret;
@@ -2421,7 +2416,6 @@ int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag)
     return ret;
 }
 
-/* ts A90508 */
 /*
  * Note to programmers: It is crucial not to break the following constraints.
  * Anti-symmetry: cmp(X,Y) == - cmp(Y,X)
@@ -2576,7 +2570,6 @@ image_inode_match:;
     return 0;
 }
 
-/* ts A90516 */
 /* API */
 int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag)
 {

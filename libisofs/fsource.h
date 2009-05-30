@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 as 
@@ -31,7 +32,6 @@
 int iso_local_filesystem_new(IsoFilesystem **fs);
 
 
-/* ts A90524 */
 /* Rank two IsoFileSource by their eventual old image LBAs.
    Other IsoFileSource classes will be ranked only roughly.
 */

@@ -893,7 +893,6 @@ struct IsoStream_Iface
      */
     IsoStream *(*get_input_stream)(IsoStream *stream, int flag);
 
-    /* ts A90511 */
     /**
      * Compare two streams whether they are based on the same input and will
      * produce the same output. If in any doubt, then this comparison should
@@ -1237,7 +1236,6 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
  */
 int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
 
-/* ts A90508 */
 /**
  * Control generation of non-unique inode numbers for the emerging image.
  * Inode numbers get written as "file serial number" with PX entries as of
@@ -1374,7 +1372,6 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
  */
 int iso_write_opts_set_rrip_version_1_10(IsoWriteOpts *opts, int oldvers);
 
-/* ts A90509 */
 /**
  * Write field PX with file serial number (i.e. inode number) even if
  * iso_write_opts_set_rrip_version_1_10(,1) is in effect.
@@ -2522,7 +2519,6 @@ time_t iso_node_get_ctime(const IsoNode *node);
  */
 void iso_node_set_hidden(IsoNode *node, int hide_attrs);
 
-/* ts A90516 */
 /**
  * Compare two nodes whether they are based on the same input and
  * can be considered as hardlinks to the same file objects.
@@ -4230,7 +4226,6 @@ void iso_stream_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,
  */
 char *iso_stream_get_source_path(IsoStream *stream, int flag);
 
-/* ts A90502 */
 /**
  * Compare two streams whether they are based on the same input and will
  * produce the same output. If in any doubt, then this comparison will

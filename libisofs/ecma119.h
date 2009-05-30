@@ -115,12 +115,14 @@ struct iso_write_opts {
      */
     unsigned int rrip_version_1_10 :1;
 
-    /* ts A90509 */
-    /** Write field PX with file serial number even with RRIP-1.10 */
+    /**
+     * Write field PX with file serial number even with RRIP-1.10
+     */
     unsigned int rrip_1_10_px_ino :1;
 
-    /* ts A90508 */
-    /* See iso_write_opts_set_hardlinks() */
+    /**
+     * See iso_write_opts_set_hardlinks()
+     */
     unsigned int hardlinks:1;
 
     /**
@@ -277,7 +279,6 @@ struct ecma119_image
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
 
-    /* ts A90508 */
     unsigned int hardlinks:1; /* see iso_write_opts_set_hardlinks() */
 
     unsigned int aaip :1;     /* see iso_write_opts_set_aaip() */
@@ -302,7 +303,6 @@ struct ecma119_image
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;
 
-    /* ts A90509 */
     /** Write field PX with file serial number even with RRIP-1.10 */
     unsigned int rrip_1_10_px_ino :1;
 

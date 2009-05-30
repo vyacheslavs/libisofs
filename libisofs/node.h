@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -420,9 +421,6 @@ struct zisofs_zf_info {
  */ 
 int iso_file_zf_by_magic(IsoFile *file, int flag);
 
-
-
-/* ts A90427 : might become API */
 /*
  * @param flag
  *     bit0= do only retrieve id if node is in imported ISO image
@@ -435,19 +433,16 @@ int iso_file_zf_by_magic(IsoFile *file, int flag);
 int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
                     ino_t *ino_id, int flag);
 
-/* ts A90427 */
 /* Set a new unique inode ISO image number to the given node.
  * This number shall eventually persist during image generation.
  */
 int iso_node_set_unique_id(IsoNode *node, IsoImage *image, int flag);
 
-/* ts A90427 */
 /* Use this with extreme care. Duplicate inode numbers will indicate hardlink
  * relationship between the nodes.
  */
 int iso_node_set_ino(IsoNode *node, ino_t ino, int flag);
 
-/* ts A90508 */
 /*  
  * @param flag 
  *     bit0= compare stat properties and attributes

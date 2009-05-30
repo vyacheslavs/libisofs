@@ -173,8 +173,7 @@ int read_rr_PX(struct susp_sys_user_entry *px, struct stat *st)
     if (px->len_sue[0] == 44) {
         /* this corresponds to RRIP 1.12, so we have inode serial number */
         st->st_ino = iso_read_bb(px->data.PX.serial, 4, NULL);
-
-        /* ts A90426 : Indicate that st_ino is valid */
+        /* Indicate that st_ino is valid */
         return 2;
     }
     return 1;

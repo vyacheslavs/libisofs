@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -123,11 +124,8 @@ void iso_image_unref(IsoImage *image)
         free(image->copyright_file_id);
         free(image->abstract_file_id);
         free(image->biblio_file_id);
-
-        /* ts A90428 */
         if (image->used_inodes != NULL)
             free(image->used_inodes);
-
         free(image);
     }
 }
@@ -328,7 +326,6 @@ void iso_image_set_ignore_aclea(IsoImage *image, int what)
 }
 
 
-/* ts A90428 */
 static
 int img_register_ino(IsoImage *image, IsoNode *node, int flag)
 {
@@ -350,7 +347,6 @@ int img_register_ino(IsoImage *image, IsoNode *node, int flag)
 }
 
 
-/* ts A90428 */
 /* Collect the bitmap of used inode numbers in the range of
    _ImageFsData.used_inodes_start + ISO_USED_INODE_RANGE
    @param flag bit0= recursion is active
@@ -402,7 +398,6 @@ ex:;
 }
 
 
-/* ts A90428 */
 /**
  * A global counter for inode numbers for the ISO image filesystem.
  * On image import it gets maxed by the eventual inode numbers from PX

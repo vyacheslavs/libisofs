@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 as
@@ -115,7 +116,6 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 
 #ifdef Libisofs_hardlink_prooF
 
-    /*ts A90428 */
     /* Looking only for valid ISO image inode numbers. */
     {
         unsigned int fs_id;
@@ -896,7 +896,6 @@ int make_node_array(Ecma119Image *img, Ecma119Node *dir,
     return result;
 }
 
-/* ts A90508 */
 /*
  * @param flag
  *     bit0= compare stat properties and attributes 
@@ -917,21 +916,18 @@ int ecma119_node_cmp_flag(const void *v1, const void *v2, int flag)
     return ret;
 }
 
-/* ts A90508 */
 static 
 int ecma119_node_cmp_hard(const void *v1, const void *v2)
 {
     return ecma119_node_cmp_flag(v1, v2, 1);
 }   
 
-/* ts A90509 */
 static 
 int ecma119_node_cmp_nohard(const void *v1, const void *v2)
 {
     return ecma119_node_cmp_flag(v1, v2, 1 | 2);
 }   
 
-/* ts A90503 */
 static
 int family_set_ino(Ecma119Image *img, Ecma119Node **nodes, size_t family_start,
                    size_t next_family, ino_t img_ino, ino_t prev_ino, int flag)
@@ -955,7 +951,6 @@ int family_set_ino(Ecma119Image *img, Ecma119Node **nodes, size_t family_start,
     return 1;
 }
 
-/* ts A90503 */
 static
 int match_hardlinks(Ecma119Image *img, Ecma119Node *dir, int flag)
 {
@@ -1030,7 +1025,6 @@ int ecma119_tree_create(Ecma119Image *img)
 
 #ifdef Libisofs_hardlink_matcheR
 
-    /* ts A90503 */
     iso_msg_debug(img->image->id, "Matching hardlinks...");
     ret = match_hardlinks(img, img->root, 0);
     if (ret < 0) {

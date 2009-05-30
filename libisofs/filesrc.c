@@ -18,8 +18,7 @@
 #include <string.h>
 #include <limits.h>
 
-/* ts A90502 : outsourced comparison to iso_stream_cmp_ino()
-*/
+
 int iso_file_src_cmp(const void *n1, const void *n2)
 {
     int ret;

@@ -63,7 +63,6 @@ struct iso_read_opts
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
     unsigned int noaaip : 1; /* Do not read AAIP extension for xattr and ACL */
 
-    /* ts A90425 */
     /**
      * Hand out new inode numbers and overwrite eventually read PX inode
      * numbers. This will split apart any hardlinks.
@@ -270,14 +269,12 @@ typedef struct
     uint32_t imgblock; /**< Block for El-Torito boot image */
     uint32_t catblock; /**< Block for El-Torito catalog */
 
-    /* ts A90501 */
     /* Whether inode numbers from PX entries shall be discarded */
     unsigned int make_new_ino : 1 ;
 
     /* Inode number generator counter */
     ino_t inode_counter;
 
-    /* ts A90425 */
     /* PX inode number status
        bit0= there were nodes with PX inode numbers
        bit1= there were nodes with PX but without inode numbers
@@ -1304,7 +1301,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 continue;
 
             if (SUSP_SIG(sue, 'P', 'X')) {
-                /* ts A90426 */
                 has_px = 1;
                 ret = read_rr_PX(sue, &atts);
                 if (ret < 0) {
@@ -1576,7 +1572,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         }
     }
 
-    /* ts A90426 */
     if (!has_px) {
         fsdata->px_ino_status |= 4;
     }
@@ -1647,8 +1642,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
 #ifdef Libisofs_hardlink_prooF
 
-    /* ts A90426 :
-       Production of missing inode numbers is delayed until the image is
+    /* Production of missing inode numbers is delayed until the image is
        complete. Then all nodes which shall get a new inode number will
        be served.
     */
@@ -2779,7 +2773,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
 #ifdef Libisofs_hardlink_prooF
 
-    /* ts A90428 */
     /* Attach ino as xinfo if valid and no IsoStream is involved */
     if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG &&
         !fsdata->make_new_ino) {
@@ -2855,7 +2848,6 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image,
 
 #ifdef Libisofs_hardlink_prooF
 
-    /* ts A90427 : img_give_ino_number() is coordinated with existing inos */
     atts.st_ino = img_give_ino_number(image, 0);
 
 #else /* Libisofs_hardlink_prooF */
@@ -2999,7 +2991,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
 #ifdef Libisofs_hardlink_prooF
 
-        /* ts A90501 */
         /* Attach ino as xinfo if valid */
         if (info.st_ino != 0 && !data->make_new_ino) {
             ret = iso_node_set_ino(&(image->root->node), info.st_ino, 0);
@@ -3047,13 +3038,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
 #ifdef Libisofs_hardlink_prooF
 
-    /* ts A90428 */
     /* Take over inode management from IsoImageFilesystem.
        data->inode_counter is supposed to hold the maximum PX inode number.
      */
     image->inode_counter = data->inode_counter;
 
-    /* ts A90426 */
     if ((data->px_ino_status & (2 | 4 | 8)) || opts->make_new_ino) {
         /* Attach new inode numbers to any node which does not have one,
            resp. to all nodes in case of opts->make_new_ino 
@@ -3486,7 +3475,6 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
     return 0;
 }
 
-/* ts A90524 */
 /* Rank two IsoFileSource by their eventual old image LBAs.
    Other IsoFileSource classes will be ranked only roughly.
 */
