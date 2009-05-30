@@ -739,9 +739,14 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     off_t size1, size2;
     FSrcStreamData *fssd1, *fssd2;
 
-    /* <<< */
+
+/* <<<
+   #define Libisofs_stream_cmp_ino_debuG 1
+*/
+#ifdef Libisofs_stream_cmp_ino_debuG
     static int report_counter = 0;
     static int debug = 1;
+#endif /* Libisofs_stream_cmp_ino_debuG */
 
     if (s1 == s2)
         return 0;
@@ -777,6 +782,7 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     size2 = iso_stream_get_size(s2);
     if (size1 < size2) {
 
+#ifdef Libisofs_stream_cmp_ino_debuG
         if (debug) {
             if (report_counter < 5)
                 fprintf(stderr,
@@ -786,10 +792,12 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
       "\n\nlibisofs_DEBUG : Inode error: more of same ino but differing size\n\n\n");
             report_counter++;
         }
+#endif /* Libisofs_stream_cmp_ino_debuG */
 
         return -1;
     } else if (size1 > size2) {
 
+#ifdef Libisofs_stream_cmp_ino_debuG
         if (debug) {
             if (report_counter < 5)
                 fprintf(stderr,
@@ -799,6 +807,7 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
       "\n\nlibisofs_DEBUG : Program error: more of same ino but differing size\n\n\n");
             report_counter++;
         }
+#endif /* Libisofs_stream_cmp_ino_debuG */
 
         return 1;
     }

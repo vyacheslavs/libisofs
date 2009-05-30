@@ -5447,9 +5447,9 @@ struct burn_source {
 /* Experiment: Ignore PX inode numbers,
                have boot image inode number counted by fs_give_ino_number()
 
-   <<< Overridden if Libisofs_hardlink_prooF is defined.
+   Overridden if Libisofs_hardlink_prooF is defined.
+ #define Libisofs_new_fs_image_inO yes
 */
-#define Libisofs_new_fs_image_inO yes
 
 
 /* Experiment: Write obsolete RR entries with Rock Ridge.

@@ -95,10 +95,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 static
 int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 {
-    int ret;
     Ecma119Node *ecma;
-    unsigned int fs_id;
-    dev_t dev_id;
 
     ecma = calloc(1, sizeof(Ecma119Node));
     if (ecma == NULL) {
@@ -109,28 +106,38 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
     ecma->node = iso;
     iso_node_ref(iso);
 
-    /* TODO #00009 : add true support for harlinks and inode numbers */
     ecma->nlink = 1;
+
+#ifndef Libisofs_hardlink_matcheR
+
+    /* ts A90503 : This is obsolete with Libisofs_hardlink_matcheR
+                   which will later hand out image inode numbers for all. */
 
 #ifdef Libisofs_hardlink_prooF
 
-    /* >>> ts A90503 : this is obsolete with Libisofs_hardlink_matcheR */
-
     /*ts A90428 */
     /* Looking only for valid ISO image inode numbers. */
-    ret = iso_node_get_id(iso, &fs_id, &dev_id, &(ecma->ino), 1);
-    if (ret < 0) {
-        return ret;
-    } else if (ret == 0) {
-        /* What has not got a valid ISO image inode yet, gets it now. */
-        ecma->ino = img_give_ino_number(img->image, 0);
+    {
+        unsigned int fs_id;
+        dev_t dev_id;
+        int ret;
+
+        ret = iso_node_get_id(iso, &fs_id, &dev_id, &(ecma->ino), 1);
+        if (ret < 0) {
+            return ret;
+        } else if (ret == 0) {
+            /* What has not got a valid ISO image inode yet, gets it now. */
+            ecma->ino = img_give_ino_number(img->image, 0);
+        }
     }
 
 #else /* Libisofs_hardlink_prooF */
     
+    /* TODO #00009 : add true support for harlinks and inode numbers */
     ecma->ino = ++img->ino;
 
 #endif /* ! Libisofs_hardlink_prooF */
+#endif /* ! Libisofs_hardlink_matcheR */
 
     *node = ecma;
     return ISO_SUCCESS;

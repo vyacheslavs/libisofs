@@ -334,12 +334,16 @@ struct ecma119_image
     int sort_files;
 
 
+#ifndef Libisofs_hardlink_matcheR
+
     /* ts A90508 : <<< this is on its way out */
     /**
      * In the CD, each file must have an unique inode number. So each
      * time we add a new file, this is incremented.
      */
     ino_t ino;
+
+#endif /* ! Libisofs_hardlink_matcheR */
 
     char *input_charset;
     char *output_charset;

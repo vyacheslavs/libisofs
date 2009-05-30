@@ -1642,11 +1642,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         ifsdata = (ImageFileSourceData*) (*src)->data;
         ifsdata->name = name;
 
-        /* >>> ts A90427 : What about final treatment ?
-                           How does directory relocation relate to inode
-                           numbers and hard links ?
-         */
-
         return ISO_SUCCESS;
     }
 

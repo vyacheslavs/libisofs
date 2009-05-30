@@ -890,7 +890,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
     target->always_gmt = opts->always_gmt;
+
+#ifndef Libisofs_hardlink_matcheR
     target->ino = 0;
+#endif
+
     target->omit_version_numbers = opts->omit_version_numbers
                                  | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;

@@ -2254,7 +2254,7 @@ int iso_node_zf_by_magic(IsoNode *node, int flag)
 }
 
 
-/* <<< ts A90427 : to some other source module ? In what .h ? */
+/* ts A90427 */
 int iso_px_ino_xinfo_func(void *data, int flag)
 {
     if (flag == 1) {
@@ -2555,7 +2555,7 @@ image_inode_match:;
     if (n1->ctime != n2->ctime)
         return (n1->ctime < n2->ctime ? -1 : 1);
 
-    /* >>> compare xinfo */;
+    /* Compare xinfo */
     /* :( cannot compare general xinfo because data length is not known :( */
 
     /* compare aa_string */
