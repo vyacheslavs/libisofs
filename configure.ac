@@ -87,7 +87,13 @@ fi
 
 dnl If iconv(3) is in an extra lib, then it gets added to variable LIBS.
 dnl If not, then no -liconv will be added.
+dnl test ticket 151
+### LIBICONV=
+### ifdef(AM_ICONV, AM_ICONV, AC_CHECK_LIB(iconv, iconv, , ))
+### LIBS="$LIBS $LIBICONV"
 AC_CHECK_LIB(iconv, iconv, , )
+dnl GNU iconv has no function iconv() but libiconv() and a macro iconv()
+AC_CHECK_LIB(iconv, libiconv, , )
 
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)

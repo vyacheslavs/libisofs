@@ -4412,7 +4412,7 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0
  * @return
- *      1= name found , 0= name not found , <0 indicates error error
+ *      1= name found , 0= name not found , <0 indicates error
  *
  * @since 0.6.18
  */
