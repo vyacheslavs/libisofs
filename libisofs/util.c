@@ -75,6 +75,15 @@ size_t iso_iconv(struct iso_iconv_handle *handle,
                  char **outbuf, size_t *outbytesleft, int flag)
 {
     size_t ret;
+/* The build system might indicate iconv(,const char **inbuf,) by
+   defining ICONV_CONST const
+*/
+#ifndef ICONV_CONST
+#define ICONV_CONST
+#endif
+    ICONV_CONST char **local_inbuf;
+
+    local_inbuf = (ICONV_CONST char **) inbuf;
 
     if (!(handle->status & 1)) {
         if (iso_iconv_debug)
@@ -101,7 +110,7 @@ null_buf:;
             return (size_t) -1;
         return (size_t) 0;
     }
-    ret = iconv(handle->descr, inbuf, inbytesleft, outbuf, outbytesleft);
+    ret = iconv(handle->descr, local_inbuf, inbytesleft, outbuf, outbytesleft);
     if (ret == (size_t) -1) {
         if (iso_iconv_debug)
             fprintf(stderr, "libisofs_DEBUG: iconv() failed: errno= %d %s\n",

@@ -91,9 +91,11 @@ dnl test ticket 151
 ### LIBICONV=
 ### ifdef(AM_ICONV, AM_ICONV, AC_CHECK_LIB(iconv, iconv, , ))
 ### LIBS="$LIBS $LIBICONV"
-AC_CHECK_LIB(iconv, iconv, , )
-dnl GNU iconv has no function iconv() but libiconv() and a macro iconv()
-AC_CHECK_LIB(iconv, libiconv, , )
+## AC_CHECK_LIB(iconv, iconv, , )
+## dnl GNU iconv has no function iconv() but libiconv() and a macro iconv()
+## AC_CHECK_LIB(iconv, libiconv, , )
+LIBBURNIA_CHECK_ICONV
+
 
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)
