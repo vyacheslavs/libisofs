@@ -162,7 +162,7 @@ AC_ARG_ENABLE(verbose-debug,
 
 dnl ts A90123
 AC_ARG_ENABLE(libacl,
-[  --enable-libacl    Enable use of libacl by libisofs, default=yes],
+[  --enable-libacl         Enable use of libacl by libisofs, default=yes],
                , enable_libacl=yes)
 if test x$enable_libacl = xyes; then
 dnl Check whether there is libacl-devel and libacl-runtime.
@@ -178,7 +178,7 @@ AC_SUBST(LIBACL_DEF)
 
 dnl ts A90123
 AC_ARG_ENABLE(xattr,
-[  --enable-xattr     Enable use of xattr by libisofs, default=yes],
+[  --enable-xattr          Enable use of xattr by libisofs, default=yes],
                , enable_xattr=yes)
 if test x$enable_xattr = xyes; then
 dnl Check whether there is the header for Linux xattr. 
@@ -193,7 +193,7 @@ AC_SUBST(XATTR_DEF)
 
 dnl ts A90409
 AC_ARG_ENABLE(zlib,
-[  --enable-zlib     Enable use of zlib by libisofs, default=yes],
+[  --enable-zlib           Enable use of zlib by libisofs, default=yes],
                , enable_zlib=yes)
 if test x$enable_zlib = xyes; then
 dnl Check whether there is the header for zlib. 

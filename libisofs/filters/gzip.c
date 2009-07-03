@@ -70,6 +70,7 @@ typedef struct
 
 } GzipFilterRuntime;
 
+#ifdef Libisofs_with_zliB
 
 static
 int gzip_running_destroy(GzipFilterRuntime **running, int flag)
@@ -96,9 +97,7 @@ int gzip_running_new(GzipFilterRuntime **running, int flag)
     if (o == NULL) {
         return ISO_OUT_OF_MEM;
     }
-#ifdef Libisofs_with_zliB
     memset(&(o->strm), 0, sizeof(o->strm));
-#endif
     o->in_buffer = NULL;
     o->out_buffer = NULL;
     o->in_buffer_size = 0;
@@ -106,9 +105,7 @@ int gzip_running_new(GzipFilterRuntime **running, int flag)
     o->rpt = NULL;
     o->in_counter = 0;
     o->out_counter = 0;
-#ifdef Libisofs_with_zliB
     o->do_flush = Z_NO_FLUSH;
-#endif
     o->error_ret = 1;
 
     o->in_buffer_size= 2048;
@@ -123,6 +120,7 @@ failed:
     gzip_running_destroy(running, 0);
     return -1;
 }
+#endif /* Libisofs_with_zliB */
 
 
 /* ---------------------------- GzipFilterStreamData --------------------- */
@@ -164,11 +162,16 @@ typedef struct
 
 
 
+#ifdef Libisofs_with_zliB
+
 /* Each individual GzipFilterStreamData needs a unique id number. */
 /* >>> This is very suboptimal:
        The counter can rollover.
 */
 static ino_t gzip_ino_id = 0;
+
+#endif /* Libisofs_with_zliB */
+
 
 static
 int gzip_stream_uncompress(IsoStream *stream, void *buf, size_t desired);
@@ -571,12 +574,13 @@ int gzip_cmp_ino(IsoStream *s1, IsoStream *s2)
 /* ------------------------------------------------------------------------- */
 
 
+#ifdef Libisofs_with_zliB
+
 static
 void gzip_filter_free(FilterContext *filter)
 {
     /* no data are allocated */;
 }
-
 
 /*
  * @param flag bit1= Install a decompression filter
@@ -626,7 +630,6 @@ int gzip_filter_get_filter(FilterContext *filter, IsoStream *original,
     return ISO_SUCCESS;
 }
 
-
 /* To be called by iso_file_add_filter().
  * The FilterContext input parameter is not furtherly needed for the 
  * emerging IsoStream.
@@ -672,6 +675,7 @@ int gzip_create_context(FilterContext **filter, int flag)
     return ISO_SUCCESS;
 }
 
+#endif /* Libisofs_with_zliB */
 
 /*
  * @param flag bit0= if_block_reduction rather than if_reduction

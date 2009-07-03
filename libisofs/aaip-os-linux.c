@@ -131,12 +131,18 @@ int aaip_get_acl_text(char *path, char **text, int flag)
 int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
 {
- int ret, retry= 0;
+ int ret;
  char *list= NULL;
- ssize_t list_size= 0, i, num_names= 0, value_ret;
- size_t acl_len= 0;
+ ssize_t list_size= 0, i, num_names= 0;
  unsigned char *acl= NULL;
  char *a_acl_text= NULL, *d_acl_text= NULL;
+
+#ifdef Libisofs_with_aaip_acL
+ size_t acl_len= 0;
+#endif
+#ifdef Libisofs_with_aaip_xattR
+ ssize_t value_ret, retry= 0;
+#endif
 
  if(flag & (1 << 15)) { /* Free memory */
    {ret= 1; goto ex;}
@@ -375,8 +381,11 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
  int ret, has_default_acl= 0;
- size_t i, consumed, acl_text_fill, list_size= 0, acl_idx= 0, h_consumed;
+ size_t i, consumed, acl_text_fill, acl_idx= 0, h_consumed;
  char *acl_text= NULL, *list= NULL;
+#ifdef Libisofs_with_aaip_xattR
+ size_t list_size= 0;
+#endif
 
 #ifdef Libisofs_with_aaip_xattR
 
