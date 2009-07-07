@@ -132,14 +132,12 @@ AC_SUBST(THREAD_LIBS)
 
 TARGET_SHIZZLE
 AC_SUBST(ARCH)
-AC_SUBST(LIBBURNIA_PKGCONFDIR)
 AC_SUBST(LIBBURN_ARCH_LIBS)
 
-dnl Add compiler-specific flags
 
 dnl See if the user wants aggressive optimizations of the code
 AC_ARG_ENABLE(debug,
-[  --enable-debug          Disable aggressive optimizations [default=yes]],
+[  --enable-debug          Disable aggressive optimizations, default=yes],
               , enable_debug=yes)
 if test x$enable_debug != xyes; then
     if test x$GCC = xyes; then
@@ -156,15 +154,22 @@ fi
 
 dnl Verbose debug to make libisofs issue more debug messages
 AC_ARG_ENABLE(verbose-debug,
-[  --enable-verbose-debug          Enable verbose debug messages [default=no]],
+[  --enable-verbose-debug  Enable verbose debug messages, default=no],
 	AC_DEFINE(LIBISOFS_VERBOSE_DEBUG, 1))
 
 
-dnl ts A90123
+dnl Determine target directory for libisofs-*.pc
+dnl Important: Must be performed _after_ TARGET_SHIZZLE
+dnl
+LIBBURNIA_SET_PKGCONFIG
+
+
+dnl Add compiler-specific flags
+
 AC_ARG_ENABLE(libacl,
 [  --enable-libacl         Enable use of libacl by libisofs, default=yes],
                , enable_libacl=yes)
-if test x$enable_libacl = xyes; then
+if test "x$enable_libacl" = xyes; then
 dnl Check whether there is libacl-devel and libacl-runtime.
 dnl If not, erase this macro which would enable use of acl_to_text and others
     LIBACL_DEF="-DLibisofs_with_aaip_acL"
@@ -180,7 +185,7 @@ dnl ts A90123
 AC_ARG_ENABLE(xattr,
 [  --enable-xattr          Enable use of xattr by libisofs, default=yes],
                , enable_xattr=yes)
-if test x$enable_xattr = xyes; then
+if test "x$enable_xattr" = xyes; then
 dnl Check whether there is the header for Linux xattr. 
 dnl If not, erase this macro which would enable use of listxattr and others
     XATTR_DEF="-DLibisofs_with_aaip_xattR"
@@ -195,7 +200,7 @@ dnl ts A90409
 AC_ARG_ENABLE(zlib,
 [  --enable-zlib           Enable use of zlib by libisofs, default=yes],
                , enable_zlib=yes)
-if test x$enable_zlib = xyes; then
+if test "x$enable_zlib" = xyes; then
 dnl Check whether there is the header for zlib. 
 dnl If not, erase this macro which would enable use of compress2() and others.
 dnl The empty parameter after "compress2" causes -lz.
