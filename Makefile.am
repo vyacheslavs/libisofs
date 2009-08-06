@@ -73,7 +73,9 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/iso1999.c \
 	libisofs/data_source.c \
 	libisofs/aaip_0_2.h \
-	libisofs/aaip_0_2.c
+	libisofs/aaip_0_2.c \
+	libisofs/md5.h \
+	libisofs/md5.c
 libisofs_libisofs_la_LIBADD= \
 	$(THREAD_LIBS)
 libinclude_HEADERS = \
@@ -83,32 +85,38 @@ libinclude_HEADERS = \
 
 ## Build demo applications
 noinst_PROGRAMS = \
-	demo/lsl \
-	demo/cat \
-	demo/catbuffer \
 	demo/tree \
 	demo/find \
-	demo/ecma119tree \
 	demo/iso \
 	demo/isoread \
 	demo/isocat \
 	demo/isomodify \
 	demo/isoms
 
+#	demo/ecma119tree \
+#	demo/lsl \
+#	demo/cat \
+#	demo/catbuffer \
 #	demo/isogrow
 
-demo_lsl_CPPFLAGS = -Ilibisofs
-demo_lsl_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
-demo_lsl_SOURCES = demo/lsl.c
+# ts A90806
+# This includes fsource.h and thus is no API demo
+# demo_lsl_CPPFLAGS = -Ilibisofs
+# demo_lsl_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
+# demo_lsl_SOURCES = demo/lsl.c
 
-demo_cat_CPPFLAGS = -Ilibisofs
-demo_cat_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
-demo_cat_SOURCES = demo/cat.c
+# ts A90806
+# This includes fsource.h and thus is no API demo
+# demo_cat_CPPFLAGS = -Ilibisofs
+# demo_cat_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
+# demo_cat_SOURCES = demo/cat.c
 
-demo_catbuffer_CPPFLAGS = -Ilibisofs
-demo_catbuffer_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_catbuffer_SOURCES = demo/cat_buffer.c
+# ts A90806
+# This inlcudes buffer.h and thus is no API demo
+# demo_catbuffer_CPPFLAGS = -Ilibisofs
+# demo_catbuffer_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_catbuffer_SOURCES = demo/cat_buffer.c
 
 demo_tree_CPPFLAGS = -Ilibisofs
 demo_tree_LDADD = $(libisofs_libisofs_la_OBJECTS) \
@@ -120,10 +128,12 @@ demo_find_LDADD = $(libisofs_libisofs_la_OBJECTS) \
 	$(libisofs_libisofs_la_LIBADD)
 demo_find_SOURCES = demo/find.c
 
-demo_ecma119tree_CPPFLAGS = -Ilibisofs
-demo_ecma119tree_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_ecma119tree_SOURCES = demo/ecma119_tree.c
+# ts A90806
+# This inlcudes lots of internal .h files and thus is no API demo
+# demo_ecma119tree_CPPFLAGS = -Ilibisofs
+# demo_ecma119tree_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_ecma119tree_SOURCES = demo/ecma119_tree.c
 
 demo_iso_CPPFLAGS = -Ilibisofs
 demo_iso_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)

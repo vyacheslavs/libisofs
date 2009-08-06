@@ -15,7 +15,7 @@ print_permissions(mode_t mode)
 {
 	char perm[10];
 	
-	//TODO suid, sticky...
+	/* TODO suid, sticky... */
 	
 	perm[9] = '\0';
 	perm[8] = mode & S_IXOTH ? 'x' : '-';

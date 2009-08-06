@@ -15,7 +15,7 @@ print_permissions(mode_t mode)
 {
     char perm[10];
 
-    //TODO suid, sticky...
+    /* TODO suid, sticky... */
 
     perm[9] = '\0';
     perm[8] = mode & S_IXOTH ? 'x' : '-';
@@ -51,8 +51,8 @@ print_file_src(IsoFileSource *file)
     iso_file_source_lstat(file, &info);
     print_type(info.st_mode);
     print_permissions(info.st_mode);
-    printf(" %10llu ", info.st_size);
-    //printf(" {%ld,%ld} ", (long)info.st_dev, (long)info.st_ino);
+    printf(" %10.f ", (double) info.st_size);
+    /* printf(" {%ld,%ld} ", (long)info.st_dev, (long)info.st_ino); */
     name = iso_file_source_get_name(file);
     printf(" %s", name);
     free(name);
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
         printf ("Can't get root %d\n", result);
         return 1;
     }
-    //print_file_src(root);
+    /* print_file_src(root); */
     print_dir(root, 0);
     iso_file_source_unref(root);
 
