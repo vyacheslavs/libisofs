@@ -85,19 +85,28 @@ libinclude_HEADERS = \
 
 ## Build demo applications
 noinst_PROGRAMS = \
-	demo/tree \
-	demo/find \
-	demo/iso \
-	demo/isoread \
-	demo/isocat \
-	demo/isomodify \
-	demo/isoms
+	demo/demo 
+
+#	demo/tree \
+#	demo/find \
+#	demo/iso \
+#	demo/isoread \
+#	demo/isocat \
+#	demo/isomodify \
+#	demo/isoms
 
 #	demo/ecma119tree \
 #	demo/lsl \
 #	demo/cat \
 #	demo/catbuffer \
 #	demo/isogrow
+
+
+# ts A90807
+# Consolidated demo code for having less linker mesages with a make run.
+demo_demo_CPPFLAGS = -Ilibisofs
+demo_demo_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
+demo_demo_SOURCES = demo/demo.c
 
 # ts A90806
 # This includes fsource.h and thus is no API demo
@@ -118,15 +127,19 @@ noinst_PROGRAMS = \
 # 	$(libisofs_libisofs_la_LIBADD)
 # demo_catbuffer_SOURCES = demo/cat_buffer.c
 
-demo_tree_CPPFLAGS = -Ilibisofs
-demo_tree_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_tree_SOURCES = demo/tree.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_tree_CPPFLAGS = -Ilibisofs
+# demo_tree_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_tree_SOURCES = demo/tree.c
 
-demo_find_CPPFLAGS = -Ilibisofs
-demo_find_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_find_SOURCES = demo/find.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_find_CPPFLAGS = -Ilibisofs
+# demo_find_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_find_SOURCES = demo/find.c
 
 # ts A90806
 # This inlcudes lots of internal .h files and thus is no API demo
@@ -135,29 +148,39 @@ demo_find_SOURCES = demo/find.c
 # 	$(libisofs_libisofs_la_LIBADD)
 # demo_ecma119tree_SOURCES = demo/ecma119_tree.c
 
-demo_iso_CPPFLAGS = -Ilibisofs
-demo_iso_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
-demo_iso_SOURCES = demo/iso.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_iso_CPPFLAGS = -Ilibisofs
+# demo_iso_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
+# demo_iso_SOURCES = demo/iso.c
 
-demo_isoread_CPPFLAGS = -Ilibisofs
-demo_isoread_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_isoread_SOURCES = demo/iso_read.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_isoread_CPPFLAGS = -Ilibisofs
+# demo_isoread_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_isoread_SOURCES = demo/iso_read.c
 
-demo_isocat_CPPFLAGS = -Ilibisofs
-demo_isocat_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_isocat_SOURCES = demo/iso_cat.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_isocat_CPPFLAGS = -Ilibisofs
+# demo_isocat_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_isocat_SOURCES = demo/iso_cat.c
 
-demo_isomodify_CPPFLAGS = -Ilibisofs
-demo_isomodify_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_isomodify_SOURCES = demo/iso_modify.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_isomodify_CPPFLAGS = -Ilibisofs
+# demo_isomodify_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_isomodify_SOURCES = demo/iso_modify.c
 
-demo_isoms_CPPFLAGS = -Ilibisofs
-demo_isoms_LDADD = $(libisofs_libisofs_la_OBJECTS) \
-	$(libisofs_libisofs_la_LIBADD)
-demo_isoms_SOURCES = demo/iso_ms.c
+# ts A90807
+# Consolidated in demo/demo
+# demo_isoms_CPPFLAGS = -Ilibisofs
+# demo_isoms_LDADD = $(libisofs_libisofs_la_OBJECTS) \
+# 	$(libisofs_libisofs_la_LIBADD)
+# demo_isoms_SOURCES = demo/iso_ms.c
 
 # demo_isogrow_CPPFLAGS = -Ilibisofs -Ilibburn
 # demo_isogrow_LDADD = $(libisofs_libisofs_la_OBJECTS) \
