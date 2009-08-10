@@ -1489,3 +1489,42 @@ int iso_init_locale(int flag)
 }
 
 
+int iso_util_encode_len_bytes(uint32_t data, char *buffer, int data_len,
+                              int *result_len, int flag)
+{
+    uint32_t x;
+    int i, l;
+    char *wpt = buffer;
+
+    if (data_len <= 0) {
+        x = data;
+        for (i = 0; i < 4 && x != 0; i++)
+            x = x >> 8;
+        l = i;
+        if (l == 0)
+            l = 1;
+    } else
+        l = data_len;
+    *((unsigned char *) (wpt++)) = l;
+    for (i = 0; i < l; i++)
+        *((unsigned char *) (wpt++)) = data >> (8 * (l - i - 1));
+    *result_len = l + 1;
+    return ISO_SUCCESS;
+}
+
+
+int iso_util_decode_len_bytes(uint32_t *data, char *buffer, int *data_len,
+                              int buffer_len, int flag)
+{
+    int i;
+
+    *data = 0;
+    *data_len = ((unsigned char *) buffer)[0];
+    if (*data_len > buffer_len - 1)
+        *data_len = buffer_len - 1;
+    for (i = 1; i <= *data_len; i++)
+        *data = (*data << 8) | ((unsigned char *) buffer)[i];
+    return ISO_SUCCESS;
+}
+
+

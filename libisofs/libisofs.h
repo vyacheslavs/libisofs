@@ -4442,7 +4442,11 @@ int iso_node_lookup_attr(IsoNode *node, char *name,
  *      bit0= Do not maintain eventual existing ACL of the node.
  *            Set eventual new ACL from value of empty name.
  *      bit1= Do not clear the existing attribute list but merge it with
- *            the list given by this call
+ *            the list given by this call.
+ *            The given values override the values of their eventually existing
+ *            names. If no xattr with a given name exists, then it will be
+ *            added as new xattr. So this bit can be used to set a single
+ *            xattr without inquiring any other xattr of the node.
  *      bit2= Delete the attributes with the given names
  *      bit3= Allow to affect non-user attributes.
  *            I.e. those with a non-empty name which does not begin by "user."
@@ -4953,6 +4957,57 @@ int iso_file_add_gzip_filter(IsoFile *file, int flag);
 int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 
 
+/* ---------------------------- MD5 Checksums --------------------------- */
+
+
+/**
+ * Eventually obtain the recorded MD5 checksum of the session which was
+ * loaded as ISO image. Such a checksum may be stored together with others
+ * in a contiguous array at the end of the ISO image. The session checksum
+ * covers the data blocks from address start_lba to address end_lba - 1.
+ * It does not cover the recorded array of md5 checksums.
+ * Layout, size, and position of the checksum array is recorded in the xattr
+ * "isofs.ca" of the session root node.
+ * @param image
+ *      The image to inquire
+ * @param start_lba
+ *      Eventually returns the first block address covered by md5
+ * @param start_lba
+ *      Eventually returns the first block address not covered by md5 any more
+ * @param md5
+ *      Eventually returns 16 byte of MD5 checksum 
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1= md5 found , 0= no md5 available , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
+                              uint32_t *end_lba, char md5[16], int flag);
+
+/**
+ * Eventually obtain the recorded MD5 checksum of a data file from the loaded
+ * ISO image. Such a checksum may be stored with others in a contiguous
+ * array at the end of the ISO image. The data file eventually has an xattr
+ * "isofs.cx" which gives the index in that array.
+ * @param image
+ *      The image from which file stems.
+ * @param file
+ *      The file object to inquire
+ * @param md5
+ *      Eventually returns 16 byte of MD5 checksum 
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1= md5 found , 0= no md5 available , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
+
+
+
 /************ Error codes and return values for libisofs ********************/
 
 /** successfully execution */
@@ -5412,11 +5467,8 @@ struct burn_source {
 
 /* currently none being tested */
 
+
 /* ---------------------------- Improvements --------------------------- */
-
-/* currently none being tested */
-
-/* ---------------------------- Experiments ---------------------------- */
 
 /* Hardlinks : During image generation accompany the tree of IsoFileSrc
                by a sorted array of Ecma119Node.
@@ -5439,7 +5491,10 @@ struct burn_source {
 #define Libisofs_hardlink_prooF yes
 
 
-/* Experiment: Ignore PX inode numbers,
+/* ---------------------------- Experiments ---------------------------- */
+
+/* <<< on its way out
+   Experiment: Ignore PX inode numbers,
                have boot image inode number counted by fs_give_ino_number()
 
    Overridden if Libisofs_hardlink_prooF is defined.
@@ -5454,6 +5509,15 @@ struct burn_source {
  #define Libisofs_with_rrip_rR yes
 */
 
+
+/* Experiment: During image writing equip IsoFile objects with MD5 checksums
+               and compute an overall checksum of the image. Store them in
+               a separate checksum block area after the data area of the
+               image.
+
+               ENABLE ONLY FOR DEVELOPMENT TESTS !
+ #define Libisofs_with_checksumS yes
+*/
 
 
 #endif /*LIBISO_LIBISOFS_H_*/

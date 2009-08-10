@@ -24,7 +24,7 @@
 /**
  * The extended information is a way to attach additional information to each
  * IsoNode. External applications may want to use this extension system to
- * store application speficic information related to each node. On the other
+ * store application specific information related to each node. On the other
  * side, libisofs may make use of this struct to attach information to nodes in
  * some particular, uncommon, cases, without incrementing the size of the
  * IsoNode struct.
@@ -67,7 +67,7 @@ struct iso_extended_info {
 struct Iso_Node
 {
     /*
-     * Initilized to 1, originally owned by user, until added to another node.
+     * Initialized to 1, originally owned by user, until added to another node.
      * Then it is owned by the parent node, so the user must take his own ref
      * if needed. With the exception of the creation functions, none of the
      * other libisofs functions that return an IsoNode increment its
@@ -450,5 +450,32 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag);
  *           (those with 0,0,0 are treated as unique anyway)
  */
 int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag);
+
+
+/**
+ * Set the checksum index (typically comming from IsoFileSrc.checksum_index)
+ * of a regular file node. The index is encoded as xattr "isofs.cx" with
+ * four bytes of value.
+ */
+int iso_file_set_isofscx(IsoFile *file, unsigned int checksum_index,
+                         int flag);
+
+
+/**
+ * Set the checksum area description. node should be the root node.
+ * It is encoded as xattr "isofs.ca".
+ */
+int iso_root_set_isofsca(IsoNode *node, uint32_t start_lba, uint32_t end_lba,
+                         uint32_t count, uint32_t size, char *typetext,
+                         int flag);
+
+/**
+ * Get the checksum area description. node should be the root node.
+ * It is encoded as xattr "isofs.ca".
+ */
+int iso_root_get_isofsca(IsoNode *node, uint32_t *start_lba, uint32_t *end_lba,
+                         uint32_t *count, uint32_t *size, char typetext[81],
+                         int flag);
+
 
 #endif /*LIBISO_NODE_H_*/

@@ -13,6 +13,7 @@
 #include "stream.h"
 #include "aaip_0_2.h"
 #include "messages.h"
+#include "util.h"
 
 
 #include <stdlib.h>
@@ -2575,3 +2576,138 @@ int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag)
 {
     return iso_node_cmp_flag(n1, n2, 1);
 }
+
+
+int iso_file_set_isofscx(IsoFile *file, unsigned int checksum_index,
+                         int flag)
+{
+    static char *names = "isofs.cx";
+    static size_t value_lengths[1] = {4};
+    unsigned char value[4];
+    char *valuept;
+    int i, ret;
+
+    for(i = 0; i < 4; i++)
+        value[3 - i] = (checksum_index >> (8 * i)) & 0xff;
+    valuept= (char *) value;
+    ret = iso_node_set_attrs((IsoNode *) file, (size_t) 1,
+                             &names, value_lengths, &valuept, 2 | 8);
+    return ret;
+}
+
+
+int iso_root_set_isofsca(IsoNode *node, uint32_t start_lba, uint32_t end_lba,
+                         uint32_t count, uint32_t size, char *typetext,
+                         int flag)
+{
+    char buffer[5 + 5 + 5 + 2 + 81], *wpt = buffer, *valuept = buffer;
+    int result_len, ret;
+    static char *names = "isofs.ca";
+    static size_t value_lengths[1];
+
+    /* Set value of isofs.ca with
+       4 byte START, 4 byte END, 4 byte COUNT, SIZE = 16,  MD5 */
+    iso_util_encode_len_bytes(start_lba, wpt, 4, &result_len, 0);
+    wpt += result_len;
+    iso_util_encode_len_bytes(end_lba, wpt, 4, &result_len, 0);
+    wpt += result_len;
+    iso_util_encode_len_bytes(count, wpt, 4, &result_len, 0);
+    wpt += result_len;
+    iso_util_encode_len_bytes(size, wpt, 1, &result_len, 0);
+    wpt += result_len;
+    strncpy(wpt, typetext, 80);
+    if (strlen(typetext) > 80)
+        wpt += 80;
+    else
+        wpt += strlen(typetext);
+    value_lengths[0] = wpt - buffer;
+    ret = iso_node_set_attrs(node, (size_t) 1,
+                             &names, value_lengths, &valuept, 2 | 8);
+    return ret;
+}
+
+
+int iso_root_get_isofsca(IsoNode *node, uint32_t *start_lba, uint32_t *end_lba,
+                         uint32_t *count, uint32_t *size, char typetext[81],
+                         int flag)
+{
+    int ret, len;
+    size_t value_len;
+    char *value = NULL, *rpt;
+
+    ret = iso_node_lookup_attr(node, "isofs.ca", &value_len, &value, 0);
+    if (ret <= 0)
+        goto ex;
+
+    /* Parse value of isofs.ca with
+       4 byte START, 4 byte END, 4 byte COUNT, SIZE = 16,  MD5 */
+    rpt = value;
+    iso_util_decode_len_bytes(start_lba, rpt, &len,
+                              value_len - (rpt - value), 0);
+    rpt += len + 1;
+    iso_util_decode_len_bytes(end_lba, rpt, &len,
+                              value_len - (rpt - value), 0);
+    rpt += len + 1;
+    iso_util_decode_len_bytes(count, rpt, &len,
+                              value_len - (rpt - value), 0);
+    rpt += len + 1;
+    iso_util_decode_len_bytes(size, rpt, &len,
+                              value_len - (rpt - value), 0);
+    rpt += len + 1;
+    len = value_len - (rpt - value);
+    if (len > 80)
+        len = 80;
+    memcpy(typetext, rpt, len);
+    typetext[len] = 0;
+
+    ret= ISO_SUCCESS;
+ex:;
+    if (value != NULL)
+        free(value);
+    return ret;
+}
+
+
+/* API */
+int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    int ret, i;
+    size_t value_len;
+    char *value = NULL;
+    uint32_t idx = 0;
+
+    if (image->checksum_array == NULL)
+        return 0;
+    ret = iso_node_lookup_attr((IsoNode *) file, "isofs.cx",
+                               &value_len, &value, 0);
+    if (ret <= 0)
+        goto ex;
+    if (value_len > 4) {
+        ret = 0;
+        goto ex;
+    }
+    for (i = 0; i < value_len; i++)
+        idx = (idx << 8) | ((unsigned char *) value)[i];
+    if (idx == 0 || idx > image->checksum_idx_count - 1) {
+                                       /* (last index is not MD5 of a file) */
+        ret = 0;
+        goto ex;
+    }
+    memcpy(md5, image->checksum_array + ((size_t) 16) * ((size_t) idx), 16);
+    ret = ISO_SUCCESS;
+ex:;
+    if (value != NULL)
+        free(value);
+    return ret;
+
+#else
+
+    return 0;
+
+#endif /* ! Libisofs_with_checksumS */
+
+}
+

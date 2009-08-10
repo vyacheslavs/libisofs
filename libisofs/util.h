@@ -440,4 +440,22 @@ void iso_htable_destroy(IsoHTable *table, hfree_data_t free_data);
  */
 unsigned int iso_str_hash(const void *key);
 
+/**
+ * Encode an integer as LEN,BYTES for being a component in certain AAIP
+ * attribute values.
+ */
+int iso_util_encode_len_bytes(uint32_t data, char *buffer, int data_len,
+                              int *result_len, int flag);
+
+/**
+ * Decode an integer as LEN,BYTES for being a component in certain AAIP
+ * attribute values.
+ * @param data        returns the decoded value
+ * @param buffer      contains the encoded value
+ * @param data_len    returns the number of value bytes (without len byte)
+ * @param buffer_len  tells the number of valid buffer bytes
+ */
+int iso_util_decode_len_bytes(uint32_t *data, char *buffer, int *data_len,
+                              int buffer_len, int flag);
+
 #endif /*LIBISO_UTIL_H_*/

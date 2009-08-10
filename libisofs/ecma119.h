@@ -312,6 +312,12 @@ struct ecma119_image
     /* Store in ECMA-119 timestamp mtime of source */
     unsigned int dir_rec_mtime :1;
 
+#ifdef Libisofs_with_checksumS
+
+    unsigned int md5_checksums :1;
+
+#endif /* Libisofs_with_checksumS */
+
     /*
      * Mode replace. If one of these flags is set, the correspodent values are
      * replaced with values below.
@@ -420,6 +426,16 @@ struct ecma119_image
 
     /* tree of files sources */
     IsoRBTree *files;
+
+#ifdef Libisofs_with_checksumS
+
+    unsigned int checksum_idx_counter;
+    void *checksum_ctx;
+    off_t checksum_counter;
+    char image_md5[16];
+    char *checksum_buffer;
+
+#endif /* Libisofs_with_checksumS */
 
     /* Buffer for communication between burn_source and writer thread */
     IsoRingBuffer *buffer;

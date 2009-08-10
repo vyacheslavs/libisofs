@@ -14,6 +14,10 @@
 #include "image.h"
 #include "stream.h"
 
+#ifdef Libisofs_with_checksumS
+#include "md5.h"
+#endif /*  Libisofs_with_checksumS */
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
@@ -43,6 +47,10 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     unsigned int fs_id;
     dev_t dev_id;
     ino_t ino_id;
+
+#ifdef Libisofs_with_checksumS
+    int cret;
+#endif
 
     if (img == NULL || file == NULL || src == NULL) {
         return ISO_NULL_POINTER;
@@ -88,11 +96,42 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
     if (ret <= 0) {
+
+#ifdef Libisofs_with_checksumS
+
+        if (ret == 0) {
+            /* Duplicate file source was mapped to previously registered source
+            */
+            cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
+            if (cret < 0)
+                ret = cret;
+        }
+
+#endif /* Libisofs_with_checksumS */
+
         free(fsrc->sections);
         free(fsrc);
         return ret;
     }
     iso_stream_ref(fsrc->stream);
+
+#ifdef Libisofs_with_checksumS
+
+    if(img->md5_checksums) {
+        img->checksum_idx_counter++;
+        if (img->checksum_idx_counter < 0x80000000) {
+            fsrc->checksum_index= img->checksum_idx_counter;
+        } else {
+            fsrc->checksum_index= 0;
+            img->checksum_idx_counter= 0x80000000; /* keep from rolling over */
+        }
+        cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
+        if (cret < 0)
+            return cret;
+    }
+
+#endif /* Libisofs_with_checksumS */
+
     return ISO_SUCCESS;
 }
 
@@ -276,6 +315,14 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     IsoFileSrc **filelist;
     char name[PATH_MAX];
     char buffer[BLOCK_SIZE];
+    off_t file_size;
+    uint32_t nblocks;
+
+#ifdef Libisofs_with_checksumS
+    void *ctx= NULL;
+    char md5[16];
+#endif
+
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -288,8 +335,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
     i = 0;
     while ((file = filelist[i++]) != NULL) {
+        file_size = iso_file_src_get_size(file);
+        nblocks = DIV_UP(file_size, BLOCK_SIZE);
 
-        uint32_t nblocks = DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
+        /* >>> Eventually obtain an MD5 of content by a first read pass */;
 
         res = filesrc_open(file);
         iso_stream_get_file_name(file->stream, name);
@@ -329,6 +378,18 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         }
 #endif
 
+ 
+#ifdef Libisofs_with_checksumS
+ 
+        if (file->checksum_index > 0) {
+            /* initialize file checksum */
+            res = libisofs_md5(&ctx, NULL, 0, md5, 1);
+            if (res <= 0)
+                file->checksum_index = 0;
+        }
+
+#endif /* Libisofs_with_checksumS */
+    
         /* write file contents to image */
         for (b = 0; b < nblocks; ++b) {
             int wres;
@@ -343,6 +404,21 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 filesrc_close(file);
                 return wres;
             }
+ 
+#ifdef Libisofs_with_checksumS
+
+            if (file->checksum_index > 0) {
+                /* Add to file checksum */
+                res = file_size - b * BLOCK_SIZE;
+                if (res > BLOCK_SIZE)
+                    res = BLOCK_SIZE;
+                res = libisofs_md5(&ctx, buffer, res, md5, 0);
+                if (res <= 0)
+                    file->checksum_index = 0;
+            }
+
+#endif /* Libisofs_with_checksumS */
+    
         }
 
         filesrc_close(file);
@@ -374,8 +450,41 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                     /* ko, writer error, we need to go out! */
                     return res;
                 }
+ 
+#ifdef Libisofs_with_checksumS
+
+                if (file->checksum_index > 0) {
+                    /* Add to file checksum */
+                    res = file_size - b * BLOCK_SIZE;
+                    if (res > BLOCK_SIZE)
+                        res = BLOCK_SIZE;
+                    res = libisofs_md5(&ctx, buffer, res, md5, 0);
+                    if (res <= 0)
+                        file->checksum_index = 0;
+                }
+
+#endif /* Libisofs_with_checksumS */
+    
             }
         }
+
+#ifdef Libisofs_with_checksumS
+
+        if (file->checksum_index > 0) {
+            /* Obtain checksum and dispose checksum context */
+            res = libisofs_md5(&ctx, buffer, 0, md5, 2 | (1 << 15));
+            if (res <= 0)
+                file->checksum_index = 0;
+
+            /* >>> Eventually compare with MD5 of first read pass
+                   and issue error if mismatch */;
+
+            /* Write md5 into checksum buffer at file->checksum_index */
+            memcpy(t->checksum_buffer + 16 * file->checksum_index, md5, 16);
+        }
+
+#endif /* Libisofs_with_checksumS */
+
     }
 
     return ISO_SUCCESS;
@@ -395,7 +504,7 @@ int iso_file_src_writer_create(Ecma119Image *target)
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_ASSERT_FAILURE;
+        return ISO_OUT_OF_MEM;
     }
 
     writer->compute_data_blocks = filesrc_writer_compute_data_blocks;

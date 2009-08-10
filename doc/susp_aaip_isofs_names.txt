@@ -13,25 +13,47 @@ specification of AAIP :
 -------------------------------------------------------------------------------
 
 Name:
-      isofs.di
+      isofs.ca
 
 Purpose:
-      Records .st_dev and .st_ino of struct stat of the file source in the
-      local filesystem. See man 2 stat.
+      Records the range of checksummed image data (START, END), the number
+      of checksum items (COUNT), the number of bytes in a single checksum item
+      (SIZE), and the name of the checksum algorithm (CHECKSUM_TYPE).
+      END is also the block address of the start of the checksum recording
+      area in the image.
+      See also isofs.cx .
 
 Format of Value:
-      DEV_LEN | DEV_BYTES | INO_LEN | INO_BYTES
+      START_LEN | START_BYTES | END_LEN | END_BYTES |
+      COUNT_LEN | COUNT_BYTES | SIZE_LEN | SIZE_BYTES | CHECKSUM_TYPE
+      Each number is encoded as _LEN byte and _BYTES value string.
       The _LEN fields comply to ISO 9660 Format section 7.1.1.
-      The byte strings begin with the most significant byte.
+      The byte strings START_BYTES, END_BYTES, COUNT_BYTES, SIZE_BYTES begin
+      with the most significant byte. Leading zero bytes are allowed.
+      CHECKSUM_TYPE consists of the bytes after
+      START_LEN + END_LEN + COUNT_LEN + SIZE_LEN + 4.
+      It shall be a string of printable characters without terminating 0-byte.
+      Type names shall be registered here.
+      For now there is:
+       "MD5"   128 bit message digest, see RFC 1321, see man md5sum 
 
 Example:
-      Device number 2001, inode number 176343
-      {   2,   7, 209,
-          3,   2, 176, 215 } 
+      LBA range 32 to 1000000 , 520 checksums recorded, MD5 
+      {   1,  32,
+          3,  15,  66,  64,
+          2,   2,   8,
+          1,  16,
+        'M', 'D', '5' }
+      or
+      {   4,   0,   0,   0,  32,
+          4,   0,  15,  66,  64,
+          4,   0,   0,   2,   8,
+          1,  16,
+         'M', 'D', '5' }
 
 Registered:
-      17 Feb 2009 by Thomas Schmitt for xorriso.
-                 
+      16 Jul 2009 by Thomas Schmitt for libisofs.
+
 -------------------------------------------------------------------------------
 
 Name:
@@ -52,7 +74,51 @@ Example:
 
 Registered:
       18 Mar 2009 by Thomas Schmitt for libisofs.
-                 
+
+-------------------------------------------------------------------------------
+
+Name:
+      isofs.cx
+
+Purpose:
+      Records the index of the file's checksum in the checksum area at the
+      end of the image. The byte address of the checksum is 
+       checksum_area_lba * 2048 + isofs.cx * checksum_size
+      Default checksum algorithm is MD5 with a size of 16 byte.
+      See also isofs.ca .
+
+Format of Value:
+      A byte string which begins with the most significant byte.
+
+Example:
+      Index 123456
+      {   1, 226,  64 }
+
+Registered:
+      16 Jul 2009 by Thomas Schmitt for libisofs.
+
+-------------------------------------------------------------------------------
+
+Name:
+      isofs.di
+
+Purpose:
+      Records .st_dev and .st_ino of struct stat of the file source in the
+      local filesystem. See man 2 stat.
+
+Format of Value:
+      DEV_LEN | DEV_BYTES | INO_LEN | INO_BYTES
+      The _LEN fields comply to ISO 9660 Format section 7.1.1.
+      The byte strings begin with the most significant byte.
+
+Example:
+      Device number 2001, inode number 176343
+      {   2,   7, 209,
+          3,   2, 176, 215 } 
+
+Registered:
+      17 Feb 2009 by Thomas Schmitt for xorriso.
+
 -------------------------------------------------------------------------------
 
 Name:
@@ -78,7 +144,7 @@ Example:
 
 Registered:
       03 Apr 2009 by Thomas Schmitt for xorriso.
-                 
+
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------

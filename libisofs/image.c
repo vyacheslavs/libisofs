@@ -78,6 +78,14 @@ int iso_image_new(const char *name, IsoImage **image)
     img->inode_counter = 0;
     img->used_inodes = NULL;
     img->used_inodes_start = 0;
+
+#ifdef Libisofs_with_checksumS
+    img->checksum_start_lba = 0;
+    img->checksum_end_lba = 0;
+    img->checksum_idx_count = 0;
+    img->checksum_array = NULL;
+#endif
+
     *image = img;
     return ISO_SUCCESS;
 }
@@ -529,3 +537,25 @@ ex:;
     return ret;
 }
 
+
+/* API */
+int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
+                              uint32_t *end_lba, char md5[16], int flag)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    if (image->checksum_array == NULL || image->checksum_idx_count < 1)
+        return 0;
+    *start_lba = image->checksum_start_lba;
+    *end_lba = image->checksum_end_lba;
+    memcpy(md5, image->checksum_array, 16);
+    return ISO_SUCCESS;
+    
+#else
+
+    return 0;
+    
+#endif /* ! Libisofs_with_checksumS */
+    
+}

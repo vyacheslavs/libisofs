@@ -27,6 +27,10 @@
 #include "util.h"
 #include "system_area.h"
 
+#ifdef Libisofs_with_checksumS
+#include "md5.h"
+#endif
+
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
@@ -57,6 +61,14 @@ void ecma119_image_free(Ecma119Image *t)
     }
     free(t->input_charset);
     free(t->output_charset);
+
+#ifdef Libisofs_with_checksumS
+    if (t->checksum_ctx != NULL) /* dispose checksum context */
+        libisofs_md5(&(t->checksum_ctx), NULL, 0, NULL, (1 << 15));
+    if (t->checksum_buffer != NULL)
+        free(t->checksum_buffer);
+#endif
+
     free(t->writers);
     free(t);
 }
@@ -294,7 +306,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
-    if(t->dir_rec_mtime) {
+    if (t->dir_rec_mtime) {
         iso= node->node;
         iso_datetime_7(rec->recording_time,
                        t->replace_timestamps ? t->timestamp : iso->mtime,
@@ -860,6 +872,79 @@ void *write_function(void *arg)
     pthread_exit(NULL);
 }
 
+
+#ifdef Libisofs_with_checksumS
+
+
+static
+int checksum_prepare_image(IsoImage *src, int flag)
+{
+    int ret;
+
+    /* Set provisory value of isofs.ca with
+       4 byte LBA, 4 byte count, size 16, name MD5 */
+    ret = iso_root_set_isofsca((IsoNode *) src->root, 0, 0, 0, 16, "MD5", 0);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+
+/*
+  @flag bit0= recursion
+*/
+static
+int checksum_prepare_nodes(IsoImage *img, IsoNode *node, int flag)
+{
+    IsoNode *pos;
+    IsoFile *file;
+    int ret, i;
+    size_t value_length;
+    unsigned int idx = 0;
+    char *value;
+    void *xipt = NULL;
+
+    if (node->type == LIBISO_FILE) {
+        file = (IsoFile *) node;
+        if (file->from_old_session) {
+            /* Save eventual MD5 data of files from old image */
+            value= NULL;
+            ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
+                                       &value, 0);
+            if (ret == 1 && value_length == 4) {
+                for (i = 0; i < 4; i++)
+                    idx = (idx << 8) | ((unsigned char *) value)[i];
+                if (idx > 0 && idx < 0x8000000) {
+                    /* xipt is an int disguised as void pointer */
+                    for (i = 0; i < 4; i++)
+                        ((char *) &xipt)[i] = value[i];
+                    ret = iso_node_add_xinfo(node, checksum_xinfo_func,
+                                             xipt);
+                    if (ret < 0)
+                        return ret;
+                }
+            }
+            if (value != NULL)
+                free(value);
+        }
+        /* Equip all nodes with provisory isofs.cx numbers: 4 byte, all 0. */
+        ret = iso_file_set_isofscx(file, (unsigned int) 0, 0);
+        if (ret < 0)
+            return ret;
+    } else if (node->type == LIBISO_DIR) {
+        for (pos = ((IsoDir *) node)->children; pos != NULL; pos = pos->next) {
+            ret = checksum_prepare_nodes(img, pos, 1);
+            if (ret < 0)
+                return ret;
+        }
+    }
+    return ISO_SUCCESS;
+}
+
+
+#endif /* Libisofs_with_checksumS */
+
+
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
@@ -951,6 +1036,18 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         return ISO_OUT_OF_MEM;
     }
 
+#ifdef Libisofs_with_checksumS
+
+    /* >>> need an IsoWriteOpts component to control this */;
+    target->md5_checksums = 1;
+
+    target->checksum_idx_counter = 0;
+    target->checksum_ctx = NULL;
+    target->checksum_counter = 0;
+    target->checksum_buffer = NULL;
+
+#endif
+
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
      * Each writer inits its structures and stores needed info into
@@ -973,6 +1070,25 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->iso1999) {
         nwriters++;
     }
+
+
+#ifdef Libisofs_with_checksumS
+
+    if (target->md5_checksums) {
+        nwriters++;
+        ret = checksum_prepare_image(src, 0);
+        if (ret < 0)
+            return ret;
+        if (target->appendable) {
+            ret = checksum_prepare_nodes(src, (IsoNode *) src->root, 0);
+            if (ret < 0)
+                return ret;
+        }
+        target->checksum_idx_counter = 0;
+    }
+
+#endif /* Libisofs_with_checksumS */
+
 
     target->writers = malloc(nwriters * sizeof(void*));
     if (target->writers == NULL) {
@@ -1019,7 +1135,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /*
      * Create the writer for possible padding to ensure that in case of image
-     * growing we can safety overwrite the first 64 KiB of image.
+     * growing we can safely overwrite the first 64 KiB of image.
      */
     ret = pad_writer_create(target);
     if (ret < 0) {
@@ -1032,6 +1148,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
     file_src_writer_index = target->nwriters - 1;
+
+
+#ifdef Libisofs_with_checksumS
+
+    /* ??? Is it safe to add a writer after the content writer ? */
+
+    if (target->md5_checksums) {
+        ret = checksum_writer_create(target);
+        if (ret < 0)
+            goto target_cleanup;
+    }
+
+#endif /* Libisofs_with_checksumS */
+
 
     /*
      * 3.
@@ -1140,7 +1270,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->vol_space_size = target->curblock - target->ms_block;
     target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
-    /* 4. Create and start writting thread */
+
+    /* 4. Create and start writing thread */
+
+#ifdef Libisofs_with_checksumS
+    /* After any fake writes are done: Initialize image checksum context */
+    ret = libisofs_md5(&(target->checksum_ctx), NULL, 0, NULL, 1);
+    if (ret < 0)
+        return ret;
+#endif /* Libisofs_with_checksumS */
 
     /* ensure the thread is created joinable */
     pthread_attr_init(&(target->th_attr));
@@ -1305,6 +1443,17 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         /* reader cancelled */
         return ISO_CANCELED;
     }
+
+#ifdef Libisofs_with_checksumS
+
+    if (target->checksum_ctx != NULL) {
+        /* Add to image checksum */
+        target->checksum_counter += count;
+        libisofs_md5(&(target->checksum_ctx), (char *) buf, (int) count,
+                     NULL, 0);
+    }
+
+#endif /* Libisofs_with_checksumS */
 
     /* total size is 0 when writing the overwrite buffer */
     if (ret > 0 && (target->total_size != (off_t) 0)){
@@ -1710,7 +1859,7 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size)
 int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
                                   int flag)
 {
-    if(opts->data_start_lba == 0)
+    if (opts->data_start_lba == 0)
 	return ISO_ERROR;
     *data_start = opts->data_start_lba;
     return ISO_SUCCESS;
