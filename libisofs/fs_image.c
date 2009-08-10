@@ -62,6 +62,7 @@ struct iso_read_opts
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
     unsigned int noaaip : 1; /* Do not read AAIP extension for xattr and ACL */
+    unsigned int nomd5 : 1;  /* Do not read MD5 array */
 
     /**
      * Hand out new inode numbers and overwrite eventually read PX inode
@@ -248,6 +249,11 @@ typedef struct
      *  1 = yes , 0 = no
      */
     int aaip_load;
+
+    /** Whether the MD5 array shall be read if available.
+     *  1 = yes , 0 = no
+     */
+    int md5_load;
 
     /** Whether AAIP is present. Version major.minor = major * 100 + minor
      *  Value -1 means that no AAIP ER was detected yet.
@@ -2311,6 +2317,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
     data->aaip_load = !opts->noaaip;
+    data->md5_load = !opts->nomd5;
     data->aaip_version = -1;
     data->make_new_ino = opts->make_new_ino;
     data->inode_counter = 0;
@@ -3149,32 +3156,31 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
 #ifdef Libisofs_with_checksumS
 
-    /* Read checksum buffer */
-
-    /* >>> needs to be controlled by  iso_read_opts  */;
-
-    ret = iso_root_get_isofsca((IsoNode *) image->root,
-                               &(image->checksum_start_lba),
-                               &(image->checksum_end_lba),
-                               &(image->checksum_idx_count),
-                               &checksum_size, checksum_type, 0); 
-    if (ret > 0)
-        if (checksum_size != 16 || strcmp(checksum_type, "MD5") != 0)
-            ret = 0;
-    if (ret > 0) {
-        size = image->checksum_idx_count / 128 + 1;
-        image->checksum_array = calloc(size, 2048);
-        if (image->checksum_array == NULL) {
-            ret = ISO_OUT_OF_MEM;
-            goto import_revert;
-        }
-
-        /* Load from image->checksum_end_lba */;
-        for (i = 0; i < size; i++) {
-            rpt = (uint8_t *) (image->checksum_array + i * 2048);
-            ret = src->read_block(src, image->checksum_end_lba + i, rpt);
-            if (ret <= 0)
+    if (data->md5_load) {
+        /* Read checksum array */
+        ret = iso_root_get_isofsca((IsoNode *) image->root,
+                                   &(image->checksum_start_lba),
+                                   &(image->checksum_end_lba),
+                                   &(image->checksum_idx_count),
+                                   &checksum_size, checksum_type, 0); 
+        if (ret > 0)
+            if (checksum_size != 16 || strcmp(checksum_type, "MD5") != 0)
+                ret = 0;
+        if (ret > 0) {
+            size = image->checksum_idx_count / 128 + 1;
+            image->checksum_array = calloc(size, 2048);
+            if (image->checksum_array == NULL) {
+                ret = ISO_OUT_OF_MEM;
                 goto import_revert;
+            }
+
+            /* Load from image->checksum_end_lba */;
+            for (i = 0; i < size; i++) {
+                rpt = (uint8_t *) (image->checksum_array + i * 2048);
+                ret = src->read_block(src, image->checksum_end_lba + i, rpt);
+                if (ret <= 0)
+                    goto import_revert;
+            }
         }
     }
 
@@ -3291,6 +3297,7 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
     ropts->file_mode = 0444;
     ropts->dir_mode = 0555;
     ropts->noaaip= 1;
+    ropts->nomd5= 1;
 
     *opts = ropts;
     return ISO_SUCCESS;
@@ -3348,6 +3355,15 @@ int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip)
         return ISO_NULL_POINTER;
     }
     opts->noaaip = noaaip ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_no_md5(IsoReadOpts *opts, int no_md5)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->nomd5 = no_md5 ? 1 : 0;
     return ISO_SUCCESS;
 }
 

@@ -147,6 +147,27 @@ struct iso_write_opts {
      */
     unsigned int dir_rec_mtime :1;
 
+#ifdef Libisofs_with_checksumS
+
+    /**
+     * Compute MD5 checksum for the whole session and record it as index 0 of
+     * the checksum blocks after the data area of the session. The layout and
+     * position of these blocks will be recorded in xattr "isofs.ca" of the
+     * root node. See see also API call iso_image_get_session_md5().
+     */
+    unsigned int md5_session_checksum :1;
+
+    /**
+     * Compute MD5 checksums for IsoFile objects and write them to blocks
+     * after the data area of the session. The layout and position of these
+     * blocks will be recorded in xattr "isofs.ca" of the root node.
+     * The indice of the MD5 sums will be recorded with the IsoFile directory
+     * entries as xattr "isofs.cx". See also API call iso_file_get_md5().
+     */
+    unsigned int md5_file_checksums :1;
+
+#endif /* Libisofs_with_checksumS */
+
     /** If files should be sorted based on their weight. */
     unsigned int sort_files :1;
 
@@ -314,7 +335,8 @@ struct ecma119_image
 
 #ifdef Libisofs_with_checksumS
 
-    unsigned int md5_checksums :1;
+    unsigned int md5_session_checksum :1;
+    unsigned int md5_file_checksums :1;
 
 #endif /* Libisofs_with_checksumS */
 

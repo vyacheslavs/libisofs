@@ -457,11 +457,15 @@ int checksum_writer_write_data(IsoImageWriter *writer)
     iso_msg_debug(t->image->id, "Writing Checksums...");
 
     /* Write image checksum to index 0 */
-    /* >>> rather fork a result than killing t->checksum_ctx */;
-    res = libisofs_md5(&(t->checksum_ctx), NULL, 0, t->image_md5,
-                       2 | (1 << 15));
-    if (res > 0)
-        memcpy(t->checksum_buffer + 0, t->image_md5, 16);
+    if (t->checksum_ctx != NULL) {
+
+        /* >>> rather fork a result than killing t->checksum_ctx */;
+
+        res = libisofs_md5(&(t->checksum_ctx), NULL, 0, t->image_md5,
+                           2 | (1 << 15));
+        if (res > 0)
+            memcpy(t->checksum_buffer + 0, t->image_md5, 16);
+    }
 
     size = (t->checksum_idx_counter + 2) / 128 + 1;
  

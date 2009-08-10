@@ -1416,6 +1416,22 @@ int iso_write_opts_set_dir_rec_mtime(IsoWriteOpts *opts, int allow);
 int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
 
 /**
+ * Whether to compute and record MD5 checksums for the whole session and/or
+ * for each single IsoFile object. The checksums represent the data as they
+ * were written into the image output stream, not necessarily as they were
+ * on hard disk at any point of time.
+ * See also calls iso_image_get_session_md5() and iso_file_get_md5().
+ * @param opts
+ *      The option set to be manipulated.
+ * @param session
+ *      If not 0: compute session checksum
+ * @param files
+ *      If not 0: compute a checksum for each single IsoFile object.
+ * @since 0.6.22
+ */
+int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files);
+
+/**
  * Whether to set default values for files and directory permissions, gid and
  * uid. All these take one of three values: 0, 1 or 2.
  *
@@ -1754,6 +1770,22 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
  * @since 0.6.14
  */
 int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip);
+
+/**
+ * Control reading of an array of MD5 checksums which is eventually stored
+ * at the end of a session. See also iso_write_opts_set_record_md5().
+ * Important: Loading of the MD5 array will only work if AAIP is enabled
+ *            because its position and layout is recorded in xattr "isofs.ca".
+ *
+ * @param no_md5
+ *    1 = Do not read MD5 checksum array
+ *    0 = Read Md% array if available
+ *     All other values are reserved.
+ *
+ * @since 0.6.22
+ */
+int iso_read_opts_set_no_md5(IsoReadOpts *opts, int no_md5);
+
 
 /**
  * Control discarding of eventual inode numbers from existing images.
@@ -4963,7 +4995,7 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 /**
  * Eventually obtain the recorded MD5 checksum of the session which was
  * loaded as ISO image. Such a checksum may be stored together with others
- * in a contiguous array at the end of the ISO image. The session checksum
+ * in a contiguous array at the end of the session. The session checksum
  * covers the data blocks from address start_lba to address end_lba - 1.
  * It does not cover the recorded array of md5 checksums.
  * Layout, size, and position of the checksum array is recorded in the xattr
@@ -4972,7 +5004,7 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
  *      The image to inquire
  * @param start_lba
  *      Eventually returns the first block address covered by md5
- * @param start_lba
+ * @param end_lba
  *      Eventually returns the first block address not covered by md5 any more
  * @param md5
  *      Eventually returns 16 byte of MD5 checksum 
@@ -4989,8 +5021,8 @@ int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
 /**
  * Eventually obtain the recorded MD5 checksum of a data file from the loaded
  * ISO image. Such a checksum may be stored with others in a contiguous
- * array at the end of the ISO image. The data file eventually has an xattr
- * "isofs.cx" which gives the index in that array.
+ * array at the end of the loaded session. The data file eventually has an
+ * xattr "isofs.cx" which gives the index in that array.
  * @param image
  *      The image from which file stems.
  * @param file
@@ -5516,8 +5548,8 @@ struct burn_source {
                image.
 
                ENABLE ONLY FOR DEVELOPMENT TESTS !
- #define Libisofs_with_checksumS yes
 */
+#define Libisofs_with_checksumS yes
 
 
 #endif /*LIBISO_LIBISOFS_H_*/

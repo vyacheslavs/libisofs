@@ -117,7 +117,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
 #ifdef Libisofs_with_checksumS
 
-    if(img->md5_checksums) {
+    if(img->md5_file_checksums) {
         img->checksum_idx_counter++;
         if (img->checksum_idx_counter < 0x80000000) {
             fsrc->checksum_index= img->checksum_idx_counter;

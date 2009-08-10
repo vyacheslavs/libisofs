@@ -1038,9 +1038,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 #ifdef Libisofs_with_checksumS
 
-    /* >>> need an IsoWriteOpts component to control this */;
-    target->md5_checksums = 1;
-
+    target->md5_file_checksums = opts->md5_file_checksums;
+    target->md5_session_checksum = opts->md5_session_checksum;
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
@@ -1074,7 +1073,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 #ifdef Libisofs_with_checksumS
 
-    if (target->md5_checksums) {
+    if (target->md5_file_checksums || target->md5_session_checksum) {
         nwriters++;
         ret = checksum_prepare_image(src, 0);
         if (ret < 0)
@@ -1154,7 +1153,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* ??? Is it safe to add a writer after the content writer ? */
 
-    if (target->md5_checksums) {
+    if (target->md5_file_checksums || target->md5_session_checksum) {
         ret = checksum_writer_create(target);
         if (ret < 0)
             goto target_cleanup;
@@ -1274,10 +1273,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* 4. Create and start writing thread */
 
 #ifdef Libisofs_with_checksumS
-    /* After any fake writes are done: Initialize image checksum context */
-    ret = libisofs_md5(&(target->checksum_ctx), NULL, 0, NULL, 1);
-    if (ret < 0)
-        return ret;
+    if (target->md5_session_checksum) {
+        /* After any fake writes are done: Initialize image checksum context */
+        ret = libisofs_md5(&(target->checksum_ctx), NULL, 0, NULL, 1);
+        if (ret < 0)
+            return ret;
+    }
 #endif /* Libisofs_with_checksumS */
 
     /* ensure the thread is created joinable */
@@ -1714,6 +1715,19 @@ int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort)
         return ISO_NULL_POINTER;
     }
     opts->sort_files = sort ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    opts->md5_session_checksum = !!session;
+    opts->md5_file_checksums = !!files;
+
+#endif /* Libisofs_with_checksumS */
+
     return ISO_SUCCESS;
 }
 
