@@ -63,8 +63,10 @@ void ecma119_image_free(Ecma119Image *t)
     free(t->output_charset);
 
 #ifdef Libisofs_with_checksumS
-    if (t->checksum_ctx != NULL) /* dispose checksum context */
-        libisofs_md5(&(t->checksum_ctx), NULL, 0, NULL, (1 << 15));
+    if (t->checksum_ctx != NULL) { /* dispose checksum context */
+        char md5[16];
+        iso_md5_end(&(t->checksum_ctx), md5);
+    }
     if (t->checksum_buffer != NULL)
         free(t->checksum_buffer);
 #endif
@@ -1275,7 +1277,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 #ifdef Libisofs_with_checksumS
     if (target->md5_session_checksum) {
         /* After any fake writes are done: Initialize image checksum context */
-        ret = libisofs_md5(&(target->checksum_ctx), NULL, 0, NULL, 1);
+        ret = iso_md5_start(&(target->checksum_ctx));
         if (ret < 0)
             return ret;
     }
@@ -1450,8 +1452,7 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
     if (target->checksum_ctx != NULL) {
         /* Add to image checksum */
         target->checksum_counter += count;
-        libisofs_md5(&(target->checksum_ctx), (char *) buf, (int) count,
-                     NULL, 0);
+        iso_md5_compute(target->checksum_ctx, (char *) buf, (int) count);
     }
 
 #endif /* Libisofs_with_checksumS */

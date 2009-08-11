@@ -4991,6 +4991,9 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 
 /* ---------------------------- MD5 Checksums --------------------------- */
 
+/* Production and loading of MD5 checksums is controlled by calls
+  iso_write_opts_set_record_md5() and iso_read_opts_set_no_md5()
+*/
 
 /**
  * Eventually obtain the recorded MD5 checksum of the session which was
@@ -5038,6 +5041,72 @@ int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
  */
 int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
 
+
+/* The following functions allow to do own MD5 computations. E.g for
+   comparing the result with a recorded checksum.
+*/
+/**
+ * Create a MD5 computation context and hand out an opaque handle.
+ *
+ * @param md5_context
+ *      Returns the opaque handle. Submitted *md5_context must be NULL or
+ *      point to freeable memory.
+ * @return
+ *      1= success , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_md5_start(void **md5_context);
+
+/**
+ * Advance the computation of a MD5 checksum by a chunk of data bytes.
+ *
+ * @param md5_context
+ *      An opaque handle once returned by iso_md5_start() or iso_md5_clone().
+ * @param data
+ *      The bytes which shall be processed into to the checksum.
+ * @param datalen
+ *      The number of bytes to be processed.
+ * @return
+ *      1= success , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_md5_compute(void *md5_context, char *data, int datalen);
+
+/**     
+ * Create a MD5 computation context as clone of an existing one. One may call
+ * iso_md5_clone(old, &new, 0) and then iso_md5_end(&new, result, 0) in order
+ * to obtain an intermediate MD5 sum before the computation goes on.
+ * 
+ * @param old_md5_context
+ *      An opaque handle once returned by iso_md5_start() or iso_md5_clone().
+ * @param new_md5_context
+ *      Returns the opaque handle to the new MD5 context. Submitted
+ *      *md5_context must be NULL or point to freeable memory.
+ * @return
+ *      1= success , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_md5_clone(void *old_md5_context, void **new_md5_context);
+
+/**
+ * Obtain the MD5 checksum from a MD5 computation context and dispose this
+ * context. (If you want to keep the context then call iso_md5_clone() and
+ * apply iso_md5_end() to the clone.)
+ *
+ * @param md5_context
+ *      A pointer to an opaque handle once returned by iso_md5_start() or
+ *      iso_md5_clone(). *md5_context will be set to NULL in this call.
+ * @param result
+ *      Gets filled with the 16 bytes of MD5 checksum.
+ * @return
+ *      1= success , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_md5_end(void **md5_context, char result[16]);
 
 
 /************ Error codes and return values for libisofs ********************/
@@ -5523,6 +5592,14 @@ struct burn_source {
 #define Libisofs_hardlink_prooF yes
 
 
+/* Checksums : During image writing equip IsoFile objects with MD5 checksums
+               and compute an overall checksum of the session. Store them in
+               a separate checksum block area after the data area of the
+               session.
+*/
+#define Libisofs_with_checksumS yes
+
+
 /* ---------------------------- Experiments ---------------------------- */
 
 /* <<< on its way out
@@ -5540,16 +5617,6 @@ struct burn_source {
 
  #define Libisofs_with_rrip_rR yes
 */
-
-
-/* Experiment: During image writing equip IsoFile objects with MD5 checksums
-               and compute an overall checksum of the image. Store them in
-               a separate checksum block area after the data area of the
-               image.
-
-               ENABLE ONLY FOR DEVELOPMENT TESTS !
-*/
-#define Libisofs_with_checksumS yes
 
 
 #endif /*LIBISO_LIBISOFS_H_*/

@@ -308,7 +308,7 @@ int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
 static
 int filesrc_writer_write_data(IsoImageWriter *writer)
 {
-    int res;
+    int res, ret;
     size_t i, b;
     Ecma119Image *t;
     IsoFileSrc *file;
@@ -351,14 +351,16 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
                       "File \"%s\" can't be opened. Filling with 0s.", name);
             if (res < 0) {
-                return res; /* aborted due to error severity */
+                ret = res; /* aborted due to error severity */
+                goto ex;
             }
             memset(buffer, 0, BLOCK_SIZE);
             for (b = 0; b < nblocks; ++b) {
                 res = iso_write(t, buffer, BLOCK_SIZE);
                 if (res < 0) {
                     /* ko, writer error, we need to go out! */
-                    return res;
+                    ret = res;
+                    goto ex;
                 }
             }
             continue;
@@ -369,7 +371,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                       (res == 2 ? "truncated" : "padded with 0's"));
             if (res < 0) {
                 filesrc_close(file);
-                return res; /* aborted due to error severity */
+                ret = res; /* aborted due to error severity */
+                goto ex;
             }
         }
 #ifdef LIBISOFS_VERBOSE_DEBUG
@@ -383,7 +386,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
  
         if (file->checksum_index > 0) {
             /* initialize file checksum */
-            res = libisofs_md5(&ctx, NULL, 0, md5, 1);
+            res = iso_md5_start(&ctx);
             if (res <= 0)
                 file->checksum_index = 0;
         }
@@ -402,7 +405,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             if (wres < 0) {
                 /* ko, writer error, we need to go out! */
                 filesrc_close(file);
-                return wres;
+                ret = wres;
+                goto ex;
             }
  
 #ifdef Libisofs_with_checksumS
@@ -412,7 +416,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 res = file_size - b * BLOCK_SIZE;
                 if (res > BLOCK_SIZE)
                     res = BLOCK_SIZE;
-                res = libisofs_md5(&ctx, buffer, res, md5, 0);
+                res = iso_md5_compute(ctx, buffer, res);
                 if (res <= 0)
                     file->checksum_index = 0;
             }
@@ -437,7 +441,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             }
 
             if (res < 0) {
-                return res; /* aborted due error severity */
+                ret = res; /* aborted due error severity */
+                goto ex;
             }
 
             /* fill with 0s */
@@ -448,7 +453,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 res = iso_write(t, buffer, BLOCK_SIZE);
                 if (res < 0) {
                     /* ko, writer error, we need to go out! */
-                    return res;
+                    ret = res;
+                    goto ex;
                 }
  
 #ifdef Libisofs_with_checksumS
@@ -458,7 +464,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                     res = file_size - b * BLOCK_SIZE;
                     if (res > BLOCK_SIZE)
                         res = BLOCK_SIZE;
-                    res = libisofs_md5(&ctx, buffer, res, md5, 0);
+                    res = iso_md5_compute(ctx, buffer, res);
                     if (res <= 0)
                         file->checksum_index = 0;
                 }
@@ -472,7 +478,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
         if (file->checksum_index > 0) {
             /* Obtain checksum and dispose checksum context */
-            res = libisofs_md5(&ctx, buffer, 0, md5, 2 | (1 << 15));
+            res = iso_md5_end(&ctx, md5);
             if (res <= 0)
                 file->checksum_index = 0;
 
@@ -487,7 +493,15 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
     }
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+
+#ifdef Libisofs_with_checksumS
+    if (ctx != NULL) /* avoid any memory leak */
+        iso_md5_end(&ctx, md5);
+#endif
+
+    return ret;
 }
 
 static
