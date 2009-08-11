@@ -5033,7 +5033,8 @@ int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
  * @param md5
  *      Eventually returns 16 byte of MD5 checksum 
  * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
+ *      Bitfield for control purposes
+ *      bit0= only determine return value, do not touch parameter md5
  * @return
  *      1= md5 found , 0= no md5 available , <0 indicates error
  *

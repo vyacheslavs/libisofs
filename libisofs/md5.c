@@ -427,7 +427,7 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
 
     if (node->type == LIBISO_FILE) {
         file = (IsoFile *) node;
-        if (file->from_old_session) {
+        if (file->from_old_session && target->appendable) {
             ret = iso_node_get_xinfo(node, checksum_xinfo_func, &xipt);
             if (ret <= 0)
                 return ret;

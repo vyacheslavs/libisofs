@@ -49,7 +49,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     ino_t ino_id;
 
 #ifdef Libisofs_with_checksumS
-    int cret;
+    int cret, no_md5= 0;
+    void *xipt = NULL;
 #endif
 
     if (img == NULL || file == NULL || src == NULL) {
@@ -99,7 +100,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
 #ifdef Libisofs_with_checksumS
 
-        if (ret == 0) {
+        if (ret == 0 && (*src)->checksum_index > 0) {
             /* Duplicate file source was mapped to previously registered source
             */
             cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
@@ -117,7 +118,14 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
 #ifdef Libisofs_with_checksumS
 
-    if(img->md5_file_checksums) {
+    if (img->md5_file_checksums && file->from_old_session && img->appendable) {
+        /* Omit MD5 indexing with old image nodes which have no MD5 */
+        ret = iso_node_get_xinfo((IsoNode *) file, checksum_xinfo_func, &xipt);
+        if (ret <= 0)
+            no_md5 = 1;
+    }
+
+    if (img->md5_file_checksums && !no_md5) {
         img->checksum_idx_counter++;
         if (img->checksum_idx_counter < 0x80000000) {
             fsrc->checksum_index= img->checksum_idx_counter;

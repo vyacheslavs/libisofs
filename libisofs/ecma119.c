@@ -896,20 +896,24 @@ int checksum_prepare_image(IsoImage *src, int flag)
   @flag bit0= recursion
 */
 static
-int checksum_prepare_nodes(IsoImage *img, IsoNode *node, int flag)
+int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
 {
     IsoNode *pos;
     IsoFile *file;
-    int ret, i;
+    IsoImage *img;
+    int ret, i, no_md5 = 0;
     size_t value_length;
     unsigned int idx = 0;
     char *value;
     void *xipt = NULL;
 
+    img= target->image;
+
     if (node->type == LIBISO_FILE) {
         file = (IsoFile *) node;
-        if (file->from_old_session) {
-            /* Save eventual MD5 data of files from old image */
+        if (file->from_old_session && target->appendable) {
+            /* Save MD5 data of files from old image which will not
+               be copied and have an MD5 recorded in the old image. */
             value= NULL;
             ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
                                        &value, 0);
@@ -924,18 +928,25 @@ int checksum_prepare_nodes(IsoImage *img, IsoNode *node, int flag)
                                              xipt);
                     if (ret < 0)
                         return ret;
-                }
+                } else
+                    no_md5 = 1;
+            } else {
+                no_md5 = 1;
             }
             if (value != NULL)
                 free(value);
         }
-        /* Equip all nodes with provisory isofs.cx numbers: 4 byte, all 0. */
-        ret = iso_file_set_isofscx(file, (unsigned int) 0, 0);
-        if (ret < 0)
-            return ret;
+        /* Equip nodes with provisory isofs.cx numbers: 4 byte, all 0.
+           Omit those from old image which will not be copied and have no MD5.
+         */
+        if (!no_md5) {
+            ret = iso_file_set_isofscx(file, (unsigned int) 0, 0);
+            if (ret < 0)
+                return ret;
+        }
     } else if (node->type == LIBISO_DIR) {
         for (pos = ((IsoDir *) node)->children; pos != NULL; pos = pos->next) {
-            ret = checksum_prepare_nodes(img, pos, 1);
+            ret = checksum_prepare_nodes(target, pos, 1);
             if (ret < 0)
                 return ret;
         }
@@ -1081,7 +1092,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (ret < 0)
             return ret;
         if (target->appendable) {
-            ret = checksum_prepare_nodes(src, (IsoNode *) src->root, 0);
+            ret = checksum_prepare_nodes(target, (IsoNode *) src->root, 0);
             if (ret < 0)
                 return ret;
         }

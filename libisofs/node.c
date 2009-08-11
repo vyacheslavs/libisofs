@@ -2696,8 +2696,11 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
         ret = 0;
         goto ex;
     }
-    memcpy(md5, image->checksum_array + ((size_t) 16) * ((size_t) idx), 16);
-    ret = ISO_SUCCESS;
+    if (!(flag & 1)) {
+        memcpy(md5, image->checksum_array + ((size_t) 16) * ((size_t) idx),
+               16);
+    }
+    ret = 1;
 ex:;
     if (value != NULL)
         free(value);
