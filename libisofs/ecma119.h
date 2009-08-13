@@ -456,6 +456,9 @@ struct ecma119_image
     off_t checksum_counter;
     char image_md5[16];
     char *checksum_buffer;
+    uint32_t checksum_array_pos;
+    uint32_t checksum_range_start;
+    uint32_t checksum_range_size;
 
 #endif /* Libisofs_with_checksumS */
 

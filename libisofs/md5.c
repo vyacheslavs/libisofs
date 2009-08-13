@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "writer.h"
 #include "messages.h"
@@ -364,7 +365,7 @@ int iso_md5_clone(void *old_md5_context, void **new_md5_context)
 {
     int ret;
 
-    ret = libisofs_md5(new_md5_context, old_md5_context, 0, NULL, 4);
+    ret = libisofs_md5(new_md5_context, old_md5_context, 0, NULL, 1 | 4);
     if (ret < 0)
         return ISO_OUT_OF_MEM;
     if (ret == 0)
@@ -474,18 +475,22 @@ int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
     size_t size;
     Ecma119Image *t;
     int ret;
-    unsigned int lba;
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
     }
     t = writer->target;
 
-    lba = t->curblock; /* (t->curblock already contains t->ms_block) */ 
-    size = (t->checksum_idx_counter + 2) / 128 + 1;
-    t->curblock += size;
-
-    /* >>> ??? reserve extra block for stream detectable checksum */;
+    t->checksum_array_pos = t->curblock;
+                               /* (t->curblock already contains t->ms_block) */ 
+    t->checksum_range_start = t->ms_block;
+    size = (t->checksum_idx_counter + 2) / 128;
+    if (size * 128 < t->checksum_idx_counter + 2)
+        size++;
+    t->curblock += size + 1;
+                     /* + 1 = extra block for stream detectable checksum tag */
+    t->checksum_range_size = t->checksum_array_pos + size
+                             - t->checksum_range_start;
 
     /* Allocate array of MD5 sums */
     t->checksum_buffer = calloc(size, 2048);
@@ -499,7 +504,8 @@ int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* Record lba,count,size,cecksum_type in "isofs.ca" of root node */
     ret = iso_root_set_isofsca((IsoNode *) t->image->root,
-                               (unsigned int) t->ms_block, lba,
+                               t->checksum_range_start, 
+                               t->checksum_array_pos,
                                t->checksum_idx_counter + 2, 16, "MD5", 0);
     if (ret < 0)
         return ret;
@@ -524,9 +530,11 @@ int checksum_writer_write_data(IsoImageWriter *writer)
 
 #ifdef Libisofs_with_checksumS
 
-    int wres, res;
+    int wres, res, l;
     size_t i, size;
     Ecma119Image *t;
+    void *ctx = NULL;
+    char md5[16], tag_block[2048];
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -537,30 +545,69 @@ int checksum_writer_write_data(IsoImageWriter *writer)
 
     /* Write image checksum to index 0 */
     if (t->checksum_ctx != NULL) {
-
-        /* >>> rather clone a result than killing t->checksum_ctx */;
-
-        res = iso_md5_end(&(t->checksum_ctx), t->image_md5);
-        if (res > 0)
-            memcpy(t->checksum_buffer + 0, t->image_md5, 16);
+        res = iso_md5_clone(t->checksum_ctx, &ctx);
+        if (res > 0) {
+            res = iso_md5_end(&ctx, t->image_md5);
+            if (res > 0)
+                memcpy(t->checksum_buffer + 0 * 16, t->image_md5, 16);
+        }
     }
 
-    size = (t->checksum_idx_counter + 2) / 128 + 1;
+    size = (t->checksum_idx_counter + 2) / 128;
+    if (size * 128 < t->checksum_idx_counter + 2)
+        size++;
  
-    /* >>> write overall checksum as index t->checksum_idx_counter + 1 */;
+    /* Write checksum of checksum array as index t->checksum_idx_counter + 1 */
+    res = iso_md5_start(&ctx);
+    if (res > 0) {
+        for (i = 0; i < t->checksum_idx_counter + 1; i++)
+            iso_md5_compute(ctx,
+                          t->checksum_buffer + ((size_t) i) * (size_t) 16, 16);
+        res = iso_md5_end(&ctx, md5);
+        if (res > 0)
+           memcpy(t->checksum_buffer + (t->checksum_idx_counter + 1) * 16,
+                  md5, 16);
+    }
 
     for (i = 0; i < size; i++) {
-        wres = iso_write(t, t->checksum_buffer + ((size_t) 2048) * i,
-                         BLOCK_SIZE);
-        if (wres < 0)
-            return wres;
+        wres = iso_write(t, t->checksum_buffer + ((size_t) 2048) * i, 2048);
+        if (wres < 0) {
+            res = wres;
+            goto ex;
+        }
+    }
+    if (t->checksum_ctx == NULL) {
+        res = ISO_SUCCESS;
+        goto ex;
     }
 
-    /* >>> write scdbackup checksum tag to an extra block */;
+    /* Write stream detectable checksum tag to extra block */;
+    memset(tag_block, 0, 2048);
+    res = iso_md5_end(&(t->checksum_ctx), md5);
+    if (res > 0) {
+        sprintf(tag_block,
+           "libisofs_checksum_tag_v1 pos=%u range_start=%u range_size=%u md5=",
+           t->checksum_array_pos + (unsigned int) size,
+           t->checksum_range_start, t->checksum_range_size);
+        l = strlen(tag_block);
+        for (i = 0; i < 16; i++)
+            sprintf(tag_block + l + 2 * i, "%2.2x",
+                    ((unsigned char *) md5)[i]);
+        tag_block[l + 32] = '\n';
+    }
+    wres = iso_write(t, tag_block, 2048);
+    if (wres < 0) {
+        res = wres;
+        goto ex;
+    }
 
 #endif /* Libisofs_with_checksumS */
 
-    return ISO_SUCCESS;
+    res = ISO_SUCCESS;
+ex:;
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
+    return(res);
 }
 
 

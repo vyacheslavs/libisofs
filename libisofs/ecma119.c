@@ -1057,6 +1057,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
     target->checksum_buffer = NULL;
+    target->checksum_array_pos = 0;
+    target->checksum_range_start = 0;
+    target->checksum_range_size = 0;
 
 #endif
 

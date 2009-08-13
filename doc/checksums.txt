@@ -1,0 +1,101 @@
+
+               Description of libisofs MD5 checksumming
+
+          by Thomas Schmitt    - mailto:scdbackup@gmx.net
+          Libburnia project    - mailto:libburn-hackers@pykix.org
+
+
+MD5 is a 128 bit message digest with a very low probability to be the same for
+any pair of differing data files. It is described in RFC 1321. and can be
+computed e.g. by program md5sum.
+
+libisofs can equip its images with MD5 checksums for the whole session and
+for each single data file. See libisofs.h, iso_write_opts_set_record_md5().
+The checksums get loaded together with the directory tree if this is enabled by
+iso_read_opts_set_no_md5(). Loaded checksums can be inquired by
+iso_image_get_session_md5() and iso_file_get_md5().
+libisofs has own MD5 computation functions: iso_md5_start(), iso_md5_compute(),
+iso_md5_clone(), iso_md5_end().
+See iso_file_get_stream(), iso_stream_open() et.al. for reading file content
+from the loaded image.
+
+
+                      Representation in the Image
+
+The checksums are stored in an area at the end of the session, in order to
+allow quick loading from media with slow random access.
+There is an array of MD5 entries and a single block with a checksum tag.
+
+Location and layout of the checksum area is recorded as AAIP attribute
+"isofs.ca" of the root node.
+See doc/susp_aaip_2_0.txt for a general description of AAIP and
+doc/susp_aaip_isofs_names.txt for the layout of "isofs.ca".
+
+Because the inquiry of this attribute demands loading of the image tree,
+there is also a checksum tag after the checksum area.
+This tag can be detected on the fly when reading and checksumming the session
+from the start point as learned from a media table-of-content. It covers not
+only the payload of the session but also the checksum area.
+
+The single data files hold an index to their MD5 checksum in individual AAIP
+attributes "isofs.cx". Index I means: array base address + 16 * I. 
+
+The checksums cover the data content as it was actually written into the ISO
+image stream, not necessarily as it was on hard disk before or afterwards.
+This implies that content filtered files bear the MD5 of the filtered data
+and not of the original files on disk. When checkreading, one has to avoid
+any filtering. Dig out the stream which directly reads image data by calling 
+iso_stream_get_input_stream() until it returns NULL and use
+iso_stream_get_size() rather than iso_file_get_size().
+
+
+                              The MD5 array
+
+If there are N checksummed data files then the array consists of N + 2 entries
+with 16 bytes each.
+
+Entry number 0 holds a session checksum which covers the range from the session
+start block up to (but not including) the start block of the checksum area.
+This range is described by attribute "isofs.ca" of the root node.
+
+Entries 1 to N hold the checksums of individual data files.
+
+Entry number N + 1 holds the MD5 checksum of entries 0 to N.
+
+
+                             The Checksum Tag
+
+The next block after the array begins with the checksum tag and is padded
+by 0-bytes. The tag is a single line of printable text and has the following
+format:
+
+ libisofs_checksum_tag_v1 pos=... range_start=... range_size=... md5=... \n
+
+Example:
+  libisofs_checksum_tag_v1 pos=81552 range_start=32 range_size=81520 md5=f172b994e8eb565a011d220b2a8b7a19
+
+There are four parameters:
+
+  pos=
+  gives the block address where the tag supposes itself to be stored.
+  If this does not match the block address where the tag is found then this
+  either indicates that the tag is payload of the image or that the image has
+  been relocated. (The latter makes the image unuable.)
+
+  range_start=
+  The block address where the session is supposed to start. If this does not
+  match the session start on media then the image volume descriptors of the
+  image have been been relocated. (The latter can happen with the overwriteable
+  media.)
+
+  range_size=
+  The number of blocks beginning at range_start which are covered by the
+  checksum of the tag.  
+
+  md5=
+  The checksum of the tag. Encoded as 32 hex digits.
+  
+  The newline character at the end is mandatory. For now all bytes of the
+  block after that newline shall be zero. There may arise future extensions.
+
+ 
