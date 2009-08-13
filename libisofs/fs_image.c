@@ -2952,6 +2952,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     uint32_t checksum_size;
     size_t size;
     uint8_t *rpt;
+    void *ctx = NULL;
+    char md5[16];
 #endif
 
     if (image == NULL || src == NULL || opts == NULL) {
@@ -3166,8 +3168,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         if (ret > 0)
             if (checksum_size != 16 || strcmp(checksum_type, "MD5") != 0)
                 ret = 0;
-        if (ret > 0) {
-            size = image->checksum_idx_count / 128 + 1;
+        if (ret > 0 && image->checksum_idx_count > 1) {
+            size = image->checksum_idx_count / 128;
+            if (size * 128 < image->checksum_idx_count)
+                size++;
             image->checksum_array = calloc(size, 2048);
             if (image->checksum_array == NULL) {
                 ret = ISO_OUT_OF_MEM;
@@ -3179,7 +3183,29 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 rpt = (uint8_t *) (image->checksum_array + i * 2048);
                 ret = src->read_block(src, image->checksum_end_lba + i, rpt);
                 if (ret <= 0)
-                    goto import_revert;
+                    goto import_cleanup;
+            }
+
+            /* Compute MD5 and compare with recorded MD5 */
+            ret = iso_md5_start(&ctx);
+            if (ret < 0) {
+                ret = ISO_OUT_OF_MEM;
+                goto import_revert;
+            }
+            for (i = 0; i < image->checksum_idx_count - 1; i++)
+                iso_md5_compute(ctx, image->checksum_array + i * 16, 16);
+            iso_md5_end(&ctx, md5);
+            for (i = 0; i < 16; i++)
+                if (md5[i] != image->checksum_array[
+                                      (image->checksum_idx_count - 1) * 16 + i]
+                   )
+            break;
+            if (i < 16) {
+                iso_msg_submit(image->id, ISO_MD5_ARRAY_CORRUPTED, 0,
+  "MD5 checksum array appears damaged and not trustworthy for verifications.");
+                free(image->checksum_array);
+                image->checksum_array = NULL;
+                image->checksum_idx_count = 0;
             }
         }
     }
@@ -3217,8 +3243,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 #ifdef Libisofs_with_checksumS
     if (old_checksum_array != NULL)
         free(old_checksum_array);
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
 #endif
-
 
     return ret;
 }

@@ -3,6 +3,7 @@
 
           by Thomas Schmitt    - mailto:scdbackup@gmx.net
           Libburnia project    - mailto:libburn-hackers@pykix.org
+                            13 Aug 2009
 
 
 MD5 is a 128 bit message digest with a very low probability to be the same for
@@ -80,12 +81,12 @@ There are four parameters:
   gives the block address where the tag supposes itself to be stored.
   If this does not match the block address where the tag is found then this
   either indicates that the tag is payload of the image or that the image has
-  been relocated. (The latter makes the image unuable.)
+  been relocated. (The latter makes the image unusable.)
 
   range_start=
   The block address where the session is supposed to start. If this does not
   match the session start on media then the image volume descriptors of the
-  image have been been relocated. (The latter can happen with the overwriteable
+  image have been been relocated. (The latter can happen with overwriteable
   media.)
 
   range_size=

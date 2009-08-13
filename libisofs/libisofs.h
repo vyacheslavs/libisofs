@@ -5242,10 +5242,19 @@ int iso_md5_end(void **md5_context, char result[16]);
 #define ISO_FILE_IMGPATH_WRONG          0xD020FF70
 
 /**
- * Offset greater than file size (FAILURE,HIGH, -145)
+ * Checksum array appears damaged and not trustworthy for verifications.
+ * (WARNING,HIGH, -145)
+ * @since 0.6.22
+*/
+#define ISO_MD5_ARRAY_CORRUPTED         0xD030FF6F
+
+
+/**
+ * Offset greater than file size (FAILURE,HIGH, -150)
  * @since 0.6.4
  */
 #define ISO_FILE_OFFSET_TOO_BIG         0xE830FF6A
+
 
 /** Charset conversion error (FAILURE,HIGH, -256) */
 #define ISO_CHARSET_CONV_ERROR          0xE830FF00
