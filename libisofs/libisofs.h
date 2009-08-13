@@ -5242,14 +5242,6 @@ int iso_md5_end(void **md5_context, char result[16]);
 #define ISO_FILE_IMGPATH_WRONG          0xD020FF70
 
 /**
- * Checksum array appears damaged and not trustworthy for verifications.
- * (WARNING,HIGH, -145)
- * @since 0.6.22
-*/
-#define ISO_MD5_ARRAY_CORRUPTED         0xD030FF6F
-
-
-/**
  * Offset greater than file size (FAILURE,HIGH, -150)
  * @since 0.6.4
  */
@@ -5372,6 +5364,13 @@ int iso_md5_end(void **md5_context, char result[16]);
 
 /** Premature EOF of zlib input stream  (FAILURE, HIGH, -351) */
 #define ISO_ZLIB_EARLY_EOF        0xE830FEA1
+
+/**
+ * Checksum array appears damaged and not trustworthy for verifications.
+ * (WARNING,HIGH, -352)
+ * @since 0.6.22
+*/
+#define ISO_MD5_ARRAY_CORRUPTED         0xD030FEA0
 
 
 /* ! PLACE NEW ERROR CODES HERE ! */

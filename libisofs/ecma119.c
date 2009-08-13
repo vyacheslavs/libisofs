@@ -906,6 +906,9 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     unsigned int idx = 0;
     char *value;
     void *xipt = NULL;
+    static char *cx_names = "isofs.cx";
+    static size_t cx_value_lengths[1] = {0};
+    char *cx_valuept = "";
 
     img= target->image;
 
@@ -917,7 +920,12 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
             value= NULL;
             ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
                                        &value, 0);
-            if (ret == 1 && value_length == 4) {
+            if (ret == 1 && img->checksum_array == NULL) {
+                /* No checksum array loaded. Delete "isofs.cx" */
+                iso_node_set_attrs(node, (size_t) 1,
+                              &cx_names, cx_value_lengths, &cx_valuept, 4 | 8);
+                no_md5 = 1;
+            } else if (ret == 1 && value_length == 4) {
                 for (i = 0; i < 4; i++)
                     idx = (idx << 8) | ((unsigned char *) value)[i];
                 if (idx > 0 && idx < 0x8000000) {
