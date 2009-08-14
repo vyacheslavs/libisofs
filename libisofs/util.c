@@ -1528,3 +1528,93 @@ int iso_util_decode_len_bytes(uint32_t *data, char *buffer, int *data_len,
 }
 
 
+int iso_util_dec_to_uint32(char *dec, uint32_t *value, int flag)
+{
+    double num;
+
+    sscanf(dec, "%lf", &num);
+    if (num < 0 || num > 4294967295.0)
+        return 0;
+    *value = num;
+    return 1;
+}
+
+
+int iso_util_hex_to_bin(char *hex, char *bin, int bin_size, int *bin_count,
+                        int flag)
+{
+    static char *allowed = {"0123456789ABCDEFabcdef"};
+    char b[3];
+    int i;
+    unsigned int u;
+
+    b[2] = 0;
+    *bin_count = 0;
+    for (i = 0; i < bin_size; i++) {
+        b[0] = hex[2 * i];
+        b[1] = hex[2 * i + 1];
+        if (strchr(allowed, b[0]) == NULL || strchr(allowed, b[1]) == NULL)
+    break;
+        sscanf(b, "%x", &u);
+        ((unsigned char *) bin)[i] = u;
+        (*bin_count)++;
+    }
+    return (*bin_count > 0);
+}
+
+
+int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
+                            uint32_t *range_start, uint32_t *range_size,
+                            char md5[16], int flag)
+{
+    static char *tag_magic= "libisofs_checksum_tag_v1 pos=";
+    static int magic_len= 29;
+    int ret, bin_count, i;
+    char *cpt, self_md5[16], tag_md5[16];
+    void *ctx = NULL;
+
+    if (strncmp(data, tag_magic, magic_len) != 0)
+      return(0);
+    cpt = data + magic_len;
+    ret = iso_util_dec_to_uint32(cpt, pos, 0);
+    if (ret <= 0)
+        return 0;
+    cpt = strstr(cpt, "range_start=");
+    if (cpt == NULL)
+        return(0);
+    ret = iso_util_dec_to_uint32(cpt + 12, range_start, 0);
+    if (ret <= 0)
+        return 0;
+    cpt = strstr(cpt, "range_size=");
+    if (cpt == NULL)
+        return(0);
+    ret = iso_util_dec_to_uint32(cpt + 11, range_size, 0);
+    if (ret <= 0)
+        return 0;
+    cpt = strstr(cpt, "md5=");
+    if (cpt == NULL)
+        return(0);
+    ret = iso_util_hex_to_bin(cpt + 4, md5, 16, &bin_count, 0);
+    if (ret <= 0 || bin_count != 16)
+        return 0;
+
+    cpt += 4 + 32;
+    ret = iso_md5_start(&ctx);
+    if (ret < 0)
+        return ret;
+    iso_md5_compute(ctx, data , cpt - data);
+    iso_md5_end(&ctx, tag_md5);
+    cpt = strstr(cpt, "self=");
+    if (cpt == NULL)
+        return(0);
+    ret = iso_util_hex_to_bin(cpt + 5, self_md5, 16, &bin_count, 0);
+    if (ret <= 0 || bin_count != 16)
+        return 0;
+    for(i= 0; i < 16; i++)
+      if(self_md5[i] != tag_md5[i])
+        return ISO_MD5_AREA_CORRUPTED;
+    if (*(cpt + 5 + 32) != '\n')
+        return 0;
+    return(1);
+}
+

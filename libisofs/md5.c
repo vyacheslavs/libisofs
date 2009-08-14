@@ -593,6 +593,17 @@ int checksum_writer_write_data(IsoImageWriter *writer)
         for (i = 0; i < 16; i++)
             sprintf(tag_block + l + 2 * i, "%2.2x",
                     ((unsigned char *) md5)[i]);
+
+        res = iso_md5_start(&ctx);
+        if (res > 0) {
+            iso_md5_compute(ctx, tag_block, l + 32);
+            iso_md5_end(&ctx, md5);
+            strcpy(tag_block + l + 32, " self=");
+            l += 32 + 6;
+            for (i = 0; i < 16; i++)
+                sprintf(tag_block + l + 2 * i, "%2.2x",
+                        ((unsigned char *) md5)[i]);
+        }
         tag_block[l + 32] = '\n';
     }
     wres = iso_write(t, tag_block, 2048);

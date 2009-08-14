@@ -3201,7 +3201,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                    )
             break;
             if (i < 16) {
-                iso_msg_submit(image->id, ISO_MD5_ARRAY_CORRUPTED, 0,
+                iso_msg_submit(image->id, ISO_MD5_AREA_CORRUPTED, 0,
   "MD5 checksum array appears damaged and not trustworthy for verifications.");
                 free(image->checksum_array);
                 image->checksum_array = NULL;

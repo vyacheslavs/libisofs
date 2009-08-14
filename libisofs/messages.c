@@ -260,8 +260,8 @@ const char *iso_error_to_msg(int errcode)
         return "Cannot set global zisofs parameters while filters exist";
     case ISO_ZLIB_EARLY_EOF:
         return "Premature EOF of zlib input stream";
-    case ISO_MD5_ARRAY_CORRUPTED:
-        return "Checksum array appears damaged and not trustworthy for verifications";
+    case ISO_MD5_AREA_CORRUPTED:
+        return "Checksum area appears damaged and not trustworthy for verifications";
     default:
         return "Unknown error";
     }

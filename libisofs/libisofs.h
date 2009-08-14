@@ -4992,7 +4992,8 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 /* ---------------------------- MD5 Checksums --------------------------- */
 
 /* Production and loading of MD5 checksums is controlled by calls
-  iso_write_opts_set_record_md5() and iso_read_opts_set_no_md5()
+   iso_write_opts_set_record_md5() and iso_read_opts_set_no_md5().
+   For data representation details see doc/checksums.txt .
 */
 
 /**
@@ -5041,6 +5042,41 @@ int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
  * @since 0.6.22
  */
 int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
+
+/**
+ * Check a data block whether it is a libisofs session checksum tag and
+ * eventually obtain its recorded parameters. These tags get written after
+ * the checksum arrays and can be detected without loading the image tree.
+ * One may start reading and computing MD5 at the suspected image session
+ * start and look out for a session tag on the fly.
+ * @param data
+ *      A complete and aligned data block read from an ISO image session.
+ * @param pos
+ *      Returns the LBA where the tag supposes itself to be stored.
+ *      If this does not match the data block LBA then the tag might be
+ *      image data payload and should be ignored for image checksumming.
+ * @param range_start
+ *      Returns the block address where the session is supposed to start.
+ *      If this does not match the session start on media then the image
+ *      volume descriptors have been been relocated.
+ *      A proper checksum will only emerge if computing started at range_start.
+ * @param range_size
+ *      Returns the number of blocks beginning at range_start which are
+ *      covered by parameter md5.
+ * @param md5
+ *      Returns 16 byte of MD5 checksum.
+ * @return
+ *      0= not a checksum tag, return parameters are invalid
+ *      1= checksum tag found
+ *     <0= error 
+ *         return parameters are valid with error ISO_MD5_AREA_CORRUPTED
+ *         but not trustworthy because the tag seems corrupted. 
+ *
+ * @since 0.6.22
+ */
+int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
+                            uint32_t *range_start, uint32_t *range_size,
+                            char md5[16], int flag);
 
 
 /* The following functions allow to do own MD5 computations. E.g for
@@ -5366,11 +5402,11 @@ int iso_md5_end(void **md5_context, char result[16]);
 #define ISO_ZLIB_EARLY_EOF        0xE830FEA1
 
 /**
- * Checksum array appears damaged and not trustworthy for verifications.
+ * Checksum area appears damaged and not trustworthy for verifications.
  * (WARNING,HIGH, -352)
  * @since 0.6.22
 */
-#define ISO_MD5_ARRAY_CORRUPTED         0xD030FEA0
+#define ISO_MD5_AREA_CORRUPTED         0xD030FEA0
 
 
 /* ! PLACE NEW ERROR CODES HERE ! */

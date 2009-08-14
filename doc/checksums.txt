@@ -70,12 +70,13 @@ The next block after the array begins with the checksum tag and is padded
 by 0-bytes. The tag is a single line of printable text and has the following
 format:
 
- libisofs_checksum_tag_v1 pos=... range_start=... range_size=... md5=... \n
+ libisofs_checksum_tag_v1 pos=# range_start=# range_size=# md5=# self=#\n
 
 Example:
-  libisofs_checksum_tag_v1 pos=81552 range_start=32 range_size=81520 md5=f172b994e8eb565a011d220b2a8b7a19
+libisofs_checksum_tag_v1 pos=81552 range_start=32 range_size=81520 md5=f172b994e8eb565a011d220b2a8b7a19 self=020975b2aa1189d455db2c09560b8732
 
-There are four parameters:
+There are five parameters. The first three are decimal numbers, the others
+are strings of 32 hex digits.
 
   pos=
   gives the block address where the tag supposes itself to be stored.
@@ -85,16 +86,23 @@ There are four parameters:
 
   range_start=
   The block address where the session is supposed to start. If this does not
-  match the session start on media then the image volume descriptors of the
-  image have been been relocated. (The latter can happen with overwriteable
-  media.)
+  match the session start on media then the volume descriptors of the
+  image have been relocated. (This can happen with overwriteable media. If
+  checksumming started at LBA 0 and finds range_start=32, then one has to
+  restart checksumming at LBA 32. See libburn/doc/cookbook.txt
+  "ISO 9660 multi-session emulation on overwriteable media" for background
+  information.)
 
   range_size=
   The number of blocks beginning at range_start which are covered by the
   checksum of the tag.  
 
   md5=
-  The checksum of the tag. Encoded as 32 hex digits.
+  The checksum payload of the tag as lower case hex digits.
+
+  self=
+  The MD5 checksum of the tag itself up to and including the last hex digit of
+  parameter "md5=".
   
   The newline character at the end is mandatory. For now all bytes of the
   block after that newline shall be zero. There may arise future extensions.
