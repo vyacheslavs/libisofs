@@ -1563,7 +1563,7 @@ int iso_util_hex_to_bin(char *hex, char *bin, int bin_size, int *bin_count,
 }
 
 
-int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
+int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
                             uint32_t *next_tag, char md5[16], int flag)
 {
@@ -1587,8 +1587,8 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
     break;
     if (i > magic_last )
         return 0;
-    found = i;
-    cpt = data + magic_len[found] + 1;
+    *tag_type = i;
+    cpt = data + magic_len[*tag_type] + 1;
     if (strncmp(cpt, "pos=", 4) != 0)
         return 0;
     cpt+= 4;
@@ -1607,7 +1607,7 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
     ret = iso_util_dec_to_uint32(cpt + 11, range_size, 0);
     if (ret <= 0)
         return 0;
-    if (found == 2 || found == 3) {
+    if (*tag_type == 2 || *tag_type == 3) {
         cpt = strstr(cpt, "next=");
         if (cpt == NULL)
             return(0);
@@ -1639,6 +1639,6 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
         return ISO_MD5_AREA_CORRUPTED;
     if (*(cpt + 5 + 32) != '\n')
         return 0;
-    return(found);
+    return(1);
 }
 

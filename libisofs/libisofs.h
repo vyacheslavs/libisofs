@@ -5052,6 +5052,11 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  * start and look out for a session tag on the fly. See doc/checksum.txt .
  * @param data
  *      A complete and aligned data block read from an ISO image session.
+ * @param tag_type
+ *      0= no tag
+ *      1= session tag
+ *      2= superblock tag
+ *      3= tree tag
  * @param pos
  *      Returns the LBA where the tag supposes itself to be stored.
  *      If this does not match the data block LBA then the tag might be
@@ -5078,16 +5083,14 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  *                 3= tree tag
  * @return
  *      0= not a checksum tag, return parameters are invalid
- *      1= session tag found
- *      2= superblock tag found
- *      3= tree tag found
+ *      1= checksum tag found, return parameters arevalid
  *     <0= error 
  *         return parameters are valid with error ISO_MD5_AREA_CORRUPTED
  *         but not trustworthy because the tag seems corrupted. 
  *
  * @since 0.6.22
  */
-int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
+int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
                             uint32_t *next_tag, char md5[16], int flag);
 

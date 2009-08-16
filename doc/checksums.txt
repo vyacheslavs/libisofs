@@ -132,12 +132,40 @@ are strings of 32 hex digits:
 
                               Usage at Read Time
 
+                     Checking Before Image Tree Loading
+
+In order to check for a trustworthy loadable image tree, read the first 32
+blocks from to the session start and look in block 16 to 32 for the superblock
+checksum tag by
+  iso_util_decode_md5_tag(block, &tag_type, &pos,
+                          &range_start, &range_size, &next_tag, md5, 2);
+If it appears and has plausible parameters, then check whether its MD5 matches
+the MD5 of the data blocks which were read before.
+(Keep the original MD5 context of the data blocks and clone one for obtaining
+the MD5 bytes.)
+Compute the block into the MD5 checksum after your are done with interpreting
+it.
+
+If those MD5s match, then compute the checksum block into the kept MD5 context
+and go on with reading and computing for the tree checksum tag. This will be
+found at block address next_tag, verified and parsed by:
+  iso_util_decode_md5_tag(block, &tag_type, &pos,
+                          &range_start, &range_size, &next_tag, md5, 3);
+Again, if the parameters match the reading state, the MD5 must match the
+MD5 computed from the data blocks which were before.
+If so, then the tree is ok and safe to be loaded by iso_image_import().
+
+
                            Checking a Whole Session
 
-In order to check the trustworthyness of a whole session, read from its start
-up to the session tag. Read the blocks and submit each single one of them to
+In order to check the trustworthyness of a whole session, continue reading
+and checksumming after the tree was verified. 
 
-  iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 1);
+Read and checksum the blocks. When reaching block address next_tag (from the
+tree tag) submit this block to
+
+  iso_util_decode_md5_tag(block, &tag_type, &pos,
+                          &range_start, &range_size, &next_tag, md5, 1);
 
 If this returns 1, then check whether the returned parameters pos, range_start,
 and range_size match the state of block reading, and whether the returned
@@ -145,29 +173,10 @@ bytes in parameter md5 match the MD5 computed from the data blocks which were
 read before the tag block.
 
 
-                     Checking before Image Tree Loading
-
-In order to check for a trustworthy loadable image tree, read the first 32
-blocks to the session start and look in block 16 to 32 for the superblock
-checksum tag by
-  iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 2);
-If one appears and has plausible parameters, then check whether its MD5 matches
-the MD5 of the data blocks read before.
-(Keep the original MD5 context of the data blocks and clone one for obtaining
-the MD5 bytes.)
-
-If those MD5s match, then compute the checksum block into the kept MD5 context
-and go on with searching for the tree checksum tag. This can be found in a
-read-in block by:
-  iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 3)
-Again, if the parameters match the reading state, the MD5 must match the
-MD5 computed from the data blocks before.
-If so, then the tree is ok and safe to be loaded by iso_image_import().
-
-
                    Checking Single Files in a Loaded Image
 
-The image has to be loaded, so you can obtain IsoNode objects which yield
+Once the image has been loaded, you can obtain MD5 sums from IsoNode objects
+which fulfill
   iso_node_get_type(node) == LIBISO_FILE
 
 The recorded checksum can be obtained by
