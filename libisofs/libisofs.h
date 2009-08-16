@@ -5065,6 +5065,13 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  *      covered by parameter md5.
  * @param md5
  *      Returns 16 byte of MD5 checksum.
+ * @param flag
+ *      Bitfield for control purposes:
+ *      bit0-bit7= tag type being looked for
+ *                 0= any checksum tag
+ *                 1= session tag
+ *                 2= superblock tag
+ *                 3= tree tag
  * @return
  *      0= not a checksum tag, return parameters are invalid
  *      1= checksum tag found

@@ -241,6 +241,16 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     target->path_table_size = path_table_size;
 
+#ifdef Libisofs_with_checksumS
+
+    if (target->md5_session_checksum) {
+        /* Account for tree checksum tag */
+        target->checksum_tree_tag_pos = target->curblock;
+        target->curblock++;
+    }
+
+#endif /* Libisofs_with_checksumS */
+
     return ISO_SUCCESS;
 }
 
@@ -674,6 +684,17 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
 
     /* and write the path tables */
     ret = write_path_tables(t);
+    if (ret < 0)
+        return ret;
+
+#ifdef Libisofs_with_checksumS
+
+    if (t->md5_session_checksum) {
+        /* Write tree checksum tag */
+        ret = iso_md5_write_tag(t, t->checksum_tree_tag_pos, 3);
+    }
+
+#endif /* Libisofs_with_checksumS */
 
     return ret;
 }
@@ -848,6 +869,18 @@ void *write_function(void *arg)
             goto write_error;
         }
     }
+
+#ifdef Libisofs_with_checksumS
+
+    /* Write superblock checksum tag */
+    if (target->md5_session_checksum && target->checksum_ctx != NULL) {
+        res = iso_md5_write_tag(target, target->checksum_sb_tag_pos, 2);
+        if (res < 0)
+            goto write_error;
+    }
+
+#endif /* Libisofs_with_checksumS */
+
 
     /* write data for each writer */
     for (i = 0; i < target->nwriters; ++i) {
@@ -1064,6 +1097,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
+    target->checksum_sb_tag_pos = 0;
+    target->checksum_tree_tag_pos = 0;
     target->checksum_buffer = NULL;
     target->checksum_array_pos = 0;
     target->checksum_range_start = 0;
@@ -1174,8 +1209,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 
 #ifdef Libisofs_with_checksumS
-
-    /* ??? Is it safe to add a writer after the content writer ? */
 
     if (target->md5_file_checksums || target->md5_session_checksum) {
         ret = checksum_writer_create(target);

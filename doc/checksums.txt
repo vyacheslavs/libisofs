@@ -1,56 +1,46 @@
 
-               Description of libisofs MD5 checksumming
+                    Description of libisofs MD5 checksumming
 
-          by Thomas Schmitt    - mailto:scdbackup@gmx.net
-          Libburnia project    - mailto:libburn-hackers@pykix.org
-                            13 Aug 2009
+               by Thomas Schmitt    - mailto:scdbackup@gmx.net
+               Libburnia project    - mailto:libburn-hackers@pykix.org
+                                 16 Aug 2009
 
 
 MD5 is a 128 bit message digest with a very low probability to be the same for
 any pair of differing data files. It is described in RFC 1321. and can be
 computed e.g. by program md5sum.
 
-libisofs can equip its images with MD5 checksums for the whole session and
-for each single data file. See libisofs.h, iso_write_opts_set_record_md5().
-The checksums get loaded together with the directory tree if this is enabled by
-iso_read_opts_set_no_md5(). Loaded checksums can be inquired by
+libisofs can equip its images with MD5 checksums for superblock, directory
+tree, the whole session, and for each single data file.
+See libisofs.h, iso_write_opts_set_record_md5().
+
+The data file checksums get loaded together with the directory tree if this
+is enabled by iso_read_opts_set_no_md5(). Loaded checksums can be inquired by
 iso_image_get_session_md5() and iso_file_get_md5().
-libisofs has own MD5 computation functions: iso_md5_start(), iso_md5_compute(),
-iso_md5_clone(), iso_md5_end().
-See iso_file_get_stream(), iso_stream_open() et.al. for reading file content
-from the loaded image.
+
+Stream recognizable checksum tags occupy exactly one block each. They can
+be detected by submitting a read-in block to iso_util_decode_md5_tag(). 
+
+libisofs has own MD5 computation functions:
+iso_md5_start(), iso_md5_compute(), iso_md5_clone(), iso_md5_end()
 
 
-                      Representation in the Image
+                          Representation in the Image
 
-The checksums are stored in an area at the end of the session, in order to
-allow quick loading from media with slow random access.
-There is an array of MD5 entries and a single block with a checksum tag.
+The checksums are stored as stream recognizable checksum tags and as a compact
+array at the end of the session. The latter allows to quickly load many
+file checksums from media with slow random access.
 
-Location and layout of the checksum area is recorded as AAIP attribute
+
+                              The Checksum Array
+
+Location and layout of the checksum array is recorded as AAIP attribute
 "isofs.ca" of the root node.
 See doc/susp_aaip_2_0.txt for a general description of AAIP and
 doc/susp_aaip_isofs_names.txt for the layout of "isofs.ca".
 
-Because the inquiry of this attribute demands loading of the image tree,
-there is also a checksum tag after the checksum area.
-This tag can be detected on the fly when reading and checksumming the session
-from the start point as learned from a media table-of-content. It covers not
-only the payload of the session but also the checksum area.
-
 The single data files hold an index to their MD5 checksum in individual AAIP
 attributes "isofs.cx". Index I means: array base address + 16 * I. 
-
-The checksums cover the data content as it was actually written into the ISO
-image stream, not necessarily as it was on hard disk before or afterwards.
-This implies that content filtered files bear the MD5 of the filtered data
-and not of the original files on disk. When checkreading, one has to avoid
-any filtering. Dig out the stream which directly reads image data by calling 
-iso_stream_get_input_stream() until it returns NULL and use
-iso_stream_get_size() rather than iso_file_get_size().
-
-
-                              The MD5 array
 
 If there are N checksummed data files then the array consists of N + 2 entries
 with 16 bytes each.
@@ -64,19 +54,41 @@ Entries 1 to N hold the checksums of individual data files.
 Entry number N + 1 holds the MD5 checksum of entries 0 to N.
 
 
-                             The Checksum Tag
+                             The Checksum Tags
 
-The next block after the array begins with the checksum tag and is padded
-by 0-bytes. The tag is a single line of printable text and has the following
-format:
+Because the inquiry of AAIP attributes demands loading of the image tree,
+there are also checksum tags which can be detected on the fly when reading
+and checksumming the session from the start point as learned from a media
+table-of-content. 
 
- libisofs_checksum_tag_v1 pos=# range_start=# range_size=# md5=# self=#\n
+The superblock checksum tag is written after the ECMA-119 volume descriptors.
+The tree checksum tag is written after the  ECMA-119 directory entries.
+The session checksum tag is written after all payload including the checksum
+array. (Then follows eventual padding.)
 
-Example:
-libisofs_checksum_tag_v1 pos=81552 range_start=32 range_size=81520 md5=f172b994e8eb565a011d220b2a8b7a19 self=020975b2aa1189d455db2c09560b8732
+The tags are a single lines of printable text, padded by 0 bytes. They have
+the following format:
 
-There are five parameters. The first three are decimal numbers, the others
-are strings of 32 hex digits.
+ Tag_id pos=# range_start=# range_size=# md5=# self=#\n
+
+Tag_id distinguishes the three tag types
+  "libisofs_sb_checksum_tag_v1"     Superblock tag
+  "libisofs_tree_checksum_tag_v1"   Directory tree tag
+  "libisofs_checksum_tag_v1"        Session tag
+
+
+Example (session starts at at Logical Block Address 32):
+
+   <... ECMA-119 System Area and Volume Descriptors ...>
+libisofs_sb_checksum_tag_v1 pos=50 range_start=32 range_size=18 md5=17471035f1360a69eedbd1d0c67a6aa2 self=52d602210883eeababfc9cd287e28682
+   <... ECMA-119 Directory Entries ...>
+libisofs_tree_checksum_tag_v1 pos=334 range_start=32 range_size=302 md5=41acd50285339be5318decce39834a45 self=fe100c338c8f9a494a5432b5bfe6bf3c
+   <... Data file payload and checksum array ...>
+libisofs_checksum_tag_v1 pos=81554 range_start=32 range_size=81522 md5=8adb404bdf7f5c0a078873bb129ee5b9 self=57c2c2192822b658240d62cbc88270cb
+
+
+There are five tag parameters. The first three are decimal numbers, the others
+are strings of 32 hex digits:
 
   pos=
   gives the block address where the tag supposes itself to be stored.
@@ -107,4 +119,68 @@ are strings of 32 hex digits.
   The newline character at the end is mandatory. For now all bytes of the
   block after that newline shall be zero. There may arise future extensions.
 
- 
+
+-------------------------------------------------------------------------------
+
+                              Usage at Read Time
+
+                           Checking a Whole Session
+
+In order to check the trustworthyness of a whole session, read from its start
+up to the session tag. Read the blocks and submit each single one of them to
+
+  iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 1);
+
+If this returns 1, then check whether the returned parameters pos, range_start,
+and range_size match the state of block reading, and whether the returned
+bytes in parameter md5 match the MD5 computed from the data blocks which were
+read before the tag block.
+
+
+                     Checking before Image Tree Loading
+
+In order to check for a trustworthy loadable image tree, read the first
+32 blocks of the session and look for the superblock checksum tag by
+  iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 2);
+If one appears and has plausible parameters, then check whether its MD5 matches
+the MD5 of the data blocks read before.
+(Keep the original MD5 context of the data blocks and clone one for obtaining
+the MD5 bytes.)
+
+If those MD5s match, then compute the checksum block into the kept MD5 context
+and go on with searching for the tree checksum tag. This can be found in a
+read-in block by:
+  iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 3)
+Again, if the parameters match the reading state, the MD5 must match the
+MD5 computed from the data blocks before.
+If so, then the tree is ok and safe to be loaded by iso_image_import().
+
+
+                   Checking Single Files in a Loaded Image
+
+The image has to be loaded, so you can obtain IsoNode objects which yield
+  iso_node_get_type(node) == LIBISO_FILE
+
+The recorded checksum can be obtained by
+  iso_file_get_md5(image, (IsoFile *) node, md5, 0);
+
+For accessing the file data in the loaded image use 
+  iso_file_get_stream((IsoFile *) node);
+to get the data stream of the object.
+The checksums cover the data content as it was actually written into the ISO
+image stream, not necessarily as it was on hard disk before or afterwards.
+This implies that content filtered files bear the MD5 of the filtered data
+and not of the original files on disk. When checkreading, one has to avoid
+any reverse filtering. Dig out the stream which directly reads image data
+by calling iso_stream_get_input_stream() until it returns NULL and use
+iso_stream_get_size() rather than iso_file_get_size().
+
+Now you may call iso_stream_open(), iso_stream_read(), iso_stream_close()
+for reading file content from the loaded image.
+
+
+                        Session Check in a Loaded Image
+
+iso_image_get_session_md5() gives start LBA and session payload size as of
+"isofs.ca" and the session checksum as of the checksum array.
+

@@ -519,7 +519,12 @@ int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
 static
 int checksum_writer_write_vol_desc(IsoImageWriter *writer)
 {
-    /* nothing needed */
+
+    /* The superblock checksum tag has to be written after
+       the Volume Descriptor Set Terminator and thus may not be
+       written by this function. (It would have been neat, though).
+    */
+
     return ISO_SUCCESS;
 }
 
@@ -530,11 +535,16 @@ int checksum_writer_write_data(IsoImageWriter *writer)
 
 #ifdef Libisofs_with_checksumS
 
-    int wres, res, l;
+    int wres, res;
     size_t i, size;
     Ecma119Image *t;
     void *ctx = NULL;
-    char md5[16], tag_block[2048];
+    char md5[16];
+
+#ifdef NIX
+    char tag_block[2048];
+    int l;
+#endif
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -582,6 +592,9 @@ int checksum_writer_write_data(IsoImageWriter *writer)
     }
 
     /* Write stream detectable checksum tag to extra block */;
+
+#ifdef NIX
+
     memset(tag_block, 0, 2048);
     res = iso_md5_end(&(t->checksum_ctx), md5);
     if (res > 0) {
@@ -612,13 +625,25 @@ int checksum_writer_write_data(IsoImageWriter *writer)
         goto ex;
     }
 
-#endif /* Libisofs_with_checksumS */
+#else /* NIX */
+
+    res = iso_md5_write_tag(t, t->checksum_array_pos + (uint32_t) size, 1);
+    if (res < 0)
+        goto ex;
+
+#endif /* ! NIX */
 
     res = ISO_SUCCESS;
 ex:;
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
     return(res);
+
+#else /* Libisofs_with_checksumS */
+
+    return ISO_SUCCESS;
+
+#endif /* ! Libisofs_with_checksumS */
 }
 
 
@@ -649,6 +674,93 @@ int checksum_writer_create(Ecma119Image *target)
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
 
+#ifdef Libisofs_with_checksumS
+
+    /* Account for superblock checksum tag */
+    if (target->md5_session_checksum) {
+        target->checksum_sb_tag_pos = target->curblock;
+        target->curblock++;
+    }
+
+#endif /* Libisofs_with_checksumS */
+
     return ISO_SUCCESS;
 }
+
+
+/* Write stream detectable checksum tag to extra block.
+ * @flag bit0-7= tag type
+ *               1= session tag (End checksumming.)
+ *               2= superblock tag (System Area and Volume Descriptors)
+ *               3= tree tag (ECMA-119 and Rock Ridge tree)
+ */
+int iso_md5_write_tag(Ecma119Image *t, uint32_t pos, int flag)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    int res, mode, l, i, wres;
+    void *ctx = NULL;
+    char md5[16], tag_block[2048];
+    uint32_t size;
+    static char *tag_ids[4]= {"",
+                              "libisofs_checksum_tag_v1",
+                              "libisofs_sb_checksum_tag_v1",
+                              "libisofs_tree_checksum_tag_v1"};
+
+    memset(tag_block, 0, 2048);
+    mode = flag & 255;
+    if (mode == 1) {
+        res = iso_md5_end(&(t->checksum_ctx), md5);
+        size = t->checksum_range_size;
+    } else if (mode == 2 || mode == 3) {
+        size = pos - t->checksum_range_start;
+        res = iso_md5_clone(t->checksum_ctx, &ctx);
+        if (res < 0)
+            return res;
+        res = iso_md5_end(&ctx, md5);
+    } else {
+        return ISO_WRONG_ARG_VALUE;
+    }
+    if (res > 0) {
+        sprintf(tag_block,
+                "%s pos=%u range_start=%u range_size=%u md5=",
+                tag_ids[mode], pos,
+                t->checksum_range_start, size);
+        l = strlen(tag_block);
+        for (i = 0; i < 16; i++)
+            sprintf(tag_block + l + 2 * i, "%2.2x",
+                    ((unsigned char *) md5)[i]);
+
+        res = iso_md5_start(&ctx);
+        if (res > 0) {
+            iso_md5_compute(ctx, tag_block, l + 32);
+            iso_md5_end(&ctx, md5);
+            strcpy(tag_block + l + 32, " self=");
+            l += 32 + 6;
+            for (i = 0; i < 16; i++)
+                sprintf(tag_block + l + 2 * i, "%2.2x",
+                        ((unsigned char *) md5)[i]);
+        }
+        tag_block[l + 32] = '\n';
+    }
+    wres = iso_write(t, tag_block, 2048);
+    if (wres < 0) {
+        res = wres;
+        goto ex;
+    }
+    res = ISO_SUCCESS;
+ex:;
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
+    return res;
+
+#else /* Libisofs_with_checksumS */
+
+    return ISO_SUCCESS;
+
+#endif /* ! Libisofs_with_checksumS */
+
+}
+
 

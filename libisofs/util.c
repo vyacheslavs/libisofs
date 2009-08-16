@@ -1567,15 +1567,30 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
                             char md5[16], int flag)
 {
-    static char *tag_magic= "libisofs_checksum_tag_v1 pos=";
-    static int magic_len= 29;
-    int ret, bin_count, i;
+    static char *tag_magic[4] = {"",
+                                 "libisofs_checksum_tag_v1",
+                                 "libisofs_sb_checksum_tag_v1",
+                                 "libisofs_tree_checksum_tag_v1"};
+    static int magic_len[4]= {0, 24, 27, 29};
+    int ret, bin_count, i, mode, magic_first = 1, magic_last = 3, found = 0;
     char *cpt, self_md5[16], tag_md5[16];
     void *ctx = NULL;
 
-    if (strncmp(data, tag_magic, magic_len) != 0)
-      return(0);
-    cpt = data + magic_len;
+    mode = flag & 255;
+    if (mode > magic_last)
+        return ISO_WRONG_ARG_VALUE;
+    if (mode > 0)
+        magic_first = magic_last = mode;
+    for (i = magic_first; i <= magic_last; i++)
+        if (strncmp(data, tag_magic[i], magic_len[i]) == 0)
+    break;
+    if (i > magic_last )
+        return 0;
+    found = i;
+    cpt = data + magic_len[found] + 1;
+    if (strncmp(cpt, "pos=", 4) != 0)
+        return 0;
+    cpt+= 4;
     ret = iso_util_dec_to_uint32(cpt, pos, 0);
     if (ret <= 0)
         return 0;
@@ -1615,6 +1630,6 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
         return ISO_MD5_AREA_CORRUPTED;
     if (*(cpt + 5 + 32) != '\n')
         return 0;
-    return(1);
+    return(found);
 }
 
