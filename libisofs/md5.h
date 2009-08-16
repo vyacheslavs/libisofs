@@ -34,13 +34,12 @@ int checksum_xinfo_func(void *data, int flag);
  * Type 1 is written at the very end of the session. If it matches, then
  * the whole image is trustworthy.
  * @param t      The image being written
- * @param pos    The LBA where this tag block is supposed to be written
  * @flag         bit0-7= tag type
  *               1= session tag (End checksumming.)
  *               2= superblock tag (System Area and Volume Descriptors)
  *               3= tree tag (ECMA-119 and Rock Ridge tree)
  */
-int iso_md5_write_tag(Ecma119Image *t, uint32_t pos, int flag);
+int iso_md5_write_tag(Ecma119Image *t, int flag);
 
 
 #endif /* ! LIBISO_MD5_H_ */

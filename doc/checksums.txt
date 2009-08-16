@@ -69,7 +69,7 @@ array. (Then follows eventual padding.)
 The tags are a single lines of printable text, padded by 0 bytes. They have
 the following format:
 
- Tag_id pos=# range_start=# range_size=# md5=# self=#\n
+ Tag_id pos=# range_start=# range_size=# [next=#] md5=# self=#\n
 
 Tag_id distinguishes the three tag types
   "libisofs_sb_checksum_tag_v1"     Superblock tag
@@ -109,6 +109,14 @@ are strings of 32 hex digits:
   The number of blocks beginning at range_start which are covered by the
   checksum of the tag.  
 
+  Only with superblock tag and tree tag:
+  next=
+  The block address where the next tag is supposed to be found. This is
+  to avoid the small possibility that a checksum tag with matching position
+  is part of a directory entry or data file. The superblock tag is quite
+  uniquely placed directly after the ECMA-119 Volume Descriptor Set Terminator
+  where no such cleartext is supposed to reside by accident.
+
   md5=
   The checksum payload of the tag as lower case hex digits.
 
@@ -139,8 +147,9 @@ read before the tag block.
 
                      Checking before Image Tree Loading
 
-In order to check for a trustworthy loadable image tree, read the first
-32 blocks of the session and look for the superblock checksum tag by
+In order to check for a trustworthy loadable image tree, read the first 32
+blocks to the session start and look in block 16 to 32 for the superblock
+checksum tag by
   iso_util_decode_md5_tag(block, &pos, &range_start, &range_size, md5, 2);
 If one appears and has plausible parameters, then check whether its MD5 matches
 the MD5 of the data blocks read before.

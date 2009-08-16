@@ -691,7 +691,7 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
 
     if (t->md5_session_checksum) {
         /* Write tree checksum tag */
-        ret = iso_md5_write_tag(t, t->checksum_tree_tag_pos, 3);
+        ret = iso_md5_write_tag(t, 3);
     }
 
 #endif /* Libisofs_with_checksumS */
@@ -874,7 +874,7 @@ void *write_function(void *arg)
 
     /* Write superblock checksum tag */
     if (target->md5_session_checksum && target->checksum_ctx != NULL) {
-        res = iso_md5_write_tag(target, target->checksum_sb_tag_pos, 2);
+        res = iso_md5_write_tag(target, 2);
         if (res < 0)
             goto write_error;
     }
@@ -1099,6 +1099,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_counter = 0;
     target->checksum_sb_tag_pos = 0;
     target->checksum_tree_tag_pos = 0;
+    target->checksum_tag_pos = 0;
     target->checksum_buffer = NULL;
     target->checksum_array_pos = 0;
     target->checksum_range_start = 0;

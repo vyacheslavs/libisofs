@@ -456,6 +456,7 @@ struct ecma119_image
     off_t checksum_counter;
     uint32_t checksum_sb_tag_pos;
     uint32_t checksum_tree_tag_pos;
+    uint32_t checksum_tag_pos;
     char image_md5[16];
     char *checksum_buffer;
     uint32_t checksum_array_pos;

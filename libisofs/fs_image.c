@@ -2278,6 +2278,15 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     return ISO_SUCCESS;
 }
 
+static
+int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
+{
+
+    /* >>>> */;
+
+    return 2;
+}
+
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              int msgid, IsoImageFilesystem **fs)
 {
@@ -2341,6 +2350,21 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     ifs->free = ifs_fs_free;
 
     /* read Volume Descriptors and ensure it is a valid image */
+
+#ifdef Libisofs_with_checksumS
+
+    if (data->md5_load) {
+
+        /* >>> From opts->block on : check for superblock and tree tags */;
+        ret = iso_src_check_sb_tree(src, opts->block, 0);
+        if (ret <= 0) {
+
+            /* >>> refuse to load, hint towards loading without MD5 check */;
+
+        }
+    }
+
+#endif /* Libisofs_with_checksumS */
 
     /* 1. first, open the filesystem */
     ifs_fs_open(ifs);

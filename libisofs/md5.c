@@ -487,10 +487,13 @@ int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
     size = (t->checksum_idx_counter + 2) / 128;
     if (size * 128 < t->checksum_idx_counter + 2)
         size++;
-    t->curblock += size + 1;
-                     /* + 1 = extra block for stream detectable checksum tag */
+    t->curblock += size;
     t->checksum_range_size = t->checksum_array_pos + size
                              - t->checksum_range_start;
+
+    /* Extra block for stream detectable checksum tag */
+    t->checksum_tag_pos =  t->curblock;
+    t->curblock++;
 
     /* Allocate array of MD5 sums */
     t->checksum_buffer = calloc(size, 2048);
@@ -592,46 +595,9 @@ int checksum_writer_write_data(IsoImageWriter *writer)
     }
 
     /* Write stream detectable checksum tag to extra block */;
-
-#ifdef NIX
-
-    memset(tag_block, 0, 2048);
-    res = iso_md5_end(&(t->checksum_ctx), md5);
-    if (res > 0) {
-        sprintf(tag_block,
-           "libisofs_checksum_tag_v1 pos=%u range_start=%u range_size=%u md5=",
-           t->checksum_array_pos + (unsigned int) size,
-           t->checksum_range_start, t->checksum_range_size);
-        l = strlen(tag_block);
-        for (i = 0; i < 16; i++)
-            sprintf(tag_block + l + 2 * i, "%2.2x",
-                    ((unsigned char *) md5)[i]);
-
-        res = iso_md5_start(&ctx);
-        if (res > 0) {
-            iso_md5_compute(ctx, tag_block, l + 32);
-            iso_md5_end(&ctx, md5);
-            strcpy(tag_block + l + 32, " self=");
-            l += 32 + 6;
-            for (i = 0; i < 16; i++)
-                sprintf(tag_block + l + 2 * i, "%2.2x",
-                        ((unsigned char *) md5)[i]);
-        }
-        tag_block[l + 32] = '\n';
-    }
-    wres = iso_write(t, tag_block, 2048);
-    if (wres < 0) {
-        res = wres;
-        goto ex;
-    }
-
-#else /* NIX */
-
-    res = iso_md5_write_tag(t, t->checksum_array_pos + (uint32_t) size, 1);
+    res = iso_md5_write_tag(t, 1);
     if (res < 0)
         goto ex;
-
-#endif /* ! NIX */
 
     res = ISO_SUCCESS;
 ex:;
@@ -694,7 +660,7 @@ int checksum_writer_create(Ecma119Image *target)
  *               2= superblock tag (System Area and Volume Descriptors)
  *               3= tree tag (ECMA-119 and Rock Ridge tree)
  */
-int iso_md5_write_tag(Ecma119Image *t, uint32_t pos, int flag)
+int iso_md5_write_tag(Ecma119Image *t, int flag)
 {
 
 #ifdef Libisofs_with_checksumS
@@ -702,7 +668,7 @@ int iso_md5_write_tag(Ecma119Image *t, uint32_t pos, int flag)
     int res, mode, l, i, wres;
     void *ctx = NULL;
     char md5[16], tag_block[2048];
-    uint32_t size;
+    uint32_t size= 0, pos, next_pos = 0;
     static char *tag_ids[4]= {"",
                               "libisofs_checksum_tag_v1",
                               "libisofs_sb_checksum_tag_v1",
@@ -713,7 +679,15 @@ int iso_md5_write_tag(Ecma119Image *t, uint32_t pos, int flag)
     if (mode == 1) {
         res = iso_md5_end(&(t->checksum_ctx), md5);
         size = t->checksum_range_size;
+        pos = t->checksum_tag_pos;
     } else if (mode == 2 || mode == 3) {
+        if (mode == 2) {
+            pos = t->checksum_sb_tag_pos;
+            next_pos = t->checksum_tree_tag_pos;
+        } else {
+            pos = t->checksum_tree_tag_pos;
+            next_pos = t->checksum_tag_pos;
+        }
         size = pos - t->checksum_range_start;
         res = iso_md5_clone(t->checksum_ctx, &ctx);
         if (res < 0)
@@ -724,20 +698,28 @@ int iso_md5_write_tag(Ecma119Image *t, uint32_t pos, int flag)
     }
     if (res > 0) {
         sprintf(tag_block,
-                "%s pos=%u range_start=%u range_size=%u md5=",
+                "%s pos=%u range_start=%u range_size=%u",
                 tag_ids[mode], pos,
                 t->checksum_range_start, size);
+        l = strlen(tag_block);
+        if (mode == 2) {
+            sprintf(tag_block + l, " next=%u", t->checksum_tree_tag_pos);
+        } else if (mode == 3) {
+            sprintf(tag_block + l, " next=%u", t->checksum_tag_pos);
+        }
+        strcat(tag_block + l, " md5=");
         l = strlen(tag_block);
         for (i = 0; i < 16; i++)
             sprintf(tag_block + l + 2 * i, "%2.2x",
                     ((unsigned char *) md5)[i]);
-
+        l+= 32;
+        
         res = iso_md5_start(&ctx);
         if (res > 0) {
-            iso_md5_compute(ctx, tag_block, l + 32);
+            iso_md5_compute(ctx, tag_block, l);
             iso_md5_end(&ctx, md5);
-            strcpy(tag_block + l + 32, " self=");
-            l += 32 + 6;
+            strcpy(tag_block + l, " self=");
+            l += 6;
             for (i = 0; i < 16; i++)
                 sprintf(tag_block + l + 2 * i, "%2.2x",
                         ((unsigned char *) md5)[i]);

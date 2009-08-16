@@ -1565,7 +1565,7 @@ int iso_util_hex_to_bin(char *hex, char *bin, int bin_size, int *bin_count,
 
 int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
-                            char md5[16], int flag)
+                            uint32_t *next_tag, char md5[16], int flag)
 {
     static char *tag_magic[4] = {"",
                                  "libisofs_checksum_tag_v1",
@@ -1576,6 +1576,7 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
     char *cpt, self_md5[16], tag_md5[16];
     void *ctx = NULL;
 
+    *next_tag = 0;
     mode = flag & 255;
     if (mode > magic_last)
         return ISO_WRONG_ARG_VALUE;
@@ -1606,6 +1607,14 @@ int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
     ret = iso_util_dec_to_uint32(cpt + 11, range_size, 0);
     if (ret <= 0)
         return 0;
+    if (found == 2 || found == 3) {
+        cpt = strstr(cpt, "next=");
+        if (cpt == NULL)
+            return(0);
+        ret = iso_util_dec_to_uint32(cpt + 5, next_tag, 0);
+        if (ret <= 0)
+            return 0;
+    }
     cpt = strstr(cpt, "md5=");
     if (cpt == NULL)
         return(0);

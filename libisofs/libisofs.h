@@ -5046,9 +5046,10 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
 /**
  * Check a data block whether it is a libisofs session checksum tag and
  * eventually obtain its recorded parameters. These tags get written after
- * the checksum arrays and can be detected without loading the image tree.
+ * volume descriptors, directory tree and checksum array and can be detected
+ * without loading the image tree.
  * One may start reading and computing MD5 at the suspected image session
- * start and look out for a session tag on the fly.
+ * start and look out for a session tag on the fly. See doc/checksum.txt .
  * @param data
  *      A complete and aligned data block read from an ISO image session.
  * @param pos
@@ -5063,6 +5064,9 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  * @param range_size
  *      Returns the number of blocks beginning at range_start which are
  *      covered by parameter md5.
+ * @param next_tag
+ *      Returns the predicted block address of the next tag.
+ *      Valid only with return values 2 and 3 and if not 0.
  * @param md5
  *      Returns 16 byte of MD5 checksum.
  * @param flag
@@ -5074,7 +5078,9 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  *                 3= tree tag
  * @return
  *      0= not a checksum tag, return parameters are invalid
- *      1= checksum tag found
+ *      1= session tag found
+ *      2= superblock tag found
+ *      3= tree tag found
  *     <0= error 
  *         return parameters are valid with error ISO_MD5_AREA_CORRUPTED
  *         but not trustworthy because the tag seems corrupted. 
@@ -5083,7 +5089,7 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  */
 int iso_util_decode_md5_tag(char data[2048], uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
-                            char md5[16], int flag);
+                            uint32_t *next_tag, char md5[16], int flag);
 
 
 /* The following functions allow to do own MD5 computations. E.g for
