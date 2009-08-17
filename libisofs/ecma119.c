@@ -1097,6 +1097,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
+    target->checksum_rlsb_tag_pos = 0;
     target->checksum_sb_tag_pos = 0;
     target->checksum_tree_tag_pos = 0;
     target->checksum_tag_pos = 0;
@@ -1104,6 +1105,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_array_pos = 0;
     target->checksum_range_start = 0;
     target->checksum_range_size = 0;
+    target->opts_overwrite = 0;
 
 #endif
 
@@ -1265,7 +1267,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* check if we need to provide a copy of volume descriptors */
     if (opts->overwrite) {
-
         /*
          * Get a copy of the volume descriptors to be written in a DVD+RW
          * disc
@@ -1318,6 +1319,28 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         vol->vol_desc_type[0] = 255;
         memcpy(vol->std_identifier, "CD001", 5);
         vol->vol_desc_version[0] = 1;
+
+#ifdef Libisofs_with_checksumS
+
+        /* Write relocated superblock checksum tag */
+        if (target->md5_session_checksum) {
+            target->checksum_rlsb_tag_pos = voldesc_size / BLOCK_SIZE + 16 + 1;
+            if (target->checksum_rlsb_tag_pos < 32) {
+                ret = iso_md5_start(&(target->checksum_ctx));
+                if (ret < 0)
+                    return ret;
+                target->opts_overwrite = (char *) opts->overwrite;
+                iso_md5_compute(target->checksum_ctx, target->opts_overwrite,
+                                target->checksum_rlsb_tag_pos * 2048);
+                ret = iso_md5_write_tag(target, 4);
+                target->opts_overwrite = NULL; /* opts might not persist */
+                if (ret < 0)
+                    goto target_cleanup;
+            }
+        }
+
+#endif /* Libisofs_with_checksumS */
+
     }
 
     /*
@@ -1333,6 +1356,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 #ifdef Libisofs_with_checksumS
     if (target->md5_session_checksum) {
         /* After any fake writes are done: Initialize image checksum context */
+        if (target->checksum_ctx != NULL)
+            iso_md5_end(&(target->checksum_ctx), target->image_md5);
         ret = iso_md5_start(&(target->checksum_ctx));
         if (ret < 0)
             return ret;

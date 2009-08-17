@@ -659,6 +659,8 @@ int checksum_writer_create(Ecma119Image *target)
  *               1= session tag (End checksumming.)
  *               2= superblock tag (System Area and Volume Descriptors)
  *               3= tree tag (ECMA-119 and Rock Ridge tree)
+ *               4= relocated superblock tag (at LBA 0 of overwriteable media)
+ *                  Write to target->opts_overwrite rather than to iso_write().
  */
 int iso_md5_write_tag(Ecma119Image *t, int flag)
 {
@@ -668,27 +670,30 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
     int res, mode, l, i, wres;
     void *ctx = NULL;
     char md5[16], tag_block[2048];
-    uint32_t size= 0, pos, next_pos = 0;
-    static char *tag_ids[4]= {"",
+    uint32_t size = 0, pos = 0, start;
+    static char *tag_ids[] = {"",
                               "libisofs_checksum_tag_v1",
                               "libisofs_sb_checksum_tag_v1",
-                              "libisofs_tree_checksum_tag_v1"};
+                              "libisofs_tree_checksum_tag_v1",
+                              "libisofs_rlsb32_checksum_tag_v1"};
 
+    start = t->checksum_range_start;
     memset(tag_block, 0, 2048);
     mode = flag & 255;
     if (mode == 1) {
         res = iso_md5_end(&(t->checksum_ctx), md5);
         size = t->checksum_range_size;
         pos = t->checksum_tag_pos;
-    } else if (mode == 2 || mode == 3) {
+    } else if (mode >= 2 && mode <= 4) {
         if (mode == 2) {
             pos = t->checksum_sb_tag_pos;
-            next_pos = t->checksum_tree_tag_pos;
-        } else {
+        } else if (mode == 3) {
             pos = t->checksum_tree_tag_pos;
-            next_pos = t->checksum_tag_pos;
+        } else if (mode == 4) {
+            pos = t->checksum_rlsb_tag_pos;
+            start = pos - (pos % 32);
         }
-        size = pos - t->checksum_range_start;
+        size = pos - start;
         res = iso_md5_clone(t->checksum_ctx, &ctx);
         if (res < 0)
             return res;
@@ -699,13 +704,15 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
     if (res > 0) {
         sprintf(tag_block,
                 "%s pos=%u range_start=%u range_size=%u",
-                tag_ids[mode], pos,
-                t->checksum_range_start, size);
+                tag_ids[mode], pos, start, size);
+
         l = strlen(tag_block);
         if (mode == 2) {
             sprintf(tag_block + l, " next=%u", t->checksum_tree_tag_pos);
         } else if (mode == 3) {
             sprintf(tag_block + l, " next=%u", t->checksum_tag_pos);
+        } else if (mode == 4) {
+            sprintf(tag_block + l, " session_start=%u", t->ms_block);
         }
         strcat(tag_block + l, " md5=");
         l = strlen(tag_block);
@@ -726,10 +733,15 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
         }
         tag_block[l + 32] = '\n';
     }
-    wres = iso_write(t, tag_block, 2048);
-    if (wres < 0) {
-        res = wres;
-        goto ex;
+    if (mode == 4) {
+        if (t->opts_overwrite != NULL)
+            memcpy(t->opts_overwrite + pos * 2048, tag_block, 2048);
+    } else {
+        wres = iso_write(t, tag_block, 2048);
+        if (wres < 0) {
+            res = wres;
+            goto ex;
+        }
     }
     res = ISO_SUCCESS;
 ex:;

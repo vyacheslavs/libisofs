@@ -454,6 +454,7 @@ struct ecma119_image
     unsigned int checksum_idx_counter;
     void *checksum_ctx;
     off_t checksum_counter;
+    uint32_t checksum_rlsb_tag_pos;
     uint32_t checksum_sb_tag_pos;
     uint32_t checksum_tree_tag_pos;
     uint32_t checksum_tag_pos;
@@ -462,6 +463,15 @@ struct ecma119_image
     uint32_t checksum_array_pos;
     uint32_t checksum_range_start;
     uint32_t checksum_range_size;
+
+    char *opts_overwrite; /* Points to IsoWriteOpts->overwrite.
+                             Use only underneath ecma119_image_new()
+                             and if not NULL*/
+
+    /* ??? Is there a reason why we copy lots of items from IsoWriteOpts
+           rather than taking ownership of the IsoWriteOpts object which
+           is submitted with ecma119_image_new() ?
+     */
 
 #endif /* Libisofs_with_checksumS */
 

@@ -27,8 +27,8 @@ iso_md5_start(), iso_md5_compute(), iso_md5_clone(), iso_md5_end()
 
                           Representation in the Image
 
-The checksums are stored as stream recognizable checksum tags and as a compact
-array at the end of the session. The latter allows to quickly load many
+There may be several stream recognizable checksum tags and a compact array
+of MD5 items at the end of the session. The latter allows to quickly load many
 file checksums from media with slow random access.
 
 
@@ -69,26 +69,58 @@ array. (Then follows eventual padding.)
 The tags are a single lines of printable text, padded by 0 bytes. They have
 the following format:
 
- Tag_id pos=# range_start=# range_size=# [next=#] md5=# self=#\n
+ Tag_id pos=# range_start=# range_size=# [session_start|next=#] md5=# self=#\n
 
-Tag_id distinguishes the three tag types
-  "libisofs_sb_checksum_tag_v1"     Superblock tag
-  "libisofs_tree_checksum_tag_v1"   Directory tree tag
-  "libisofs_checksum_tag_v1"        Session tag
+Tag_id distinguishes the following tag types
+  "libisofs_rlsb32_checksum_tag_v1"     Relocated 64 kB superblock tag
+  "libisofs_sb_checksum_tag_v1"         Superblock tag
+  "libisofs_tree_checksum_tag_v1"       Directory tree tag
+  "libisofs_checksum_tag_v1"            Session tag
+
+A relocated superblock may appear at LBA 0 of an image which was produced for
+being stored in a disk file or on overwriteable media (e.g. DVD+R, BD-RE).
+Typically there is a first session recorded with a superblock at LBA 32 and
+the next session may follow shortly after its session tag. (There may be a gap
+of padding, often 150 blocks, and aligning to the next address that is
+divisible by 32.) Normally no session starts after the address given by
+parameter session_start=.
+
+Session oriented media like CD-R[W], DVD+R, BD-R will have no relocated
+superblock but rather bear a table-of-content on media level (to be inquired
+by MMC commands(.
 
 
-Example (session starts at at Logical Block Address 32):
+Example:
+A relocated superblock which points to the last session. Then the first session
+which starts at Logical Block Address 32. The following sessions have the same
+structure as the first one.
 
+LBA 0:
    <... ECMA-119 System Area and Volume Descriptors ...>
-libisofs_sb_checksum_tag_v1 pos=50 range_start=32 range_size=18 md5=17471035f1360a69eedbd1d0c67a6aa2 self=52d602210883eeababfc9cd287e28682
-   <... ECMA-119 Directory Entries ...>
-libisofs_tree_checksum_tag_v1 pos=334 range_start=32 range_size=302 md5=41acd50285339be5318decce39834a45 self=fe100c338c8f9a494a5432b5bfe6bf3c
+LBA 18:
+   libisofs_rlsb32_checksum_tag_v1 pos=18 range_start=0 range_size=18 session_start=311936 md5=6fd252d5b1db52b3c5193447081820e4 self=526f7a3c7fefce09754275c6b924b6d9
+   <... padding up to LBA 32 ...>
+LBA 32:
+   <... First Session: ECMA-119 System Area and Volume Descriptors ...>
+   libisofs_sb_checksum_tag_v1 pos=50 range_start=32 range_size=18 md5=17471035f1360a69eedbd1d0c67a6aa2 self=52d602210883eeababfc9cd287e28682
+   <... ECMA-119 Directory Entries (the tree of file names) ...>
+LBA 334:
+   libisofs_tree_checksum_tag_v1 pos=334 range_start=32 range_size=302 md5=41acd50285339be5318decce39834a45 self=fe100c338c8f9a494a5432b5bfe6bf3c
    <... Data file payload and checksum array ...>
-libisofs_checksum_tag_v1 pos=81554 range_start=32 range_size=81522 md5=8adb404bdf7f5c0a078873bb129ee5b9 self=57c2c2192822b658240d62cbc88270cb
+LBA 81554:
+   libisofs_checksum_tag_v1 pos=81554 range_start=32 range_size=81522 md5=8adb404bdf7f5c0a078873bb129ee5b9 self=57c2c2192822b658240d62cbc88270cb
+
+   <... more sessions ...>
+
+LBA 311936:
+   <... Last Session: ECMA-119 System Area and Volume Descriptors ...>
+LBA 311954:
+   libisofs_sb_checksum_tag_v1 pos=311954 range_start=311936 range_size=18 next=312286 md5=7f1586e02ac962432dc859a4ae166027 self=2c5fce263cd0ca6984699060f6253e62
+   <... Last Session: tree, tree checksum tag, data payload, session tag ...>
 
 
-There are five tag parameters. The first three are decimal numbers, the others
-are strings of 32 hex digits:
+There are several tag parameters. Addresses are given as decimal numbers, MD5
+checksums as strings of 32 hex digits.
 
   pos=
   gives the block address where the tag supposes itself to be stored.
@@ -117,6 +149,11 @@ are strings of 32 hex digits:
   uniquely placed directly after the ECMA-119 Volume Descriptor Set Terminator
   where no such cleartext is supposed to reside by accident.
 
+  Only with relocated 64 kB superblock tag:
+  session_start=
+  The start block address (System Area) of the session to which the relocated
+  superblock points.  
+
   md5=
   The checksum payload of the tag as lower case hex digits.
 
@@ -135,25 +172,38 @@ are strings of 32 hex digits:
                      Checking Before Image Tree Loading
 
 In order to check for a trustworthy loadable image tree, read the first 32
-blocks from to the session start and look in block 16 to 32 for the superblock
+blocks from to the session start and look in block 16 to 32 for a superblock
 checksum tag by
   iso_util_decode_md5_tag(block, &tag_type, &pos,
-                          &range_start, &range_size, &next_tag, md5, 2);
-If it appears and has plausible parameters, then check whether its MD5 matches
-the MD5 of the data blocks which were read before.
-(Keep the original MD5 context of the data blocks and clone one for obtaining
-the MD5 bytes.)
-Compute the block into the MD5 checksum after your are done with interpreting
-it.
+                          &range_start, &range_size, &next_tag, md5, 0);
 
-If those MD5s match, then compute the checksum block into the kept MD5 context
+If a tag of type 2 or 4 appears and has plausible parameters, then check
+whether its MD5 matches the MD5 of the data blocks which were read before.
+
+With tag type 2:
+
+Keep the original MD5 context of the data blocks and clone
+one for obtaining the MD5 bytes.
+If the MD5s match, then compute the checksum block into the kept MD5 context
 and go on with reading and computing for the tree checksum tag. This will be
 found at block address next_tag, verified and parsed by:
   iso_util_decode_md5_tag(block, &tag_type, &pos,
                           &range_start, &range_size, &next_tag, md5, 3);
+
 Again, if the parameters match the reading state, the MD5 must match the
 MD5 computed from the data blocks which were before.
 If so, then the tree is ok and safe to be loaded by iso_image_import().
+
+With tag type 4:
+
+End the MD5 context and start a new context for the session which you will
+read next.
+
+You may look for the first session by starting to read at LBA 32, or you may
+look for the last session by starting to read at the address given by parameter
+session_start=. The former is suitable for a check of the whole image, the
+latter is the shortest way to ensure that the tree of the last session is
+not corrupted.
 
 
                            Checking a Whole Session
@@ -174,6 +224,12 @@ read before the tag block.
 
 
                    Checking Single Files in a Loaded Image
+
+An image may consist of many sessions wherein many data blocks may not belong
+to files in the directory tree of the most recent session. Checking this
+tree and all its data files can ensure that all actually valid data in the
+image are trustworthy. This will leave out the trees of the older sessions
+and the obsolete data blocks of overwritten or deleted files.
 
 Once the image has been loaded, you can obtain MD5 sums from IsoNode objects
 which fulfill
@@ -201,4 +257,9 @@ for reading file content from the loaded image.
 
 iso_image_get_session_md5() gives start LBA and session payload size as of
 "isofs.ca" and the session checksum as of the checksum array.
+
+For reading you may use the IsoDataSource object which you submitted
+to iso_image_import() when reading the image. If this source is associated
+to a libburn drive, then libburn function burn_read_data() can read directly
+from it.
 

@@ -1567,12 +1567,13 @@ int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
                             uint32_t *next_tag, char md5[16], int flag)
 {
-    static char *tag_magic[4] = {"",
-                                 "libisofs_checksum_tag_v1",
-                                 "libisofs_sb_checksum_tag_v1",
-                                 "libisofs_tree_checksum_tag_v1"};
-    static int magic_len[4]= {0, 24, 27, 29};
-    int ret, bin_count, i, mode, magic_first = 1, magic_last = 3, found = 0;
+    static char *tag_magic[] = {"",
+                                "libisofs_checksum_tag_v1",
+                                "libisofs_sb_checksum_tag_v1",
+                                "libisofs_tree_checksum_tag_v1",
+                                "libisofs_rlsb32_checksum_tag_v1"};
+    static int magic_len[]= {0, 24, 27, 29, 31};
+    int ret, bin_count, i, mode, magic_first = 1, magic_last = 4;
     char *cpt, self_md5[16], tag_md5[16];
     void *ctx = NULL;
 
@@ -1612,6 +1613,13 @@ int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
         if (cpt == NULL)
             return(0);
         ret = iso_util_dec_to_uint32(cpt + 5, next_tag, 0);
+        if (ret <= 0)
+            return 0;
+    } else if (*tag_type == 4) {
+        cpt = strstr(cpt, "session_start=");
+        if (cpt == NULL)
+            return(0);
+        ret = iso_util_dec_to_uint32(cpt + 14, next_tag, 0);
         if (ret <= 0)
             return 0;
     }

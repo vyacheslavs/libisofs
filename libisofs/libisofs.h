@@ -5057,6 +5057,7 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  *      1= session tag
  *      2= superblock tag
  *      3= tree tag
+ *      4= relocated 64 kB superblock tag (at LBA 0 of overwriteable media)
  * @param pos
  *      Returns the LBA where the tag supposes itself to be stored.
  *      If this does not match the data block LBA then the tag might be
@@ -5071,7 +5072,13 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  *      covered by parameter md5.
  * @param next_tag
  *      Returns the predicted block address of the next tag.
- *      Valid only with return values 2 and 3 and if not 0.
+ *      next_tag is valid only if not 0 and only with return values 2, 3, 4.
+ *      With tag types 2 and 3, reading shall go on sequentially and the MD5
+ *      computation shall continue up to that address.
+ *      With tag type 4, reading shall resume either at LBA 32 for the first
+ *      session or at the given address for the session which is to be loaded
+ *      by default. In both cases the MD5 computation shall be re-started from
+ *      scratch.
  * @param md5
  *      Returns 16 byte of MD5 checksum.
  * @param flag
@@ -5081,12 +5088,13 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
  *                 1= session tag
  *                 2= superblock tag
  *                 3= tree tag
+ *                 4= relocated superblock tag
  * @return
  *      0= not a checksum tag, return parameters are invalid
- *      1= checksum tag found, return parameters arevalid
+ *      1= checksum tag found, return parameters are valid
  *     <0= error 
- *         return parameters are valid with error ISO_MD5_AREA_CORRUPTED
- *         but not trustworthy because the tag seems corrupted. 
+ *         (return parameters are valid with error ISO_MD5_AREA_CORRUPTED
+ *          but not trustworthy because the tag seems corrupted)
  *
  * @since 0.6.22
  */
