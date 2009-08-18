@@ -5169,6 +5169,20 @@ int iso_md5_clone(void *old_md5_context, void **new_md5_context);
  */
 int iso_md5_end(void **md5_context, char result[16]);
 
+/**
+ * Inquire whether two MD5 checksums match. (This is trivial but such a call
+ * is convenient and completes the interface.)
+ * @param first_md5
+ *      A MD5 byte string as returned by iso_md5_end()
+ * @param second_md5
+ *      A MD5 byte string as returned by iso_md5_end()
+ * @return
+ *      1= match , 0= mismatch
+ *
+ * @since 0.6.22
+ */
+int iso_md5_match(char first_md5[16], char second_md5[16]);
+
 
 /************ Error codes and return values for libisofs ********************/
 
@@ -5426,11 +5440,43 @@ int iso_md5_end(void **md5_context, char result[16]);
 #define ISO_ZLIB_EARLY_EOF        0xE830FEA1
 
 /**
- * Checksum area appears damaged and not trustworthy for verifications.
- * (WARNING,HIGH, -352)
+ * Checksum area or checksum tag appear corrupted  (WARNING,HIGH, -352)
  * @since 0.6.22
 */
-#define ISO_MD5_AREA_CORRUPTED         0xD030FEA0
+#define ISO_MD5_AREA_CORRUPTED    0xD030FEA0
+
+/**
+ * Checksum mismatch between checksum tag and data blocks
+ * (FAILURE, HIGH, -353)
+ * @since 0.6.22
+*/
+#define ISO_MD5_TAG_MISMATCH      0xE830FE9F
+
+/**
+ * Checksum mismatch in System Area, Volume Descriptors, or directory tree.
+ * (FAILURE, HIGH, -354)
+ * @since 0.6.22
+*/
+#define ISO_SB_TREE_CORRUPTED     0xE830FE9E
+
+/**
+ * Unexpected checksum tag type encountered.   (WARNING, HIGH, -355)
+ * @since 0.6.22
+*/
+#define ISO_MD5_TAG_UNEXPECTED    0xD030FE9D
+
+/**
+ * Misplaced checksum tag encountered. (WARNING, HIGH, -356)
+ * @since 0.6.22
+*/
+#define ISO_MD5_TAG_MISPLACED     0xD030FE9C
+
+/**
+ * Checksum tag with unexpected address range encountered.
+ * (WARNING, HIGH, -357)
+ * @since 0.6.22
+*/
+#define ISO_MD5_TAG_OTHER_RANGE   0xD030FE9B
 
 
 /* ! PLACE NEW ERROR CODES HERE ! */

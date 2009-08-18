@@ -2278,14 +2278,82 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     return ISO_SUCCESS;
 }
 
+
+/*
+ @return 1= ok, checked, go on with loading
+         2= no checksum tags found, go on with loading
+        <0= libisofs error
+            especially ISO_SB_TREE_CORRUPTED
+*/
 static
 int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
 {
+    int tag_type, ret;
+    char block[2048], md5[16];
+    int desired = (1 << 2);
+    void *ctx = NULL;
+    uint32_t next_tag = 0, i;
+    
+    ret = iso_md5_start(&ctx);
+    if (ret < 0)
+        goto ex;
+    if (start_lba == 0)
+         desired |= (1 << 4);
+    for (i = 0; i < 32; i++) {
+        ret = src->read_block(src, start_lba + i, (uint8_t *) block);
+        if (ret < 0)
+            goto ex;
+        ret = 0;
+        if (i >= 16)
+            ret = iso_util_eval_md5_tag(block, desired, start_lba + i,
+                                      ctx, start_lba, &tag_type, &next_tag, 0);
+        iso_md5_compute(ctx, block, 2048);
+        if (ret == ISO_MD5_AREA_CORRUPTED || ret == ISO_MD5_TAG_MISMATCH)
+            ret = ISO_SB_TREE_CORRUPTED;
+        if (ret < 0)
+            goto ex;
+        if (ret == 1)
+    break;
+    }
+    if (i >= 32) {
+        ret = 2;
+        goto ex;
+    }
+    if (tag_type == 4) {
+        /* Relocated Superblock: restart checking at real session start */
+        if (next_tag < 32) {
+            /* Non plausible session_start address */
+            iso_msg_submit(-1, ret, 0, NULL);
+            ret = ISO_SB_TREE_CORRUPTED;
+            goto ex;
+        }
+        /* Check real session */
+        ret = iso_src_check_sb_tree(src, next_tag, 0);
+        goto ex;
+    }
 
-    /* >>>> */;
+    /* Go on with tree */
+    for (i++; start_lba + i <= next_tag; i++) {
+        ret = src->read_block(src, start_lba + i, (uint8_t *) block);
+        if (ret < 0)
+            goto ex;
+        if (start_lba + i < next_tag)
+            iso_md5_compute(ctx, block, 2048);
+    }
+    ret = iso_util_eval_md5_tag(block, (1 << 3), start_lba + i - 1,
+                                ctx, start_lba, &tag_type, &next_tag, 0);
+    if (ret == ISO_MD5_AREA_CORRUPTED || ret == ISO_MD5_TAG_MISMATCH)
+        ret = ISO_SB_TREE_CORRUPTED;
+    if (ret < 0)
+        goto ex;
 
-    return 2;
+    ret = 1;
+ex:
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
+    return ret;
 }
+
 
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              int msgid, IsoImageFilesystem **fs)
@@ -2355,12 +2423,13 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
 
     if (data->md5_load) {
 
-        /* >>> From opts->block on : check for superblock and tree tags */;
+        /* From opts->block on : check for superblock and tree tags */;
         ret = iso_src_check_sb_tree(src, opts->block, 0);
         if (ret <= 0) {
 
             /* >>> refuse to load, hint towards loading without MD5 check */;
 
+            goto fs_cleanup;
         }
     }
 

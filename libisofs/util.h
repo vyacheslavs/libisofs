@@ -458,4 +458,28 @@ int iso_util_encode_len_bytes(uint32_t data, char *buffer, int data_len,
 int iso_util_decode_len_bytes(uint32_t *data, char *buffer, int *data_len,
                               int buffer_len, int flag);
 
+    
+/* Evaluate a data block whether it is a libisofs session checksum tag of
+   desired type and eventually use it to verify the MD5 checksum computed
+   so far.
+   @param block      The data block to be evaluated
+   @param desired    Bit map which tells what tag types are expected
+                     (0 to 30)
+   @param lba        The address from where block was read
+   @param ctx        The checksum context computed so far
+   @param ctx_start_lba  The block address where checksum computing started
+   @param tag_type   Returns the tag type (0 means invalid tag type)
+   @param flag       Bitfield for control purposes, unused yet, submit 0
+   @return           1= tag is desired and matches
+                     0= not a recognizable tag or a undesired tag
+                    <0 is error or mismatch
+*/
+int iso_util_eval_md5_tag(char *block, int desired, uint32_t lba,
+                          void *ctx, uint32_t ctx_start_lba,
+                          int *tag_type, uint32_t *next_tag, int flag);
+
+
+int iso_util_tag_magic(int tag_type, char **tag_magic, int *len, int flag);
+
+
 #endif /*LIBISO_UTIL_H_*/

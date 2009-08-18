@@ -16,6 +16,7 @@
 #include "messages.h"
 #include "ecma119.h"
 #include "image.h"
+#include "util.h"
 
 #include "md5.h"
 
@@ -386,6 +387,18 @@ int iso_md5_end(void **md5_context, char result[16])
 }
 
 
+/* API */
+int iso_md5_match(char first_md5[16], char second_md5[16])
+{
+    int i;
+
+    for (i= 0; i < 16; i++)
+        if (first_md5[i] != second_md5[i])
+            return 0;
+    return 1;
+}
+
+
 /* ----------------------------------------------------------------------- */
 
 
@@ -667,15 +680,10 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
 
 #ifdef Libisofs_with_checksumS
 
-    int res, mode, l, i, wres;
+    int res, mode, l, i, wres, tag_id_len;
     void *ctx = NULL;
-    char md5[16], tag_block[2048];
+    char md5[16], tag_block[2048], *tag_id;
     uint32_t size = 0, pos = 0, start;
-    static char *tag_ids[] = {"",
-                              "libisofs_checksum_tag_v1",
-                              "libisofs_sb_checksum_tag_v1",
-                              "libisofs_tree_checksum_tag_v1",
-                              "libisofs_rlsb32_checksum_tag_v1"};
 
     start = t->checksum_range_start;
     memset(tag_block, 0, 2048);
@@ -702,9 +710,10 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
         return ISO_WRONG_ARG_VALUE;
     }
     if (res > 0) {
+        iso_util_tag_magic(mode, &tag_id, &tag_id_len, 0);
         sprintf(tag_block,
                 "%s pos=%u range_start=%u range_size=%u",
-                tag_ids[mode], pos, start, size);
+                tag_id, pos, start, size);
 
         l = strlen(tag_block);
         if (mode == 2) {

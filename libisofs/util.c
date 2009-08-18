@@ -9,6 +9,7 @@
 
 #include "util.h"
 #include "libisofs.h"
+#include "messages.h"
 #include "../version.h"
 
 #include <stdlib.h>
@@ -1563,18 +1564,33 @@ int iso_util_hex_to_bin(char *hex, char *bin, int bin_size, int *bin_count,
 }
 
 
+int iso_util_tag_magic(int tag_type, char **tag_magic, int *len, int flag)
+{
+    static char *magic[] = {"",
+        "libisofs_checksum_tag_v1",
+        "libisofs_sb_checksum_tag_v1",
+        "libisofs_tree_checksum_tag_v1",
+        "libisofs_rlsb32_checksum_tag_v1"};
+    static int magic_len[]= {0, 24, 27, 29, 31};
+    static int magic_max = 4;
+
+    *tag_magic = NULL;
+    *len = 0;
+    if (tag_type < 0 || tag_type > magic_max)
+        return ISO_WRONG_ARG_VALUE;
+    *tag_magic = magic[tag_type];
+    *len = magic_len[tag_type];
+    return magic_max;
+}
+
+
 int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
                             uint32_t *range_start, uint32_t *range_size,
                             uint32_t *next_tag, char md5[16], int flag)
 {
-    static char *tag_magic[] = {"",
-                                "libisofs_checksum_tag_v1",
-                                "libisofs_sb_checksum_tag_v1",
-                                "libisofs_tree_checksum_tag_v1",
-                                "libisofs_rlsb32_checksum_tag_v1"};
-    static int magic_len[]= {0, 24, 27, 29, 31};
     int ret, bin_count, i, mode, magic_first = 1, magic_last = 4;
-    char *cpt, self_md5[16], tag_md5[16];
+    int magic_len = 0;
+    char *cpt, self_md5[16], tag_md5[16], *tag_magic;
     void *ctx = NULL;
 
     *next_tag = 0;
@@ -1583,13 +1599,15 @@ int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
         return ISO_WRONG_ARG_VALUE;
     if (mode > 0)
         magic_first = magic_last = mode;
-    for (i = magic_first; i <= magic_last; i++)
-        if (strncmp(data, tag_magic[i], magic_len[i]) == 0)
+    for (i = magic_first; i <= magic_last; i++) {
+        iso_util_tag_magic(i, &tag_magic, &magic_len, 0);
+        if (strncmp(data, tag_magic, magic_len) == 0)
     break;
+    }
     if (i > magic_last )
         return 0;
     *tag_type = i;
-    cpt = data + magic_len[*tag_type] + 1;
+    cpt = data + magic_len + 1;
     if (strncmp(cpt, "pos=", 4) != 0)
         return 0;
     cpt+= 4;
@@ -1650,3 +1668,51 @@ int iso_util_decode_md5_tag(char data[2048], int *tag_type, uint32_t *pos,
     return(1);
 }
 
+
+int iso_util_eval_md5_tag(char *block, int desired, uint32_t lba,
+                          void *ctx, uint32_t ctx_start_lba, 
+                          int *tag_type, uint32_t *next_tag, int flag)
+{
+    int decode_ret, ret;
+    char md5[16], cloned_md5[16];
+    uint32_t pos, range_start, range_size;
+    void *cloned_ctx = NULL;
+
+    *tag_type = 0;
+    decode_ret = iso_util_decode_md5_tag(block, tag_type, &pos,
+                                  &range_start, &range_size, next_tag, md5, 0);
+    if (decode_ret != 1 && decode_ret != ISO_MD5_AREA_CORRUPTED)
+        return 0;
+    if (*tag_type > 30)
+        goto unexpected_type;
+
+    if (decode_ret == ISO_MD5_AREA_CORRUPTED) {
+        ret = decode_ret; 
+        goto ex;
+    } else if (!((1 << *tag_type) & desired)) {
+unexpected_type:;
+        iso_msg_submit(-1, ISO_MD5_TAG_UNEXPECTED, 0, NULL);
+        ret = 0;
+        goto ex;
+    } else if(pos != lba) {
+        ret = ISO_MD5_TAG_MISPLACED;
+        goto ex;
+    } else if(range_start != ctx_start_lba) {
+        ret = ISO_MD5_TAG_MISPLACED;
+    }
+    ret = iso_md5_clone(ctx, &cloned_ctx);
+    if (ret < 0)
+        goto ex;
+    iso_md5_end(&cloned_ctx, cloned_md5);
+    if (! iso_md5_match(cloned_md5, md5)) {
+        ret = ISO_MD5_TAG_MISMATCH;
+        goto ex;
+    }
+    ret = 1;
+ex:;
+    if (ret < 0)
+        iso_msg_submit(-1, ret, 0, NULL);
+    return ret;
+}
+
+ 

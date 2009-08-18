@@ -261,7 +261,17 @@ const char *iso_error_to_msg(int errcode)
     case ISO_ZLIB_EARLY_EOF:
         return "Premature EOF of zlib input stream";
     case ISO_MD5_AREA_CORRUPTED:
-        return "Checksum area appears damaged and not trustworthy for verifications";
+        return "Checksum area or checksum tag appear corrupted";
+    case ISO_MD5_TAG_MISMATCH:
+        return "Checksum mismatch between checksum tag and data blocks";
+    case ISO_SB_TREE_CORRUPTED:
+        return "Checksum mismatch in System Area, Volume Descriptors, or directory tree";
+    case ISO_MD5_TAG_UNEXPECTED:
+        return "Unexpected checksum tag type encountered";
+    case ISO_MD5_TAG_MISPLACED:
+        return "Misplaced checksum tag type encountered";
+    case ISO_MD5_TAG_OTHER_RANGE:
+        return "Checksum tag with unexpected address range encountered";
     default:
         return "Unknown error";
     }
