@@ -24,6 +24,13 @@ extern int iso_message_id;
  */
 void iso_msg_debug(int imgid, const char *fmt, ...);
 
+
+/**
+ * Inquire whether the given error code triggers the abort threshold
+ */
+int iso_msg_is_abort(int errcode);
+
+
 /**
  * 
  * @param errcode
@@ -33,7 +40,7 @@ void iso_msg_debug(int imgid, const char *fmt, ...);
  *      < 0 will be returned in any case. Use 0 if there is no previous 
  *      cause for the error.
  * @return
- *      1 on success, < 0 if function must abort asap.
+ *      0 on success, < 0 if function must abort asap.
  */
 int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...);
 

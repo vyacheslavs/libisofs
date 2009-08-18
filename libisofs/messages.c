@@ -277,6 +277,14 @@ const char *iso_error_to_msg(int errcode)
     }
 }
 
+int iso_msg_is_abort(int errcode)
+{
+    if (ISO_ERR_SEV(errcode) >= abort_threshold)
+        return 1;
+    return 0;
+}
+       
+
 int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
 {
     char msg[MAX_MSG_LEN];
@@ -307,7 +315,7 @@ int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
         }
     }
 
-    if (ISO_ERR_SEV(errcode) >= abort_threshold) {
+    if (iso_msg_is_abort(errcode)) {
         return ISO_CANCELED;
     } else {
         return 0;
