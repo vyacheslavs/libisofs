@@ -1135,7 +1135,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 #ifdef Libisofs_with_checksumS
 
-    if (target->md5_file_checksums || target->md5_session_checksum) {
+    if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
         ret = checksum_prepare_image(src, 0);
         if (ret < 0)
@@ -1213,7 +1213,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 #ifdef Libisofs_with_checksumS
 
-    if (target->md5_file_checksums || target->md5_session_checksum) {
+    if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         ret = checksum_writer_create(target);
         if (ret < 0)
             goto target_cleanup;
@@ -1805,8 +1805,8 @@ int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files)
 
 #ifdef Libisofs_with_checksumS
 
-    opts->md5_session_checksum = !!session;
-    opts->md5_file_checksums = !!files;
+    opts->md5_session_checksum = session & 1;
+    opts->md5_file_checksums = files & 3;
 
 #endif /* Libisofs_with_checksumS */
 

@@ -1424,9 +1424,21 @@ int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
  * @param opts
  *      The option set to be manipulated.
  * @param session
- *      If not 0: compute session checksum
+ *      If bit0 set: compute session checksum
  * @param files
- *      If not 0: compute a checksum for each single IsoFile object.
+ *      If bit0 set: compute a checksum for each single IsoFile object.
+ *      If bit1 set: check content stability (only with bit0). I.e.  before
+ *                   writing the file content into to image stream, read it
+ *                   once and compute a MD5. Do a second reading for writing
+ *                   into the image stream. Afterwards compare both MD5 and
+ *                   issue a MISHAP event ISO_MD5_STREAM_CHANGE if they do not
+ *                   match.
+ *                   Such a mismatch indicates content changes between the
+ *                   time point when the first MD5 reading started and the
+ *                   time point when the last block was read for writing.
+ *                   So there is high risk that the image stream was fed from
+ *                   changing and possibly inconsistent file content.
+ *                   
  * @since 0.6.22
  */
 int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files);
@@ -5477,6 +5489,13 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
  * @since 0.6.22
 */
 #define ISO_MD5_TAG_OTHER_RANGE   0xD030FE9B
+
+/**
+ * Detected file content changes while it was written into the image.
+ * (MISHAP, HIGH, -358)
+ * @since 0.6.22
+*/
+#define ISO_MD5_STREAM_CHANGE     0xE430FE9A
 
 
 /* ! PLACE NEW ERROR CODES HERE ! */

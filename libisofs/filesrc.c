@@ -118,14 +118,15 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
 #ifdef Libisofs_with_checksumS
 
-    if (img->md5_file_checksums && file->from_old_session && img->appendable) {
+    if ((img->md5_file_checksums & 1) &&
+         file->from_old_session && img->appendable) {
         /* Omit MD5 indexing with old image nodes which have no MD5 */
         ret = iso_node_get_xinfo((IsoNode *) file, checksum_xinfo_func, &xipt);
         if (ret <= 0)
             no_md5 = 1;
     }
 
-    if (img->md5_file_checksums && !no_md5) {
+    if ((img->md5_file_checksums & 1) && !no_md5) {
         img->checksum_idx_counter++;
         if (img->checksum_idx_counter < 0x80000000) {
             fsrc->checksum_index= img->checksum_idx_counter;
@@ -313,10 +314,59 @@ int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
     }
 }
 
+#ifdef Libisofs_with_checksumS
+
+/* @return 1=ok, md5 is valid,
+           0= not ok, go on,
+          <0 fatal error, abort 
+*/
+static
+int filesrc_make_md5(Ecma119Image *t, IsoFileSrc *file, char md5[16], int flag)
+{
+    int res, is_open = 0;
+    char buffer[BLOCK_SIZE];
+    void *ctx= NULL;
+    off_t file_size;
+    uint32_t b, nblocks;
+
+    if (! iso_stream_is_repeatable(file->stream))
+        return 0;
+    res = iso_md5_start(&ctx);
+    if (res < 0)
+        return res;
+    res = filesrc_open(file);
+    if (res < 0)
+        return 0;
+    is_open = 1;
+    file_size = iso_file_src_get_size(file);
+    nblocks = DIV_UP(file_size, BLOCK_SIZE);
+    for (b = 0; b < nblocks; ++b) {
+        res = filesrc_read(file, buffer, BLOCK_SIZE);
+        if (res < 0) {
+            res = 0;
+            goto ex;
+        }
+        if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
+            res = BLOCK_SIZE;
+        else
+            res = file_size - b * BLOCK_SIZE;
+        iso_md5_compute(ctx, buffer, res);
+    }
+    res = 1;
+ex:;
+    if (is_open)
+        filesrc_close(file);
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
+    return res;
+}
+
+#endif /* Libisofs_with_checksumS */
+
 static
 int filesrc_writer_write_data(IsoImageWriter *writer)
 {
-    int res, ret;
+    int res, ret, was_error;
     size_t i, b;
     Ecma119Image *t;
     IsoFileSrc *file;
@@ -328,7 +378,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
 #ifdef Libisofs_with_checksumS
     void *ctx= NULL;
-    char md5[16];
+    char md5[16], pre_md5[16];
+    int pre_md5_valid = 0;
 #endif
 
 
@@ -343,10 +394,19 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
     i = 0;
     while ((file = filelist[i++]) != NULL) {
+        was_error = 0;
         file_size = iso_file_src_get_size(file);
         nblocks = DIV_UP(file_size, BLOCK_SIZE);
+ 
+#ifdef Libisofs_with_checksumS
 
-        /* >>> Eventually obtain an MD5 of content by a first read pass */;
+        pre_md5_valid = 0; 
+        if (file->checksum_index > 0 && (t->md5_file_checksums & 2)) {
+            /* Obtain an MD5 of content by a first read pass */
+            pre_md5_valid = filesrc_make_md5(t, file, pre_md5, 0);
+        }
+
+#endif /* Libisofs_with_checksumS */
 
         res = filesrc_open(file);
         iso_stream_get_file_name(file->stream, name);
@@ -356,6 +416,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
              * 0's to image
              */
             iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
+            was_error = 1;
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
                       "File \"%s\" can't be opened. Filling with 0s.", name);
             if (res < 0) {
@@ -374,6 +435,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             continue;
         } else if (res > 1) {
             iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
+            was_error = 1;
             res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
                       "Size of file \"%s\" has changed. It will be %s", name,
                       (res == 2 ? "truncated" : "padded with 0's"));
@@ -400,7 +462,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         }
 
 #endif /* Libisofs_with_checksumS */
-    
+ 
         /* write file contents to image */
         for (b = 0; b < nblocks; ++b) {
             int wres;
@@ -421,9 +483,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
             if (file->checksum_index > 0) {
                 /* Add to file checksum */
-                res = file_size - b * BLOCK_SIZE;
-                if (res > BLOCK_SIZE)
+                if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
                     res = BLOCK_SIZE;
+                else
+                    res = file_size - b * BLOCK_SIZE;
                 res = iso_md5_compute(ctx, buffer, res);
                 if (res <= 0)
                     file->checksum_index = 0;
@@ -438,6 +501,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         if (b < nblocks) {
             /* premature end of file, due to error or eof */
             iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
+            was_error = 1;
             if (res < 0) {
                 /* error */
                 res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
@@ -469,9 +533,10 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
                 if (file->checksum_index > 0) {
                     /* Add to file checksum */
-                    res = file_size - b * BLOCK_SIZE;
-                    if (res > BLOCK_SIZE)
+                    if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
                         res = BLOCK_SIZE;
+                    else
+                        res = file_size - b * BLOCK_SIZE;
                     res = iso_md5_compute(ctx, buffer, res);
                     if (res <= 0)
                         file->checksum_index = 0;
@@ -489,10 +554,21 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             res = iso_md5_end(&ctx, md5);
             if (res <= 0)
                 file->checksum_index = 0;
-
-            /* >>> Eventually compare with MD5 of first read pass
-                   and issue error if mismatch */;
-
+            if ((t->md5_file_checksums & 2) && pre_md5_valid > 0 &&
+                !was_error) {
+                if (! iso_md5_match(md5, pre_md5)) {
+                    /* Issue MISHAP event */
+                    iso_report_errfile(name, ISO_MD5_STREAM_CHANGE, 0, 0);
+                    was_error = 1;
+                    res = iso_msg_submit(t->image->id, ISO_MD5_STREAM_CHANGE,0,
+           "Content of file '%s' changed while it was written into the image.",
+                                         name);
+                    if (res < 0) {
+                        ret = res; /* aborted due to error severity */
+                        goto ex;
+                    }
+                }
+            }
             /* Write md5 into checksum buffer at file->checksum_index */
             memcpy(t->checksum_buffer + 16 * file->checksum_index, md5, 16);
         }

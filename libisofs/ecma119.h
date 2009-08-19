@@ -163,8 +163,11 @@ struct iso_write_opts {
      * blocks will be recorded in xattr "isofs.ca" of the root node.
      * The indice of the MD5 sums will be recorded with the IsoFile directory
      * entries as xattr "isofs.cx". See also API call iso_file_get_md5().
+     * bit0= compute individual checksums
+     * bit1= pre-compute checksum and compare it with actual one.
+     *       Raise MISHAP if mismatch.
      */
-    unsigned int md5_file_checksums :1;
+    unsigned int md5_file_checksums :2;
 
 #endif /* Libisofs_with_checksumS */
 
@@ -336,7 +339,7 @@ struct ecma119_image
 #ifdef Libisofs_with_checksumS
 
     unsigned int md5_session_checksum :1;
-    unsigned int md5_file_checksums :1;
+    unsigned int md5_file_checksums :2;
 
 #endif /* Libisofs_with_checksumS */
 

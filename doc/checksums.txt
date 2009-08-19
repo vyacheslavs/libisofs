@@ -19,10 +19,11 @@ is enabled by iso_read_opts_set_no_md5(). Loaded checksums can be inquired by
 iso_image_get_session_md5() and iso_file_get_md5().
 
 Stream recognizable checksum tags occupy exactly one block each. They can
-be detected by submitting a read-in block to iso_util_decode_md5_tag(). 
+be detected by submitting a block to iso_util_decode_md5_tag(). 
 
 libisofs has own MD5 computation functions:
-iso_md5_start(), iso_md5_compute(), iso_md5_clone(), iso_md5_end()
+iso_md5_start(), iso_md5_compute(), iso_md5_clone(), iso_md5_end(),
+iso_md5_match()
 
 
                           Representation in the Image
