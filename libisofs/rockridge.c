@@ -1234,12 +1234,16 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     if (ret == 1) {
         num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
         if (num_aapt > 0) {
-            aapt = malloc(num_aapt);
-            if (aapt == NULL)
-                return ISO_OUT_OF_MEM;
-            memcpy(aapt, xipt, num_aapt);
-            ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
-                              flag & 1);
+            if (flag & 1) {
+                ret = aaip_add_AL(t, NULL,NULL, num_aapt, sua_free, ce_len, 1);
+            } else {
+                aapt = malloc(num_aapt);
+                if (aapt == NULL)
+                    return ISO_OUT_OF_MEM;
+                memcpy(aapt, xipt, num_aapt);
+                ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
+                                  0);
+            }
             if (ret < 0) 
                 return ret;
             /* aapt is NULL now and the memory is owned by t */
