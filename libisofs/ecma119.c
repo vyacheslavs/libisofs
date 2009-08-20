@@ -49,18 +49,26 @@ void ecma119_image_free(Ecma119Image *t)
 {
     size_t i;
 
-    ecma119_node_free(t->root);
-    iso_image_unref(t->image);
-    iso_rbtree_destroy(t->files, iso_file_src_free);
-    iso_ring_buffer_free(t->buffer);
+    if (t == NULL)
+        return;
+    if (t->root != NULL)
+        ecma119_node_free(t->root);
+    if (t->image != NULL)
+        iso_image_unref(t->image);
+    if (t->files != NULL)
+        iso_rbtree_destroy(t->files, iso_file_src_free);
+    if (t->buffer != NULL)
+        iso_ring_buffer_free(t->buffer);
 
     for (i = 0; i < t->nwriters; ++i) {
         IsoImageWriter *writer = t->writers[i];
         writer->free_data(writer);
         free(writer);
     }
-    free(t->input_charset);
-    free(t->output_charset);
+    if (t->input_charset != NULL)
+        free(t->input_charset);
+    if (t->output_charset != NULL)
+        free(t->output_charset);
 
 #ifdef Libisofs_with_checksumS
     if (t->checksum_ctx != NULL) { /* dispose checksum context */
@@ -71,7 +79,8 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->checksum_buffer);
 #endif
 
-    free(t->writers);
+    if (t->writers != NULL)
+        free(t->writers);
     free(t);
 }
 
@@ -891,6 +900,18 @@ void *write_function(void *arg)
         }
     }
 
+#ifdef Libisofs_with_checksumS
+
+    /* Transplant checksum buffer from Ecma119Image to IsoImage */
+    iso_image_set_checksums(target->image, target->checksum_buffer,
+                            target->checksum_range_start,
+                            target->checksum_array_pos,
+                            target->checksum_idx_counter + 2, 0);
+    target->checksum_buffer = NULL;
+    target->checksum_idx_counter = 0;
+
+#endif
+
     iso_ring_buffer_writer_close(target->buffer, 0);
     pthread_exit(NULL);
 
@@ -904,6 +925,13 @@ void *write_function(void *arg)
                    "Image write error");
     }
     iso_ring_buffer_writer_close(target->buffer, 1);
+
+#ifdef Libisofs_with_checksumS
+
+    /* >>> ??? transplant checksum buffer from Ecma119Image to IsoImage */;
+
+#endif
+
     pthread_exit(NULL);
 }
 
@@ -1002,7 +1030,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
-    int ret, i, voldesc_size, nwriters;
+    int ret, i, voldesc_size, nwriters, image_checksums_mad = 0;
     Ecma119Image *target;
     int el_torito_writer_index = -1, file_src_writer_index= -1;
 
@@ -1015,8 +1043,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* create the tree for file caching */
     ret = iso_rbtree_new(iso_file_src_cmp, &(target->files));
     if (ret < 0) {
-        free(target);
-        return ret;
+        goto target_cleanup;
     }
 
     target->image = src;
@@ -1074,9 +1101,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->input_charset = strdup(iso_get_local_charset(0));
     if (target->input_charset == NULL) {
-        iso_image_unref(src);
-        free(target);
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM;
+        goto target_cleanup;
     }
 
     if (opts->output_charset != NULL) {
@@ -1085,9 +1111,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         target->output_charset = strdup(target->input_charset);
     }
     if (target->output_charset == NULL) {
-        iso_image_unref(src);
-        free(target);
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM;
+        goto target_cleanup;
     }
 
 #ifdef Libisofs_with_checksumS
@@ -1137,13 +1162,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
+        image_checksums_mad = 1; /* from here on the loaded checksums are
+                                    not consistent with isofs.cx any more.
+                                  */
         ret = checksum_prepare_image(src, 0);
         if (ret < 0)
-            return ret;
+            goto target_cleanup;
         if (target->appendable) {
             ret = checksum_prepare_nodes(target, (IsoNode *) src->root, 0);
             if (ret < 0)
-                return ret;
+                goto target_cleanup;
         }
         target->checksum_idx_counter = 0;
     }
@@ -1153,9 +1181,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->writers = malloc(nwriters * sizeof(void*));
     if (target->writers == NULL) {
-        iso_image_unref(src);
-        free(target);
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM;
+        goto target_cleanup;
     }
 
     /* create writer for ECMA-119 structure */
@@ -1328,7 +1355,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             if (target->checksum_rlsb_tag_pos < 32) {
                 ret = iso_md5_start(&(target->checksum_ctx));
                 if (ret < 0)
-                    return ret;
+                    goto target_cleanup;
                 target->opts_overwrite = (char *) opts->overwrite;
                 iso_md5_compute(target->checksum_ctx, target->opts_overwrite,
                                 target->checksum_rlsb_tag_pos * 2048);
@@ -1360,8 +1387,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             iso_md5_end(&(target->checksum_ctx), target->image_md5);
         ret = iso_md5_start(&(target->checksum_ctx));
         if (ret < 0)
-            return ret;
+            goto target_cleanup;
     }
+    /* Dispose old image checksum buffer. The one of target is supposed to
+       get attached at the end of write_function(). */
+    iso_image_free_checksums(target->image, 0);
+    image_checksums_mad = 0;
+
 #endif /* Libisofs_with_checksumS */
 
     /* ensure the thread is created joinable */
@@ -1388,6 +1420,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     return ISO_SUCCESS;
 
     target_cleanup: ;
+
+#ifdef Libisofs_with_checksumS
+
+    if(image_checksums_mad) /* No checksums is better than mad checksums */
+      iso_image_free_checksums(target->image, 0);
+
+#endif /* Libisofs_with_checksumS */
+
     ecma119_image_free(target);
     return ret;
 }

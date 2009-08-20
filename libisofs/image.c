@@ -134,9 +134,28 @@ void iso_image_unref(IsoImage *image)
         free(image->biblio_file_id);
         if (image->used_inodes != NULL)
             free(image->used_inodes);
+        iso_image_free_checksums(image, 0);
         free(image);
     }
 }
+
+
+int iso_image_free_checksums(IsoImage *image, int flag)
+{
+#ifdef Libisofs_with_checksumS
+
+    image->checksum_start_lba = 0;
+    image->checksum_end_lba = 0;
+    image->checksum_idx_count = 0;
+    if (image->checksum_array != NULL)
+        free(image->checksum_array);
+    image->checksum_array = NULL;
+
+#endif /* Libisofs_with_checksumS */
+
+    return 1;
+}
+
 
 /**
  * Attach user defined data to the image. Use this if your application needs
@@ -559,3 +578,22 @@ int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
 #endif /* ! Libisofs_with_checksumS */
     
 }
+
+int iso_image_set_checksums(IsoImage *image, char *checksum_array,
+                            uint32_t start_lba, uint32_t end_lba,
+                            uint32_t idx_count, int flag)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    iso_image_free_checksums(image, 0);
+    image->checksum_array = checksum_array;
+    image->checksum_start_lba = start_lba;
+    image->checksum_end_lba = end_lba;
+    image->checksum_idx_count = idx_count;
+
+#endif /* Libisofs_with_checksumS */
+
+    return 1;
+}
+

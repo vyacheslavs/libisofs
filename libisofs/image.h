@@ -197,4 +197,18 @@ ino_t img_give_ino_number(IsoImage *image, int flag);
 */
 int img_make_inos(IsoImage *image, IsoDir *dir, int flag);
 
+
+/* Free the checksum array of an image and reset its layout parameters
+*/
+int iso_image_free_checksums(IsoImage *image, int flag);
+
+
+/* Equip an ISO image with a new checksum array buffer (after isofs.ca and
+   isofs.cx have already been adjusted).
+*/
+int iso_image_set_checksums(IsoImage *image, char *checksum_array, 
+                            uint32_t start_lba, uint32_t end_lba,
+                            uint32_t idx_count, int flag);
+
+
 #endif /*LIBISO_IMAGE_H_*/
