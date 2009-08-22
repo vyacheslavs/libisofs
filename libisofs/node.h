@@ -132,7 +132,6 @@ struct Iso_Symlink
 
     char *dest;
 
-#ifdef Libisofs_hardlink_matcheR
     /* If the IsoNode represents an object in an existing filesystem then
        the following three numbers should unique identify it.
        (0,0,0) will always be taken as unique.
@@ -140,8 +139,6 @@ struct Iso_Symlink
     unsigned int fs_id;
     dev_t st_dev;
     ino_t st_ino;
-#endif
-
 };
 
 struct Iso_Special
@@ -149,7 +146,6 @@ struct Iso_Special
     IsoNode node;
     dev_t dev;
 
-#ifdef Libisofs_hardlink_matcheR
     /* If the IsoNode represents an object in an existing filesystem then
        the following three numbers should unique identify it.
        (0,0,0) will always be taken as unique.
@@ -157,8 +153,6 @@ struct Iso_Special
     unsigned int fs_id;
     dev_t st_dev;
     ino_t st_ino;
-#endif
-
 };
 
 struct iso_dir_iter_iface

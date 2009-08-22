@@ -821,13 +821,9 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
         if (ret != 0)
             return ret;
     }
-
-#ifdef Libisofs_hardlink_matcheR
     if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0) {
         return (s1 < s2 ? -1 : 1);
     }
-#endif
-
     return 0;
 }
 

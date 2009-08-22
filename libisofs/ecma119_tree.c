@@ -103,42 +103,9 @@ int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
         return ISO_OUT_OF_MEM;
     }
 
-    /* take a ref to the IsoNode */
     ecma->node = iso;
     iso_node_ref(iso);
-
     ecma->nlink = 1;
-
-#ifndef Libisofs_hardlink_matcheR
-
-    /* ts A90503 : This is obsolete with Libisofs_hardlink_matcheR
-                   which will later hand out image inode numbers for all. */
-
-#ifdef Libisofs_hardlink_prooF
-
-    /* Looking only for valid ISO image inode numbers. */
-    {
-        unsigned int fs_id;
-        dev_t dev_id;
-        int ret;
-
-        ret = iso_node_get_id(iso, &fs_id, &dev_id, &(ecma->ino), 1);
-        if (ret < 0) {
-            return ret;
-        } else if (ret == 0) {
-            /* What has not got a valid ISO image inode yet, gets it now. */
-            ecma->ino = img_give_ino_number(img->image, 0);
-        }
-    }
-
-#else /* Libisofs_hardlink_prooF */
-    
-    /* TODO #00009 : add true support for harlinks and inode numbers */
-    ecma->ino = ++img->ino;
-
-#endif /* ! Libisofs_hardlink_prooF */
-#endif /* ! Libisofs_hardlink_matcheR */
-
     *node = ecma;
     return ISO_SUCCESS;
 }
@@ -1023,15 +990,11 @@ int ecma119_tree_create(Ecma119Image *img)
     }
     img->root = root;
 
-#ifdef Libisofs_hardlink_matcheR
-
     iso_msg_debug(img->image->id, "Matching hardlinks...");
     ret = match_hardlinks(img, img->root, 0);
     if (ret < 0) {
         return ret;
     }
-
-#endif /* ! Libisofs_hardlink_matcheR */
 
     iso_msg_debug(img->image->id, "Sorting the low level tree...");
     sort_tree(root);

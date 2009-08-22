@@ -965,7 +965,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     int ret, i, no_md5 = 0, has_xinfo = 0;
     size_t value_length;
     unsigned int idx = 0;
-    char *value= NULL, *direct_md5;
+    char *value= NULL;
     void *xipt = NULL;
     static char *cx_names = "isofs.cx";
     static size_t cx_value_lengths[1] = {0};
@@ -1065,11 +1065,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
     target->always_gmt = opts->always_gmt;
-
-#ifndef Libisofs_hardlink_matcheR
-    target->ino = 0;
-#endif
-
     target->omit_version_numbers = opts->omit_version_numbers
                                  | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;

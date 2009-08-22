@@ -1310,13 +1310,9 @@ int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link)
     new->node.name = name;
     new->dest = dest;
     new->node.mode = S_IFLNK;
-
-#ifdef Libisofs_hardlink_matcheR
     new->fs_id = 0;
     new->st_dev = 0;
     new->st_ino = 0;
-#endif
-
     *link = new;
     return ISO_SUCCESS;
 }
@@ -1348,13 +1344,9 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
 
     new->node.mode = mode;
     new->dev = dev;
-
-#ifdef Libisofs_hardlink_matcheR
     new->fs_id = 0;
     new->st_dev = 0;
     new->st_ino = 0;
-#endif
-
     *special = new;
     return ISO_SUCCESS;
 }
@@ -2301,8 +2293,6 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
         }
         return 1;
 
-#ifdef Libisofs_hardlink_matcheR
-
     } else if (node->type == LIBISO_SYMLINK) {
         symlink = (IsoSymlink *) node;
         if (symlink->fs_id != ISO_IMAGE_FS_ID && (flag & 1)) {
@@ -2324,8 +2314,6 @@ int iso_node_get_id(IsoNode *node, unsigned int *fs_id, dev_t *dev_id,
         *dev_id = special->st_dev;
         *ino_id = special->st_ino;
         return 1;
-
-#endif
 
     }
 
@@ -2381,8 +2369,6 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
         if (ret < 0 || ret == 1)
             return ret;
 
-#ifdef Libisofs_hardlink_matcheR
-
     } else if (node->type == LIBISO_SYMLINK) {
         symlink = (IsoSymlink *) node;
         if (symlink->fs_id == ISO_IMAGE_FS_ID) {
@@ -2396,8 +2382,6 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
             special->st_ino = ino;
             return 1;
         }
-
-#endif
 
     }
     ret = iso_node_set_ino_xinfo(node, ino, 0);
@@ -2473,8 +2457,6 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
             return ret1;
         goto inode_match;
 
-#ifdef Libisofs_hardlink_matcheR
-
     } else if (n1->type == LIBISO_SYMLINK) {
 
         l1 = (IsoSymlink *) n1;
@@ -2496,8 +2478,6 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
         fs_id2 = s2->fs_id;
         dev_id2 = s2->st_dev;
         ino_id2 = s2->st_ino;
-
-#endif /* Libisofs_hardlink_matcheR */
 
     } else {
         return (n1 < n2 ? -1 : 1); /* case n1 == n2 is handled above */

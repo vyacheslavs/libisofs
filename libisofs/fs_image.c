@@ -2815,13 +2815,9 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             }
             link->dest = strdup(dest);
             link->node.type = LIBISO_SYMLINK;
-
-#ifdef Libisofs_hardlink_matcheR
             link->fs_id = ISO_IMAGE_FS_ID;
             link->st_dev = info.st_dev;
             link->st_ino = info.st_ino;
-#endif
-
             new = (IsoNode*) link;
             new->refcount = 0;
         }
@@ -2840,13 +2836,9 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             }
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
-
-#ifdef Libisofs_hardlink_matcheR
             special->fs_id = ISO_IMAGE_FS_ID;
             special->st_dev = info.st_dev;
             special->st_ino = info.st_ino;
-#endif
-
             new = (IsoNode*) special;
             new->refcount = 0;
         }
