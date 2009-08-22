@@ -5731,12 +5731,6 @@ struct burn_source {
 /* ---------------------------- Improvements --------------------------- */
 
 
-/* Hardlinks : Override Libisofs_new_fs_image_inO and preserve inode numbers
-               from session to session.
-*/
-#define Libisofs_hardlink_prooF yes
-
-
 /* Checksums : During image writing equip IsoFile objects with MD5 checksums
                and compute an overall checksum of the session. Store them in
                a separate checksum block area after the data area of the
@@ -5746,14 +5740,6 @@ struct burn_source {
 
 
 /* ---------------------------- Experiments ---------------------------- */
-
-/* <<< on its way out
-   Experiment: Ignore PX inode numbers,
-               have boot image inode number counted by fs_give_ino_number()
-
-   Overridden if Libisofs_hardlink_prooF is defined.
- #define Libisofs_new_fs_image_inO yes
-*/
 
 
 /* Experiment: Write obsolete RR entries with Rock Ridge.

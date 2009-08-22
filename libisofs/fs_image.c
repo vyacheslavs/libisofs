@@ -1095,33 +1095,6 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
 }
 
 
-#ifndef Libisofs_hardlink_prooF
-
-/**
- * A global counter for default inode numbers for the ISO image filesystem.
- * @param fs    The filesystem where the number shall be used
- * @param flag  bit0= reset count
- */
-static
-ino_t fs_give_ino_number(IsoImageFilesystem *fs, int flag)
-{
-    _ImageFsData *fsdata;
-
-    fsdata = (_ImageFsData*)fs->data;
-    if (flag & 1)
-        fsdata->inode_counter = 0;
-    fsdata->inode_counter++;
-    if (fsdata->inode_counter == 0) {
-
-        /* >>> raise alert because of inode rollover */;
-
-    }
-    return fsdata->inode_counter;
-}
-
-#endif /* ! Libisofs_hardlink_prooF */
-
-
 /**
  *
  * @param src
@@ -1646,55 +1619,10 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         return ISO_SUCCESS;
     }
 
-#ifdef Libisofs_hardlink_prooF
-
     /* Production of missing inode numbers is delayed until the image is
        complete. Then all nodes which shall get a new inode number will
        be served.
     */
-
-#else /* Libisofs_hardlink_prooF */
-
-#ifdef Libisofs_new_fs_image_inO
-
-    if (fsdata->rr != RR_EXT_112) {
-        if (fsdata->rr == 0) {
-            atts.st_nlink = 1;
-        }
-    }
-    atts.st_ino = fs_give_ino_number(fs, 0);
-
-#else /* Libisofs_new_fs_image_inO */
-
-
-    /* ts Nov 25 2008: TODO
-       This seems not fully consistent with read_rr_PX() which decides
-       by (px->len_sue[0] == 44) whether an inode number is present or not.
-       What if read_rr_PX finds a PX of length 36 in a IEEE_1282 image ?
-       It is illegal but could confuse the image by duplicate inode numbers.
-
-       Regrettably it is not enough to just use single default numbers.
-       If only one number misses in the image, then all would need to be
-       defaulted by the following iso_global_inode code.
-
-       Why do duplicate inode numbers confuse the file lengths, anyway ?
-       (See ticket 144)
-    */
-    if (fsdata->rr != RR_EXT_112) {
-        /*
-         * Only RRIP 1.12 provides valid inode numbers. If not, it is not easy
-         * to generate those serial numbers, and we use extend block instead.
-         * It BREAKS POSIX SEMANTICS, but its suitable for our needs
-         */
-        atts.st_ino = fs_give_ino_number(fs, 0);
-        if (fsdata->rr == 0) {
-            atts.st_nlink = 1;
-        }
-    }
-
-#endif /* ! Libisofs_new_fs_image_inO */
-
-#endif /* ! Libisofs_hardlink_prooF */
 
     /*
      * if we haven't RR extensions, or a needed TF time stamp is not present,
@@ -2865,8 +2793,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         goto failure;
     }
 
-#ifdef Libisofs_hardlink_prooF
-
     /* Attach ino as xinfo if valid and no IsoStream is involved */
     if (info.st_ino != 0 && (info.st_mode & S_IFMT) != S_IFREG &&
         !fsdata->make_new_ino) {
@@ -2874,8 +2800,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         if (ret < 0)
             goto failure;
     }
-
-#endif /* Libisofs_hardlink_prooF */
 
     *node = new;
     return ISO_SUCCESS;
@@ -2939,25 +2863,7 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image,
 
     memset(&atts, 0, sizeof(struct stat));
     atts.st_mode = S_IFREG;
-
-#ifdef Libisofs_hardlink_prooF
-
     atts.st_ino = img_give_ino_number(image, 0);
-
-#else /* Libisofs_hardlink_prooF */
-
-#ifdef Libisofs_new_fs_image_inO
-
-    atts.st_ino = fs_give_ino_number(fs, 0);
-
-#else /* Libisofs_new_fs_image_inO */
-
-    atts.st_ino = fsdata->imgblock; /* not the best solution, but... */
-
-#endif /* ! Libisofs_new_fs_image_inO */
-
-#endif /* ! Libisofs_hardlink_prooF */
-
     atts.st_nlink = 1;
 
     /*
@@ -3104,17 +3010,12 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         if (ret < 0)
             goto import_revert;
 
-#ifdef Libisofs_hardlink_prooF
-
         /* Attach ino as xinfo if valid */
         if (info.st_ino != 0 && !data->make_new_ino) {
             ret = iso_node_set_ino(&(image->root->node), info.st_ino, 0);
             if (ret < 0)
                 goto import_revert;
         }
-
-#endif /* Libisofs_hardlink_prooF */
-
     }
 
     /* if old image has el-torito, add a new catalog */
@@ -3151,8 +3052,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         goto import_revert;
     }
 
-#ifdef Libisofs_hardlink_prooF
-
     /* Take over inode management from IsoImageFilesystem.
        data->inode_counter is supposed to hold the maximum PX inode number.
      */
@@ -3172,8 +3071,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             goto import_revert;
         }
     }
-
-#endif /* ! Libisofs_hardlink_prooF */
 
     if (data->eltorito) {
         /* if catalog and image nodes were not filled, we create them here */
