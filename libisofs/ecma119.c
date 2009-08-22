@@ -962,10 +962,10 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     IsoNode *pos;
     IsoFile *file;
     IsoImage *img;
-    int ret, i, no_md5 = 0;
+    int ret, i, no_md5 = 0, has_xinfo = 0;
     size_t value_length;
     unsigned int idx = 0;
-    char *value;
+    char *value= NULL, *direct_md5;
     void *xipt = NULL;
     static char *cx_names = "isofs.cx";
     static size_t cx_value_lengths[1] = {0};
@@ -978,10 +978,17 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
         if (file->from_old_session && target->appendable) {
             /* Save MD5 data of files from old image which will not
                be copied and have an MD5 recorded in the old image. */
-            value= NULL;
-            ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
-                                       &value, 0);
-            if (ret == 1 && img->checksum_array == NULL) {
+            has_xinfo = iso_node_get_xinfo(node, checksum_md5_xinfo_func,
+                                           &xipt);
+            if (has_xinfo <= 0) {
+                ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
+                                           &value, 0);
+            }
+            if (has_xinfo > 0) {
+                /* xinfo MD5 overrides everything else unless data get copied
+                   and checksummed during that copying
+                 */;
+            } else if (ret == 1 && img->checksum_array == NULL) {
                 /* No checksum array loaded. Delete "isofs.cx" */
                 iso_node_set_attrs(node, (size_t) 1,
                               &cx_names, cx_value_lengths, &cx_valuept, 4 | 8);
@@ -993,7 +1000,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
                     /* xipt is an int disguised as void pointer */
                     for (i = 0; i < 4; i++)
                         ((char *) &xipt)[i] = value[i];
-                    ret = iso_node_add_xinfo(node, checksum_xinfo_func,
+                    ret = iso_node_add_xinfo(node, checksum_cx_xinfo_func,
                                              xipt);
                     if (ret < 0)
                         return ret;
@@ -1002,8 +1009,10 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
             } else {
                 no_md5 = 1;
             }
-            if (value != NULL)
+            if (value != NULL) {
                 free(value);
+                value= NULL;
+            }
         }
         /* Equip nodes with provisory isofs.cx numbers: 4 byte, all 0.
            Omit those from old image which will not be copied and have no MD5.

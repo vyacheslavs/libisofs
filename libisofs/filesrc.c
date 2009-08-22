@@ -119,17 +119,21 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 #ifdef Libisofs_with_checksumS
 
     if ((img->md5_file_checksums & 1) &&
-         file->from_old_session && img->appendable) {
-        /* Omit MD5 indexing with old image nodes which have no MD5 */
-        ret = iso_node_get_xinfo((IsoNode *) file, checksum_xinfo_func, &xipt);
+        file->from_old_session && img->appendable) {
+        ret = iso_node_get_xinfo((IsoNode *) file, checksum_md5_xinfo_func,
+                                  &xipt);
         if (ret <= 0)
+            ret = iso_node_get_xinfo((IsoNode *) file, checksum_cx_xinfo_func,
+                                      &xipt);
+        if (ret <= 0)
+            /* Omit MD5 indexing with old image nodes which have no MD5 */
             no_md5 = 1;
     }
 
     if ((img->md5_file_checksums & 1) && !no_md5) {
         img->checksum_idx_counter++;
         if (img->checksum_idx_counter < 0x80000000) {
-            fsrc->checksum_index= img->checksum_idx_counter;
+            fsrc->checksum_index = img->checksum_idx_counter;
         } else {
             fsrc->checksum_index= 0;
             img->checksum_idx_counter= 0x80000000; /* keep from rolling over */
@@ -289,29 +293,9 @@ int filesrc_close(IsoFileSrc *file)
 static
 int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
 {
-    size_t bytes = 0;
+    size_t got;
 
-    /* loop to ensure the full buffer is filled */
-    do {
-        ssize_t result;
-        result = iso_stream_read(file->stream, buf + bytes, count - bytes);
-        if (result < 0) {
-            /* fill buffer with 0s and return */
-            memset(buf + bytes, 0, count - bytes);
-            return result;
-        }
-        if (result == 0)
-            break;
-        bytes += result;
-    } while (bytes < count);
-
-    if (bytes < count) {
-        /* eof */
-        memset(buf + bytes, 0, count - bytes);
-        return 0;
-    } else {
-        return 1;
-    }
+    return iso_stream_read_buffer(file->stream, buf, count, &got);
 }
 
 #ifdef Libisofs_with_checksumS
@@ -319,46 +303,12 @@ int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
 /* @return 1=ok, md5 is valid,
            0= not ok, go on,
           <0 fatal error, abort 
-*/
+*/  
+
 static
 int filesrc_make_md5(Ecma119Image *t, IsoFileSrc *file, char md5[16], int flag)
 {
-    int res, is_open = 0;
-    char buffer[BLOCK_SIZE];
-    void *ctx= NULL;
-    off_t file_size;
-    uint32_t b, nblocks;
-
-    if (! iso_stream_is_repeatable(file->stream))
-        return 0;
-    res = iso_md5_start(&ctx);
-    if (res < 0)
-        return res;
-    res = filesrc_open(file);
-    if (res < 0)
-        return 0;
-    is_open = 1;
-    file_size = iso_file_src_get_size(file);
-    nblocks = DIV_UP(file_size, BLOCK_SIZE);
-    for (b = 0; b < nblocks; ++b) {
-        res = filesrc_read(file, buffer, BLOCK_SIZE);
-        if (res < 0) {
-            res = 0;
-            goto ex;
-        }
-        if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
-            res = BLOCK_SIZE;
-        else
-            res = file_size - b * BLOCK_SIZE;
-        iso_md5_compute(ctx, buffer, res);
-    }
-    res = 1;
-ex:;
-    if (is_open)
-        filesrc_close(file);
-    if (ctx != NULL)
-        iso_md5_end(&ctx, md5);
-    return res;
+    return iso_stream_make_md5(file->stream, md5, 0);
 }
 
 #endif /* Libisofs_with_checksumS */

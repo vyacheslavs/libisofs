@@ -1424,10 +1424,13 @@ int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
  * @param opts
  *      The option set to be manipulated.
  * @param session
- *      If bit0 set: compute session checksum
+ *      If bit0 set: Compute session checksum
  * @param files
- *      If bit0 set: compute a checksum for each single IsoFile object.
- *      If bit1 set: check content stability (only with bit0). I.e.  before
+ *      If bit0 set: Compute a checksum for each single IsoFile object which
+ *                   gets its data content written into the session. Copy
+ *                   checksums from files which keep their data in older
+ *                   sessions.
+ *      If bit1 set: Check content stability (only with bit0). I.e.  before
  *                   writing the file content into to image stream, read it
  *                   once and compute a MD5. Do a second reading for writing
  *                   into the image stream. Afterwards compare both MD5 and
@@ -5054,6 +5057,28 @@ int iso_image_get_session_md5(IsoImage *image, uint32_t *start_lba,
  * @since 0.6.22
  */
 int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag);
+
+/**
+ * Read the content of an IsoFile object, compute its MD5 and attach it to
+ * the IsoFile. It can then be inquired by iso_file_get_md5() and will get
+ * written into the next session if this is enabled at write time and if the
+ * image write process does not compute an MD5 from content which it copies.
+ * So this call can be used to equip nodes from the old image with checksums
+ * or to make available checksums of newly added files before the session gets
+ * written.
+ * @param file
+ *      The file object to read data from and to which to attach the checksum.
+ *      If the file is from the imported image, then its most original stream
+ *      will be checksummed. Else the eventual filter streams will get into
+ *      effect.
+ * @param flag
+ *      Bitfield for control purposes. Unused yet. Submit 0.
+ * @return
+ *      1= ok, MD5 is computed and attached , <0 indicates error
+ *
+ * @since 0.6.22
+ */
+int iso_file_make_md5(IsoFile *file, int flag);
 
 /**
  * Check a data block whether it is a libisofs session checksum tag and

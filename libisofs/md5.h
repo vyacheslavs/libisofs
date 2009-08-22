@@ -19,13 +19,6 @@
 int checksum_writer_create(Ecma119Image *target);
 
 
-/* Function to identify and manage md5sum indice of the old image.
- * data is supposed to be a 4 byte integer, bit 31 shall be 0,
- * value 0 of this integer means that it is not a valid index.
- */
-int checksum_xinfo_func(void *data, int flag);
-
-
 /* Write stream detectable checksum tag to extra block.
  * All tag ranges start at the beginning of the System Area (i.e. t->ms_block)
  * and stem from the same MD5 computation context. Tag types 2 and 3 are

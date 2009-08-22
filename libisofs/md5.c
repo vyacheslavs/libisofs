@@ -406,9 +406,21 @@ int iso_md5_match(char first_md5[16], char second_md5[16])
  * data is supposed to be a 4 byte integer, bit 31 shall be 0,
  * value 0 of this integer means that it is not a valid index.
  */
-int checksum_xinfo_func(void *data, int flag)
+int checksum_cx_xinfo_func(void *data, int flag)
 {
     /* data is an int disguised as pointer. It does not point to memory. */
+    return 1;
+}
+
+
+/* Function to identify and manage md5 sums of unspecified providence stored
+ * directly in this xinfo.
+ */
+int checksum_md5_xinfo_func(void *data, int flag)
+{
+    if (data == NULL)
+        return 1;
+    free(data);
     return 1;
 }
 
@@ -432,25 +444,43 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
     int ret, i;
     size_t value_length;
     unsigned int idx = 0, old_idx = 0;
-    char *value = NULL;
+    char *value = NULL, *md5_pt = NULL;
     void *xipt;
 
     img = target->image;
-    if (img->checksum_array == NULL || target->checksum_buffer == NULL)
+    if (target->checksum_buffer == NULL)
         return 0;
 
     if (node->type == LIBISO_FILE) {
         file = (IsoFile *) node;
         if (file->from_old_session && target->appendable) {
-            ret = iso_node_get_xinfo(node, checksum_xinfo_func, &xipt);
-            if (ret <= 0)
-                return ret;
-            /* xipt is an int disguised as void pointer */
-            old_idx = 0;
-            for (i = 0; i < 4; i++)
-                old_idx = (old_idx << 8) | ((unsigned char *) &xipt)[i];
+            /* Look for checksums at various places */
 
-            if (old_idx == 0 || old_idx > img->checksum_idx_count - 1)
+            /* Try checksum directly stored with node */
+            if (md5_pt == NULL) {
+                ret = iso_node_get_xinfo(node, checksum_md5_xinfo_func, &xipt);
+                if (ret < 0)
+                    return ret;
+                if (ret == 1)
+                    md5_pt = (char *) xipt;
+            }
+
+            /* Try checksum index to image checksum buffer */
+            if (md5_pt == NULL && img->checksum_array != NULL) {
+                ret = iso_node_get_xinfo(node, checksum_cx_xinfo_func, &xipt);
+                if (ret <= 0)
+                    return ret;
+                /* xipt is an int disguised as void pointer */
+                old_idx = 0;
+                for (i = 0; i < 4; i++)
+                    old_idx = (old_idx << 8) | ((unsigned char *) &xipt)[i];
+    
+                if (old_idx == 0 || old_idx > img->checksum_idx_count - 1)
+                    return 0;
+                md5_pt = img->checksum_array + 16 * old_idx;
+            }
+
+            if (md5_pt == NULL)
                 return 0;
 
             ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
@@ -459,12 +489,13 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
                 for (i = 0; i < 4; i++)
                     idx = (idx << 8) | ((unsigned char *) value)[i];
                 if (idx > 0 && idx <= target->checksum_idx_counter) {
-                    memcpy(target->checksum_buffer + 16 * idx,
-                           img->checksum_array + 16 * old_idx, 16);
+                    memcpy(target->checksum_buffer + 16 * idx, md5_pt, 16);
                 }
             }
             if (value != NULL)
                 free(value);
+            iso_node_remove_xinfo(node, checksum_md5_xinfo_func);
+            iso_node_remove_xinfo(node, checksum_cx_xinfo_func);
         }
     } else if (node->type == LIBISO_DIR) {
         for (pos = ((IsoDir *) node)->children; pos != NULL; pos = pos->next) {

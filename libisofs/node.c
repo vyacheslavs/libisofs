@@ -2678,6 +2678,14 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
     size_t value_len;
     char *value = NULL;
     uint32_t idx = 0;
+    void *xipt;
+
+    /* xinfo MD5 overrides everything else */
+    ret = iso_node_get_xinfo((IsoNode *) file, checksum_md5_xinfo_func, &xipt);
+    if (ret == 1) {
+        memcpy(md5, (char *) xipt, 16);
+        return 1;
+    }
 
     if (image->checksum_array == NULL)
         return 0;
@@ -2713,4 +2721,41 @@ ex:;
 #endif /* ! Libisofs_with_checksumS */
 
 }
+
+
+/* API */
+int iso_file_make_md5(IsoFile *file, int flag)
+{
+
+#ifdef Libisofs_with_checksumS
+    int ret, dig = 0;
+    char *md5 = NULL;
+
+    if (file->from_old_session)
+        dig = 1;
+    md5= calloc(16, 1);
+    ret = iso_stream_make_md5(file->stream, md5, dig);
+    if (ret < 0)
+        goto ex;
+    iso_node_remove_xinfo((IsoNode *) file, checksum_md5_xinfo_func);
+    ret = iso_node_add_xinfo((IsoNode *) file, checksum_md5_xinfo_func, md5);
+    if (ret == 0)
+        ret = ISO_ERROR; /* should not happen after iso_node_remove_xinfo() */
+    if (ret < 0) {
+        free(md5);
+        goto ex;
+    }
+    ret = 1;
+ex:;
+    return ret;
+
+#else
+
+    return ISO_ERROR;
+
+#endif /* ! Libisofs_with_checksumS */
+
+}
+
+
 

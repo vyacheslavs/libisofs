@@ -83,4 +83,24 @@ int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
 int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag);
 
 
+/**
+ * Read the full required amount of data unless error or EOF occurs.
+ * Fill missing bytes by 0s.
+ * @param count   Required amount
+ * @param got     Returns number of actually read bytes
+ * @return
+ *     1 no problem encountered, 0 EOF encountered, < 0 error
+ */
+int iso_stream_read_buffer(IsoStream *stream, char *buf, size_t count,
+                           size_t *got);
+
+/**
+ * @return 1=ok, md5 is valid,
+ *        0= not ok
+ *       <0 fatal error, abort 
+ */
+int iso_stream_make_md5(IsoStream *stream, char md5[16], int flag);
+
+
+
 #endif /*STREAM_H_*/

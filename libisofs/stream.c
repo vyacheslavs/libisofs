@@ -830,3 +830,96 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
 
     return 0;
 }
+
+
+/**
+ * @return
+ *     1 ok, 0 EOF, < 0 error
+ */    
+int iso_stream_read_buffer(IsoStream *stream, char *buf, size_t count,
+                           size_t *got)
+{
+    ssize_t result;
+
+    *got = 0;
+    do {
+        result = iso_stream_read(stream, buf + *got, count - *got);
+        if (result < 0) {
+            memset(buf + *got, 0, count - *got);
+            return result;
+        }
+        if (result == 0)
+            break;
+        *got += result;
+    } while (*got < count);
+
+    if (*got < count) {
+        /* eof */
+        memset(buf + *got, 0, count - *got);
+        return 0;
+    }
+    return 1;
+}
+
+#ifdef Libisofs_with_checksumS
+
+
+/* @param flag bit0= dig out most original stream (e.g. because from old image)
+   @return 1=ok, md5 is valid,
+           0= not ok, 
+          <0 fatal error, abort 
+*/  
+int iso_stream_make_md5(IsoStream *stream, char md5[16], int flag)
+{
+    int res, is_open = 0;
+    char buffer[2048];
+    void *ctx= NULL;
+    off_t file_size;
+    uint32_t b, nblocks;
+    size_t got_bytes;
+    IsoStream *input_stream;
+
+    if (flag & 1) {
+        while(1) {
+           input_stream = iso_stream_get_input_stream(stream, 0);
+           if (input_stream == NULL)
+        break;
+           stream = input_stream;
+        }
+    }
+
+    if (! iso_stream_is_repeatable(stream))
+        return 0;
+    res = iso_md5_start(&ctx);
+    if (res < 0)
+        return res;
+    res = iso_stream_open(stream);
+    if (res < 0)
+        return 0;
+    is_open = 1;
+    file_size = iso_stream_get_size(stream);
+    nblocks = DIV_UP(file_size, 2048);
+    for (b = 0; b < nblocks; ++b) {
+        res = iso_stream_read_buffer(stream, buffer, 2048, &got_bytes);
+        if (res < 0) {
+            res = 0;
+            goto ex;
+        }
+        /* Do not use got_bytes to stay closer to IsoFileSrc processing */
+        if (file_size - b * 2048 > 2048)
+            res = 2048;
+        else
+            res = file_size - b * 2048;
+        iso_md5_compute(ctx, buffer, res);
+    }
+    res = 1;
+ex:;
+    if (is_open)
+        iso_stream_close(stream);
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
+    return res;
+}
+
+#endif /* Libisofs_with_checksumS */
+

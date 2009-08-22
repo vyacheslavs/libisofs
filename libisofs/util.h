@@ -482,4 +482,26 @@ int iso_util_eval_md5_tag(char *block, int desired, uint32_t lba,
 int iso_util_tag_magic(int tag_type, char **tag_magic, int *len, int flag);
 
 
+/* ------------------------------------------------------------------------- */
+
+/* In md5.h these function prototypes would be neighbors of (Ecma119Image *)
+   which needs inclusion of ecma119.h and more. So, being generic, they ended
+   up here.
+*/
+
+/* Function to identify and manage md5sum indice of the old image.
+ * data is supposed to be a 4 byte integer, bit 31 shall be 0,
+ * value 0 of this integer means that it is not a valid index.
+ */
+int checksum_cx_xinfo_func(void *data, int flag);
+
+/* Function to identify and manage md5 sums of unspecified providence stored
+ * directly in this xinfo. This is supposed to override any other recorded
+ * MD5 of the node unless data get copied and checksummed during that copying.
+ */
+int checksum_md5_xinfo_func(void *data, int flag);
+
+/* ------------------------------------------------------------------------- */
+
+
 #endif /*LIBISO_UTIL_H_*/
