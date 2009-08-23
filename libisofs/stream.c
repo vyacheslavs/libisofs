@@ -739,7 +739,7 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     FSrcStreamData *fssd1, *fssd2;
 
 
-/* <<<
+/*
    #define Libisofs_stream_cmp_ino_debuG 1
 */
 #ifdef Libisofs_stream_cmp_ino_debuG

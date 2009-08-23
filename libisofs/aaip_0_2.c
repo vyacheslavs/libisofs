@@ -23,9 +23,9 @@
 
 #include "libisofs.h"
 
-/* <<<
-*/
+/*
 #define Aaip_encode_debuG 1
+*/
 
 #include "aaip_0_2.h"
 
