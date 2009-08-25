@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [0.6.21], [http://libburnia-project.org])
+AC_INIT([libisofs], [0.6.22], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -44,7 +44,7 @@ dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
 dnl
 LIBISOFS_MAJOR_VERSION=0
 LIBISOFS_MINOR_VERSION=6
-LIBISOFS_MICRO_VERSION=21
+LIBISOFS_MICRO_VERSION=22
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
@@ -54,11 +54,11 @@ AC_SUBST(LIBISOFS_VERSION)
 
 dnl Libtool versioning
 LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
-# 2009.05.30  development jump has not yet happened
-# SONAME = 22 - 16 = 6 . Library name = libisofs.6.16.0
-LT_CURRENT=22
+# 2009.08.25  development jump has not yet happened
+# SONAME = 24 - 18 = 6 . Library name = libisofs.6.18.0
+LT_CURRENT=24
 LT_REVISION=0
-LT_AGE=16
+LT_AGE=18
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
 AC_SUBST(LT_RELEASE)
@@ -87,13 +87,6 @@ fi
 
 dnl If iconv(3) is in an extra lib, then it gets added to variable LIBS.
 dnl If not, then no -liconv will be added.
-dnl test ticket 151
-### LIBICONV=
-### ifdef(AM_ICONV, AM_ICONV, AC_CHECK_LIB(iconv, iconv, , ))
-### LIBS="$LIBS $LIBICONV"
-## AC_CHECK_LIB(iconv, iconv, , )
-## dnl GNU iconv has no function iconv() but libiconv() and a macro iconv()
-## AC_CHECK_LIB(iconv, libiconv, , )
 LIBBURNIA_CHECK_ICONV
 
 
