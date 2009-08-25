@@ -828,6 +828,19 @@ int pad_writer_create(Ecma119Image *target)
 }
 
 static
+int transplant_checksum_buffer(Ecma119Image *target, int flag)
+{
+    /* Transplant checksum buffer from Ecma119Image to IsoImage */
+    iso_image_set_checksums(target->image, target->checksum_buffer,
+                            target->checksum_range_start,
+                            target->checksum_array_pos,
+                            target->checksum_idx_counter + 2, 0);
+    target->checksum_buffer = NULL;
+    target->checksum_idx_counter = 0;
+    return 1;
+}
+
+static
 void *write_function(void *arg)
 {
     int res;
@@ -903,12 +916,7 @@ void *write_function(void *arg)
 #ifdef Libisofs_with_checksumS
 
     /* Transplant checksum buffer from Ecma119Image to IsoImage */
-    iso_image_set_checksums(target->image, target->checksum_buffer,
-                            target->checksum_range_start,
-                            target->checksum_array_pos,
-                            target->checksum_idx_counter + 2, 0);
-    target->checksum_buffer = NULL;
-    target->checksum_idx_counter = 0;
+    transplant_checksum_buffer(target, 0);
 
 #endif
 
@@ -928,7 +936,8 @@ void *write_function(void *arg)
 
 #ifdef Libisofs_with_checksumS
 
-    /* >>> ??? transplant checksum buffer from Ecma119Image to IsoImage */;
+    /* Transplant checksum buffer from Ecma119Image to IsoImage */
+    transplant_checksum_buffer(target, 0);
 
 #endif
 
