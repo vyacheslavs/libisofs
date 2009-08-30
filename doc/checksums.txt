@@ -3,7 +3,7 @@
 
                by Thomas Schmitt    - mailto:scdbackup@gmx.net
                Libburnia project    - mailto:libburn-hackers@pykix.org
-                                 16 Aug 2009
+                                 26 Aug 2009
 
 
 MD5 is a 128 bit message digest with a very low probability to be the same for
@@ -67,7 +67,7 @@ The tree checksum tag is written after the  ECMA-119 directory entries.
 The session checksum tag is written after all payload including the checksum
 array. (Then follows eventual padding.)
 
-The tags are a single lines of printable text, padded by 0 bytes. They have
+The tags are single lines of printable text, padded by 0 bytes. They have
 the following format:
 
  Tag_id pos=# range_start=# range_size=# [session_start|next=#] md5=# self=#\n
@@ -81,14 +81,13 @@ Tag_id distinguishes the following tag types
 A relocated superblock may appear at LBA 0 of an image which was produced for
 being stored in a disk file or on overwriteable media (e.g. DVD+R, BD-RE).
 Typically there is a first session recorded with a superblock at LBA 32 and
-the next session may follow shortly after its session tag. (There may be a gap
-of padding, often 150 blocks, and aligning to the next address that is
-divisible by 32.) Normally no session starts after the address given by
-parameter session_start=.
+the next session may follow shortly after its session tag. (Typically at the
+next block address which is divisible by 32.) Normally no session starts after 
+the address given by parameter session_start=.
 
 Session oriented media like CD-R[W], DVD+R, BD-R will have no relocated
 superblock but rather bear a table-of-content on media level (to be inquired
-by MMC commands(.
+by MMC commands).
 
 
 Example:
@@ -183,11 +182,11 @@ whether its MD5 matches the MD5 of the data blocks which were read before.
 
 With tag type 2:
 
-Keep the original MD5 context of the data blocks and clone
-one for obtaining the MD5 bytes.
-If the MD5s match, then compute the checksum block into the kept MD5 context
-and go on with reading and computing for the tree checksum tag. This will be
-found at block address next_tag, verified and parsed by:
+Keep the original MD5 context of the data blocks and clone one for obtaining
+the MD5 bytes.
+If the MD5s match, then compute the checksum block and all folowing ones into
+the kept MD5 context and go on with reading and computing for the tree checksum
+tag. This will be found at block address next_tag, verified and parsed by:
   iso_util_decode_md5_tag(block, &tag_type, &pos,
                           &range_start, &range_size, &next_tag, md5, 3);
 
@@ -200,14 +199,12 @@ With tag type 4:
 End the MD5 context and start a new context for the session which you will
 read next.
 
-You may look for the first session by starting to read at LBA 32, or you may
-look for the last session by starting to read at the address given by parameter
-session_start=. The former is suitable for a check of the whole image, the
-latter is the shortest way to ensure that the tree of the last session is
-not corrupted.
+Then look for the actual session by starting to read at the address given by
+parameter session_start= which is returned by iso_util_decode_md5_tag() as
+next_tag. Go on by looking for tag type 2 and follow above prescription.
 
 
-                           Checking a Whole Session
+                      Checking the Data Part of the Session
 
 In order to check the trustworthyness of a whole session, continue reading
 and checksumming after the tree was verified. 
@@ -222,6 +219,20 @@ If this returns 1, then check whether the returned parameters pos, range_start,
 and range_size match the state of block reading, and whether the returned
 bytes in parameter md5 match the MD5 computed from the data blocks which were
 read before the tag block.
+
+
+                           Checking All Sessions
+
+If the media is sequentially recordable, obtain a table of content and check
+the first track of each session as prescribed above in Checking Before Image
+Tree Loading and in Checking the Data Part of the Session.
+
+With disk files or overwriteable media, look for a relocated superblock tag
+but do not hop to address next_tag (given by session_start=). Instead look at
+LBA 32 for the first session and check it as prescribed above.
+After reaching its end, round up the read address to the next multiple of 32
+and check whether it is smaller than session_start= from the super block.
+If so, expect another session to start there.
 
 
                    Checking Single Files in a Loaded Image

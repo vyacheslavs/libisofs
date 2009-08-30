@@ -261,6 +261,7 @@ EXTRA_DIST = \
 	doc/susp_aaip_2_0.txt \
 	doc/susp_aaip_isofs_names.txt \
 	doc/zisofs_format.txt \
+	doc/checksums.txt \
 	libisofs/aaip-os-dummy.c \
 	libisofs/aaip-os-linux.c \
 	libisofs/aaip-os-freebsd.c
