@@ -31,11 +31,13 @@
 #include "md5.h"
 #endif
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <locale.h>
 #include <langinfo.h>
+#include <stdio.h>
 
 /*
  * TODO #00011 : guard against bad path table usage with more than 65535 dirs
@@ -1132,6 +1134,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->md5_file_checksums = opts->md5_file_checksums;
     target->md5_session_checksum = opts->md5_session_checksum;
+    strcpy(target->scdbackup_tag_parm, opts->scdbackup_tag_parm);
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
@@ -1860,6 +1863,39 @@ int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files)
 
     opts->md5_session_checksum = session & 1;
     opts->md5_file_checksums = files & 3;
+
+#endif /* Libisofs_with_checksumS */
+
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
+                                     char *name, char *timestamp)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    char eff_name[81], eff_time[19];
+    int i;
+
+    for (i = 0; name[i] != 0 && i < 80; i++)
+         if (isspace((int) ((unsigned char *) name)[i]))
+             eff_name[i] = '_';
+         else
+             eff_name[i] = name[i];
+    if (i == 0)
+        eff_name[i++] = '_';
+    eff_name[i] = 0;
+    for (i = 0; timestamp[i] != 0 && i < 18; i++)
+         if (isspace((int) ((unsigned char *) timestamp)[i]))
+             eff_time[i] = '_';
+         else
+             eff_time[i] = timestamp[i];
+    if (i == 0)
+        eff_time[i++] = '_';
+    eff_time[i] = 0;
+
+    sprintf(opts->scdbackup_tag_parm, "%s %s", eff_name, eff_time);
 
 #endif /* Libisofs_with_checksumS */
 

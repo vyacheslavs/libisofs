@@ -1447,6 +1447,27 @@ int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort);
 int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files);
 
 /**
+ * Set the parameters "name" and "timestamp" for a scdbackup checksum tag.
+ * It will be appended to the libisofs session tag if the image starts at
+ * LBA 0 (see iso_write_opts_set_ms_block()). The scdbackup tag can be used
+ * to verify the image by command scdbackup_verify <device> -auto_end.
+ * See scdbackup/README appendix VERIFY for its inner details.
+ *
+ * @param name
+ *      A word of up to 80 characters. Typically <volno>_<totalno> telling
+ *      that this is volume <volno> of a total of <totalno> volumes.
+ * @param timestamp
+ *      A string of 13 characters YYMMDD.hhmmss (e.g. A90831.190324).
+ *      A9 = 2009, B0 = 2010, B1 = 2011, ... C0 = 2020, ...
+ * @return
+ *      1 indicates success, <0 is error
+ *
+ * @since 0.6.24
+ */
+int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
+                                     char *name, char *timestamp);
+
+/**
  * Whether to set default values for files and directory permissions, gid and
  * uid. All these take one of three values: 0, 1 or 2.
  *
@@ -5521,6 +5542,13 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
  * @since 0.6.22
 */
 #define ISO_MD5_STREAM_CHANGE     0xE430FE9A
+
+/**
+ * Session does not start at LBA 0. scdbackup checksum tag not written.
+ * (WARNING, HIGH, -359)
+ * @since 0.6.24
+*/
+#define ISO_SCDBACKUP_TAG_NOT_0   0xD030FE99
 
 
 /* ! PLACE NEW ERROR CODES HERE ! */

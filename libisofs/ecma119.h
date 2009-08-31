@@ -281,6 +281,15 @@ struct iso_write_opts {
      */
     uint32_t data_start_lba;
 
+    /**
+     * If not empty: A text holding parameters "name" and "timestamp" for
+     * a scdbackup stream checksum tag. See scdbackup/README appendix VERIFY.
+     * It makes sense only for single session images which start at LBA 0.
+     * Such a tag may be part of a libisofs checksum tag block after the
+     * session tag line. It then covers the whole session up to its own start
+     * position.
+     */
+    char scdbackup_tag_parm[100];
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -463,6 +472,8 @@ struct ecma119_image
            rather than taking ownership of the IsoWriteOpts object which
            is submitted with ecma119_image_new() ?
      */
+
+    char scdbackup_tag_parm[96];
 
 #endif /* Libisofs_with_checksumS */
 

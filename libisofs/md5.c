@@ -698,6 +698,66 @@ int checksum_writer_create(Ecma119Image *target)
 }
 
 
+static
+int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
+{
+
+#ifdef Libisofs_with_checksumS
+
+    void *ctx = NULL;
+    off_t pos = 0, line_start;
+    int record_len, block_len, res, i;
+    char postext[20], md5[16], record[160];
+
+    line_start = strlen(tag_block);
+    iso_md5_compute(t->checksum_ctx, tag_block, line_start);
+    res = iso_md5_clone(t->checksum_ctx, &ctx);
+    if (res < 0)
+        goto ex;
+    res = iso_md5_end(&ctx, md5);
+
+    pos = (off_t) t->checksum_tag_pos * (off_t) 2048 + line_start;
+    if(pos >= 1000000000)
+        sprintf(postext, "%u%9.9u", (unsigned int) (pos / 1000000000),
+                                    (unsigned int) (pos % 1000000000));
+    else
+        sprintf(postext, "%u", (unsigned int) pos),
+
+    sprintf(record, "%s %s ", t->scdbackup_tag_parm, postext);
+    record_len = strlen(record);
+    for (i = 0; i < 16; i++)
+         sprintf(record + record_len + 2 * i,
+                 "%2.2x", ((unsigned char *) md5)[i]);
+    record_len+= 32;
+    res = iso_md5_start(&ctx);
+    if (res < 0)
+        goto ex;
+    iso_md5_compute(ctx, record, record_len);
+    iso_md5_end(&ctx, md5);
+
+    sprintf(tag_block + line_start, "scdbackup_checksum_tag_v0.1 %s %d %s ",
+            postext, record_len, record);
+    block_len = strlen(tag_block);
+    for (i = 0; i < 16; i++)
+        sprintf(tag_block + block_len + 2 * i,
+                "%2.2x", ((unsigned char *) md5)[i]);
+    block_len+= 32;
+    tag_block[block_len++]= '\n';
+
+    res = ISO_SUCCESS;
+ex:;
+    if (ctx != NULL)
+        iso_md5_end(&ctx, md5);
+    return res;
+
+#else
+
+    return ISO_SUCCESS;
+
+#endif /* Libisofs_with_checksumS */
+}
+
+
 /* Write stream detectable checksum tag to extra block.
  * @flag bit0-7= tag type
  *               1= session tag (End checksumming.)
@@ -719,11 +779,16 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
     start = t->checksum_range_start;
     memset(tag_block, 0, 2048);
     mode = flag & 255;
+    if (mode < 1 || mode > 4)
+        return ISO_WRONG_ARG_VALUE;
+    res = iso_md5_clone(t->checksum_ctx, &ctx);
+    if (res < 0)
+        return res;
+    res = iso_md5_end(&ctx, md5);
     if (mode == 1) {
-        res = iso_md5_end(&(t->checksum_ctx), md5);
         size = t->checksum_range_size;
         pos = t->checksum_tag_pos;
-    } else if (mode >= 2 && mode <= 4) {
+    } else {
         if (mode == 2) {
             pos = t->checksum_sb_tag_pos;
         } else if (mode == 3) {
@@ -733,46 +798,51 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
             start = pos - (pos % 32);
         }
         size = pos - start;
-        res = iso_md5_clone(t->checksum_ctx, &ctx);
-        if (res < 0)
-            return res;
-        res = iso_md5_end(&ctx, md5);
-    } else {
-        return ISO_WRONG_ARG_VALUE;
     }
-    if (res > 0) {
-        iso_util_tag_magic(mode, &tag_id, &tag_id_len, 0);
-        sprintf(tag_block,
-                "%s pos=%u range_start=%u range_size=%u",
-                tag_id, pos, start, size);
+    if (res < 0)
+        goto ex;
 
-        l = strlen(tag_block);
-        if (mode == 2) {
-            sprintf(tag_block + l, " next=%u", t->checksum_tree_tag_pos);
-        } else if (mode == 3) {
-            sprintf(tag_block + l, " next=%u", t->checksum_tag_pos);
-        } else if (mode == 4) {
-            sprintf(tag_block + l, " session_start=%u", t->ms_block);
-        }
-        strcat(tag_block + l, " md5=");
-        l = strlen(tag_block);
+    iso_util_tag_magic(mode, &tag_id, &tag_id_len, 0);
+    sprintf(tag_block, "%s pos=%u range_start=%u range_size=%u",
+            tag_id, pos, start, size);
+
+    l = strlen(tag_block);
+    if (mode == 2) {
+        sprintf(tag_block + l, " next=%u", t->checksum_tree_tag_pos);
+    } else if (mode == 3) {
+        sprintf(tag_block + l, " next=%u", t->checksum_tag_pos);
+    } else if (mode == 4) {
+        sprintf(tag_block + l, " session_start=%u", t->ms_block);
+    }
+    strcat(tag_block + l, " md5=");
+    l = strlen(tag_block);
+    for (i = 0; i < 16; i++)
+        sprintf(tag_block + l + 2 * i, "%2.2x",
+                ((unsigned char *) md5)[i]);
+    l+= 32;
+        
+    res = iso_md5_start(&ctx);
+    if (res > 0) {
+        iso_md5_compute(ctx, tag_block, l);
+        iso_md5_end(&ctx, md5);
+        strcpy(tag_block + l, " self=");
+        l += 6;
         for (i = 0; i < 16; i++)
             sprintf(tag_block + l + 2 * i, "%2.2x",
                     ((unsigned char *) md5)[i]);
-        l+= 32;
-        
-        res = iso_md5_start(&ctx);
-        if (res > 0) {
-            iso_md5_compute(ctx, tag_block, l);
-            iso_md5_end(&ctx, md5);
-            strcpy(tag_block + l, " self=");
-            l += 6;
-            for (i = 0; i < 16; i++)
-                sprintf(tag_block + l + 2 * i, "%2.2x",
-                        ((unsigned char *) md5)[i]);
-        }
-        tag_block[l + 32] = '\n';
     }
+    tag_block[l + 32] = '\n';
+
+    if (mode == 1 && t->scdbackup_tag_parm[0]) {
+        if (t->ms_block > 0) {
+            iso_msg_submit(t->image->id, ISO_SCDBACKUP_TAG_NOT_0, 0, NULL);
+        } else {
+            res = iso_md5_write_scdbackup_tag(t, tag_block, 0);
+            if (res < 0)
+                goto ex;
+        }
+    }
+
     if (mode == 4) {
         if (t->opts_overwrite != NULL)
             memcpy(t->opts_overwrite + pos * 2048, tag_block, 2048);
@@ -783,6 +853,7 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
             goto ex;
         }
     }
+
     res = ISO_SUCCESS;
 ex:;
     if (ctx != NULL)

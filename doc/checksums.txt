@@ -67,8 +67,8 @@ The tree checksum tag is written after the  ECMA-119 directory entries.
 The session checksum tag is written after all payload including the checksum
 array. (Then follows eventual padding.)
 
-The tags are single lines of printable text, padded by 0 bytes. They have
-the following format:
+The tags are single lines of printable text at the very beginning of a block
+of 2048 bytes. They have the following format:
 
  Tag_id pos=# range_start=# range_size=# [session_start|next=#] md5=# self=#\n
 
@@ -161,9 +161,14 @@ checksums as strings of 32 hex digits.
   The MD5 checksum of the tag itself up to and including the last hex digit of
   parameter "md5=".
   
-  The newline character at the end is mandatory. For now all bytes of the
-  block after that newline shall be zero. There may arise future extensions.
+The newline character at the end is mandatory. After that newline there may
+follow more lines. Their meaning is not necessarily described in this document.
 
+One such line type is the scdbackup checksum tag, an ancestor of libisofs tags
+which is suitable only for single session images which begin at LBA 0. It bears
+a checksum record which by its MD5 covers all bytes from LBA 0 up to the
+newline character preceding the scdbackup tag. See scdbackup/README appendix
+VERIFY for details.
 
 -------------------------------------------------------------------------------
 
