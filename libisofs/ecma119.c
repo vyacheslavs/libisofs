@@ -1135,6 +1135,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->md5_file_checksums = opts->md5_file_checksums;
     target->md5_session_checksum = opts->md5_session_checksum;
     strcpy(target->scdbackup_tag_parm, opts->scdbackup_tag_parm);
+    target->scdbackup_tag_written = opts->scdbackup_tag_written;
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
@@ -1630,6 +1631,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     if (wopts == NULL) {
         return ISO_OUT_OF_MEM;
     }
+    wopts->scdbackup_tag_written = NULL;
 
     switch (profile) {
     case 0:
@@ -1870,7 +1872,8 @@ int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files)
 }
 
 int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
-                                     char *name, char *timestamp)
+                                     char *name, char *timestamp,
+                                     char *tag_written)
 {
 
 #ifdef Libisofs_with_checksumS
@@ -1896,6 +1899,10 @@ int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
     eff_time[i] = 0;
 
     sprintf(opts->scdbackup_tag_parm, "%s %s", eff_name, eff_time);
+
+    opts->scdbackup_tag_written = tag_written;
+    if (tag_written != NULL)
+        tag_written[0] = 0;
 
 #endif /* Libisofs_with_checksumS */
 

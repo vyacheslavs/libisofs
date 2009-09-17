@@ -1459,19 +1459,25 @@ int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files);
  * @param timestamp
  *      A string of 13 characters YYMMDD.hhmmss (e.g. A90831.190324).
  *      A9 = 2009, B0 = 2010, B1 = 2011, ... C0 = 2020, ...
+ * @param tag_written
+ *      Either NULL or the address of an array with at least 512 characters.
+ *      In the latter case the eventually produced scdbackup tag will be
+ *      copied to this array when the image gets written. This call sets
+ *      scdbackup_tag_written[0] = 0 to mark its preliminary invalidity.
  * @return
  *      1 indicates success, <0 is error
  *
  * @since 0.6.24
  */
 int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
-                                     char *name, char *timestamp);
+                                     char *name, char *timestamp,
+                                     char *tag_written);
 
 /**
  * Whether to set default values for files and directory permissions, gid and
  * uid. All these take one of three values: 0, 1 or 2.
  *
- * If 0, the corresponding attribute will be kept as setted in the IsoNode.
+ * If 0, the corresponding attribute will be kept as set in the IsoNode.
  * Unless you have changed it, it corresponds to the value on disc, so it
  * is suitable for backup purposes. If set to 1, the corresponding attrib.
  * will be changed by a default suitable value. Finally, if you set it to

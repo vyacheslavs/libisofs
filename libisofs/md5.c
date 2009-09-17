@@ -707,7 +707,7 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
     void *ctx = NULL;
     off_t pos = 0, line_start;
     int record_len, block_len, res, i;
-    char postext[20], md5[16], record[160];
+    char postext[40], md5[16], record[160];
 
     line_start = strlen(tag_block);
     iso_md5_compute(t->checksum_ctx, tag_block, line_start);
@@ -721,14 +721,14 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
         sprintf(postext, "%u%9.9u", (unsigned int) (pos / 1000000000),
                                     (unsigned int) (pos % 1000000000));
     else
-        sprintf(postext, "%u", (unsigned int) pos),
-
+        sprintf(postext, "%u", (unsigned int) pos);
     sprintf(record, "%s %s ", t->scdbackup_tag_parm, postext);
     record_len = strlen(record);
     for (i = 0; i < 16; i++)
          sprintf(record + record_len + 2 * i,
                  "%2.2x", ((unsigned char *) md5)[i]);
-    record_len+= 32;
+    record_len += 32;
+
     res = iso_md5_start(&ctx);
     if (res < 0)
         goto ex;
@@ -744,6 +744,9 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
     block_len+= 32;
     tag_block[block_len++]= '\n';
 
+    if (t->scdbackup_tag_written != NULL)
+    	strncpy(t->scdbackup_tag_written, tag_block + line_start,
+                block_len - line_start);
     res = ISO_SUCCESS;
 ex:;
     if (ctx != NULL)

@@ -290,6 +290,13 @@ struct iso_write_opts {
      * position.
      */
     char scdbackup_tag_parm[100];
+
+    /* If not NULL: A pointer to an application provided array with
+       at least 512 characters. The effectively written scdbackup tag
+       will be copied to this memory location.
+     */
+    char *scdbackup_tag_written;
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -473,7 +480,8 @@ struct ecma119_image
            is submitted with ecma119_image_new() ?
      */
 
-    char scdbackup_tag_parm[96];
+    char scdbackup_tag_parm[100];
+    char *scdbackup_tag_written;
 
 #endif /* Libisofs_with_checksumS */
 
