@@ -2133,9 +2133,12 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     data->data_preparer_id = strcopy((char*)pvm->data_prep_id, 128);
     data->system_id = strcopy((char*)pvm->system_id, 32);
     data->application_id = strcopy((char*)pvm->application_id, 128);
-    data->copyright_file_id = strcopy((char*)pvm->copyright_file_id, 37);
-    data->abstract_file_id = strcopy((char*)pvm->abstract_file_id, 37);
-    data->biblio_file_id = strcopy((char*)pvm->bibliographic_file_id, 37);
+    data->copyright_file_id =
+               iso_util_strcopy_untail((char*) pvm->copyright_file_id, 37);
+    data->abstract_file_id =
+               iso_util_strcopy_untail((char*) pvm->abstract_file_id, 37);
+    data->biblio_file_id =
+               iso_util_strcopy_untail((char*) pvm->bibliographic_file_id, 37);
 
     data->nblocks = iso_read_bb(pvm->vol_space_size, 4, NULL);
 

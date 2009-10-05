@@ -249,8 +249,18 @@ int iso_eaccess(const char *path);
 /**
  * Copy up to \p len chars from \p buf and return this newly allocated
  * string. The new string is null-terminated.
+ * Note:
+ * Trailing blanks will be removed. But the first one of an all blank string
+ * persists. It is unclear whether this is a bug or a feature.
  */
 char *strcopy(const char *buf, size_t len);
+
+/**
+ * Copy up to \p len chars from \p buf and return this newly allocated
+ * string. The new string is null-terminated.
+ * Any trailing blanks will be removed.
+ */
+char *iso_util_strcopy_untail(const char *buf, size_t len);
 
 /**
  * Copy up to \p max characters from \p src to \p dest. If \p src has less than
