@@ -213,6 +213,8 @@ void iso_image_set_volset_id(IsoImage *image, const char *volset_id)
 
 const char *iso_image_get_volset_id(const IsoImage *image)
 {
+    if (image->volset_id == NULL)
+        return "";
     return image->volset_id;
 }
 
@@ -224,6 +226,8 @@ void iso_image_set_volume_id(IsoImage *image, const char *volume_id)
 
 const char *iso_image_get_volume_id(const IsoImage *image)
 {
+    if (image->volume_id == NULL)
+        return "";
     return image->volume_id;
 }
 
@@ -235,6 +239,8 @@ void iso_image_set_publisher_id(IsoImage *image, const char *publisher_id)
 
 const char *iso_image_get_publisher_id(const IsoImage *image)
 {
+    if (image->publisher_id == NULL)
+        return "";
     return image->publisher_id;
 }
 
@@ -247,6 +253,8 @@ void iso_image_set_data_preparer_id(IsoImage *image,
 
 const char *iso_image_get_data_preparer_id(const IsoImage *image)
 {
+    if (image->data_preparer_id == NULL)
+        return "";
     return image->data_preparer_id;
 }
 
@@ -258,6 +266,8 @@ void iso_image_set_system_id(IsoImage *image, const char *system_id)
 
 const char *iso_image_get_system_id(const IsoImage *image)
 {
+    if (image->system_id == NULL)
+        return "";
     return image->system_id;
 }
 
@@ -269,6 +279,8 @@ void iso_image_set_application_id(IsoImage *image, const char *application_id)
 
 const char *iso_image_get_application_id(const IsoImage *image)
 {
+    if (image->application_id == NULL)
+        return "";
     return image->application_id;
 }
 
@@ -281,6 +293,8 @@ void iso_image_set_copyright_file_id(IsoImage *image,
 
 const char *iso_image_get_copyright_file_id(const IsoImage *image)
 {
+    if (image->copyright_file_id == NULL)
+        return "";
     return image->copyright_file_id;
 }
 
@@ -293,6 +307,8 @@ void iso_image_set_abstract_file_id(IsoImage *image,
 
 const char *iso_image_get_abstract_file_id(const IsoImage *image)
 {
+    if (image->abstract_file_id == NULL)
+        return "";
     return image->abstract_file_id;
 }
 
@@ -304,6 +320,8 @@ void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id)
 
 const char *iso_image_get_biblio_file_id(const IsoImage *image)
 {
+    if (image->biblio_file_id == NULL)
+        return "";
     return image->biblio_file_id;
 }
 
