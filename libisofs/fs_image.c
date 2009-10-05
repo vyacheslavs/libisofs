@@ -2139,6 +2139,19 @@ int read_pvm(_ImageFsData *data, uint32_t block)
                iso_util_strcopy_untail((char*) pvm->abstract_file_id, 37);
     data->biblio_file_id =
                iso_util_strcopy_untail((char*) pvm->bibliographic_file_id, 37);
+    if (data->copyright_file_id[0] == '_' && data->copyright_file_id[1] == 0 &&
+        data->abstract_file_id[0] == '_' && data->abstract_file_id[1] == 0 &&
+        data->biblio_file_id[0] == '_' && data->biblio_file_id[1] == 0) {
+        /* This is bug output from libisofs <= 0.6.23 . The texts mean file
+           names and should have been empty to indicate that there are no such
+           files. It is obvious that not all three roles can be fulfilled by
+           one file "_" so that one cannot spoil anything by assuming them
+           empty now.
+        */
+        data->copyright_file_id[0] = 0;
+        data->abstract_file_id[0] = 0;
+        data->biblio_file_id[0] = 0;
+    } 
 
     data->nblocks = iso_read_bb(pvm->vol_space_size, 4, NULL);
 
