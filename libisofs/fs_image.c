@@ -2127,12 +2127,15 @@ int read_pvm(_ImageFsData *data, uint32_t block)
 
     /* fill volume attributes  */
     /* TODO take care of input charset */
-    data->volset_id = strcopy((char*)pvm->vol_set_id, 128);
-    data->volume_id = strcopy((char*)pvm->volume_id, 32);
-    data->publisher_id = strcopy((char*)pvm->publisher_id, 128);
-    data->data_preparer_id = strcopy((char*)pvm->data_prep_id, 128);
-    data->system_id = strcopy((char*)pvm->system_id, 32);
-    data->application_id = strcopy((char*)pvm->application_id, 128);
+    data->volset_id = iso_util_strcopy_untail((char*)pvm->vol_set_id, 128);
+    data->volume_id = iso_util_strcopy_untail((char*)pvm->volume_id, 32);
+    data->publisher_id =
+               iso_util_strcopy_untail((char*)pvm->publisher_id, 128);
+    data->data_preparer_id =
+               iso_util_strcopy_untail((char*)pvm->data_prep_id, 128);
+    data->system_id = iso_util_strcopy_untail((char*)pvm->system_id, 32);
+    data->application_id =
+               iso_util_strcopy_untail((char*)pvm->application_id, 128);
     data->copyright_file_id =
                iso_util_strcopy_untail((char*) pvm->copyright_file_id, 37);
     data->abstract_file_id =
