@@ -246,6 +246,9 @@ time_t iso_datetime_read_17(const uint8_t *buf);
  */
 int iso_eaccess(const char *path);
 
+#ifdef NIX
+/* <<< Buggy and not used any more */
+
 /**
  * Copy up to \p len chars from \p buf and return this newly allocated
  * string. The new string is null-terminated.
@@ -254,6 +257,14 @@ int iso_eaccess(const char *path);
  * persists. It is unclear whether this is a bug or a feature.
  */
 char *strcopy(const char *buf, size_t len);
+
+#endif /* NIX */
+
+/**
+ * Copy up to \p len chars from \p buf and return this newly allocated
+ * string. The new string is null-terminated.
+ */
+char *iso_util_strcopy(const char *buf, size_t len);
 
 /**
  * Copy up to \p len chars from \p buf and return this newly allocated

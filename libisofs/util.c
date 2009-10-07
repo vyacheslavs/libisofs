@@ -1381,6 +1381,10 @@ int iso_eaccess(const char *path)
     return ISO_SUCCESS;
 }
 
+
+#ifdef NIX
+/* <<< Buggy and not used any more */
+
 char *strcopy(const char *buf, size_t len)
 {
     char *str;
@@ -1401,24 +1405,37 @@ char *strcopy(const char *buf, size_t len)
     return str;
 }
 
-char *iso_util_strcopy_untail(const char *buf, size_t len)
+#endif /* NIX */
+
+
+char *iso_util_strcopy(const char *buf, size_t len)
 {
     char *str;
     
-    str = malloc((len + 1) * sizeof(char));
+    str = calloc(len + 1, 1);
     if (str == NULL) {
         return NULL;
     }
     strncpy(str, buf, len);
-    str[len] = 0;
+    str[len] = '\0';
+    return str;
+}
+
+
+char *iso_util_strcopy_untail(const char *buf, size_t len)
+{
+    char *str;
     
+    str = iso_util_strcopy(buf, len);
+    if (str == NULL) {
+        return NULL;
+    }
     /* remove trailing spaces */
     for (len = len-1; len >= 0; --len) {
         if (str[len] != ' ')
     break;
         str[len] = 0; 
     }
-    
     return str;
 }
 

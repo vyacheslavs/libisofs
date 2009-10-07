@@ -302,7 +302,7 @@ int read_rr_NM(struct susp_sys_user_entry *nm, char **name, int *cont)
         *name = realloc(*name, strlen(*name) + nm->len_sue[0] - 5 + 1);
         strncat(*name, (char*)nm->data.NM.name, nm->len_sue[0] - 5);
     } else {
-        *name = strcopy((char*)nm->data.NM.name, nm->len_sue[0] - 5);
+        *name = iso_util_strcopy((char*)nm->data.NM.name, nm->len_sue[0] - 5);
     }
     if (*name == NULL) {
         return ISO_OUT_OF_MEM;
@@ -380,7 +380,7 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont)
             /* we don't have to add the '/' */
             strncat(*dest, comp, len);
         } else {
-            *dest = strcopy(comp, len);
+            *dest = iso_util_strcopy(comp, len);
         }
         if (*dest == NULL) {
             return ISO_OUT_OF_MEM;
