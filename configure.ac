@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [0.6.23], [http://libburnia-project.org])
+AC_INIT([libisofs], [0.6.24], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -37,14 +37,14 @@ dnl iso_lib_version(). It returns the major, minor and micro revision of the
 dnl library. This means LIBISOFS_*_VERSION kept its second job which does not  
 dnl comply to the usual ways of configure.ac . I.e. now *officially* this is 
 dnl the source code release version as announced to the public. It has no 
-dnl conection to SONAME or libtool version numbering.
+dnl connection to SONAME or libtool version numbering.
 dnl It rather feeds the API function iso_lib_version().
 dnl
 dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
 dnl
 LIBISOFS_MAJOR_VERSION=0
 LIBISOFS_MINOR_VERSION=6
-LIBISOFS_MICRO_VERSION=23
+LIBISOFS_MICRO_VERSION=24
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
@@ -54,11 +54,11 @@ AC_SUBST(LIBISOFS_VERSION)
 
 dnl Libtool versioning
 LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
-# 2009.08.25  development jump has not yet happened
-# SONAME = 24 - 18 = 6 . Library name = libisofs.6.18.0
-LT_CURRENT=24
+# 2009.10.08  development jump has not yet happened
+# SONAME = 26 - 20 = 6 . Library name = libisofs.6.20.0
+LT_CURRENT=26
 LT_REVISION=0
-LT_AGE=18
+LT_AGE=20
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
 AC_SUBST(LT_RELEASE)
