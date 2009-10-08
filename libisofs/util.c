@@ -1381,33 +1381,6 @@ int iso_eaccess(const char *path)
     return ISO_SUCCESS;
 }
 
-
-#ifdef NIX
-/* <<< Buggy and not used any more */
-
-char *strcopy(const char *buf, size_t len)
-{
-    char *str;
-    
-    str = malloc((len + 1) * sizeof(char));
-    if (str == NULL) {
-        return NULL;
-    }
-    strncpy(str, buf, len);
-    str[len] = '\0';
-    
-    /* remove trailing spaces
-       (This leaves the space at str[0] existing. Bug or feature ?)
-    */
-    for (len = len-1; str[len] == ' ' && len > 0; --len)
-        str[len] = '\0'; 
-    
-    return str;
-}
-
-#endif /* NIX */
-
-
 char *iso_util_strcopy(const char *buf, size_t len)
 {
     char *str;
@@ -1420,7 +1393,6 @@ char *iso_util_strcopy(const char *buf, size_t len)
     str[len] = '\0';
     return str;
 }
-
 
 char *iso_util_strcopy_untail(const char *buf, size_t len)
 {
