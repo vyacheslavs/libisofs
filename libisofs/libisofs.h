@@ -483,7 +483,7 @@ struct IsoFileSource_Iface
     int version;
 
     /**
-     * Get the path, relative to the filesystem this file source belongs to.
+     * Get the absolute path in the filesystem this file source belongs to.
      *
      * @return
      *     the path of the FileSource inside the filesystem, it should be
@@ -2202,8 +2202,8 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image);
  *      The image to make bootable. If it was already bootable this function
  *      returns an error and the image remains unmodified.
  * @param image_path
- *      The path on the image tree of a regular file to use as default boot
- *      image.
+ *      The absolute path on the image tree of a regular file to use as
+ *      default boot image.
  * @param type
  *      The boot media type. This can be one of 3 types:
  *             - Floppy emulation: Boot image file must be exactly
@@ -2213,9 +2213,9 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image);
  *             - No emulation. You should specify load segment and load size
  *               of image.
  * @param catalog_path
- *      The path on the image tree where the catalog will be stored. The
- *      directory component of this path must be a directory existent on the
- *      image tree, and the filename component must be unique among all
+ *      The absolute path in the image tree where the catalog will be stored.
+ *      The directory component of this path must be a directory existent on
+ *      the image tree, and the filename component must be unique among all
  *      children of that directory on image. Otherwise a correspodent error
  *      code will be returned. This function will add an IsoBoot node that acts
  *      as a placeholder for the real catalog, that will be generated at image
@@ -2330,7 +2330,7 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
  * @param options
  *        bitmask style flag. The following values are defined:
  *
- *        bit 0 -> 1 to path the image, 0 to not
+ *        bit 0 -> 1 to patch the image, 0 to not
  *                 Patching the image involves the writing of a 56 bytes
  *                 boot information table at offset 8 of the boot image file.
  *                 The original boot image file will not be modified. This is
@@ -3346,8 +3346,8 @@ void iso_tree_set_ignore_special(IsoImage *image, int skip);
 int iso_tree_get_ignore_special(IsoImage *image);
 
 /**
- * Add a excluded path. These are paths that won't never added to image,
- * and will be excluded even when adding recursively its parent directory.
+ * Add a excluded path. These are paths that won't never added to image, and
+ * will be excluded even when adding recursively its parent directory.
  *
  * For example, in
  *
@@ -3439,7 +3439,9 @@ void iso_tree_set_report_callback(IsoImage *image,
  * @param parent
  *      The directory in the image tree where the node will be added.
  * @param path
- *      The path of the file to add in the filesystem.
+ *      The absolute path of the file in the local filesystem.
+ *      The node will have the same leaf name as the file on disk.
+ *      Its directory path depends on the parent node.
  * @param node
  *      place where to store a pointer to the newly added file. No
  *      extra ref is addded, so you will need to call iso_node_ref() if you
@@ -3469,9 +3471,10 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
  * @param parent
  *      The directory in the image tree where the node will be added.
  * @param name
- *      The name that the node will have on image.
+ *      The leaf name that the node will have on image.
+ *      Its directory path depends on the parent node.
  * @param path
- *      The path of the file to add in the filesystem.
+ *      The absolute path of the file in the local filesystem.
  * @param node
  *      place where to store a pointer to the newly added file. No
  *      extra ref is addded, so you will need to call iso_node_ref() if you
@@ -3490,24 +3493,25 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
                           const char *path, IsoNode **node);
 
 /**
- * Add a new node to the image tree, from an existing file, and with the
- * given name, that must not exist on dir. The node will be cut-out to the
- * submitted size, and its contents will be read from the given offset. This
- * function is thus suitable for adding only a piece of a file to the image.
+ * Add a new node to the image tree with the given name that must not exist
+ * on dir. The node data content will be a byte interval out of the data
+ * content of a file in the local filesystem.
  *
  * @param image
  *      The image
  * @param parent
  *      The directory in the image tree where the node will be added.
  * @param name
- *      The name that the node will have on image.
+ *      The leaf name that the node will have on image.
+ *      Its directory path depends on the parent node.
  * @param path
- *      The path of the file to add in the filesystem. For now only regular
- *      files and symlinks to regular files are supported.
+ *      The absolute path of the file in the local filesystem. For now
+ *      only regular files and symlinks to regular files are supported.
  * @param offset
- *      Offset on the given file from where to start reading data.
+ *      Byte number in the given file from where to start reading data.
  * @param size
- *      Max size of the file.
+ *      Max size of the file. This may be more than actually available from
+ *      byte offset to the end of the file in the local filesystem.
  * @param node
  *      place where to store a pointer to the newly added file. No
  *      extra ref is addded, so you will need to call iso_node_ref() if you
@@ -3550,7 +3554,7 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 
 /**
- * Locate a node by its path on image.
+ * Locate a node by its absolute path on image.
  *
  * @param node
  *     Location for a pointer to the node, it will filled with NULL if the
@@ -3567,7 +3571,7 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
 
 /**
- * Get the path on image of the given node.
+ * Get the absolute path on image of the given node.
  *
  * @return
  *      The path on the image, that must be freed when no more needed. If the
@@ -3593,11 +3597,10 @@ void iso_data_source_unref(IsoDataSource *src);
 
 /**
  * Create a new IsoDataSource from a local file. This is suitable for
- * accessing regular .iso images, or to acces drives via its block device
- * and standard POSIX I/O calls.
+ * accessing regular files or block devices with ISO images.
  *
  * @param path
- *     The path of the file
+ *     The absolute path of the file
  * @param src
  *     Will be filled with the pointer to the newly created data source.
  * @return
@@ -3832,8 +3835,7 @@ void iso_file_source_unref(IsoFileSource *src);
  */
 
 /**
- * Get the path, relative to the filesystem this file source
- * belongs to.
+ * Get the absolute path in the filesystem this file source belongs to.
  *
  * @return
  *     the path of the FileSource inside the filesystem, it should be
@@ -4549,7 +4551,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
  * Get an ACL of the given file in the local filesystem in long text form.
  *
  * @param disk_path
- *      Path to the file
+ *      Absolute path to the file
  * @param text
  *      Will return a pointer to the ACL text. If not NULL the text will be
  *      0 terminated and finally has to be disposed by a call to this function
@@ -4579,7 +4581,7 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag);
  * in long text form.
  *
  * @param disk_path
- *      Path to the file
+ *      Absolute path to the file
  * @param text
  *      The input text (0 terminated, ACL long text form)
  * @param flag
@@ -4604,7 +4606,7 @@ int iso_local_set_acl_text(char *disk_path, char *text, int flag);
  * necessary if the permissions of a disk file with ACL shall be copied to
  * an object which has no ACL.
  * @param disk_path
- *      Path to the local file which may have an "access" ACL or not.
+ *      Absolute path to the local file which may have an "access" ACL or not.
  * @param flag
  *      Bitfield for control purposes
  *           bit5=  in case of symbolic link: inquire link target
@@ -4629,7 +4631,7 @@ int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag);
  * will not be put into the result.
  *
  * @param disk_path
- *      Path to the file
+ *      Absolute path to the file
  * @param num_attrs
  *      Will return the number of name-value pairs
  * @param names
@@ -4662,7 +4664,7 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
  * Eventual ACLs have to be encoded as attribute pair with empty name.
  *
  * @param disk_path
- *      Path to the file
+ *      Absolute path to the file
  * @param num_attrs
  *      Number of attributes
  * @param names
