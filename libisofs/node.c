@@ -22,6 +22,12 @@
 #include <limits.h>
 #include <stdio.h>
 
+
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 struct dir_iter_data
 {
     /* points to the last visited child, to NULL before start */

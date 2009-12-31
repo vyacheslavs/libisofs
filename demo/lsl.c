@@ -13,6 +13,12 @@
 #include <stdlib.h>
 #include <limits.h>
 
+
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 /*
  * Little test program to test filesystem implementations.
  * 

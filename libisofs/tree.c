@@ -25,6 +25,12 @@
 #include <stdio.h>
 #include <fnmatch.h>
 
+
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 /**
  * Add a new directory to the iso tree.
  * 

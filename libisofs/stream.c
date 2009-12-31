@@ -17,6 +17,12 @@
 #include <limits.h>
 #include <stdio.h>
 
+
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 ino_t serial_id = (ino_t)1;
 ino_t mem_serial_id = (ino_t)1;
 ino_t cut_out_serial_id = (ino_t)1;

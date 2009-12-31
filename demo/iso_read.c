@@ -10,6 +10,12 @@
 
 #include "libisofs.h"
 
+
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 static void
 print_permissions(mode_t mode)
 {

@@ -30,6 +30,11 @@
 #include <stdio.h>
 
 
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 /**
  * Options for image reading.
  * There are four kind of options:

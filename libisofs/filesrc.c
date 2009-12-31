@@ -23,6 +23,11 @@
 #include <limits.h>
 
 
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 int iso_file_src_cmp(const void *n1, const void *n2)
 {
     int ret;

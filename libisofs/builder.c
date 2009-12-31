@@ -21,6 +21,11 @@
 #include <limits.h>
 
 
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 
 void iso_node_builder_ref(IsoNodeBuilder *builder)
 {

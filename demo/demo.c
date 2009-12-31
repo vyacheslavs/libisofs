@@ -65,6 +65,11 @@ static char helptext[][80] = {
 #include <fcntl.h>
 #include <err.h>
 
+#ifndef PATH_MAX
+#define PATH_MAX Libisofs_default_path_maX
+#endif
+
+
 /* ------------------------- from demo/tree.c ----------------------- */
 
 static void

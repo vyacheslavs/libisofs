@@ -4689,6 +4689,11 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
                         size_t *value_lengths, char **values, int flag);
 
 
+/* Default in case that the compile environment has no macro PATH_MAX.
+*/
+#define Libisofs_default_path_maX 4096
+
+
 /* --------------------------- Filters in General -------------------------- */
 
 /*
