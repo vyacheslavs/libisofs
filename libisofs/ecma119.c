@@ -938,8 +938,10 @@ void *write_function(void *arg)
 
 #ifdef Libisofs_with_checksumS
 
-    /* Transplant checksum buffer from Ecma119Image to IsoImage */
+    /* Transplant checksum buffer away from Ecma119Image */
     transplant_checksum_buffer(target, 0);
+    /* Invalidate the transplanted checksum buffer in IsoImage */
+    iso_image_free_checksums(target->image, 0);
 
 #endif
 
