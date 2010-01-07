@@ -196,9 +196,11 @@ AC_ARG_ENABLE(zlib,
 if test "x$enable_zlib" = xyes; then
 dnl Check whether there is the header for zlib. 
 dnl If not, erase this macro which would enable use of compress2() and others.
-dnl The empty parameter after "compress2" causes -lz.
+dnl Linking fails on SuSE 9.0 because zlib has compress2() but lacks  
+dnl compressBound(). So compressBound is the more modern thing to test.
+dnl The empty parameter after "compressBound" causes -lz.
     ZLIB_DEF="-DLibisofs_with_zliB"
-    AC_CHECK_HEADER(zlib.h, AC_CHECK_LIB(z, compress2, , ZLIB_DEF= ), ZLIB_DEF= )
+    AC_CHECK_HEADER(zlib.h, AC_CHECK_LIB(z, compressBound, , ZLIB_DEF= ), ZLIB_DEF= )
 else
     ZLIB_DEF=
 fi
