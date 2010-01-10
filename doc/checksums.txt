@@ -59,7 +59,7 @@ Entry number N + 1 holds the MD5 checksum of entries 0 to N.
 
 Because the inquiry of AAIP attributes demands loading of the image tree,
 there are also checksum tags which can be detected on the fly when reading
-and checksumming the session from the start point as learned from a media
+and checksumming the session from its start point as learned from a media
 table-of-content. 
 
 The superblock checksum tag is written after the ECMA-119 volume descriptors.
@@ -79,7 +79,7 @@ Tag_id distinguishes the following tag types
   "libisofs_checksum_tag_v1"            Session tag
 
 A relocated superblock may appear at LBA 0 of an image which was produced for
-being stored in a disk file or on overwriteable media (e.g. DVD+R, BD-RE).
+being stored in a disk file or on overwriteable media (e.g. DVD+RW, BD-RE).
 Typically there is a first session recorded with a superblock at LBA 32 and
 the next session may follow shortly after its session tag. (Typically at the
 next block address which is divisible by 32.) Normally no session starts after 
@@ -279,4 +279,29 @@ For reading you may use the IsoDataSource object which you submitted
 to iso_image_import() when reading the image. If this source is associated
 to a libburn drive, then libburn function burn_read_data() can read directly
 from it.
+
+-------------------------------------------------------------------------------
+
+                            scdbackup Checksum Tags
+
+The session checksum tag does not occupy its whole block. So there is room to
+store a scdbackup stream checksum tag, which is an ancestor format of the tags
+described here. This feature allows scdbackup to omit its own checksum filter
+if using xorriso as ISO 9660 formatter program.
+Such a tag makes only sense if the session begins at LBA 0.
+
+See scdbackup-*/README, appendix VERIFY for a specification
+
+Example of a scdbackup checksum tag:
+scdbackup_checksum_tag_v0.1 2456606865 61 2_2 B00109.143415 2456606865 485bbef110870c45754d7adcc844a72c c2355d5ea3c94d792ff5893dfe0d6d7b
+
+The tag is located at byte position 2456606865, contains 61 bytes of scdbackup
+checksum record (the next four words):
+Name of the backup volume is "2_2".
+Written in year B0 = 2010 (A9 = 2009, B1 = 2011), January (01), 9th (09),
+14:34:15 local time. 
+The size of the volume is 2456606865 bytes, which have a MD5 sum of
+485bbef110870c45754d7adcc844a72c.
+The checksum of "2_2 B00109.143415 2456606865 485bbef110870c45754d7adcc844a72c"
+is c2355d5ea3c94d792ff5893dfe0d6d7b.
 
