@@ -18,6 +18,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <errno.h>
+
 
 #ifdef Libisofs_with_aaip_acL
 #include <sys/acl.h>
@@ -46,6 +48,7 @@
                           2 only st_mode permissions exist and bit 4 is set
                             or empty ACL and bit0 is set
                           0 ACL support not enabled at compile time
+                            or filesystem does not support ACL
                          -1 failure of system ACL service (see errno)
                          -2 attempt to inquire ACL of a symbolic link without
                             bit4 or bit5 resp. with no suitable link target
@@ -79,8 +82,18 @@ int aaip_get_acl_text(char *path, char **text, int flag)
  }
  
  acl= acl_get_file(path, (flag & 1) ? ACL_TYPE_DEFAULT : ACL_TYPE_ACCESS);
- if(acl == NULL)
+ if(acl == NULL) {
+   if(errno == ENOTSUP) {
+     /* filesystem does not support ACL */
+     if(flag & 16)
+       return(2);
+   
+     /* >>> ??? fake ACL from POSIX permissions ? */;
+
+     return(0);   
+   }
    return(-1);
+ }
  *text= acl_to_text(acl, NULL);
  acl_free(acl);
 

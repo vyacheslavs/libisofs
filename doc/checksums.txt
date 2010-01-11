@@ -290,7 +290,7 @@ described here. This feature allows scdbackup to omit its own checksum filter
 if using xorriso as ISO 9660 formatter program.
 Such a tag makes only sense if the session begins at LBA 0.
 
-See scdbackup-*/README, appendix VERIFY for a specification
+See scdbackup-*/README, appendix VERIFY for a specification.
 
 Example of a scdbackup checksum tag:
 scdbackup_checksum_tag_v0.1 2456606865 61 2_2 B00109.143415 2456606865 485bbef110870c45754d7adcc844a72c c2355d5ea3c94d792ff5893dfe0d6d7b

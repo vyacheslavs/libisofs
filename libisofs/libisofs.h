@@ -4566,7 +4566,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
  * @return
  *        1 ok 
  *        2 ok, trivial ACL found while bit4 is set, *text is NULL 
- *        0 no ACL manipulation adapter available
+ *        0 no ACL manipulation adapter available / ACL not supported on fs
  *       -1 failure of system ACL service (see errno)
  *       -2 attempt to inquire ACL of a symbolic link without bit4 or bit5
  *          resp. with no suitable link target

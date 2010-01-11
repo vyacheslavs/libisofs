@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #ifndef Libisofs_with_aaip_acL
 /* It seems ACL is fixely integrated in FreeBSD libc. There is no libacl. */
@@ -37,13 +38,14 @@
                         finally has to be freed by a call to this function
                         with bit15 of flag.
    @param flag          Bitfield for control purposes
-                        bit0=  obtain default ACL rather than access ACL
+                        (bit0=  obtain default ACL rather than access ACL)
                         bit4=  set *text = NULL and return 2
                                if the ACL matches st_mode permissions.
                         bit5=  in case of symbolic link: inquire link target
                         bit15= free text and return 1
    @return              > 0 ok
                           0 ACL support not enabled at compile time
+                            or filesystem does not support ACL
                          -1 failure of system ACL service (see errno)
                          -2 attempt to inquire ACL of a symbolic
                             link without bit4 or bit5
@@ -88,8 +90,18 @@ int aaip_get_acl_text(char *path, char **text, int flag)
 
  acl= acl_get_file(path, ACL_TYPE_ACCESS);
 
- if(acl == NULL)
+ if(acl == NULL) {
+   if(errno == EOPNOTSUPP) {
+     /* filesystem does not support ACL */
+     if(flag & 16)
+       return(2);
+
+     /* >>> ??? fake ACL from POSIX permissions ? */;
+
+     return(0);
+   }
    return(-1);
+ }
  *text= acl_to_text(acl, NULL);
  acl_free(acl);
 
@@ -181,10 +193,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
  if(flag & 1) { /* Obtain ACL */
    /* access-ACL */
-   ret= aaip_get_acl_text(path, &acl_text, flag & (16 | 32));
-   if(ret <= 0)
-     goto ex;
-   if(ret == 2)
+   aaip_get_acl_text(path, &acl_text, flag & (16 | 32));
+   if(acl_text == NULL)
      {ret= 1; goto ex;} /* empty ACL / only st_mode info was found in ACL */
    ret= aaip_encode_acl(acl_text, (mode_t) 0, &a_acl_len, &a_acl, flag & 2);
    if(ret <= 0)
