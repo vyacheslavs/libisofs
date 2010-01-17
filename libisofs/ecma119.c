@@ -1052,7 +1052,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
-    int ret, i, voldesc_size, nwriters, image_checksums_mad = 0;
+    int ret, i, voldesc_size, nwriters, image_checksums_mad = 0, tag_pos;
     Ecma119Image *target;
     int el_torito_writer_index = -1, file_src_writer_index= -1;
 
@@ -1369,8 +1369,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 #ifdef Libisofs_with_checksumS
 
         /* Write relocated superblock checksum tag */
+        tag_pos = voldesc_size / BLOCK_SIZE + 16 + 1;
         if (target->md5_session_checksum) {
-            target->checksum_rlsb_tag_pos = voldesc_size / BLOCK_SIZE + 16 + 1;
+            target->checksum_rlsb_tag_pos = tag_pos;
             if (target->checksum_rlsb_tag_pos < 32) {
                 ret = iso_md5_start(&(target->checksum_ctx));
                 if (ret < 0)
@@ -1383,6 +1384,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
                 if (ret < 0)
                     goto target_cleanup;
             }
+            tag_pos++;
+        } 
+
+        /* Clean out eventual checksum tags */
+        for (i = tag_pos; i < 32; i++) {
+            int tag_type;
+            uint32_t pos, range_start, range_size, next_tag;
+            char md5[16];
+ 	
+            ret = iso_util_decode_md5_tag((char *)(opts->overwrite + i * 2048),
+                                          &tag_type, &pos, &range_start,
+                                          &range_size, &next_tag, md5, 0);
+            if (ret > 0)
+                opts->overwrite[i * 2048] = 0;
         }
 
 #endif /* Libisofs_with_checksumS */
