@@ -4,15 +4,17 @@
 
 Released under GPL (see COPYING file for details).
 
-Copyright (C) 2008 Vreixo Formoso, Mario Danic, Thomas Schmitt
+Copyright (C) 2008 - 2010 Vreixo Formoso, Mario Danic, Thomas Schmitt
 
 libisofs is part of the libburnia project (libburnia-project.org)
 ------------------------------------------------------------------------------
 
-libisofs is a library to create an ISO-9660 filesystem, and supports extensions
-like RockRidge or Joliet. It is also a full featured ISO-9660 editor, allowing 
-you to modify an ISO image or multisession disc, including file addition and 
-removal, change of file names and attributes, etc
+libisofs is a library to create an ISO-9660 filesystem, supports extensions
+like RockRidge or Joliet, and introduces an own extension AAIP.
+It is a full featured ISO-9660 editor which composes and changes the directory
+tree of an ISO image. This tree and its newly imported data file contents get
+then written as independent single-session image or as add-on session for the
+image from where the tree was originally loaded.
 
 Features:
 ---------
@@ -20,24 +22,45 @@ Features:
 - Image creation
 	- Creates ISO-9660 images from local files.
 	- Support for RockRidge and Joliet extensions.
-	- Support for ISO-9660:1999 (version 2)
+	- Support for ISO-9660:1999 (version 2).
 	- Support for El-Torito bootable images.
-	- Full featured edition of file names and attributes on the image.
-	- Several options to relax ISO-9660 constraints.
-	- Special options for images intended for distribution (suitable default
-	  modes for files, hiding of real timestamps...)
-- Multisession
-	- Support for growing an existing image
+	- Support for multi-extent data files up to 400 GB (level 3).
 	- Full-featured edition of the image files, including: addition of new
 	  files, removing of existent files, moving files, renaming files,
 	  change file attributes (permissions, timestamps...)
-	- Support for "emulated multisession" or image growing, suitable for non
-	  multisession media such as DVD+RW
+	- Optional recording per file of non-ISO 9660 features:
+	  ACL, xattr, content MD5, hard link relations.
+	  They do not hamper image readability by operating systems but can be
+	  retrieved only via libisofs.
+	- Optional zisofs compression, gzip compression, external filter
+	  processes.
+	- Several options to relax ISO-9660 constraints.
+	- Special options for images intended for distribution (suitable
+	  default modes for files, hiding of real timestamps...).
+- Image reading
+	- Image tree and data heap can be verified by stream reading and
+	  eventually recorded MD5 tags.
+	- Directory tree and file attributes of ISO 9660 session get loaded
+	  into memory for editing or for extraction into local filesystem.
+	- File content can be read by applications.
+	- Automatic zisofs decompression.
+	- Optional application of gzip decompression or external filter
+	  processes.
+	- Eventually recorded MD5 of data file can be obtained, MD5 of data
+	  stream can be computed and compared.
+	- Helper functions for restoring ACL and/or xattr to the local
+	  filesystem.
+- Multisession
+	- Support for growing an existing image on multi-session media.
+	- Support for "emulated multisession" on overwriteable media such as
+	  DVD+RW, USB sticks, regular files.
+	- Support for blindly prepared add-on sessions (mkisofs style -M -C)
+	  suitable for pipes which lead to an external burn program.
 - Image modification
-	- It can create a completely new image from files on another image.
-	- Full-featured edition of image contents
+	- Creates a completely new image from files out of another image and
+	  eventual editing operations. Suitable for any target medium.
 - Others
-	- Handling of different input and output charset
+	- Handling of different input and output charset.
 	- Good integration with libburn for image burning.
 	- Reliable, good handling of different kind of errors.
 
@@ -56,9 +79,8 @@ a) Images with unsupported features, such as:
 	- UDF.
 	- HSF/HFS+ or other Mac extensions.
 	- El-Torito with multiple entries.
-	- ECMA-119 with extended attributes, multiple extends per file.
+	- ECMA-119 with extended attributes.
 	- Non El-Torito boot info.
-	- zisofs compressed images.
 	- ...
    In all these cases, the resulting new image (or new session) could lack some
    features of the original image.
@@ -125,176 +147,9 @@ See INSTALL file for further details.
 
 ------------------------------------------------------------------------------
 
-                        Overview of libburnia-project.org
-
-libburnia-project.org is an open-source software project for reading, mastering
-and writing optical discs.
-For now this means only CD media and all single layer DVD media except DVD+R.
-
-The project comprises of several more or less interdependent parts which
-together strive to be a usable foundation for application development.
-These are libraries, language bindings, and middleware binaries which emulate
-classical (and valuable) Linux tools.
-
-Our scope is currently Linux 2.4 and 2.6 only. For ports to other systems
-we would need : login on a development machine resp. a live OS on CD or DVD,
-advise from a system person about the equivalent of Linux sg or FreeBSD CAM,
-volunteers for testing of realistic use cases.
-
-We have a workable code base for burning CD and most single layer DVD.
-The burn API is quite comprehensively documented and can be used to build a
-presentable application.
-We have a functional binary which emulates parts of cdrecord in order to
-prove that usability, and in order to allow you to explore libburnia's scope
-by help of existing cdrecord frontends.
-
-The project components (list subject to growth, hopefully):
-
-- libburn  is the library by which preformatted data get onto optical media.
-           It uses either /dev/sgN (e.g. on kernel 2.4 with ide-scsi) or
-           /dev/hdX (e.g. on kernel 2.6).
-           libburn is the foundation of our cdrecord emulation. Its code is
-           independent of cdrecord. Its DVD capabilities are learned from
-           studying the code of dvd+rw-tools and MMC-5 specs. No code but only
-           the pure SCSI knowledge has been taken from dvd+rw-tools, though.
-
-- libisofs is the library to pack up hard disk files and directories into a
-           ISO 9660 disk image. This may then be brought to media via libburn.
-           libisofs is to be the foundation of our upcoming mkisofs emulation.
-
-- cdrskin  is a limited cdrecord compatibility wrapper for libburn.
-           Cdrecord is a powerful GPL'ed burn program included in Joerg
-           Schilling's cdrtools. cdrskin strives to be a second source for
-           the services traditionally provided by cdrecord. Additionally it
-           provides libburn's DVD capabilities, where only -sao is compatible
-           with cdrecord.
-           cdrskin does not contain any bytes copied from cdrecord's sources.
-           Many bytes have been copied from the message output of cdrecord
-           runs, though.
-           See cdrskin/README and man cdrskin/cdrskin.1 for more.
-
-- test     is a collection of application gestures and examples given by the
-           authors of the library features. The main API example for libburn
-           is test/libburner.c .
-           Explore these examples if you look for inspiration.
-
-We plan to be a responsive upstream. Bear with us. We are still practicing.
-
-
-------------------------------------------------------------------------------
-Project history as far as known to me:
-
-- Founded in 2002 as it seems. See mailing list archives
-     http://lists.freedesktop.org/archives/libburn/
-  The site of this founder team is reachable and offers download of a
-  (somewhat outdated) tarball and from CVS :
-     http://icculus.org/burn/
-  Copyright holders and most probably founders:
-  Derek Foreman and Ben Jansens.
-
-- I came to using libburn in 2005. Founded the cdrskin project and submitted
-  necessary patches which were accepted or implemented better. Except one
-  remaining patch which prevented cdrskin from using vanilla libburn from CVS.
-  The cdrskin project site is reachable and offers download of the heavily
-  patched (elsewise outdated) tarball under the name  cdrskin-0.1.2  :
-     http://scdbackup.sourceforge.net/cdrskin_eng.html
-  It has meanwhile moved to use vanilla libburn.pykix.org , though.
-  Version 0.1.4 constitutes the first release of this kind.
-
-- In July 2006 our team mate Mario Danic announced a revival of libburn
-  which by about nearly everybody else was perceived as unfriendly fork.
-  Derek Foreman four days later posted a message which expressed his
-  discontent.
-  The situation first caused me to publically regret it and then - after i
-  got the opportunity to move in with cdrskin - gave me true reason to
-  personally apologize to Derek Foreman, Ben Jansens and the contibutors at 
-  icculus.org/burn. Posted to both projects:
-    http://lists.freedesktop.org/archives/libburn/2006-August/000446.html
-    http://mailman-mail1.webfaction.com/pipermail/libburn-hackers/2006-August/000024.html
-
-- Mid August 2006 project cdrskin established a branch office in 
-  libburn.pykix.org so that all maintainers of our tools have one single place
-  to get the current (at least slightely) usable coordinated versions of
-  everything.
-  Project cdrskin will live forth independendly for a while but it is committed
-  to stay in sync with libburn.pykix.org (or some successor, if ever).
-  cdrskin is also committed to support  icculus.org/burn  if the pending fork
-  is made reality by content changes in that project. It will cease to maintain
-  a patched version of  icculus.org/burn  though. Precondition for a new
-  release of cdrskin on base of  icculus.org/burn  would be the pending
-  "whitelist patch" therefore.
-  I would rather prefer if both projects find consense and merge, or at least
-  cooperate. I have not given up hope totally, yet.
-  I, personally, will honor any approach.
-
-- 2nd September 2006 the decision is made to strive for a consolidation of
-  copyright and a commitment to GPL in a reasonable and open minded way.
-  This is to avoid long term problems with code of unknown origin and
-  with finding consense among the not so clearly defined group of copyright
-  claimers and -holders.
-  libisofs is already claimed sole copyright Mario Danic.
-  cdrskin and libburner are already claimed sole copyright Thomas Schmitt.
-  Rewrites of other components will follow and concluded by claiming full
-  copyright within the group of libburn.pykix.org-copyright holders.
-
-- 16th September 2006 feature freeze for release of libburn-0.2.2 .
-
-- 20th September 2006 release of libburn-0.2.2 .
-
-- 26th October 2006 feature freeze for cdrskin-0.2.4 based on libburn-0.2.3 .
-  This version of cdrskin is much more cdrecord compatible in repect
-  to drive addressing and audio features.
-
-- 30th October 2006 release of cdrskin-0.2.4 .
-
-- 13th November 2006 splitting releases of libburn+cdrskin from libisofs.
-
-- 24th November 2006 release of libburn-0.2.6 and cdrskin-0.2.6 . cdrskin has
-  become suitable for unaware frontends as long as they perform only the core 
-  of cdrecord use cases (including open-ended input streams, audio, and
-  multi-session).
-
-- 28th November 2006 the umbrella project which encloses both, libisofs and
-  libburn, is now called libburnia. For the origin of this name, see 
-  http://en.wikipedia.org/wiki/Liburnians .
-
-- 16th January 2007 release of libburn-0.3.0 and cdrskin-0.3.0 . Now the scope
-  is widened to a first class of DVD media: overwriteable single layer types
-  DVD-RAM, DVD+RW, DVD-RW. This is not a cdrecord emulation but rather inspired
-  by dvd+rw-tools' "poor man" writing facility for this class of media.
-  Taking a bow towards Andy Polyakov.
-
-- 11th February 2007 version 0.3.2 covers sequential DVD-RW and DVD-R with
-  multi-session and with DAO.
-
-- 12th March 2007 version 0.3.4 supports DVD+R and thus covers all single layer
-  DVD media. Code for double layer DVD+/-R is implemented but awaits a tester
-  yet.
-
-- 23th April 2007 version 0.3.6 follows the unanimous opinion of Linux kernel
-  people that one should not use /dev/sg on kernel 2.6.
-
-- 31st July 2007 version 0.3.8 marks the first anniversary of libburn revival.
-  We look back on improved stability, a substantially extended list of media
-  and write modes, and better protection against typical user mishaps.
-
-- 24th October 2007 version 0.4.0 is the foundation of new library libisoburn
-  and an upcomming integrated application for manipulating and writing
-  ISO 9660 + Rock Ridge images. cdrskin-0.4.0 got capabilities like growisofs
-  by these enhancements: growing of overwriteable media and disk files.
-  Taking again a bow towards Andy Polyakov.
-
-- 26th Januar 2008 version 0.4.2 rectifies the version numbering so that we
-  reliably release libburn.so.4 as should have been done since libburn-0.3.2.
-  cdrskin now is by default linked dynamically and does a runtime check
-  to ensure not to be started with a libburn which is older than itself.
-
-
-------------------------------------------------------------------------------
-
     This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation. To be exact: version 2 of that License.
+    it under the terms of the GNU General Public License version 2 or later
+    as published by the Free Software Foundation.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -309,19 +164,23 @@ Project history as far as known to me:
 Clarification in my name and in the name of Mario Danic, upcoming copyright
 holders on toplevel of libburnia. To be fully in effect after the remaining
 other copyrighted code has been replaced by ours and by copyright-free
-contributions of our friends:
+contributions of our friends.
+
+Note:
+In the particular case of libisofs there is no foreign copyright involved.
+As of 2010 foreign copyright is only in component libburn.
 ------------------------------------------------------------------------------
 
-We, the copyright holders, agree on the interpretation that
-dynamical linking of our libraries constitutes "use of" and
-not "derivation from" our work in the sense of GPL, provided
-those libraries are compiled from our unaltered code.
+We, the copyright holders, agree on the interpretation that dynamical linking
+of our libraries constitutes "use of" and not "derivation from" our work in
+the sense of GPL, provided those libraries are compiled from our unaltered
+code or from altered code published under GPL.
 
-Thus you may link our libraries dynamically with applications
-which are not under GPL. You may distribute our libraries and
-application tools in binary form, if you fulfill the usual
-condition of GPL to offer a copy of the source code -altered
-or unaltered- under GPL.
+So we will not raise legal protest if you link our libraries dynamically with
+applications which are not under GPL, or if you distribute our libraries
+and application tools in binary form, as long as you fulfill the usual
+condition of GPL to offer a copy of their source code -altered or unaltered-
+under GPL.
 
 We ask you politely to use our work in open source spirit
 and with the due reference to the entire open source community.
@@ -337,5 +196,7 @@ means to qualify for GPL.
 
 For now we are firmly committed to maintain one single license: GPL.
 
-signed: Mario Danic, Thomas Schmitt
+Signed: Mario Danic, Thomas Schmitt
+Agreement joined later by: Vreixo Formoso
+
 
