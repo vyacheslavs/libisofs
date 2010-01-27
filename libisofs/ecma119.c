@@ -4,8 +4,9 @@
  * Copyright (c) 2009 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See COPYING file for details.
+ * modify it under the terms of the GNU General Public License version 2 
+ * or later as published by the Free Software Foundation. 
+ * See COPYING file for details.
  */
 
 /*
