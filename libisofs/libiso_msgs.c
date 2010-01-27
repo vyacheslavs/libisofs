@@ -2,7 +2,7 @@
 /* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
    Copyright (C) 2006 - 2008 Thomas Schmitt <scdbackup@gmx.net>,
-   provided under GPL version 2
+   provided under GPL version 2 or later
 */
 
 #include <stdio.h>
