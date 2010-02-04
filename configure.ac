@@ -5,6 +5,8 @@ dnl AC_CONFIG_HEADER([config.h])
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 
+LIBBURNIA_SET_FLAGS
+
 AM_INIT_AUTOMAKE([subdir-objects])
 
 dnl A61101 This breaks Linux build (makes 32 bit off_t)
