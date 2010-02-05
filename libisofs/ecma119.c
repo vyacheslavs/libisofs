@@ -924,7 +924,12 @@ void *write_function(void *arg)
 #endif
 
     iso_ring_buffer_writer_close(target->buffer, 0);
+
+#ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
+#else
+    return NULL;
+#endif
 
     write_error: ;
     if (res == ISO_CANCELED) {
@@ -946,7 +951,12 @@ void *write_function(void *arg)
 
 #endif
 
+#ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
+#else
+    return NULL;
+#endif
+
 }
 
 
