@@ -556,7 +556,7 @@ int iso_file_src_writer_create(Ecma119Image *target)
 {
     IsoImageWriter *writer;
 
-    writer = malloc(sizeof(IsoImageWriter));
+    writer = calloc(1, sizeof(IsoImageWriter));
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
     }

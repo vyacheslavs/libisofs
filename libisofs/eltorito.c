@@ -408,7 +408,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     }
 
     /* creates the catalog with the given image */
-    catalog = malloc(sizeof(struct el_torito_boot_catalog));
+    catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
     if (catalog == NULL) {
         ret = ISO_OUT_OF_MEM;
         goto boot_image_cleanup;
@@ -703,11 +703,11 @@ int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
         return ISO_NULL_POINTER;
     }
 
-    str = malloc(sizeof(IsoStream));
+    str = calloc(1, sizeof(IsoStream));
     if (str == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    data = malloc(sizeof(struct catalog_stream));
+    data = calloc(1, sizeof(struct catalog_stream));
     if (str == NULL) {
         free(str);
         return ISO_OUT_OF_MEM;
@@ -741,7 +741,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
         return ISO_SUCCESS;
     }
 
-    file = malloc(sizeof(IsoFileSrc));
+    file = calloc(1, sizeof(IsoFileSrc));
     if (file == NULL) {
         return ISO_OUT_OF_MEM;
     }
@@ -754,6 +754,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
 
     /* fill fields */
     file->prev_img = 0; /* TODO allow copy of old img catalog???? */
+    file->checksum_index = 0;
     file->nsections = 1;
     file->sections = calloc(1, sizeof(struct iso_file_section));
     file->sort_weight = 1000; /* slightly high */
@@ -840,7 +841,7 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
         IsoStream *new = NULL;
         IsoStream *original = t->bootimg->stream;
         size = (size_t) iso_stream_get_size(original);
-        buf = malloc(size);
+        buf = calloc(1, size);
         if (buf == NULL) {
             return ISO_OUT_OF_MEM;
         }
@@ -922,7 +923,7 @@ int eltorito_writer_create(Ecma119Image *target)
     IsoFile *bootimg;
     IsoFileSrc *src;
 
-    writer = malloc(sizeof(IsoImageWriter));
+    writer = calloc(1, sizeof(IsoImageWriter));
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
     }
