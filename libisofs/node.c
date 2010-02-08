@@ -208,6 +208,7 @@ int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data)
         return ISO_NULL_POINTER;
     }
 
+    *data = NULL;
     pos = node->xinfo;
     while (pos != NULL) {
         if (pos->process == proc) {

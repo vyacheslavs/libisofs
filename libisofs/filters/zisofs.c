@@ -913,6 +913,8 @@ int ziso_filter_get_uncompressor(FilterContext *filter, IsoStream *original,
 }
 
 
+#ifdef Libisofs_with_zliB
+
 /* Produce a parameter object suitable for iso_file_add_filter().
  * It may be disposed by free() after all those calls are made.
  *
@@ -939,6 +941,7 @@ int ziso_create_context(FilterContext **filter, int flag)
     return ISO_SUCCESS;
 }
 
+#endif Libisofs_with_zliB
 
 /*
  * @param flag bit0= if_block_reduction rather than if_reduction

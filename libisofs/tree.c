@@ -921,7 +921,7 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
     int result;
     IsoNode *n;
     IsoDir *dir;
-    char *ptr, *brk_info, *component;
+    char *ptr, *brk_info = NULL, *component;
 
     if (image == NULL || path == NULL) {
         return ISO_NULL_POINTER;
