@@ -941,7 +941,7 @@ int ziso_create_context(FilterContext **filter, int flag)
     return ISO_SUCCESS;
 }
 
-#endif Libisofs_with_zliB
+#endif /* Libisofs_with_zliB */
 
 /*
  * @param flag bit0= if_block_reduction rather than if_reduction
