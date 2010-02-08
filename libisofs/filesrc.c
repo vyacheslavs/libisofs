@@ -505,7 +505,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
 #ifdef Libisofs_with_checksumS
 
-        if (file->checksum_index > 0) {
+        if (file->checksum_index > 0 &&
+            file->checksum_index <= t->checksum_idx_counter) {
             /* Obtain checksum and dispose checksum context */
             res = iso_md5_end(&ctx, md5);
             if (res <= 0)
