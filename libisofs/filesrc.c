@@ -138,11 +138,11 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 
     if ((img->md5_file_checksums & 1) && !no_md5) {
         img->checksum_idx_counter++;
-        if (img->checksum_idx_counter < 0x80000000) {
+        if (img->checksum_idx_counter < 0x7fffffff) {
             fsrc->checksum_index = img->checksum_idx_counter;
         } else {
             fsrc->checksum_index= 0;
-            img->checksum_idx_counter= 0x80000000; /* keep from rolling over */
+            img->checksum_idx_counter= 0x7fffffff; /* keep from rolling over */
         }
         cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
         if (cret < 0)
