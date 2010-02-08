@@ -171,16 +171,12 @@ In the particular case of libisofs there is no foreign copyright involved.
 As of 2010 foreign copyright is only in component libburn.
 ------------------------------------------------------------------------------
 
-We, the copyright holders, agree on the interpretation that dynamical linking
-of our libraries constitutes "use of" and not "derivation from" our work in
-the sense of GPL, provided those libraries are compiled from our unaltered
-code or from altered code published under GPL.
-
-So we will not raise legal protest if you link our libraries dynamically with
-applications which are not under GPL, or if you distribute our libraries
-and application tools in binary form, as long as you fulfill the usual
-condition of GPL to offer a copy of their source code -altered or unaltered-
-under GPL.
+We will not raise any legal protest to dynamic linking of our libraries
+with applications that are not under GPL, as long as they fulfill
+the condition of offering the library source code used, whether
+altered or unaltered, under the GPLv2+, along with the application.
+Nevertheless, the safest legal position is not to link libburn with
+non-GPL compatible programs.
 
 We ask you politely to use our work in open source spirit
 and with the due reference to the entire open source community.
@@ -194,9 +190,10 @@ It is the open source idea of responsible freedom which will be
 decisive and you will have to prove that you exhausted all own
 means to qualify for GPL.
 
-For now we are firmly committed to maintain one single license: GPL.
+We are firmly committed to allow GPLv2+ now and with future releases.
 
 Signed: Mario Danic, Thomas Schmitt
 Agreement joined later by: Vreixo Formoso
 
+Public contact: <libburn-hackers@pykix.org>
 
