@@ -7,7 +7,7 @@
  See test/aaip_0_2.h
      http://libburnia-project.org/wiki/AAIP
 
- Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2
+ Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -567,7 +567,7 @@ ex:;
 }
 
 
-/* Linux man 5 acl says:
+/* GNU/Linux man 5 acl says:
      The permissions defined by ACLs are a superset of the permissions speci-
      fied by the file permission bits. The permissions defined for the file
      owner correspond to the permissions of the ACL_USER_OBJ entry.  The per-

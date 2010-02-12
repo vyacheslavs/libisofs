@@ -10,7 +10,7 @@
 
 /* 
  *
- * Applications must use 64 bit off_t, e.g. on 32-bit Linux by defining
+ * Applications must use 64 bit off_t, e.g. on 32-bit GNU/Linux by defining
  *   #define _LARGEFILE_SOURCE
  *   #define _FILE_OFFSET_BITS 64
  * or take special precautions to interface with the library by 64 bit integers
@@ -374,7 +374,7 @@ extern unsigned int iso_fs_global_id;
  * access and read file contents. Note that this doesn't need to be tied
  * to the disc filesystem used in the partition being accessed. For example,
  * we have an IsoFilesystem implementation to access any mounted filesystem,
- * using standard Linux functions. It is also legal, of course, to implement
+ * using standard POSIX functions. It is also legal, of course, to implement
  * an IsoFilesystem to deal with a specific filesystem over raw partitions.
  * That is what we do, for example, to access an ISO Image.
  *
@@ -2576,14 +2576,14 @@ time_t iso_node_get_ctime(const IsoNode *node);
 /**
  * Set if the node will be hidden in RR/ISO tree, Joliet tree or both.
  *
- * If the file is set as hidden in one tree, it won't be included there, so
+ * If the file is set as hidden in one tree, it wil not be included there, so
  * it won't be visible in a OS accessing CD using that tree. For example,
  * GNU/Linux systems access to Rock Ridge / ISO9960 tree in order to see
  * what is recorded on CD, while MS Windows make use of the Joliet tree. If a
- * file is hidden only in Joliet, it won't be visible in Windows systems,
- * while still visible in Linux.
+ * file is hidden only in Joliet, it wil not be visible in Windows systems,
+ * while still visible in GNU/Linux.
  *
- * If a file is hidden in both trees, it won't be written to image.
+ * If a file is hidden in both trees, it will not be written to image.
  *
  * @param node
  *      The node that is to be hidden.
@@ -4364,7 +4364,7 @@ int aaip_xinfo_func(void *data, int flag);
  * @param default_text
  *      Will return a pointer to the eventual "default" ACL  or NULL if it
  *      is not available.
- *      (Linux directories can have a "default" ACL which influences
+ *      (GNU/Linux directories can have a "default" ACL which influences
  *       the permissions of newly created files.)
  * @param flag
  *      Bitfield for control purposes
@@ -4401,7 +4401,7 @@ int iso_node_get_acl_text(IsoNode *node,
  * @param default_text
  *      The text to be set into effect as "default" ACL. NULL will delete an
  *      eventually existing "default" ACL of the node.
- *      (Linux directories can have a "default" ACL which influences
+ *      (GNU/Linux directories can have a "default" ACL which influences
  *       the permissions of newly created files.)
  * @param flag
  *      Bitfield for control purposes

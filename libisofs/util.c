@@ -1206,7 +1206,7 @@ void iso_datetime_7(unsigned char *buf, time_t t, int always_gmt)
     }
 
     memset(&tm, 0, sizeof(tm));
-    tm.tm_isdst = -1;  /* some Linuxes change tm_isdst only if it is -1 */
+    tm.tm_isdst = -1;  /* some OSes change tm_isdst only if it is -1 */
     localtime_r(&t, &tm);
 
 #ifdef HAVE_TM_GMTOFF
@@ -1250,7 +1250,7 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
     }
 
     memset(&tm, 0, sizeof(tm));
-    tm.tm_isdst = -1;  /* some Linuxes change tm_isdst only if it is -1 */
+    tm.tm_isdst = -1;  /* some OSes change tm_isdst only if it is -1 */
     localtime_r(&t, &tm);
 
     localtime_r(&t, &tm);
