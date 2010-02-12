@@ -25,8 +25,8 @@ and is now under the licenses to which H.Peter Anvin agreed:
  or both, at your option.
  Sincerely, H. Peter Anvin
 
-In the context of xorriso-standalone, this code is under GPLv2 derived from
-LGPL. In the context of libisofs this code derives its matching open source
+In the context of GNU xorriso, this code is under GPLv3+ derived from LGPL.
+In the context of libisofs this code derives its matching free software
 license from above stem licenses, typically from LGPL.
 In case its generosity is needed, here is the 2-clause BSD license:
 
