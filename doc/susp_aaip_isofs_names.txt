@@ -149,3 +149,14 @@ Registered:
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+This text is under
+Copyright (c) 2009 - 2010 Thomas Schmitt <scdbackup@gmx.net>
+It shall only be modified in sync with libisofs and other software which
+makes use of AAIP. Please mail change requests to mailing list
+<libburn-hackers@pykix.org> or to the copyright holder in private.
+Only if you cannot reach the copyright holder for at least one month it is
+permissible to modify this text under the same license as the affected
+copy of libisofs.
+If you do so, you commit yourself to taking reasonable effort to stay in
+sync with the other interested users of this text.
+

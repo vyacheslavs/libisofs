@@ -141,3 +141,14 @@ SUSP 1.12
 RRIP 1.12
   ftp://ftp.ymi.com/pub/rockridge/rrip112.ps
 
+-------------------------------------------------------------------------------
+
+This text is under
+Copyright (c) 2009 - 2010 Thomas Schmitt <scdbackup@gmx.net>
+It shall reflect the effective technical specifications as implemented in
+zisofs-tools and the Linux kernel. So please contact mailing list
+<libburn-hackers@pykix.org> or to the copyright holder in private, if you
+want to make changes.
+Only if you cannot reach the copyright holder for at least one month it is
+permissible to modify and distribute this text under the license "BSD revised".
+

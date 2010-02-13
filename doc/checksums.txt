@@ -305,3 +305,16 @@ The size of the volume is 2456606865 bytes, which have a MD5 sum of
 The checksum of "2_2 B00109.143415 2456606865 485bbef110870c45754d7adcc844a72c"
 is c2355d5ea3c94d792ff5893dfe0d6d7b.
 
+-------------------------------------------------------------------------------
+
+This text is under
+Copyright (c) 2009 - 2010 Thomas Schmitt <scdbackup@gmx.net>
+It shall only be modified in sync with libisofs and other software which
+makes use of libisofs checksums. Please mail change requests to mailing list
+<libburn-hackers@pykix.org> or to the copyright holder in private.
+Only if you cannot reach the copyright holder for at least one month it is
+permissible to modify this text under the same license as the affected
+copy of libisofs.
+If you do so, you commit yourself to taking reasonable effort to stay in 
+sync with the other interested users of this text.
+
