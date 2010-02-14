@@ -11,7 +11,7 @@
 
  To be included by aaip_0_2.c
 
- Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2
+ Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 

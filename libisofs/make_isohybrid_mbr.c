@@ -31,7 +31,7 @@ license from above stem licenses, typically from LGPL.
 In case its generosity is needed, here is the 2-clause BSD license:
 
 make_isohybrid_mbr.c is copyright 2002-2008 H. Peter Anvin
-                              and 2008-2009 libburnia project.
+                              and 2008-2009 Thomas Schmitt
 
 1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.

@@ -9,7 +9,7 @@
 
  test/aaip_0_2.h - Public declarations
 
- Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2
+ Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 

@@ -3,7 +3,7 @@
 
  aaip-os-freebsd.c
  Arbitrary Attribute Interchange Protocol , system adapter for getting and
- setting of ACLs and ixattr.
+ setting of ACLs and xattr.
 
  To be included by aaip_0_2.c
 
