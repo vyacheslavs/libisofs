@@ -333,9 +333,11 @@ int create_image(IsoImage *image, const char *image_path,
     boot->image = (IsoFile*)imgfile;
     iso_node_ref(imgfile); /* get our ref */
     boot->bootable = 1;
+    boot->isolinux_options = 0;
     boot->type = boot_media_type;
-    boot->load_size = load_sectors;
     boot->partition_type = partition_type;
+    boot->load_seg = 0;
+    boot->load_size = load_sectors;
 
     if (bootimg) {
         *bootimg = boot;

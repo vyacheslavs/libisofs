@@ -1680,6 +1680,32 @@ int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
  */
 int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
 
+/*
+ * Attach 32 kB of binary data which shall get written to the first 32 kB 
+ * of the ISO image, the ECMA-119 System Area. This space is intended for
+ * system dependent boot software, e.g. a Master Boot Record which allows to
+ * boot from USB sticks or hard disks. ECMA-119 makes no own assumptions or
+ * prescriptions about the byte content.
+ *
+ * If system area data are given or options bit0 is set, then bit1 of
+ * el_torito_set_isolinux_options() is automatically disabled.
+ * @param data
+ *        Either NULL or 32 kB of data. Do not submit less bytes !
+ * @param options
+ *        Can cause manipulations of submitted data before they get written:
+ *        bit0= apply a --protective-msdos-label as of grub-mkisofs.
+ *              This means to patch bytes 446 to 512 of the system area so
+ *              that one partition is defined which begins at the second
+ *              512-byte block of the image and ends where the image ends.
+ * @param flag
+ *        bit0 = invalidate any attached system area data. Same as data == NULL
+ * @return
+ *        ISO_SUCCESS or error
+ * @since 0.6.30
+ */
+int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
+                                   int options, int flag);
+
 /**
  * Inquire the start address of the file data blocks after having used
  * IsoWriteOpts with iso_image_create_burn_source().
@@ -2325,19 +2351,27 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
 void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
 
 /**
- * Specifies options for IsoLinux boot images. This should only be used with
- * isolinux boot images.
+ * Specifies options for ISOLINUX or GRUB boot images. This should only be used
+ * if the type of boot image is known.
  *
  * @param options
  *        bitmask style flag. The following values are defined:
  *
- *        bit 0 -> 1 to patch the image, 0 to not
- *                 Patching the image involves the writing of a 56 bytes
- *                 boot information table at offset 8 of the boot image file.
- *                 The original boot image file will not be modified. This is
- *                 needed to allow isolinux images to be bootable.
- *        bit 1 -> 1 to generate an hybrid image with MBR, 0 to not
- *                 An hybrid image is a boot image that boots from either
+ *        bit 0 -> 1 to patch the boot info table of the boot image.
+ *                 1 does the same as mkisofs option -boot-info-table.
+ *                 Needed for ISOLINUX and for GRUB rescue boot images.
+ *                 The table is located at byte 8 of the boot image file.
+ *                 Its size is 56 bytes. 
+ *                 The original boot image file on disk will not be modified.
+ *
+ *        bit 1 -> 1 to generate a ISOLINUX isohybrid image with MBR.
+ *                 ----------------------------------------------------------
+ *                 @deprecated since 31 Mar 2010:
+ *                 The author of syslinux, H. Peter Anvin requested that this
+ *                 feature shall not be used any more. He intends to cease
+ *                 support for the MBR template that is included in libisofs.
+ *                 ----------------------------------------------------------
+ *                 A hybrid image is a boot image that boots from either
  *                 CD/DVD media or from disk-like media, e.g. USB stick.
  *                 For that you need isolinux.bin from SYSLINUX 3.72 or later.
  *                 IMPORTANT: The application has to take care that the image

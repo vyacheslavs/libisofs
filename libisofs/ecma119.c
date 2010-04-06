@@ -73,6 +73,9 @@ void ecma119_image_free(Ecma119Image *t)
     if (t->output_charset != NULL)
         free(t->output_charset);
 
+    if (t->system_area_data != NULL)
+        free(t->system_area_data);
+
 #ifdef Libisofs_with_checksumS
     if (t->checksum_ctx != NULL) { /* dispose checksum context */
         char md5[16];
@@ -1127,6 +1130,17 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
     target->catalog = src->bootcat;
 
+    target->system_area_data = NULL;
+    if(opts->system_area_data != NULL) {
+        target->system_area_data = calloc(32768, 1);
+        if (target->system_area_data == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto target_cleanup;
+        }
+        memcpy(target->system_area_data, opts->system_area_data, 32768);
+    }
+    target->system_area_options = opts->system_area_options;
+
     target->input_charset = strdup(iso_get_local_charset(0));
     if (target->input_charset == NULL) {
         ret = ISO_OUT_OF_MEM;
@@ -1700,6 +1714,8 @@ void iso_write_opts_free(IsoWriteOpts *opts)
     }
 
     free(opts->output_charset);
+    if(opts->system_area_data != NULL)
+        free(opts->system_area_data);
     free(opts);
 }
 
@@ -2082,6 +2098,31 @@ int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
     if (opts->data_start_lba == 0)
 	return ISO_ERROR;
     *data_start = opts->data_start_lba;
+    return ISO_SUCCESS;
+}
+
+/*
+ * @param data     Either NULL or 32 kB of data. Do not submit less bytes !
+ * @param options  bit0 = apply GRUB protective msdos label
+ * @param flag     bit0 = invalidate any attached system area data
+ *                        same as data == NULL
+ */
+int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
+                                   int options, int flag)
+{
+    if (data == NULL || (flag & 1)) { /* Disable */
+        if (opts->system_area_data != NULL)
+            free(opts->system_area_data);
+        opts->system_area_data = NULL;
+    } else {
+        if (opts->system_area_data == NULL) {
+            opts->system_area_data = calloc(32768, 1);
+            if (opts->system_area_data == NULL)
+                return ISO_OUT_OF_MEM;
+        }
+        memcpy(opts->system_area_data, data, 32768);
+    }
+    opts->system_area_options = options & 1;
     return ISO_SUCCESS;
 }
 

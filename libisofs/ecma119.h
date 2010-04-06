@@ -298,6 +298,11 @@ struct iso_write_opts {
      */
     char *scdbackup_tag_written;
 
+    /*
+     * See ecma119_image : System Area related information
+     */
+    char *system_area_data;
+    int system_area_options;
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -435,6 +440,22 @@ struct ecma119_image
     struct el_torito_boot_catalog *catalog;
     IsoFileSrc *cat; /**< location of the boot catalog in the new image */
     IsoFileSrc *bootimg; /**< location of the boot image in the new image */
+
+    /*
+     * System Area related information
+     */
+    /* Content of an embedded boot image. Valid if not NULL.
+     * In that case it must point to a memory buffer at least 32 kB.
+     */
+    char *system_area_data;
+    /*
+     * bit0= make bytes 446 - 512 of the system area a partition
+     *       table which reserves partition 1 from byte 63*512 to the
+     *       end of the ISO image. Assumed are 63 secs/hed, 255 head/cyl.
+     *       (GRUB protective msdos label.)
+     *       This works with and without system_area_data.
+     */
+    int system_area_options;
 
     /*
      * Number of pad blocks that we need to write. Padding blocks are blocks

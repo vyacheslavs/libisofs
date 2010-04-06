@@ -39,7 +39,8 @@ struct el_torito_boot_image {
     /**
      * isolinux options
      * bit 0 -> whether to patch image
-     * bit 1 -> whether to create isolinux image
+     * bit 1 -> whether to put built-in isolinux 3.72 isohybrid-MBR into image
+     *          System Area (deprecated)
      */
     unsigned int isolinux_options:2;
     unsigned char type; /**< The type of image */
