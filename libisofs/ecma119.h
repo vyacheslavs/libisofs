@@ -303,6 +303,17 @@ struct iso_write_opts {
      */
     char *system_area_data;
     int system_area_options;
+
+    /* User settable PVD time stamps */
+    time_t vol_creation_time;
+    time_t vol_modification_time;
+    time_t vol_expiration_time;
+    time_t vol_effective_time;
+    /* To eventually override vol_modification_time by unconverted string
+     * and timezone 0
+     */
+    char vol_uuid[17];
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -513,6 +524,16 @@ struct ecma119_image
     /* writer thread descriptor */
     pthread_t wthread;
     pthread_attr_t th_attr;
+
+    /* User settable PVD time stamps */
+    time_t vol_creation_time;
+    time_t vol_modification_time;
+    time_t vol_expiration_time;
+    time_t vol_effective_time;
+    /* To eventually override vol_modification_time by unconverted string
+     * and timezone 0
+     */
+    char vol_uuid[17];
 };
 
 #define BP(a,b) [(b) - (a) + 1]

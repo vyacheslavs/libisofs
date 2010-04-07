@@ -383,7 +383,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     IsoImage *image;
     Ecma119Image *t;
     struct ecma119_pri_vol_desc vol;
-
+    int i;
     char *vol_id, *pub_id, *data_id, *volset_id;
     char *system_id, *application_id, *copyright_file_id;
     char *abstract_file_id, *biblio_file_id;
@@ -438,9 +438,35 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
     strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
-    iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
-    iso_datetime_17(vol.vol_effective_time, t->now, t->always_gmt);
+    if (t->vol_creation_time > 0)
+        iso_datetime_17(vol.vol_creation_time, t->vol_creation_time,
+                        t->always_gmt);
+    else
+        iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
+
+    if (t->vol_uuid[0]) {
+        for(i = 0; i < 16; i++)
+            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
+        break;
+            else
+                vol.vol_modification_time[i] = t->vol_uuid[i];
+       for(; i < 16; i++)
+           vol.vol_modification_time[i] = '1';
+       vol.vol_modification_time[16] = 0;
+    } else if (t->vol_modification_time > 0)
+        iso_datetime_17(vol.vol_modification_time, t->vol_modification_time,
+                        t->always_gmt);
+    else
+        iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
+
+    if (t->vol_expiration_time > 0)
+        iso_datetime_17(vol.vol_expiration_time, t->vol_expiration_time,
+                        t->always_gmt);
+
+    if (t->vol_effective_time > 0)
+        iso_datetime_17(vol.vol_effective_time, t->vol_effective_time,
+                        t->always_gmt);
+
     vol.file_structure_version[0] = 1;
 
     free(vol_id);
@@ -1141,6 +1167,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     target->system_area_options = opts->system_area_options;
 
+    target->vol_creation_time = opts->vol_creation_time;
+    target->vol_modification_time = opts->vol_modification_time;
+    target->vol_expiration_time = opts->vol_expiration_time;
+    target->vol_effective_time = opts->vol_effective_time;
+    strcpy(target->vol_uuid, opts->vol_uuid);
+
     target->input_charset = strdup(iso_get_local_charset(0));
     if (target->input_charset == NULL) {
         ret = ISO_OUT_OF_MEM;
@@ -1703,6 +1735,14 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->fifo_size = 1024; /* 2 MB buffer */
     wopts->sort_files = 1; /* file sorting is always good */
 
+    wopts->system_area_data = NULL;
+    wopts->system_area_options = 0;
+    wopts->vol_creation_time = 0;
+    wopts->vol_modification_time = 0;
+    wopts->vol_expiration_time = 0;
+    wopts->vol_effective_time = 0;
+    wopts->vol_uuid[0]= 0;
+
     *opts = wopts;
     return ISO_SUCCESS;
 }
@@ -2123,6 +2163,20 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         memcpy(opts->system_area_data, data, 32768);
     }
     opts->system_area_options = options & 1;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_pvd_times(IsoWriteOpts *opts, 
+                        time_t vol_creation_time, time_t vol_modification_time,
+                        time_t vol_expiration_time, time_t vol_effective_time,
+                        char *vol_uuid)
+{
+    opts->vol_creation_time = vol_creation_time;
+    opts->vol_modification_time = vol_modification_time;
+    opts->vol_expiration_time = vol_expiration_time;
+    opts->vol_effective_time = vol_effective_time;
+    strncpy(opts->vol_uuid, vol_uuid, 16);
+    opts->vol_uuid[16] = 0;
     return ISO_SUCCESS;
 }
 

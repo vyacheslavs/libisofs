@@ -1707,6 +1707,39 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
                                    int options, int flag);
 
 /**
+ * Explicitely set the four timestamps of the emerging Primary Volume
+ * Descriptor. Default with all parameters is 0.
+ * ECMA-119 defines them as:
+ * @param vol_creation_time
+ *        When "the information in the volume was created."
+ *        A value of 0 means that the timepoint of write start is to be used.
+ * @param vol_modification_time
+ *        When "the information in the volume was last modified."
+ *        A value of 0 means that the timepoint of write start is to be used.
+ * @param vol_expiration_time
+ *        When "the information in the volume may be regarded as obsolete."
+ *        A value of 0 means that the information never shall expire.
+ * @param vol_effective_time
+ *        When "the information in the volume may be used."
+ *        A value of 0 means that not such retention is intended.
+ * @param uuid
+ *        If this text is not empty, then it overrides vol_modification_time
+ *        by copying the first 16 decimal digits from uuid, eventually
+ *        padding up with decimal '1', and writing a NUL-byte as timezone.
+ *        Other than with vol_modification_time the resulting string in the ISO
+ *        image is fully predictable and free of timezone pitfalls.
+ *        It should express a reasonable time in form  YYYYMMDDhhmmsscc
+ *        E.g.:  "2010040711405800" = 7 Apr 2010 11:40:58 (+0 centiseconds)
+ *
+ * @since 0.6.30
+ */
+int iso_write_opts_set_pvd_times(IsoWriteOpts *opts,
+                        time_t vol_creation_time, time_t vol_modification_time,
+                        time_t vol_expiration_time, time_t vol_effective_time,
+                        char *vol_uuid);
+
+
+/**
  * Inquire the start address of the file data blocks after having used
  * IsoWriteOpts with iso_image_create_burn_source().
  * @param opts
