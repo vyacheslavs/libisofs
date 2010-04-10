@@ -1697,6 +1697,11 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              This means to patch bytes 446 to 512 of the system area so
  *              that one partition is defined which begins at the second
  *              512-byte block of the image and ends where the image ends.
+ *              This works with and without system_area_data.
+ *        bit1= apply isohybrid MBR patching to the system area.
+ *              This works only with system area data from SYSLINUX plus an
+ *              ISOLINUX boot image (see iso_image_set_boot_image()) and
+ *              only if not bit0 is set.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  * @return

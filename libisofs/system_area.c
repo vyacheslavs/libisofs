@@ -23,6 +23,15 @@
  */
 int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
 
+/*
+ * The New ISOLINUX MBR Producer.
+ * Be cautious with changing parameters. Only few combinations are tested.
+ *
+ */
+int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
+                      uint32_t mbr_id, int head_count, int sector_count,
+                      int part_offset, int part_number, int fs_type,
+                      uint8_t *buf, int flag);
 
 
 /* This is the gesture of grub-mkisofs --protective-msdos-label as explained by
@@ -41,6 +50,7 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
    same number.
    See also http://en.wikipedia.org/wiki/Master_boot_record
 */
+static
 int make_grub_msdos_label(int img_blocks, uint8_t *buf, int flag)
 {
     uint8_t *wpt;
@@ -141,6 +151,18 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         ret = make_grub_msdos_label(img_blocks, buf, 0);
         if (ret != 1) /* error should never happen */
             return ISO_ASSERT_FAILURE;
+    } else if(t->system_area_options & 2) {
+        /* Patch externally provided system area as isohybrid MBR */
+        if (t->catalog == NULL || t->system_area_data == NULL) {
+            /* isohybrid makes only sense together with ISOLINUX boot image
+               and externally provided System Area.
+            */
+            return ISO_ISOLINUX_CANT_PATCH;
+        }
+        ret = make_isolinux_mbr(&img_blocks, t->bootimg->sections[0].block,
+                                (uint32_t) 0, 64, 32, 0, 1, 0x17, buf, 1);
+        if (ret != 1)
+            return ret;
     }
     return ISO_SUCCESS;
 }

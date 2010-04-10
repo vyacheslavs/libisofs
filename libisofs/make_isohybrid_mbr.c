@@ -10,6 +10,7 @@
 /* for gettimeofday() */
 #include <sys/time.h>
 
+
 /* This code stems from syslinux-3.72/utils/isohybrid, a perl script
 under GPL which is Copyright 2002-2008 H. Peter Anvin.
 
@@ -31,7 +32,7 @@ license from above stem licenses, typically from LGPL.
 In case its generosity is needed, here is the 2-clause BSD license:
 
 make_isohybrid_mbr.c is copyright 2002-2008 H. Peter Anvin
-                              and 2008-2009 Thomas Schmitt
+                              and 2008-2010 Thomas Schmitt
 
 1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
@@ -51,8 +52,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+
 /* A helper function. One could replace it by one or two macros. */
-static int lsb_to_buf(char **wpt, int value, int bits, int flag)
+static int lsb_to_buf(char **wpt, uint32_t value, int bits, int flag)
 {
     int b;
 
@@ -60,6 +62,11 @@ static int lsb_to_buf(char **wpt, int value, int bits, int flag)
         *((unsigned char *) ((*wpt)++)) = (value >> b) & 0xff;
     return (1);
 }
+
+
+/* ====================================================================== */
+/*                          Deprecated Function                           */
+/* ====================================================================== */
 
 /*
  * Create a MBR for an isohybrid enabled ISOLINUX boot image.
@@ -227,4 +234,216 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
 
     return (1);
 }
+
+
+/* ====================================================================== */
+/*                          The New MBR Producer                          */
+/* ====================================================================== */
+
+/* The following prescription by H.Peter Anvin is actually a slightly
+   generalized version of the algorithm in deprecated function
+   make_isohybrid_mbr(). To be applied to externally provided System Area
+   data.
+
+   So provisorily i consider the functions lba512chs_to_buf() and
+   make_isolinux_mbr() as our further contribution the existing code base
+   under the existing license. This would yield:
+     copyright 2002-2010 H. Peter Anvin
+           and 2008-2010 Thomas Schmitt
+     under "either the LGPL or the MIT/ISC/2-clause BSD licenses"
+
+   Before release i will ask hpa for his explicit ok.
+*/
+/*
+
+From hpa@zytor.com Thu Apr  1 08:32:52 2010
+Date: Wed, 31 Mar 2010 14:53:51 -0700
+From: H. Peter Anvin <hpa@zytor.com>
+To: For discussion of Syslinux and tftp-hpa <syslinux@zytor.com>
+Cc: Thomas Schmitt <scdbackup@gmx.net>
+Subject: Re: [syslinux] port syslinux isohybrid perl script to C
+
+[...]
+
+> Currently i lack of blob and prescriptions.
+
+The blobs are available in the Syslinux build tree under the names:
+
+mbr/isohdp[fp]x*.bin
+
+The default probably should be mbr/isohdppx.bin, but it's ultimately up
+to the user.
+
+User definable parameters:
+
+-> MBR ID		(default random 32-bit number,
+			 or preserved from previous instance)
+-> Sector count		(default 32, range 1-63)
+-> Head count		(default 64, range 1-256)
+-> Partition offset	(default 0, range 0-64)
+-> Partition number	(default 1, range 1-4)
+-> Filesystem type	(default 0x17, range 1-255)
+
+Note: the filesystem type is largely arbitrary, in theory it can be any
+value other than 0x00, 0x05, 0x0f, 0x85, 0xee, or 0xef.  0x17 ("Windows
+IFS Hidden") seems safeish, some people believe 0x83 (Linux) is better.
+
+Here is the prescriptions for how to install it:
+
+All numbers are littleendian.  "word" means 16 bits, "dword" means 32
+bits, "qword" means 64 bits.
+
+Common subroutine LBA_to_CHS():
+	s = (lba % sector_count) + 1
+	t = (lba / sector_count)
+	h = (t % head_count)
+	c = (t / head_count)
+
+	if (c >= 1024):
+		c = 1023
+		h = head_count
+		s = sector_count
+
+	s = s | ((c & 0x300) >> 2)
+	c = c & 0xff
+
+	write byte h
+	write byte s
+	write byte c
+
+Main:
+	Pad image_size to a multiple of sector_count*head_count
+	Use the input file unmodified for bytes 0..431
+	write qword boot_lba		# Offset 432
+	write dword mbr_id		# Offset 440
+	write word 0			# Offset 444
+
+	# Offset 446
+	For each partition entry 1..4:
+		if this_partition != partition_number:
+			write 16 zero bytes
+		else:
+			write byte 0x80
+			write LBA_to_CHS(partition_offset)
+			write byte filesystem_type
+			write LBA_to_CHS(image_size-1)
+			write dword partition_offset
+			write dword image_size
+
+	# Offset 510
+	write word 0xaa55
+
+	Use the input file unmodified for bytes 512..32767
+	(pad with zero as necessary)
+
+[...]
+
+	-hpa
+*/
+
+
+static
+int lba512chs_to_buf(char **wpt, off_t lba, int head_count, int sector_count)
+{
+    int s, t, h, c;
+
+    s = (lba % sector_count) + 1;
+    t = (lba / sector_count);
+    h = (t % head_count);
+    c = (t / head_count);
+    if (c >= 1024) {
+        c = 1023;
+        h = head_count; /* >>> not -1 ? Limits head_count to 255 */
+        s = sector_count;
+    }
+    s = s | ((c & 0x300) >> 2);
+    c = c & 0xff;
+    (*((unsigned char **) wpt))[0] = h;
+    (*((unsigned char **) wpt))[1] = s;
+    (*((unsigned char **) wpt))[2] = c;
+    (*wpt)+= 3;
+    return(1); 
+}
+
+
+/*
+ * @param flag  bit0= make own random MBR Id from current time
+ */
+int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
+                      uint32_t mbr_id, int head_count, int sector_count,
+                      int part_offset, int part_number, int fs_type,
+                      uint8_t *buf, int flag)
+{
+    uint32_t spc, id, part, nominal_part_size;
+    off_t hd_img_blocks, hd_boot_lba;
+    char *wpt;
+    /* For generating a weak random number */
+    struct timeval tv;
+    struct timezone tz;
+
+    /* Pad image_size to a multiple of sector_count*head_count
+    */
+    spc = head_count * sector_count;
+    hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4;
+    if (hd_img_blocks % spc) {
+        hd_img_blocks += spc - (hd_img_blocks % spc);
+        *img_blocks = hd_img_blocks / 4 + !!(hd_img_blocks % 4);
+    }
+
+    wpt = (char *) buf + 432;
+
+    /* write qword boot_lba            # Offset 432
+    */
+    hd_boot_lba = ((off_t) boot_lba) * (off_t) 4;
+    lsb_to_buf(&wpt, hd_boot_lba & 0xffffffff, 32, 0);
+    lsb_to_buf(&wpt, hd_boot_lba >> 32, 32, 0);
+
+    /* write dword mbr_id              # Offset 440 
+       (here some 32-bit random value with no crypto strength)
+    */
+    if (flag & 1) {
+        gettimeofday(&tv, &tz);
+        id = 0xffffffff & (tv.tv_sec ^ (tv.tv_usec * 2000));
+        lsb_to_buf(&wpt, id, 32, 0);
+    }
+
+    /* write word 0                    # Offset 444
+    */
+    lsb_to_buf(&wpt, 0, 16, 0);
+
+    /* # Offset 446
+    */
+    for (part = 1 ; part <= 4; part++) {
+        if (part != part_number) {
+            /* if this_partition != partition_number: write 16 zero bytes */
+            memset(wpt, 0, 16);
+            wpt+= 16;
+    continue;
+        }
+        /* write byte 0x80
+           write LBA_to_CHS(partition_offset)
+           write byte filesystem_type
+           write LBA_to_CHS(image_size-1)
+           write dword partition_offset
+           write dword image_size
+        */
+        lsb_to_buf(&wpt, 0x80, 8, 0);
+        lba512chs_to_buf(&wpt, part_offset, head_count, sector_count);
+        lsb_to_buf(&wpt, fs_type, 8, 0);
+        lba512chs_to_buf(&wpt, hd_img_blocks - 1, head_count, sector_count);
+        lsb_to_buf(&wpt, part_offset, 32, 0);
+        if (hd_img_blocks - (off_t) part_offset > (off_t) 0xffffffff)
+            nominal_part_size = 0xffffffff;
+        else
+            nominal_part_size = hd_img_blocks - (off_t) part_offset;
+        lsb_to_buf(&wpt, nominal_part_size, 32, 0);
+    }
+
+    /*  write word 0xaa55            # Offset 510
+    */
+    lsb_to_buf(&wpt, 0xaa55, 16, 0);
+
+    return(1);
+}
+
 

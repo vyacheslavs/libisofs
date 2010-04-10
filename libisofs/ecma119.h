@@ -465,6 +465,9 @@ struct ecma119_image
      *       end of the ISO image. Assumed are 63 secs/hed, 255 head/cyl.
      *       (GRUB protective msdos label.)
      *       This works with and without system_area_data.
+     * bit1= apply isohybrid MBR patching to the system area.
+     *       This works only with system_area_data plus ISOLINUX boot image
+     *       and only if not bit0 is set.
      */
     int system_area_options;
 
