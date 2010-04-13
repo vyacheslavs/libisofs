@@ -57,8 +57,10 @@ struct iso_write_opts {
     /**
      * Omit the version number (";1") at the end of the ISO-9660 identifiers.
      * Version numbers are usually not used.
+     * bit0= ECMA-119 and Joliet (for historical reasons)
+     * bit1= Joliet
      */
-    unsigned int omit_version_numbers :1;
+    unsigned int omit_version_numbers :2;
 
     /**
      * Allow ISO-9660 directory hierarchy to be deeper than 8 levels.
@@ -82,8 +84,10 @@ struct iso_write_opts {
      * ISO-9660 forces filenames to have a ".", that separates file name from
      * extension. libisofs adds it if original filename doesn't has one. Set
      * this to 1 to prevent this behavior
+     * bit0= ECMA-119
+     * bit1= Joliet
      */
-    unsigned int no_force_dots :1;
+    unsigned int no_force_dots :2;
 
     /**
      * Allow lowercase characters in ISO-9660 filenames. By default, only
@@ -344,11 +348,11 @@ struct ecma119_image
     unsigned int always_gmt :1;
 
     /* relaxed constraints */
-    unsigned int omit_version_numbers :1;
+    unsigned int omit_version_numbers :2;
     unsigned int allow_deep_paths :1;
     unsigned int allow_longer_paths :1;
     unsigned int max_37_char_filenames :1;
-    unsigned int no_force_dots :1;
+    unsigned int no_force_dots :2;
     unsigned int allow_lowercase :1;
     unsigned int allow_full_ascii :1;
 

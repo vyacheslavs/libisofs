@@ -96,7 +96,7 @@ void ecma119_image_free(Ecma119Image *t)
 static
 int need_version_number(Ecma119Image *t, Ecma119Node *n)
 {
-    if (t->omit_version_numbers) {
+    if (t->omit_version_numbers & 1) {
         return 0;
     }
     if (n->type == ECMA119_DIR || n->type == ECMA119_PLACEHOLDER) {
@@ -1821,7 +1821,7 @@ int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit)
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    opts->omit_version_numbers = omit ? 1 : 0;
+    opts->omit_version_numbers = omit & 3;
     return ISO_SUCCESS;
 }
 
@@ -1857,7 +1857,7 @@ int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no)
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    opts->no_force_dots = no ? 1 : 0;
+    opts->no_force_dots = no & 3;
     return ISO_SUCCESS;
 }
 

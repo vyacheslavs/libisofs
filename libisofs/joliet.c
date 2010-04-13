@@ -43,7 +43,7 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
     if (iso->type == LIBISO_DIR) {
         jname = iso_j_dir_id(ucs_name);
     } else {
-        jname = iso_j_file_id(ucs_name);
+        jname = iso_j_file_id(ucs_name, !!(t->no_force_dots & 2));
     }
     free(ucs_name);
     if (jname != NULL) {
@@ -574,7 +574,7 @@ size_t calc_dirent_len(Ecma119Image *t, JolietNode *n)
 {
     /* note than name len is always even, so we always need the pad byte */
     int ret = n->name ? ucslen(n->name) * 2 + 34 : 34;
-    if (n->type == JOLIET_FILE && !t->omit_version_numbers) {
+    if (n->type == JOLIET_FILE && !(t->omit_version_numbers & 3)) {
         /* take into account version numbers */
         ret += 4;
     }
@@ -722,7 +722,7 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
 
     memcpy(rec->file_id, name, len_fi);
 
-    if (node->type == JOLIET_FILE && !t->omit_version_numbers) {
+    if (node->type == JOLIET_FILE && !(t->omit_version_numbers & 3)) {
         len_dr += 4;
         rec->file_id[len_fi++] = 0;
         rec->file_id[len_fi++] = ';';
@@ -899,7 +899,7 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
         /* compute len of directory entry */
         fi_len = ucslen(child->name) * 2;
         len = fi_len + 34;
-        if (child->type == JOLIET_FILE && !t->omit_version_numbers) {
+        if (child->type == JOLIET_FILE && !(t->omit_version_numbers & 3)) {
             len += 4;
         }
 

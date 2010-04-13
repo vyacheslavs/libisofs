@@ -151,11 +151,12 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot);
  * 2 bytes and the resulting string is NULL-terminated by a 2-byte NULL. 
  * 
  * Note that version number and (;1) is not appended.
- *
+ * @param flag
+ *        bit0= no_force_dots
  * @return 
  *        NULL if the original name and extension both are of length 0.
  */
-uint16_t *iso_j_file_id(const uint16_t *src);
+uint16_t *iso_j_file_id(const uint16_t *src, int flag);
 
 /**
  * Create a Joliet directory identifier that consists of name and optionally

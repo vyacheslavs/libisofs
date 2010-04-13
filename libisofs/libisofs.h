@@ -1286,7 +1286,9 @@ int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
  * Omit the version number (";1") at the end of the ISO-9660 identifiers.
  * This breaks ECMA-119 specification, but version numbers are usually not
  * used, so it should work on most systems. Use with caution.
- *
+ * @param omit
+ *      bit0= omit version number with ECMA-119 and Joliet
+ *      bit1= omit version number with Joliet alone (@since 0.6.30)
  * @since 0.6.2
  */
 int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit);
@@ -1324,6 +1326,9 @@ int iso_write_opts_set_max_37_char_filenames(IsoWriteOpts *opts, int allow);
  * extension. libisofs adds it if original filename doesn't has one. Set
  * this to 1 to prevent this behavior.
  * This breaks ECMA-119 specification. Use with caution.
+ * @param no
+ *      bit0= no forced dot with ECMA-119
+ *      bit1= no forced dot with Joliet (@since 0.6.30)
  *
  * @since 0.6.2
  */

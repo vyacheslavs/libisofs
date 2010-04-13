@@ -64,18 +64,18 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
     } else {
         if (img->max_37_char_filenames) {
             isoname = iso_r_fileid(ascii_name, 36, relaxed,
-                                   img->no_force_dots ? 0 : 1);
+                                   (img->no_force_dots & 1) ? 0 : 1);
         } else if (img->iso_level == 1) {
             if (relaxed) {
                 isoname = iso_r_fileid(ascii_name, 11, relaxed,
-                                       img->no_force_dots ? 0 : 1);
+                                       (img->no_force_dots & 1) ? 0 : 1);
             } else {
                 isoname = iso_1_fileid(ascii_name);
             }
         } else {
             if (relaxed) {
                 isoname = iso_r_fileid(ascii_name, 30, relaxed,
-                                       img->no_force_dots ? 0 : 1);
+                                       (img->no_force_dots & 1) ? 0 : 1);
             } else {
                 isoname = iso_2_fileid(ascii_name);
             }

@@ -908,7 +908,10 @@ ex:;
     return retval;
 }
 
-uint16_t *iso_j_file_id(const uint16_t *src)
+/*
+   bit0= no_force_dots
+*/
+uint16_t *iso_j_file_id(const uint16_t *src, int flag)
 {
     uint16_t *dot;
     size_t lname, lext, lnname, lnext, pos, i;
@@ -954,6 +957,10 @@ uint16_t *iso_j_file_id(const uint16_t *src)
             pos++;
         }
     }
+
+    if ((flag & 1) && lnext <= 0)
+        goto is_done;
+
     set_ucsbe(dest + pos, '.');
     pos++;
 
@@ -967,6 +974,8 @@ uint16_t *iso_j_file_id(const uint16_t *src)
             pos++;
         }
     }
+
+is_done:;
     set_ucsbe(dest + pos, '\0');
     return ucsdup(dest);
 }
