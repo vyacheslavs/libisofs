@@ -313,8 +313,8 @@ struct iso_write_opts {
     time_t vol_modification_time;
     time_t vol_expiration_time;
     time_t vol_effective_time;
-    /* To eventually override vol_modification_time by unconverted string
-     * and timezone 0
+    /* To eventually override vol_creation_time and vol_modification_time
+     * by unconverted string with timezone 0
      */
     char vol_uuid[17];
 
@@ -537,8 +537,8 @@ struct ecma119_image
     time_t vol_modification_time;
     time_t vol_expiration_time;
     time_t vol_effective_time;
-    /* To eventually override vol_modification_time by unconverted string
-     * and timezone 0
+    /* To eventually override vol_creation_time and vol_modification_time
+     * by unconverted string with timezone 0
      */
     char vol_uuid[17];
 };

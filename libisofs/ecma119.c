@@ -438,7 +438,16 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
     strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    if (t->vol_creation_time > 0)
+    if (t->vol_uuid[0]) {
+        for(i = 0; i < 16; i++)
+            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
+        break;
+            else
+                vol.vol_creation_time[i] = t->vol_uuid[i];
+       for(; i < 16; i++)
+           vol.vol_creation_time[i] = '1';
+       vol.vol_creation_time[16] = 0;
+    } else if (t->vol_creation_time > 0)
         iso_datetime_17(vol.vol_creation_time, t->vol_creation_time,
                         t->always_gmt);
     else

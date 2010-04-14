@@ -1733,11 +1733,12 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
  *        When "the information in the volume may be used."
  *        A value of 0 means that not such retention is intended.
  * @param uuid
- *        If this text is not empty, then it overrides vol_modification_time
- *        by copying the first 16 decimal digits from uuid, eventually
- *        padding up with decimal '1', and writing a NUL-byte as timezone.
- *        Other than with vol_modification_time the resulting string in the ISO
- *        image is fully predictable and free of timezone pitfalls.
+ *        If this text is not empty, then it overrides vol_creation_time and
+ *        vol_modification_time by copying the first 16 decimal digits from
+ *        uuid, eventually padding up with decimal '1', and writing a NUL-byte
+ *        as timezone.
+ *        Other than with vol_*_time the resulting string in the ISO image
+ *        is fully predictable and free of timezone pitfalls.
  *        It should express a reasonable time in form  YYYYMMDDhhmmsscc
  *        E.g.:  "2010040711405800" = 7 Apr 2010 11:40:58 (+0 centiseconds)
  *
