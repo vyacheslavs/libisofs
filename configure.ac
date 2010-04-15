@@ -91,6 +91,9 @@ dnl If iconv(3) is in an extra lib, then it gets added to variable LIBS.
 dnl If not, then no -liconv will be added.
 LIBBURNIA_CHECK_ICONV
 
+dnl To abort configuration if iconv() still cannot be compiled
+LIBBURNIA_ASSERT_ICONV
+
 
 AC_PROG_LIBTOOL
 AC_SUBST(LIBTOOL_DEPS)

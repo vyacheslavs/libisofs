@@ -50,8 +50,9 @@ dnl From Bruno Haible.
 dnl
 AC_DEFUN([LIBBURNIA_CHECK_ICONV],
 [
+
   dnl Check whether it is allowed to link with -liconv
-  AC_MSG_CHECKING([for separate -liconv ])
+  AC_MSG_CHECKING([for iconv() in separate -liconv ])
   libburnia_liconv="no"
   libburnia_save_LIBS="$LIBS"
   LIBS="$LIBS -liconv"
@@ -65,6 +66,13 @@ AC_DEFUN([LIBBURNIA_CHECK_ICONV],
   )
   AC_MSG_RESULT([$libburnia_liconv])
 
+  if test x"$libburnia_save_LIBS" = x"$LIBS"
+  then
+    dnl GNU iconv has no function iconv() but libiconv() and a macro iconv()
+    dnl It is not tested whether this is detected by above macro.
+    AC_CHECK_LIB(iconv, libiconv, , )
+  fi
+
   dnl Check for iconv(..., const char **inbuf, ...)
   AC_MSG_CHECKING([for const qualifier with iconv() ])
   AC_TRY_COMPILE([
@@ -76,6 +84,50 @@ size_t iconv (iconv_t cd, char * *inbuf, size_t *inbytesleft, char * *outbuf, si
   AC_DEFINE_UNQUOTED([ICONV_CONST], [$libburnia_iconv_const])
   test -z "$libburnia_iconv_const" && libburnia_iconv_const="no"
   AC_MSG_RESULT([$libburnia_iconv_const])
+])
+
+
+dnl LIBBURNIA_ASSERT_ICONV is by Thomas Schmitt, libburnia project
+dnl 
+AC_DEFUN([LIBBURNIA_ASSERT_ICONV],
+[
+  if test x$LIBISOFS_ASSUME_ICONV = x
+  then
+    dnl Check for the essential gestures of libisofs/util.c
+    AC_MSG_CHECKING([for iconv() to be accessible now ])
+    AC_TRY_LINK([
+#include <stdlib.h>
+#include <wchar.h>
+#include <string.h>
+#include <errno.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <limits.h>
+#include <iconv.h>
+#include <locale.h>
+#include <langinfo.h>
+#include <unistd.h>],
+[iconv_t cd = iconv_open("","");
+iconv(cd,NULL,NULL,NULL,NULL);
+iconv_close(cd);
+], [iconv_test="yes"], [iconv_test="no"]
+    )
+    AC_MSG_RESULT([$iconv_test])
+    if test x$iconv_test = xno
+    then
+      echo >&2
+      echo "Cannot get function iconv() to work. Configuration aborted." >&2
+      echo "Check whether your system needs a separate libiconv installed." >&2
+      echo "If it is installed but not found, try something like" >&2
+      echo '  export LDFLAGS="$LDFLAGS -L/usr/local/lib"' >&2 
+      echo '  export CPPFLAGS="$CPPFLAGS -I/usr/local/include"' >&2
+      echo '  export LIBS="$LIBS -liconv"' >&2
+      echo "You may override this test by exporting variable" >&2
+      echo "  LIBISOFS_ASSUME_ICONV=yes" >&2
+      echo >&2
+      (exit 1); exit 1;
+    fi
+  fi
 ])
 
 
