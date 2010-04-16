@@ -74,6 +74,8 @@ int iso_image_new(const char *name, IsoImage **image)
         img->volset_id = strdup(name);
         img->volume_id = strdup(name);
     }
+    img->system_area_data = NULL;
+    img->system_area_options = 0;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
     img->inode_counter = 0;
@@ -329,6 +331,16 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image)
 int iso_image_get_msg_id(IsoImage *image)
 {
     return image->id;
+}
+
+int iso_image_get_system_area(IsoImage *img, char system_area_data[32768],
+                              int *options, int flag)
+{
+    *options = img->system_area_options;
+    if (img->system_area_data == NULL)
+        return 0;
+    memcpy(system_area_data, img->system_area_data, 32768);
+    return 1;
 }
 
 static

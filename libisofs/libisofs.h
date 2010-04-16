@@ -1709,6 +1709,10 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              only if not bit0 is set.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
+ *               (This re-activates eventually loaded image System Area data.
+ *                To erase those, submit 32 kB of zeros without flag bit0.)
+ *        bit1 = keep data unaltered
+ *        bit2 = keep options unaltered
  * @return
  *        ISO_SUCCESS or error
  * @since 0.6.30
@@ -1992,6 +1996,20 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  */
 int iso_read_opts_auto_input_charset(IsoReadOpts *opts, int mode);
 
+/**
+ * Enable or disable loading of the first 32768 bytes of the session.
+ *
+ * @param mode
+ *       Bitfield for control purposes:
+ *       bit0= Load System Area data and attach them to the image so that they
+ *             get written by the next session, if not overridden by
+ *             iso_write_opts_set_system_area().
+ *       Submit any other bits with value 0.
+ *
+ * @since 0.6.30
+ *
+ */
+int iso_read_opts_load_system_area(IsoReadOpts *opts, int mode);
 
 /**
  * Import a previous session or image, for growing or modify.
@@ -2427,6 +2445,28 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
  * @since 0.6.12
  */
 int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag);
+
+/**
+ * Obtain a copy of the eventually loaded first 32768 bytes of the imported
+ * session, the System Area.
+ * It will be written to the start of the next session unless it gets
+ * overwritten by iso_write_opts_set_system_area().
+ *
+ * @param img
+ *        The image to be inquired.
+ * @param data
+ *        A byte array of at least 32768 bytesi to take the loaded bytes.
+ * @param options
+ *        The option bits which will be applied if not overridden by
+ *        iso_write_opts_set_system_area(). See there.
+ * @param flag
+ *        Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *        1 on success, 0 if no System Area was loaded, < 0 error.
+ * @since 0.6.30
+ */
+int iso_image_get_system_area(IsoImage *img, char data[32768],
+                              int *options, int flag);
 
 /**
  * Increments the reference counting of the given node.

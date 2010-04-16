@@ -53,6 +53,11 @@ struct Iso_Image
     /* el-torito boot catalog */
     struct el_torito_boot_catalog *bootcat;
 
+    /* Eventually loaded system area data, or NULL */
+    char *system_area_data;
+    /* Prescribed/detected options, see iso_write_opts_set_system_area() */
+    int system_area_options;
+
     /* image identifier, for message origin identifier */
     int id;
 

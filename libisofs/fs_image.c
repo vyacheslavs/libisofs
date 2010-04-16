@@ -102,6 +102,12 @@ struct iso_read_opts
      */
     int auto_input_charset;
 
+
+    /** 
+     * Enable or disable loading of the first 32768 bytes of the session and
+     * submission by iso_write_opts_set_system_area(data, 0).
+     */
+    int load_system_area;
 };
 
 /**
@@ -2951,7 +2957,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
                      IsoReadImageFeatures **features)
 {
-    int ret, hflag;
+    int ret, hflag, i;
     IsoImageFilesystem *fs;
     IsoFilesystem *fsback;
     IsoNodeBuilder *blback;
@@ -2959,9 +2965,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     IsoFileSource *newroot;
     _ImageFsData *data;
     struct el_torito_boot_catalog *oldbootcat;
+    uint8_t *rpt;
 
 #ifdef Libisofs_with_checksumS
-    int i;
     uint32_t old_checksum_start_lba;
     uint32_t old_checksum_end_lba;
     uint32_t old_checksum_idx_count;
@@ -2969,7 +2975,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     char checksum_type[81];
     uint32_t checksum_size;
     size_t size;
-    uint8_t *rpt;
     void *ctx = NULL;
     char md5[16];
 #endif
@@ -2978,11 +2983,29 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         return ISO_NULL_POINTER;
     }
 
+
     ret = iso_image_filesystem_new(src, opts, image->id, &fs);
     if (ret < 0) {
         return ret;
     }
     data = fs->data;
+
+
+    if (opts->load_system_area) {
+        if (image->system_area_data != NULL)
+            free(image->system_area_data);
+        image->system_area_data = calloc(32768, 1);
+        if (image->system_area_data == NULL)
+            return ISO_OUT_OF_MEM;
+        image->system_area_options = 0;
+        /* Read 32768 bytes */
+        for (i = 0; i < 16; i++) {
+            rpt = (uint8_t *) (image->system_area_data + i * 2048);
+            ret = src->read_block(src, opts->block + i, rpt);
+            if (ret < 0)
+                return ret;
+        }
+    }
 
     /* get root from filesystem */
     ret = fs->get_root(fs, &newroot);
@@ -3332,8 +3355,9 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
 
     ropts->file_mode = 0444;
     ropts->dir_mode = 0555;
-    ropts->noaaip= 1;
-    ropts->nomd5= 1;
+    ropts->noaaip = 1;
+    ropts->nomd5 = 1;
+    ropts->load_system_area = 0;
 
     *opts = ropts;
     return ISO_SUCCESS;
@@ -3466,6 +3490,15 @@ int iso_read_opts_auto_input_charset(IsoReadOpts *opts, int mode)
         return ISO_NULL_POINTER;
     }
     opts->auto_input_charset = mode;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_load_system_area(IsoReadOpts *opts, int mode)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->load_system_area = mode & 1;
     return ISO_SUCCESS;
 }
 

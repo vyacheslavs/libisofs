@@ -1103,7 +1103,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters, image_checksums_mad = 0, tag_pos;
     Ecma119Image *target;
-    int el_torito_writer_index = -1, file_src_writer_index= -1;
+    int el_torito_writer_index = -1, file_src_writer_index = -1;
+    int system_area_options = 0;
+    char *system_area = NULL;
 
     /* 1. Allocate target and copy opts there */
     target = calloc(1, sizeof(Ecma119Image));
@@ -1165,16 +1167,23 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
     target->catalog = src->bootcat;
 
+    if (opts->system_area_data != NULL) {
+        system_area = opts->system_area_data;
+        system_area_options = opts->system_area_options;
+    } else if (src->system_area_data != NULL) {
+        system_area = src->system_area_data;
+        system_area_options = src->system_area_options;
+    }
     target->system_area_data = NULL;
-    if(opts->system_area_data != NULL) {
+    if (system_area != NULL) {
         target->system_area_data = calloc(32768, 1);
         if (target->system_area_data == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto target_cleanup;
         }
-        memcpy(target->system_area_data, opts->system_area_data, 32768);
+        memcpy(target->system_area_data, system_area, 32768);
     }
-    target->system_area_options = opts->system_area_options;
+    target->system_area_options = system_area_options;
 
     target->vol_creation_time = opts->vol_creation_time;
     target->vol_modification_time = opts->vol_modification_time;
@@ -2163,7 +2172,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         if (opts->system_area_data != NULL)
             free(opts->system_area_data);
         opts->system_area_data = NULL;
-    } else {
+    } else if (!(flag & 2)) {
         if (opts->system_area_data == NULL) {
             opts->system_area_data = calloc(32768, 1);
             if (opts->system_area_data == NULL)
@@ -2171,7 +2180,8 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         }
         memcpy(opts->system_area_data, data, 32768);
     }
-    opts->system_area_options = options & 3;
+    if (!(flag & 4))
+        opts->system_area_options = options & 3;
     return ISO_SUCCESS;
 }
 
