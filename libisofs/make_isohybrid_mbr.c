@@ -240,21 +240,19 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
 /*                          The New MBR Producer                          */
 /* ====================================================================== */
 
-/* The following prescription by H.Peter Anvin is actually a slightly
-   generalized version of the algorithm in deprecated function
-   make_isohybrid_mbr(). To be applied to externally provided System Area
-   data.
+/* The new MBR producer for isohybrid is a slightly generalized version of
+   the deprecated function make_isohybrid_mbr(). It complies to the urge
+   of H.Peter Anvin not to hardcode MBR templates but rather to read a
+   file from the Syslinux tree, and to patch it as was done with the old
+   MBR producer.
 
-   So provisorily i consider the functions lba512chs_to_buf() and
-   make_isolinux_mbr() as our further contribution the existing code base
-   under the existing license. This would yield:
-     copyright 2002-2010 H. Peter Anvin
-           and 2008-2010 Thomas Schmitt
-     under "either the LGPL or the MIT/ISC/2-clause BSD licenses"
+   The old algorithm was clarified publicly by the following mail.
+   Changes towards the old algorithm:
+   - 512-byte LBA of boot image is extended to 64 bit (we stay with 32)
+   - check for a magic number is now gone
 
-   Before release i will ask hpa for his explicit ok.
-*/
-/*
+   The new implementation tries to use similar terms as the mail in order
+   to facilitate its future discussion with Syslinux developers.
 
 From hpa@zytor.com Thu Apr  1 08:32:52 2010
 Date: Wed, 31 Mar 2010 14:53:51 -0700
@@ -265,6 +263,7 @@ Subject: Re: [syslinux] port syslinux isohybrid perl script to C
 
 [...]
 
+[me:]
 > Currently i lack of blob and prescriptions.
 
 The blobs are available in the Syslinux build tree under the names:
