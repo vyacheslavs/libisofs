@@ -32,8 +32,8 @@ struct el_torito_boot_catalog {
     struct el_torito_boot_image *image; /* default boot image */
 
     /* ts B00419 */
-    /* Byte 1 of Validation Entry:  0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
-    uint8_t platform_id;
+    /* Weight value for image sorting */
+    int sort_weight;
 
     /* >>> ts B00419 : List of further boot images */
 
@@ -54,6 +54,11 @@ struct el_torito_boot_image {
     unsigned char partition_type; /**< type of partition for HD-emul images */
     short load_seg; /**< Load segment for the initial boot image. */
     short load_size; /**< Number of sectors to load. */
+
+    /* ts B00419 */
+    /* Byte 1 of Validation Entry or Section Header Entry:
+       0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
+    uint8_t platform_id;
 };
 
 /** El-Torito, 2.1 */

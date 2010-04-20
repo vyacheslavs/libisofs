@@ -1284,6 +1284,7 @@ int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
     new->node.type = LIBISO_FILE;
     new->node.name = name;
     new->node.mode = S_IFREG;
+    new->sort_weight = 0;
     new->stream = stream;
 
     *file = new;

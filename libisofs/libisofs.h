@@ -2378,25 +2378,42 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
 void iso_image_remove_boot_image(IsoImage *image);
 
 /**
- * Sets the platform ID of the boot catalog that is attached to an IsoImage.
+ * Sets the sort weight of the boot catalog that is attached to an IsoImage.
  * 
- * A boot catalog gets attached by iso_image_set_boot_image() and removed
- * by iso_image_remove_boot_image(). It is described in El Torito specs.
- * Platform ID is byte 1 of the Validation Entry, i.e. byte 1 of the boot
- * catalog record.
+ * For the meaning of sort weights see iso_node_set_sort_weight().
+ * That function cannot be applied to the emerging boot catalog because
+ * it is not represented by an IsoNode.
  *
  * @param image
+ *      The image to manipulate.
+ * @param sort_weight
+ *      The larger this value, the lower will be the block address of the
+ *      boot catalog record.
+ * @return
+ *      0= no boot catalog attached , 1= ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight);
+
+/**
+ * Sets the platform ID of the boot image.
+ * 
+ * The Platform ID gets written into the boot catalog at byte 1 of the
+ * Validation Entry, or at byte 1 of a Section Header Entry.
+ *
+ * @param bootimg
  *      The image to manipulate.
  * @param id
  *      A Platform ID as of
  *      El Torito 1.0  : 0x00= 80x86,  0x01= PowerPC,  0x02= Mac
  *      Others         : 0xef= EFI
  * @return
- *      0= no boot catalog attached , 1= ok , <0 = error
+ *      1 ok , <=0 error
  *
  * @since 0.6.32
  */
-int iso_image_set_boot_platform_id(IsoImage *image, uint8_t id);
+int el_torito_set_boot_platform_id(ElToritoBootImage *bootimg, uint8_t id);
 
 /**
  * Sets the load segment for the initial boot image. This is only for
@@ -3173,8 +3190,8 @@ const char *iso_symlink_get_dest(const IsoSymlink *link);
 int iso_symlink_set_dest(IsoSymlink *link, const char *dest);
 
 /**
- * Sets the order in which a node will be written on image. High weihted files
- * will be written first, so in a disc them will be written near the center.
+ * Sets the order in which a node will be written on image. The data content
+ * of files with high weight will be written to low block addresses.
  *
  * @param node
  *      The node which weight will be changed. If it's a dir, this function
@@ -3183,6 +3200,7 @@ int iso_symlink_set_dest(IsoSymlink *link, const char *dest);
  * @param w
  *      The weight as a integer number, the greater this value is, the
  *      closer from the begining of image the file will be written.
+ *      Default value at IsoNode creation is 0.
  *
  * @since 0.6.2
  */

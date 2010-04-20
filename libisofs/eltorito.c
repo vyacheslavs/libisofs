@@ -56,6 +56,13 @@ struct hard_disc_mbr {
     uint8_t sign2;
 };
 
+/* API */
+int el_torito_set_boot_platform_id(ElToritoBootImage *bootimg, uint8_t id)
+{
+    bootimg->platform_id = id;
+    return 1;
+}
+
 /**
  * Sets the load segment for the initial boot image. This is only for
  * no emulation boot images, and is a NOP for other image types.
@@ -339,6 +346,7 @@ int create_image(IsoImage *image, const char *image_path,
     boot->partition_type = partition_type;
     boot->load_seg = 0;
     boot->load_size = load_sectors;
+    boot->platform_id = 0; /* 80x86 */
 
     if (bootimg) {
         *bootimg = boot;
@@ -418,7 +426,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     }
     catalog->image = boot_image;
     catalog->node = cat_node;
-    catalog->platform_id = 0;                            /* Default is 80x86 */
+    catalog->sort_weight = 1000;                            /* slightly high */
     iso_node_ref((IsoNode*)cat_node);
     image->bootcat = catalog;
 
@@ -521,11 +529,11 @@ void iso_image_remove_boot_image(IsoImage *image)
 }
 
 /* API */
-int iso_image_set_boot_platform_id(IsoImage *image, uint8_t id)
+int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight)
 {
     if (image->bootcat == NULL)
         return 0;
-    image->bootcat->platform_id = id;
+    image->bootcat->sort_weight = sort_weight;
     return 1;
 }
 
@@ -735,7 +743,7 @@ int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
     /* fill data */
     data->target = target;
     data->offset = -1;
-    data->platform_id = target->catalog->platform_id;
+    data->platform_id = target->catalog->image->platform_id;
 
     str->refcount = 1;
     str->data = data;
@@ -777,7 +785,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
     file->checksum_index = 0;
     file->nsections = 1;
     file->sections = calloc(1, sizeof(struct iso_file_section));
-    file->sort_weight = 1000; /* slightly high */
+    file->sort_weight = target->catalog->sort_weight;
     file->stream = stream;
 
     ret = iso_file_src_add(target, file, src);
