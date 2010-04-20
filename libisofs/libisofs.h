@@ -2378,6 +2378,27 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
 void iso_image_remove_boot_image(IsoImage *image);
 
 /**
+ * Sets the platform ID of the boot catalog that is attached to an IsoImage.
+ * 
+ * A boot catalog gets attached by iso_image_set_boot_image() and removed
+ * by iso_image_remove_boot_image(). It is described in El Torito specs.
+ * Platform ID is byte 1 of the Validation Entry, i.e. byte 1 of the boot
+ * catalog record.
+ *
+ * @param image
+ *      The image to manipulate.
+ * @param id
+ *      A Platform ID as of
+ *      El Torito 1.0  : 0x00= 80x86,  0x01= PowerPC,  0x02= Mac
+ *      Others         : 0xef= EFI
+ * @return
+ *      0= no boot catalog attached , 1= ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int iso_image_set_boot_platform_id(IsoImage *image, uint8_t id);
+
+/**
  * Sets the load segment for the initial boot image. This is only for
  * no emulation boot images, and is a NOP for other image types.
  *
@@ -5541,11 +5562,11 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Unsupported ECMA-119 feature (FAILURE,HIGH, -324) */
 #define ISO_UNSUPPORTED_ECMA119         0xE830FEBC
 
-/** Wrong or damaged El-Torito catalog (SORRY,HIGH, -325) */
-#define ISO_WRONG_EL_TORITO             0xE030FEBB
+/** Wrong or damaged El-Torito catalog (WARN,HIGH, -325) */
+#define ISO_WRONG_EL_TORITO             0xD030FEBB
 
-/** Unsupported El-Torito feature (SORRY,HIGH, -326) */
-#define ISO_UNSUPPORTED_EL_TORITO       0xE030FEBA
+/** Unsupported El-Torito feature (WARN,HIGH, -326) */
+#define ISO_UNSUPPORTED_EL_TORITO       0xD030FEBA
 
 /** Can't patch an isolinux boot image (SORRY,HIGH, -327) */
 #define ISO_ISOLINUX_CANT_PATCH         0xE030FEB9

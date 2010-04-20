@@ -30,6 +30,13 @@ struct Iso_Boot
 struct el_torito_boot_catalog {
     IsoBoot *node; /* node of the catalog */
     struct el_torito_boot_image *image; /* default boot image */
+
+    /* ts B00419 */
+    /* Byte 1 of Validation Entry:  0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
+    uint8_t platform_id;
+
+    /* >>> ts B00419 : List of further boot images */
+
 };
 
 struct el_torito_boot_image {

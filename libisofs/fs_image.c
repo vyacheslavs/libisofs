@@ -2206,17 +2206,18 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     /* check if it is a valid catalog (TODO: check also the checksum)*/
     if ( (ve->header_id[0] != 1) || (ve->key_byte1[0] != 0x55)
          || (ve->key_byte2[0] != 0xAA) ) {
-
-        return iso_msg_submit(data->msgid, ISO_WRONG_EL_TORITO, 0,
+        iso_msg_submit(data->msgid, ISO_WRONG_EL_TORITO, 0,
                       "Wrong or damaged El-Torito Catalog. El-Torito info "
                       "will be ignored.");
+        return ISO_WRONG_EL_TORITO;
     }
 
     /* check for a valid platform */
-    if (ve->platform_id[0] != 0) {
-        return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 0,
-                     "Unsupported El-Torito platform. Only 80x86 is "
+    if (ve->platform_id[0] != 0 && ve->platform_id[0] != 0xef) {
+        iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 0,
+                     "Unsupported El-Torito platform. Only 80x86 and EFI are "
                      "supported. El-Torito info will be ignored.");
+        return ISO_UNSUPPORTED_EL_TORITO;
     }
 
     /* ok, once we are here we assume it is a valid catalog */
@@ -2425,21 +2426,18 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     || vol->vol_desc_version[0] != 1
                     || strncmp((char*)vol->boot_sys_id,
                                "EL TORITO SPECIFICATION", 23)) {
-
-                    ret = iso_msg_submit(data->msgid,
+                    iso_msg_submit(data->msgid,
                           ISO_UNSUPPORTED_EL_TORITO, 0,
                           "Unsupported Boot Vol. Desc. Only El-Torito "
                           "Specification, Version 1.0 Volume "
                           "Descriptors are supported. Ignoring boot info");
-                    if (ret < 0) {
+                } else {
+                    data->catblock = iso_read_lsb(vol->boot_catalog, 4);
+                    ret = read_el_torito_boot_catalog(data, data->catblock);
+                    if (ret < 0 && ret != ISO_UNSUPPORTED_EL_TORITO &&
+                        ret != ISO_WRONG_EL_TORITO) {
                         goto fs_cleanup;
                     }
-                    break;
-                }
-                data->catblock = iso_read_lsb(vol->boot_catalog, 4);
-                ret = read_el_torito_boot_catalog(data, data->catblock);
-                if (ret < 0) {
-                    goto fs_cleanup;
                 }
             }
             break;
@@ -2489,11 +2487,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
              */
             break;
         default:
-            ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD, 0,
-                         "Ignoring Volume descriptor %x.", buffer[0]);
-            if (ret < 0) {
-                goto fs_cleanup;
-            }
+            iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD, 0,
+                           "Ignoring Volume descriptor %x.", buffer[0]);
             break;
         }
         block++;

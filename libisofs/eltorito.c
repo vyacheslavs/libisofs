@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2010 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -19,7 +20,7 @@
 #include <string.h>
 
 /**
- * This table should be written with accuracy values at offset
+ * This table should be written with the actual values at offset
  * 8 of boot image, when used ISOLINUX boot loader
  */
 struct boot_info_table {
@@ -417,6 +418,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     }
     catalog->image = boot_image;
     catalog->node = cat_node;
+    catalog->platform_id = 0;                            /* Default is 80x86 */
     iso_node_ref((IsoNode*)cat_node);
     image->bootcat = catalog;
 
@@ -518,6 +520,15 @@ void iso_image_remove_boot_image(IsoImage *image)
     image->bootcat = NULL;
 }
 
+/* API */
+int iso_image_set_boot_platform_id(IsoImage *image, uint8_t id)
+{
+    if (image->bootcat == NULL)
+        return 0;
+    image->bootcat->platform_id = id;
+    return 1;
+}
+
 void el_torito_boot_catalog_free(struct el_torito_boot_catalog *cat)
 {
     struct el_torito_boot_image *image;
@@ -540,11 +551,16 @@ struct catalog_stream
 {
     Ecma119Image *target;
     uint8_t buffer[BLOCK_SIZE];
-    int offset; /* -1 if stream is not openned */
+    int offset; /* -1 if stream is not opened */
+
+    /* ts B00419 */ 
+    /* Byte 1 of Validation Entry:  0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
+    uint8_t platform_id;
+
 };
 
 static void
-write_validation_entry(uint8_t *buf)
+write_validation_entry(uint8_t *buf, uint8_t platform_id)
 {
     size_t i;
     int checksum;
@@ -552,7 +568,8 @@ write_validation_entry(uint8_t *buf)
     struct el_torito_validation_entry *ve =
         (struct el_torito_validation_entry*)buf;
     ve->header_id[0] = 1;
-    ve->platform_id[0] = 0; /* 0: 80x86, 1: PowerPC, 2: Mac */
+                                  /* 0: 80x86, 1: PowerPC, 2: Mac, 0xef: EFI */
+    ve->platform_id[0] = platform_id;
     ve->key_byte1[0] = 0x55;
     ve->key_byte2[0] = 0xAA;
 
@@ -601,7 +618,7 @@ int catalog_open(IsoStream *stream)
     memset(data->buffer, 0, BLOCK_SIZE);
 
     /* fill the buffer with the catalog contents */
-    write_validation_entry(data->buffer);
+    write_validation_entry(data->buffer, data->platform_id);
 
     /* write default entry */
     write_section_entry(data->buffer + 32, data->target);
@@ -718,6 +735,7 @@ int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
     /* fill data */
     data->target = target;
     data->offset = -1;
+    data->platform_id = target->catalog->platform_id;
 
     str->refcount = 1;
     str->data = data;
