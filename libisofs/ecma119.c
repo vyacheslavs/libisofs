@@ -1167,15 +1167,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* el-torito? */
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
     target->catalog = src->bootcat;
-    target->num_bootsrc = target->catalog->num_bootimages;
-    target->bootsrc = calloc(target->num_bootsrc + 1,
-                                sizeof(IsoFileSrc *));
-    if (target->bootsrc == NULL) {
-        ret = ISO_OUT_OF_MEM;
-        goto target_cleanup;
+    if (target->catalog != NULL) {
+        target->num_bootsrc = target->catalog->num_bootimages;
+        target->bootsrc = calloc(target->num_bootsrc + 1,
+                                    sizeof(IsoFileSrc *));
+        if (target->bootsrc == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto target_cleanup;
+        }
+        for (i= 0; i < target->num_bootsrc; i++)
+            target->bootsrc[i] = NULL;
+    } else {
+        target->num_bootsrc = 0;
+        target->bootsrc = NULL;
     }
-    for (i= 0; i < target->num_bootsrc; i++)
-        target->bootsrc[i] = NULL;
 
     if (opts->system_area_data != NULL) {
         system_area = opts->system_area_data;
