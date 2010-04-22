@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /**
  * This table should be written with the actual values at offset
@@ -63,6 +64,12 @@ int el_torito_set_boot_platform_id(ElToritoBootImage *bootimg, uint8_t id)
     return 1;
 }
 
+/* API */
+int el_torito_get_boot_platform_id(ElToritoBootImage *bootimg)
+{
+    return bootimg->platform_id;
+}
+
 /**
  * Sets the load segment for the initial boot image. This is only for
  * no emulation boot images, and is a NOP for other image types.
@@ -74,6 +81,14 @@ void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment)
     bootimg->load_seg = segment;
 }
 
+/* API */
+int el_torito_get_load_seg(ElToritoBootImage *bootimg)
+{
+   if (bootimg->load_seg < 0)
+       return 0xffff - bootimg->load_seg;
+   return bootimg->load_seg;
+}
+ 
 /**
  * Sets the number of sectors (512b) to be load at load segment during
  * the initial boot procedure. This is only for no emulation boot images,
@@ -86,12 +101,26 @@ void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors)
     bootimg->load_size = sectors;
 }
 
+/* API */
+int el_torito_get_load_size(ElToritoBootImage *bootimg)
+{
+   if (bootimg->load_size < 0)
+       return 0xffff - bootimg->load_size;
+   return bootimg->load_size;
+}
+
 /**
  * Marks the specified boot image as not bootable
  */
 void el_torito_set_no_bootable(ElToritoBootImage *bootimg)
 {
     bootimg->bootable = 0;
+}
+
+/* API */
+int el_torito_get_bootable(ElToritoBootImage *bootimg)
+{   
+    return !!bootimg->bootable;
 }
 
 /**
@@ -360,7 +389,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
                              const char *catalog_path,
                              ElToritoBootImage **boot)
 {
-    int ret;
+    int ret, i;
     struct el_torito_boot_catalog *catalog;
     ElToritoBootImage *boot_image= NULL;
     IsoBoot *cat_node= NULL;
@@ -424,7 +453,10 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
         ret = ISO_OUT_OF_MEM;
         goto boot_image_cleanup;
     }
-    catalog->image = boot_image;
+    catalog->num_bootimages = 1;
+    catalog->bootimages[0] = boot_image;
+    for (i = 1; i < Libisofs_max_boot_imageS; i++)
+        catalog->bootimages[i] = NULL;
     catalog->node = cat_node;
     catalog->sort_weight = 1000;                            /* slightly high */
     iso_node_ref((IsoNode*)cat_node);
@@ -449,7 +481,7 @@ boot_image_cleanup:;
 }
 
 /**
- * Get El-Torito boot image of an ISO image, if any.
+ * Get the boot catalog and the El-Torito default boot image of an ISO image.
  *
  * This can be useful, for example, to check if a volume read from a previous
  * session or an existing image is bootable. It can also be useful to get
@@ -493,15 +525,49 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
 
     /* ok, image is bootable */
     if (boot) {
-        *boot = image->bootcat->image;
+        *boot = image->bootcat->bootimages[0];
     }
     if (imgnode) {
-        *imgnode = image->bootcat->image->image;
+        *imgnode = image->bootcat->bootimages[0]->image;
     }
     if (catnode) {
         *catnode = image->bootcat->node;
     }
     return ISO_SUCCESS;
+}
+
+int iso_image_get_all_boot_imgs(IsoImage *image, int *num_boots,
+               ElToritoBootImage ***boots, IsoFile ***bootnodes, int flag)
+{
+    int i;
+    struct el_torito_boot_catalog *cat;
+
+    if (image == NULL)
+        return ISO_NULL_POINTER;
+    if (image->bootcat == NULL)
+        return 0;
+    cat = image->bootcat;
+    *num_boots = cat->num_bootimages;
+    *boots = NULL;
+    *bootnodes = NULL;
+    if (*num_boots <= 0)
+        return 0;
+    *boots = calloc(*num_boots, sizeof(ElToritoBootImage *));
+    *bootnodes = calloc(*num_boots, sizeof(IsoFile *));
+    if(*boots == NULL || *bootnodes == NULL) {
+        if (*boots != NULL)
+            free(*boots);
+        if (*bootnodes != NULL)
+            free(*bootnodes);
+        *boots = NULL;
+        *bootnodes = NULL;
+        return ISO_OUT_OF_MEM;
+    }
+    for (i = 0; i < *num_boots; i++) {
+        (*boots)[i] = cat->bootimages[i];
+        (*bootnodes)[i] = image->bootcat->bootimages[i]->image;
+    }
+    return 1;
 }
 
 /**
@@ -528,6 +594,28 @@ void iso_image_remove_boot_image(IsoImage *image)
     image->bootcat = NULL;
 }
 
+/* ts B00420 */
+/* future API */
+int iso_image_add_boot_image(IsoImage *image, const char *image_path,
+                             enum eltorito_boot_media_type type, int flag,
+                             ElToritoBootImage **boot)
+{
+    int ret;
+    struct el_torito_boot_catalog *catalog = image->bootcat;
+    ElToritoBootImage *boot_img;
+
+    if (catalog->num_bootimages >= Libisofs_max_boot_imageS)
+        return ISO_BOOT_IMAGE_OVERFLOW;
+    ret = create_image(image, image_path, type, &boot_img);
+    if (ret < 0) 
+        return ret;
+    catalog->bootimages[catalog->num_bootimages] = boot_img;
+    catalog->num_bootimages++;
+    if (boot != NULL)
+        *boot = boot_img;
+    return 1;
+}
+
 /* API */
 int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight)
 {
@@ -540,14 +628,19 @@ int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight)
 void el_torito_boot_catalog_free(struct el_torito_boot_catalog *cat)
 {
     struct el_torito_boot_image *image;
+    int i;
 
     if (cat == NULL) {
         return;
     }
 
-    image = cat->image;
-    iso_node_unref((IsoNode*)image->image);
-    free(image);
+    for (i = 0; i < Libisofs_max_boot_imageS; i++) {
+        image = cat->bootimages[i];
+        if (image == NULL)
+    continue;
+        iso_node_unref((IsoNode*)image->image);
+        free(image);
+    }
     iso_node_unref((IsoNode*)cat->node);
     free(cat);
 }
@@ -560,11 +653,6 @@ struct catalog_stream
     Ecma119Image *target;
     uint8_t buffer[BLOCK_SIZE];
     int offset; /* -1 if stream is not opened */
-
-    /* ts B00419 */ 
-    /* Byte 1 of Validation Entry:  0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
-    uint8_t platform_id;
-
 };
 
 static void
@@ -576,7 +664,6 @@ write_validation_entry(uint8_t *buf, uint8_t platform_id)
     struct el_torito_validation_entry *ve =
         (struct el_torito_validation_entry*)buf;
     ve->header_id[0] = 1;
-                                  /* 0: 80x86, 1: PowerPC, 2: Mac, 0xef: EFI */
     ve->platform_id[0] = platform_id;
     ve->key_byte1[0] = 0x55;
     ve->key_byte2[0] = 0xAA;
@@ -589,31 +676,58 @@ write_validation_entry(uint8_t *buf, uint8_t platform_id)
     iso_lsb(ve->checksum, checksum, 2);
 }
 
+static void
+write_section_header(uint8_t *buf, Ecma119Image *t, int idx) {
+    int pi;
+    char *id_string;
+
+    struct el_torito_section_header *e =
+        (struct el_torito_section_header *) buf;
+
+    /* 0x90 = more section headers follow , 0x91 = final section */
+    e->header_indicator[0] = 0x90 + (idx == t->catalog->num_bootimages - 1);
+    pi= e->platform_id[0] = t->catalog->bootimages[idx]->platform_id;
+    e->num_entries[0] = 1;
+    e->num_entries[1] = 0;
+    id_string = (char *) e->id_string;
+    memset(id_string, 0, sizeof(e->id_string));
+
+/*  >>> ???
+    El-Torito 1.0 , chapter 2.3 :
+    "If the BIOS understands the ID, string it may choose to boot
+     the system using one of these entries ..."
+*/
+
+}
+
 /**
  * Write one section entry.
- * Currently this is used only for default image (the only supported just now)
+ * Usable for the Default Entry
+ * and for Section Entries with Selection criteria type == 0
  */
 static void
-write_section_entry(uint8_t *buf, Ecma119Image *t)
+write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
 {
     struct el_torito_boot_image *img;
     struct el_torito_section_entry *se =
         (struct el_torito_section_entry*)buf;
 
-    img = t->catalog->image;
+    img = t->catalog->bootimages[idx];
 
     se->boot_indicator[0] = img->bootable ? 0x88 : 0x00;
     se->boot_media_type[0] = img->type;
     iso_lsb(se->load_seg, img->load_seg, 2);
     se->system_type[0] = img->partition_type;
     iso_lsb(se->sec_count, img->load_size, 2);
-    iso_lsb(se->block, t->bootimg->sections[0].block, 4);
+    iso_lsb(se->block, t->bootsrc[idx]->sections[0].block, 4);
 }
 
 static
 int catalog_open(IsoStream *stream)
 {
+    int i;
     struct catalog_stream *data;
+
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -626,11 +740,18 @@ int catalog_open(IsoStream *stream)
     memset(data->buffer, 0, BLOCK_SIZE);
 
     /* fill the buffer with the catalog contents */
-    write_validation_entry(data->buffer, data->platform_id);
+    write_validation_entry(data->buffer,
+                           data->target->catalog->bootimages[0]->platform_id);
 
-    /* write default entry */
-    write_section_entry(data->buffer + 32, data->target);
+    /* write default entry = first boot image */
+    write_section_entry(data->buffer + 32, data->target, 0);
 
+    /* ts B00420 */
+    /* (The maximum number of boot images must fit into BLOCK_SIZE) */
+    for (i = 1; i < data->target->catalog->num_bootimages; i++) {
+        write_section_header(data->buffer + i * 64, data->target, i);
+        write_section_entry(data->buffer + i * 64 + 32,  data->target, i);
+    }
     data->offset = 0;
     return ISO_SUCCESS;
 }
@@ -743,7 +864,6 @@ int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
     /* fill data */
     data->target = target;
     data->offset = -1;
-    data->platform_id = target->catalog->image->platform_id;
 
     str->refcount = 1;
     str->data = data;
@@ -807,7 +927,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
  *      1 on success, 0 error (but continue), < 0 error
  */
 static
-int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
+int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize, int idx)
 {
     struct boot_info_table *info;
     uint32_t checksum;
@@ -840,7 +960,7 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize)
     info = (struct boot_info_table*)(buf + 8);
     /*memset(info, 0, sizeof(struct boot_info_table));*/
     iso_lsb(info->bi_pvd, t->ms_block + 16, 4);
-    iso_lsb(info->bi_file, t->bootimg->sections[0].block, 4);
+    iso_lsb(info->bi_file, t->bootsrc[idx]->sections[0].block, 4);
     iso_lsb(info->bi_length, imgsize, 4);
     iso_lsb(info->bi_csum, checksum, 4);
     return ISO_SUCCESS;
@@ -854,7 +974,11 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
      * this is a good place to do so.
      */
     Ecma119Image *t;
-    int ret;
+    int ret, idx;
+    size_t size;
+    uint8_t *buf;
+    IsoStream *new = NULL;
+    IsoStream *original = NULL;
 
     if (writer == NULL) {
         return ISO_NULL_POINTER;
@@ -862,12 +986,12 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t = writer->target;
 
-    if (t->catalog->image->isolinux_options & 0x01) {
-        /* we need to patch the image */
-        size_t size;
-        uint8_t *buf;
-        IsoStream *new = NULL;
-        IsoStream *original = t->bootimg->stream;
+    /* ts B00420 : now in loop */
+    /* Patch the boot image info tables if indicated */
+    for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
+        if (!(t->catalog->bootimages[idx]->isolinux_options & 0x01))
+    continue;
+        original = t->bootsrc[idx]->stream;
         size = (size_t) iso_stream_get_size(original);
         buf = calloc(1, size);
         if (buf == NULL) {
@@ -884,7 +1008,7 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
         }
 
         /* ok, patch the read buffer */
-        ret = patch_boot_image(buf, t, size);
+        ret = patch_boot_image(buf, t, size, idx);
         if (ret < 0) {
             return ret;
         }
@@ -895,7 +1019,7 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
         if (ret < 0) {
             return ret;
         }
-        t->bootimg->stream = new;
+        t->bootsrc[idx]->stream = new;
         iso_stream_unref(original);
     }
     return ISO_SUCCESS;
@@ -946,7 +1070,7 @@ int eltorito_writer_free_data(IsoImageWriter *writer)
 
 int eltorito_writer_create(Ecma119Image *target)
 {
-    int ret;
+    int ret, idx;
     IsoImageWriter *writer;
     IsoFile *bootimg;
     IsoFileSrc *src;
@@ -977,16 +1101,20 @@ int eltorito_writer_create(Ecma119Image *target)
             return ret;
         }
     }
-    bootimg = target->catalog->image->image;
-    ret = iso_file_src_create(target, bootimg, &src);
-    if (ret < 0) {
-        return ret;
-    }
-    target->bootimg = src;
 
-    /* if we have selected to patch the image, it needs to be copied always */
-    if (target->catalog->image->isolinux_options & 0x01) {
-        src->prev_img = 0;
+    /* ts B00420 : now in a loop */
+    for (idx = 0; idx < target->catalog->num_bootimages; idx++) {
+        bootimg = target->catalog->bootimages[idx]->image;
+        ret = iso_file_src_create(target, bootimg, &src);
+        if (ret < 0) {
+            return ret;
+        }
+        target->bootsrc[idx] = src;
+
+        /* For patching an image, it needs to be copied always */
+        if (target->catalog->bootimages[idx]->isolinux_options & 0x01) {
+            src->prev_img = 0;
+        }
     }
 
     /* we need the bootable volume descriptor */

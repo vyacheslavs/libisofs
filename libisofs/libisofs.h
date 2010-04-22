@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009-2010 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2283,16 +2283,15 @@ void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
 const char *iso_image_get_biblio_file_id(const IsoImage *image);
 
 /**
- * Create a bootable image by adding a El-Torito boot image.
- *
- * This also add a catalog boot node to the image filesystem tree.
+ * Create a new set of El-Torito bootable images by adding a boot catalog
+ * and the default boot image.
+ * Further boot images may then be added by iso_image_add_boot_image().
  *
  * @param image
  *      The image to make bootable. If it was already bootable this function
  *      returns an error and the image remains unmodified.
  * @param image_path
- *      The absolute path on the image tree of a regular file to use as
- *      default boot image.
+ *      The absolute path of a IsoFile to be used as default boot image.
  * @param type
  *      The boot media type. This can be one of 3 types:
  *             - Floppy emulation: Boot image file must be exactly
@@ -2325,10 +2324,36 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
                              const char *catalog_path,
                              ElToritoBootImage **boot);
 
+/**
+ * Add a further boot image to the set of El-Torito bootable images.
+ * This set has already to be created by iso_image_set_boot_image().
+ * Up to 31 further boot images may be added.
+ *
+ * @param image
+ *      The image to which the boot image shall be added.
+ *      returns an error and the image remains unmodified.
+ * @param image_path
+ *      The absolute path of a IsoFile to be used as default boot image.
+ * @param type
+ *      The boot media type. See iso_image_set_boot_image
+ * @param flag
+ *      Bitfield for control purposes. Unused yet. Submit 0.
+ * @param boot
+ *      Location where a pointer to the added boot image will be stored.
+ *      See iso_image_set_boot_image
+ * @return
+ *      1 on success, < 0 on error
+ *
+ * @since 0.6.32
+ */
+int iso_image_add_boot_image(IsoImage *image, const char *image_path,
+                             enum eltorito_boot_media_type type, int flag,
+                             ElToritoBootImage **boot);
+
 /* TODO #00026 : add support for "hidden" bootable images. */
 
 /**
- * Get El-Torito boot image of an ISO image, if any.
+ * Get the El-Torito boot catalog and the default boot image of an ISO image.
  *
  * This can be useful, for example, to check if a volume read from a previous
  * session or an existing image is bootable. It can also be useful to get
@@ -2366,6 +2391,34 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
                              IsoFile **imgnode, IsoBoot **catnode);
 
 /**
+ * Get all El-Torito boot images of an ISO image.
+ *
+ * The first of these boot images is the same as returned by
+ * iso_image_get_boot_image(). The others are alternative boot images. 
+ *
+ * @param image
+ *      The image from which to get the boot images.
+ * @param num_boots
+ *      The number of available array elements in boots and bootnodes.
+ * @param boots
+ *      Returns NULL or an allocated array of pointers to boot images.
+ *      Apply system call free(boots) to dispose it.
+ * @param bootnodes
+ *      Returns NULL or an allocated array of pointers to the IsoFile nodes
+ *      which bear the content of the boot images in boots.
+ * @param flag
+ *      Bitfield for control purposes. Unused yet. Submit 0.
+ * @return
+ *      1 on success, 0 no El-Torito catalog and boot image attached,
+ *      < 0 error.
+ *
+ * @since 0.6.32
+ */
+int iso_image_get_all_boot_imgs(IsoImage *image, int *num_boots,
+                   ElToritoBootImage ***boots, IsoFile ***bootnodes, int flag);
+
+
+/**
  * Removes the El-Torito bootable image.
  *
  * The IsoBoot node that acts as placeholder for the catalog is also removed
@@ -2382,7 +2435,7 @@ void iso_image_remove_boot_image(IsoImage *image);
  * 
  * For the meaning of sort weights see iso_node_set_sort_weight().
  * That function cannot be applied to the emerging boot catalog because
- * it is not represented by an IsoNode.
+ * it is not represented by an IsoFile.
  *
  * @param image
  *      The image to manipulate.
@@ -2416,12 +2469,38 @@ int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight);
 int el_torito_set_boot_platform_id(ElToritoBootImage *bootimg, uint8_t id);
 
 /**
+ * Get the platform ID value. See el_torito_set_boot_platform_id().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @return
+ *      0 - 255 : The platform ID 
+ *      < 0     : error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_boot_platform_id(ElToritoBootImage *bootimg);
+
+/**
  * Sets the load segment for the initial boot image. This is only for
  * no emulation boot images, and is a NOP for other image types.
  *
  * @since 0.6.2
  */
 void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment);
+
+/**
+ * Get the load segment value. See el_torito_set_load_seg().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @return
+ *      0 - 65535 : The load segment value 
+ *      < 0       : error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_load_seg(ElToritoBootImage *bootimg);
 
 /**
  * Sets the number of sectors (512b) to be load at load segment during
@@ -2433,11 +2512,36 @@ void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment);
 void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors);
 
 /**
+ * Get the load size. See el_torito_set_load_size().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @return
+ *      0 - 65535 : The load size value
+ *      < 0       : error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_load_size(ElToritoBootImage *bootimg);
+
+/**
  * Marks the specified boot image as not bootable
  *
  * @since 0.6.2
  */
 void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
+
+/**
+ * Get the bootability flag. See el_torito_set_no_bootable().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @return
+ *      0 = not bootable, 1 = bootable , <0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_bootable(ElToritoBootImage *bootimg);
 
 /**
  * Specifies that this image needs to be patched. This involves the writing
@@ -2453,6 +2557,10 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
 /**
  * Specifies options for ISOLINUX or GRUB boot images. This should only be used
  * if the type of boot image is known.
+ *
+ * Regrettably there is no unambigous way to detect the presence of a boot
+ * info table in a boot image or the relation of a boot image to the System
+ * Area and its eventual MBR.
  *
  * @param options
  *        bitmask style flag. The following values are defined:
@@ -5478,6 +5586,9 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 
 /** Trying to use an invalid file as boot image (FAILURE,HIGH, -68) */
 #define ISO_BOOT_IMAGE_NOT_VALID        0xE830FFBB
+
+/** Too many boot images (FAILURE,HIGH, -69) */
+#define ISO_BOOT_IMAGE_OVERFLOW         0xE830FFBA
 
 /**
  * Error on file operation (FAILURE,HIGH, -128)

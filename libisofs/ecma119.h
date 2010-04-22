@@ -454,7 +454,10 @@ struct ecma119_image
      */
     struct el_torito_boot_catalog *catalog;
     IsoFileSrc *cat; /**< location of the boot catalog in the new image */
-    IsoFileSrc *bootimg; /**< location of the boot image in the new image */
+
+    /* ts B00420 */
+    int num_bootsrc;
+    IsoFileSrc **bootsrc; /* location of the boot images in the new image */
 
     /*
      * System Area related information

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2010 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -72,7 +72,8 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->input_charset);
     if (t->output_charset != NULL)
         free(t->output_charset);
-
+    if (t->bootsrc != NULL)
+        free(t->bootsrc);
     if (t->system_area_data != NULL)
         free(t->system_area_data);
 
@@ -1166,6 +1167,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* el-torito? */
     target->eltorito = (src->bootcat == NULL ? 0 : 1);
     target->catalog = src->bootcat;
+    target->num_bootsrc = target->catalog->num_bootimages;
+    target->bootsrc = calloc(target->num_bootsrc + 1,
+                                sizeof(IsoFileSrc *));
+    if (target->bootsrc == NULL) {
+        ret = ISO_OUT_OF_MEM;
+        goto target_cleanup;
+    }
+    for (i= 0; i < target->num_bootsrc; i++)
+        target->bootsrc[i] = NULL;
 
     if (opts->system_area_data != NULL) {
         system_area = opts->system_area_data;

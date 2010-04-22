@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2010 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -27,16 +28,20 @@ struct Iso_Boot
     IsoNode node;
 };
 
+/* Not more than 32 so that all entries fit into 2048 bytes */
+#define Libisofs_max_boot_imageS 32
+
 struct el_torito_boot_catalog {
     IsoBoot *node; /* node of the catalog */
-    struct el_torito_boot_image *image; /* default boot image */
+
+    /* ts B00419 */
+    int num_bootimages;
+    struct el_torito_boot_image *bootimages[Libisofs_max_boot_imageS];
+                                                  /* [0]= default boot image */
 
     /* ts B00419 */
     /* Weight value for image sorting */
     int sort_weight;
-
-    /* >>> ts B00419 : List of further boot images */
-
 };
 
 struct el_torito_boot_image {
@@ -88,8 +93,8 @@ struct el_torito_default_entry {
 struct el_torito_section_header {
     uint8_t header_indicator    BP(1, 1);
     uint8_t platform_id         BP(2, 2);
-    uint8_t number              BP(3, 4);
-    uint8_t character           BP(5, 32);
+    uint8_t num_entries         BP(3, 4);
+    uint8_t id_string           BP(5, 32);
 };
 
 /** El-Torito, 2.4 */

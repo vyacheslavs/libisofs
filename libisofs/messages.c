@@ -153,6 +153,8 @@ const char *iso_error_to_msg(int errcode)
         return "Try to set the boot image of an already bootable image";
     case ISO_BOOT_IMAGE_NOT_VALID:
         return "Trying to use an invalid file as boot image";
+    case ISO_BOOT_IMAGE_OVERFLOW:
+        return "Too many boot images added";
     case ISO_FILE_ERROR:
         return "Error on file operation";
     case ISO_FILE_ALREADY_OPENED:

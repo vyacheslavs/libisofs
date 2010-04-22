@@ -134,11 +134,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         memcpy(buf, t->system_area_data, 16 * BLOCK_SIZE);
 
     } else if (t->catalog != NULL &&
-               (t->catalog->image->isolinux_options & 0x0a) == 0x02) {
+               (t->catalog->bootimages[0]->isolinux_options & 0x0a) == 0x02) {
         /* Check for isolinux image with magic number of 3.72 and produce
            an MBR from our built-in template. (Deprecated since 31 Mar 2010)
         */
-        ret = make_isohybrid_mbr(t->bootimg->sections[0].block,
+        ret = make_isohybrid_mbr(t->bootsrc[0]->sections[0].block,
                                  &img_blocks, (char*)buf, 0);
         if (ret != 1) {
             /* error, it should never happen */
@@ -159,7 +159,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             */
             return ISO_ISOLINUX_CANT_PATCH;
         }
-        ret = make_isolinux_mbr(&img_blocks, t->bootimg->sections[0].block,
+        ret = make_isolinux_mbr(&img_blocks, t->bootsrc[0]->sections[0].block,
                                 (uint32_t) 0, 64, 32, 0, 1, 0x17, buf, 1);
         if (ret != 1)
             return ret;

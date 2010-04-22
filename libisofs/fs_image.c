@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2010 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -279,12 +279,19 @@ typedef struct
 
     /* el-torito information */
     unsigned int eltorito : 1; /* is el-torito available */
-    unsigned int bootable:1; /**< If the entry is bootable. */
-    unsigned char type; /**< The type of image */
-    unsigned char partition_type; /**< type of partition for HD-emul images */
-    short load_seg; /**< Load segment for the initial boot image. */
-    short load_size; /**< Number of sectors to load. */
-    uint32_t imgblock; /**< Block for El-Torito boot image */
+    /* ts B00419 */
+    int num_bootimgs;
+    unsigned char platform_ids[Libisofs_max_boot_imageS];
+    unsigned char boot_flags[Libisofs_max_boot_imageS]; /* bit0= bootable */
+    unsigned char media_types[Libisofs_max_boot_imageS];
+    unsigned char partition_types[Libisofs_max_boot_imageS];
+    short load_segs[Libisofs_max_boot_imageS];
+    short load_sizes[Libisofs_max_boot_imageS];
+    /** Block addresses of for El-Torito boot images.
+        Needed to recognize them when the get read from the directory tree.
+     */
+    uint32_t bootblocks[Libisofs_max_boot_imageS];
+
     uint32_t catblock; /**< Block for El-Torito catalog */
 
     /* Whether inode numbers from PX entries shall be discarded */
@@ -2191,9 +2198,10 @@ int read_pvm(_ImageFsData *data, uint32_t block)
 static
 int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
 {
-    int ret;
+    int ret, i, rx, last_done, idx;
     struct el_torito_validation_entry *ve;
-    struct el_torito_default_entry *entry;
+    struct el_torito_section_header *sh;
+    struct el_torito_section_entry *entry; /* also usable as default_entry */
     unsigned char buffer[BLOCK_SIZE];
 
     ret = data->src->read_block(data->src, block, buffer);
@@ -2223,17 +2231,47 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     /* ok, once we are here we assume it is a valid catalog */
 
     /* parse the default entry */
-    entry = (struct el_torito_default_entry *)(buffer + 32);
+    entry = (struct el_torito_section_entry *)(buffer + 32);
 
     data->eltorito = 1;
-    data->bootable = entry->boot_indicator[0] ? 1 : 0;
-    data->type = entry->boot_media_type[0];
-    data->partition_type = entry->system_type[0];
-    data->load_seg = iso_read_lsb(entry->load_seg, 2);
-    data->load_size = iso_read_lsb(entry->sec_count, 2);
-    data->imgblock = iso_read_lsb(entry->block, 4);
+    /* ts B00420 */
+    /* The Default Entry is declared mandatory */
+    data->num_bootimgs = 1;
+    data->platform_ids[0] = ve->platform_id[0];
+    data->boot_flags[0] = entry->boot_indicator[0] ? 1 : 0;
+    data->media_types[0] = entry->boot_media_type[0];
+    data->partition_types[0] = entry->system_type[0];
+    data->load_segs[0] = iso_read_lsb(entry->load_seg, 2);
+    data->load_sizes[0] = iso_read_lsb(entry->sec_count, 2);
+    data->bootblocks[0] = iso_read_lsb(entry->block, 4);
 
-    /* TODO #00018 : check if there are more entries in the boot catalog */
+    /* ts B00420 : Read eventual more entries from the boot catalog */
+    last_done = 0;
+    for (rx = 64; (buffer[rx] & 0xfe) == 0x90 && !last_done; rx += 32) {
+        last_done = buffer[rx] & 1;
+        /* Read Section Header */
+        sh = (struct el_torito_section_header *) (buffer + rx);
+        for (i = 0; i < sh->num_entries[0]; i++) {
+            rx += 32;
+            if (data->num_bootimgs >= Libisofs_max_boot_imageS) {
+                ret = iso_msg_submit(data->msgid, ISO_EL_TORITO_WARN, 0,
+                                "Too many boot images found. List truncated.");
+                goto after_bootblocks;
+            }
+            /* Read bootblock from section entry */
+            entry = (struct el_torito_section_entry *)(buffer + rx);
+            idx = data->num_bootimgs;
+            data->platform_ids[idx] = sh->platform_id[0];
+            data->boot_flags[idx] = entry->boot_indicator[0] ? 1 : 0;
+            data->media_types[idx] = entry->boot_media_type[0];
+            data->partition_types[idx] = entry->system_type[0];
+            data->load_segs[idx] = iso_read_lsb(entry->load_seg, 2);
+            data->load_sizes[idx] = iso_read_lsb(entry->sec_count, 2);
+            data->bootblocks[idx] = iso_read_lsb(entry->block, 4);
+            data->num_bootimgs++;
+        }
+    }
+after_bootblocks:;
 
     return ISO_SUCCESS;
 }
@@ -2318,7 +2356,7 @@ ex:
 int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                              int msgid, IsoImageFilesystem **fs)
 {
-    int ret;
+    int ret, i;
     uint32_t block;
     IsoImageFilesystem *ifs;
     _ImageFsData *data;
@@ -2357,8 +2395,12 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->md5_load = !opts->nomd5;
     data->aaip_version = -1;
     data->make_new_ino = opts->make_new_ino;
+    data->num_bootimgs = 0;
+    for (i = 0; i < Libisofs_max_boot_imageS; i++)
+        data->bootblocks[i] = 0;
     data->inode_counter = 0;
     data->px_ino_status = 0;
+
 
     data->local_charset = strdup(iso_get_local_charset(0));
     if (data->local_charset == NULL) {
@@ -2608,7 +2650,7 @@ static
 int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                               IsoFileSource *src, IsoNode **node)
 {
-    int ret;
+    int ret, idx;
     struct stat info;
     IsoNode *new;
     char *name;
@@ -2720,11 +2762,17 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 new = (IsoNode*) file;
                 new->refcount = 0;
 
-                if (fsdata->eltorito && data->sections[0].block == fsdata->imgblock) {
+                /* ts B00419 */
+                for (idx = 0; idx < fsdata->num_bootimgs; idx++)
+                    if (fsdata->eltorito && data->sections[0].block ==
+                        fsdata->bootblocks[idx])
+                break;
+                if (idx < fsdata->num_bootimgs) {
                     /* it is boot image node */
-                    if (image->bootcat->image->image != NULL) {
+
+                    if (image->bootcat->bootimages[idx]->image != NULL) {
                         ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
-                                "More than one image node has been found.");
+             "More than one ISO node has been found for the same boot image.");
                         if (ret < 0) {
                             free(name);
                             iso_stream_unref(stream);
@@ -2732,7 +2780,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                         }
                     } else {
                         /* and set the image node */
-                        image->bootcat->image->image = file;
+                        image->bootcat->bootimages[idx]->image = file;
                         new->refcount++;
                     }
                 }
@@ -2872,7 +2920,7 @@ int iso_image_builder_new(IsoNodeBuilder *old, IsoNodeBuilder **builder)
  * accessible from the ISO filesystem.
  */
 static
-int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image,
+int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image, int idx,
                             IsoFileSource **src)
 {
     int ret;
@@ -2930,7 +2978,8 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image,
     ifsdata->info = atts;
     ifsdata->name = NULL;
 
-    ifsdata->sections[0].block = fsdata->imgblock;
+    /* ts B00420 */
+    ifsdata->sections[0].block = fsdata->bootblocks[idx];
     ifsdata->sections[0].size = BLOCK_SIZE;
     ifsdata->nsections = 1;
 
@@ -2952,7 +3001,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
                      IsoReadImageFeatures **features)
 {
-    int ret, hflag, i;
+    int ret, hflag, i, idx;
     IsoImageFilesystem *fs;
     IsoFilesystem *fsback;
     IsoNodeBuilder *blback;
@@ -2961,6 +3010,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     _ImageFsData *data;
     struct el_torito_boot_catalog *oldbootcat;
     uint8_t *rpt;
+    IsoFileSource *boot_src;
+    IsoNode *node;
 
 #ifdef Libisofs_with_checksumS
     uint32_t old_checksum_start_lba;
@@ -3066,23 +3117,32 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         struct el_torito_boot_catalog *catalog;
         ElToritoBootImage *boot_image= NULL;
 
-        boot_image = calloc(1, sizeof(ElToritoBootImage));
-        if (boot_image == NULL) {
-            ret = ISO_OUT_OF_MEM;
-            goto import_revert;
-        }
-        boot_image->bootable = data->bootable;
-        boot_image->type = data->type;
-        boot_image->partition_type = data->partition_type;
-        boot_image->load_seg = data->load_seg;
-        boot_image->load_size = data->load_size;
-
         catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
         if (catalog == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto import_revert;
         }
-        catalog->image = boot_image;
+
+        /* ts B00421 */
+        catalog->num_bootimages = 0;
+        for (idx = 0; idx < data->num_bootimgs; idx++) {
+            boot_image = calloc(1, sizeof(ElToritoBootImage));
+            if (boot_image == NULL) {
+                ret = ISO_OUT_OF_MEM;
+                goto import_revert;
+            }
+            boot_image->bootable = data->boot_flags[idx] & 1;
+            boot_image->type = data->media_types[idx];
+            boot_image->partition_type = data->partition_types[idx];
+            boot_image->load_seg = data->load_segs[idx];
+            boot_image->load_size = data->load_sizes[idx];
+            boot_image->platform_id = data->platform_ids[idx];
+
+            catalog->bootimages[catalog->num_bootimages] = boot_image;
+            catalog->num_bootimages++;
+        }
+        for ( ; idx < Libisofs_max_boot_imageS; idx++)
+             catalog->bootimages[idx] = NULL;
         image->bootcat = catalog;
     }
 
@@ -3116,21 +3176,25 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     }
 
     if (data->eltorito) {
-        /* if catalog and image nodes were not filled, we create them here */
-        if (image->bootcat->image->image == NULL) {
-            IsoFileSource *src;
-            IsoNode *node;
-            ret = create_boot_img_filesrc(fs, image, &src);
+        /* if catalog and boot image nodes were not filled,
+           we create them here */
+
+        /* ts B00419 : now in a loop */
+        for (idx = 0; idx < image->bootcat->num_bootimages; idx++) {
+            if (image->bootcat->bootimages[idx]->image != NULL)
+        continue;
+            ret = create_boot_img_filesrc(fs, image, idx, &boot_src);
             if (ret < 0) {
                 iso_node_builder_unref(image->builder);
                 goto import_revert;
             }
-            ret = image_builder_create_node(image->builder, image, src, &node);
+            ret = image_builder_create_node(image->builder, image, boot_src,
+                                            &node);
             if (ret < 0) {
                 iso_node_builder_unref(image->builder);
                 goto import_revert;
             }
-            image->bootcat->image->image = (IsoFile*)node;
+            image->bootcat->bootimages[idx]->image = (IsoFile*)node;
 
             /* warn about hidden images */
             iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
