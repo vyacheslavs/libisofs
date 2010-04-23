@@ -789,10 +789,10 @@ int catalog_open(IsoStream *stream)
         for (j = i + 1; j < cat->num_bootimages; j++) {
              if (boots[i]->platform_id != boots[j]->platform_id)
         break;
-             for (k = 0; k < sizeof(boots[i]->selection_crit); k++)
-                 if (boots[i]->selection_crit[k] != boots[j]->selection_crit[k])
+             for (k = 0; k < sizeof(boots[i]->id_string); k++)
+                 if (boots[i]->id_string[k] != boots[j]->id_string[k])
              break;
-             if (k < sizeof(boots[i]->selection_crit))
+             if (k < sizeof(boots[i]->id_string))
         break;
         }
         num_entries = j - i;
