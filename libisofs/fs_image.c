@@ -282,6 +282,8 @@ typedef struct
     /* ts B00419 */
     int num_bootimgs;
     unsigned char platform_ids[Libisofs_max_boot_imageS];
+    unsigned char id_strings[Libisofs_max_boot_imageS][28];
+    unsigned char selection_crits[Libisofs_max_boot_imageS][20];
     unsigned char boot_flags[Libisofs_max_boot_imageS]; /* bit0= bootable */
     unsigned char media_types[Libisofs_max_boot_imageS];
     unsigned char partition_types[Libisofs_max_boot_imageS];
@@ -2238,12 +2240,16 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     /* The Default Entry is declared mandatory */
     data->num_bootimgs = 1;
     data->platform_ids[0] = ve->platform_id[0];
+    memcpy(data->id_strings[0], ve->id_string, 24);
+    memset(data->id_strings[0] + 24, 0, 4);
     data->boot_flags[0] = entry->boot_indicator[0] ? 1 : 0;
     data->media_types[0] = entry->boot_media_type[0];
     data->partition_types[0] = entry->system_type[0];
     data->load_segs[0] = iso_read_lsb(entry->load_seg, 2);
     data->load_sizes[0] = iso_read_lsb(entry->sec_count, 2);
     data->bootblocks[0] = iso_read_lsb(entry->block, 4);
+    /* The Default Entry has no selection criterion */
+    memset(data->selection_crits[0], 0, 20);
 
     /* ts B00420 : Read eventual more entries from the boot catalog */
     last_done = 0;
@@ -2262,12 +2268,15 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
             entry = (struct el_torito_section_entry *)(buffer + rx);
             idx = data->num_bootimgs;
             data->platform_ids[idx] = sh->platform_id[0];
+            memcpy(data->id_strings[idx], sh->id_string, 28);
             data->boot_flags[idx] = entry->boot_indicator[0] ? 1 : 0;
             data->media_types[idx] = entry->boot_media_type[0];
             data->partition_types[idx] = entry->system_type[0];
             data->load_segs[idx] = iso_read_lsb(entry->load_seg, 2);
             data->load_sizes[idx] = iso_read_lsb(entry->sec_count, 2);
             data->bootblocks[idx] = iso_read_lsb(entry->block, 4);
+            data->selection_crits[idx][0] = entry->selec_criteria[0];
+            memcpy(data->selection_crits[idx] + 1, entry->vendor_sc, 19);
             data->num_bootimgs++;
         }
     }
@@ -3137,12 +3146,14 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             boot_image->load_seg = data->load_segs[idx];
             boot_image->load_size = data->load_sizes[idx];
             boot_image->platform_id = data->platform_ids[idx];
+            memcpy(boot_image->id_string, data->id_strings[idx], 28);
+            memcpy(boot_image->selection_crit, data->selection_crits, 20);
 
             catalog->bootimages[catalog->num_bootimages] = boot_image;
             catalog->num_bootimages++;
         }
         for ( ; idx < Libisofs_max_boot_imageS; idx++)
-             catalog->bootimages[idx] = NULL;
+            catalog->bootimages[idx] = NULL;
         image->bootcat = catalog;
     }
 

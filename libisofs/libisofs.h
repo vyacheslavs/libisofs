@@ -2544,6 +2544,77 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
 int el_torito_get_bootable(ElToritoBootImage *bootimg);
 
 /**
+ * Set the id_string of the Validation Entry resp. Sector Header Entry which
+ * will govern the boot image Section Entry in the El Torito Catalog.
+ *
+ * @param bootimg
+ *      The image to manipulate.
+ * @param id_string
+ *      The first boot image puts 24 bytes of ID string into the Validation
+ *      Entry, where they shall "identify the manufacturer/developer of
+ *      the CD-ROM".
+ *      Further boot images put 28 bytes into their Section Header.
+ *      El Torito 1.0 states that "If the BIOS understands the ID string, it
+ *      may choose to boot the * system using one of these entries in place
+ *      of the INITIAL/DEFAULT entry." (The INITIAL/DEFAULT entry points to the
+ *      first boot image.)
+ * @return
+ *      1 = ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_set_id_string(ElToritoBootImage *bootimg, uint8_t id_string[28]);
+
+/** 
+ * Get the id_string as of el_torito_set_id_string().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @param id_string
+ *      Returns 28 bytes of id string
+ * @return
+ *      1 = ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_id_string(ElToritoBootImage *bootimg, uint8_t id_string[28]);
+
+/**
+ * Set the Selection Criteria of a boot image.
+ *
+ * @param bootimg
+ *      The image to manipulate.
+ * @param crit
+ *      The first boot image has no selection criteria. They will be ignored.
+ *      Further boot images put 1 byte of Selection Criteria Type and 19
+ *      bytes of data into their Section Entry.
+ *      El Torito 1.0 states that "The format of the selection criteria is
+ *      a function of the BIOS vendor. In the case of a foreign language
+ *      BIOS three bytes would be used to identify the language".
+ *      Type byte == 0 means "no criteria",
+ *      type byte == 1 means "Language and Version Information (IBM)".
+ * @return
+ *      1 = ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_set_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
+
+/** 
+ * Get the Selection Criteria bytes as of el_torito_set_selection_crit().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @param id_string
+ *      Returns 20 bytes of type and data
+ * @return
+ *      1 = ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
+
+/**
  * Specifies that this image needs to be patched. This involves the writing
  * of a 56 bytes boot information table at offset 8 of the boot image file.
  * The original boot image file won't be modified.

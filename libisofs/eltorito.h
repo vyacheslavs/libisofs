@@ -64,6 +64,8 @@ struct el_torito_boot_image {
     /* Byte 1 of Validation Entry or Section Header Entry:
        0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
     uint8_t platform_id;
+    uint8_t id_string[28];
+    uint8_t selection_crit[20];
 };
 
 /** El-Torito, 2.1 */

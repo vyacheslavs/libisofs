@@ -123,6 +123,36 @@ int el_torito_get_bootable(ElToritoBootImage *bootimg)
     return !!bootimg->bootable;
 }
 
+/* API */
+int el_torito_set_id_string(ElToritoBootImage *bootimg, uint8_t id_string[28])
+{
+    memcpy(bootimg->id_string, id_string, 28);
+    return 1;
+}
+
+/* API */
+int el_torito_get_id_string(ElToritoBootImage *bootimg, uint8_t id_string[28])
+{
+    
+    memcpy(id_string, bootimg->id_string, 28);
+    return 1;
+}
+
+/* API */
+int el_torito_set_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20])
+{
+    memcpy(bootimg->selection_crit, crit, 20);
+    return 1;
+}
+
+/* API */
+int el_torito_get_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20])
+{
+    
+    memcpy(crit, bootimg->selection_crit, 20);
+    return 1;
+}
+
 /**
  * Specifies that this image needs to be patched. This involves the writting
  * of a 56 bytes boot information table at offset 8 of the boot image file.
@@ -376,7 +406,8 @@ int create_image(IsoImage *image, const char *image_path,
     boot->load_seg = 0;
     boot->load_size = load_sectors;
     boot->platform_id = 0; /* 80x86 */
-
+    memset(boot->id_string, 0, sizeof(boot->id_string));
+    memset(boot->selection_crit, 0, sizeof(boot->selection_crit));
     if (bootimg) {
         *bootimg = boot;
     }
@@ -656,7 +687,8 @@ struct catalog_stream
 };
 
 static void
-write_validation_entry(uint8_t *buf, uint8_t platform_id)
+write_validation_entry(uint8_t *buf, uint8_t platform_id,
+                       uint8_t id_string[24])
 {
     size_t i;
     int checksum;
@@ -665,9 +697,9 @@ write_validation_entry(uint8_t *buf, uint8_t platform_id)
         (struct el_torito_validation_entry*)buf;
     ve->header_id[0] = 1;
     ve->platform_id[0] = platform_id;
+    memcpy(ve->id_string, id_string, sizeof(ve->id_string));
     ve->key_byte1[0] = 0x55;
     ve->key_byte2[0] = 0xAA;
-
     /* calculate the checksum, to ensure sum of all words is 0 */
     checksum = 0;
     for (i = 0; i < sizeof(struct el_torito_validation_entry); i += 2) {
@@ -677,7 +709,8 @@ write_validation_entry(uint8_t *buf, uint8_t platform_id)
 }
 
 static void
-write_section_header(uint8_t *buf, Ecma119Image *t, int idx) {
+write_section_header(uint8_t *buf, Ecma119Image *t, int idx, int num_entries)
+{
     int pi;
     char *id_string;
 
@@ -687,17 +720,11 @@ write_section_header(uint8_t *buf, Ecma119Image *t, int idx) {
     /* 0x90 = more section headers follow , 0x91 = final section */
     e->header_indicator[0] = 0x90 + (idx == t->catalog->num_bootimages - 1);
     pi= e->platform_id[0] = t->catalog->bootimages[idx]->platform_id;
-    e->num_entries[0] = 1;
-    e->num_entries[1] = 0;
+    e->num_entries[0] = num_entries & 0xff;
+    e->num_entries[1] = (num_entries >> 8) & 0xff;;
     id_string = (char *) e->id_string;
-    memset(id_string, 0, sizeof(e->id_string));
-
-/*  >>> ???
-    El-Torito 1.0 , chapter 2.3 :
-    "If the BIOS understands the ID, string it may choose to boot
-     the system using one of these entries ..."
-*/
-
+    memcpy(id_string,  t->catalog->bootimages[idx]->id_string,
+           sizeof(e->id_string));
 }
 
 /**
@@ -720,18 +747,25 @@ write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
     se->system_type[0] = img->partition_type;
     iso_lsb(se->sec_count, img->load_size, 2);
     iso_lsb(se->block, t->bootsrc[idx]->sections[0].block, 4);
+    se->selec_criteria[0] = img->selection_crit[0];
+    memcpy(se->vendor_sc, img->selection_crit + 1, 19);
 }
 
 static
 int catalog_open(IsoStream *stream)
 {
-    int i;
+    int i, j, k, num_entries;
     struct catalog_stream *data;
+    uint8_t *wpt;
+    struct el_torito_boot_catalog *cat;
+    struct el_torito_boot_image **boots;
 
     if (stream == NULL) {
         return ISO_NULL_POINTER;
     }
     data = stream->data;
+    cat = data->target->catalog;
+    boots = cat->bootimages;
 
     if (data->offset != -1) {
         return ISO_FILE_ALREADY_OPENED;
@@ -741,16 +775,35 @@ int catalog_open(IsoStream *stream)
 
     /* fill the buffer with the catalog contents */
     write_validation_entry(data->buffer,
-                           data->target->catalog->bootimages[0]->platform_id);
+                           boots[0]->platform_id, boots[0]->id_string);
 
     /* write default entry = first boot image */
     write_section_entry(data->buffer + 32, data->target, 0);
 
     /* ts B00420 */
     /* (The maximum number of boot images must fit into BLOCK_SIZE) */
-    for (i = 1; i < data->target->catalog->num_bootimages; i++) {
-        write_section_header(data->buffer + i * 64, data->target, i);
-        write_section_entry(data->buffer + i * 64 + 32,  data->target, i);
+    wpt = data->buffer + 64;
+    for (i = 1; i < cat->num_bootimages; ) {
+        /* Look ahead and put images of same platform_id and id_string
+           into the same section */
+        for (j = i + 1; j < cat->num_bootimages; j++) {
+             if (boots[i]->platform_id != boots[j]->platform_id)
+        break;
+             for (k = 0; k < sizeof(boots[i]->selection_crit); k++)
+                 if (boots[i]->selection_crit[k] != boots[j]->selection_crit[k])
+             break;
+             if (k < sizeof(boots[i]->selection_crit))
+        break;
+        }
+        num_entries = j - i;
+
+        write_section_header(wpt, data->target, i, num_entries);
+        wpt += 32;
+        for (j = 0; j < num_entries; j++) {
+            write_section_entry(wpt,  data->target, i);
+            wpt += 32;
+            i++;
+        }
     }
     data->offset = 0;
     return ISO_SUCCESS;
