@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-
+#include <stdio.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX Libisofs_default_path_maX
@@ -100,7 +100,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     IsoNode *new;
     IsoFilesystem *fs;
     char *name;
-    unsigned char *aa_string;
+    unsigned char *aa_string = NULL;
     char *a_text = NULL, *d_text = NULL;
 
     if (builder == NULL || src == NULL || node == NULL) {
@@ -217,6 +217,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         }
         iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text,
                             1 << 15); /* free ACL texts */
+        if(aa_string != NULL)
+            free(aa_string);
+        aa_string = NULL;
     }
 
     /* Obtain ownership of eventual AAIP string */
@@ -227,6 +230,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
         if (ret < 0)
             return ret;
+    } else if(aa_string != NULL) {
+        free(aa_string);
     }
 
     *node = new;

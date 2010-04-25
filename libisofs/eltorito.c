@@ -620,10 +620,13 @@ void iso_image_remove_boot_image(IsoImage *image)
         return;
 
     /*
-     * remove catalog node from its parent
-     * (the reference will be disposed next)
+     * remove catalog node from its parent and dispose it
+     * (another reference is with the catalog)
      */
-    iso_node_take((IsoNode*)image->bootcat->node);
+    if (iso_node_get_parent((IsoNode*) image->bootcat->node) != NULL) {
+        iso_node_take((IsoNode*) image->bootcat->node);
+        iso_node_unref((IsoNode*) image->bootcat->node);
+    }
 
     /* free boot catalog and image, including references to nodes */
     el_torito_boot_catalog_free(image->bootcat);
