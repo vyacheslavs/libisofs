@@ -2419,7 +2419,7 @@ int iso_image_get_all_boot_imgs(IsoImage *image, int *num_boots,
 
 
 /**
- * Removes the El-Torito bootable image.
+ * Removes all El-Torito boot images from the ISO image.
  *
  * The IsoBoot node that acts as placeholder for the catalog is also removed
  * for the image tree, if there.
@@ -2450,10 +2450,27 @@ void iso_image_remove_boot_image(IsoImage *image);
 int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight);
 
 /**
+ * Get the boot media type as of parameter "type" of iso_image_set_boot_image()
+ * resp. iso_image_add_boot_image().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @param media_type
+ *      Returns the media type
+ * @return
+ *      1 = ok , < 0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_boot_media_type(ElToritoBootImage *bootimg, 
+                                  enum eltorito_boot_media_type *media_type);
+
+/**
  * Sets the platform ID of the boot image.
  * 
  * The Platform ID gets written into the boot catalog at byte 1 of the
  * Validation Entry, or at byte 1 of a Section Header Entry.
+ * If Platform ID and ID String of two consequtive bootimages are the same
  *
  * @param bootimg
  *      The image to manipulate.
@@ -2661,7 +2678,22 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
  *      1 success, < 0 on error
  * @since 0.6.12
  */
-int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag);
+int el_torito_set_isolinux_options(ElToritoBootImage *bootimg,
+                                   int options, int flag);
+
+/** 
+ * Get the options as of el_torito_set_isolinux_options().
+ *
+ * @param bootimg
+ *      The image to inquire
+ * @param flag
+ *        Reserved for future usage, set to 0.
+ * @return
+ *      >= 0 returned option bits , <0 = error
+ *
+ * @since 0.6.32
+ */
+int el_torito_get_isolinux_options(ElToritoBootImage *bootimg, int flag);
 
 /**
  * Obtain a copy of the eventually loaded first 32768 bytes of the imported

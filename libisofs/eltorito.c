@@ -191,31 +191,36 @@ int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int 
     return ISO_SUCCESS;
 }
 
-/* TODO getter for boot image properties should be exposed
- * useful when reading discs */
-int el_torito_get_boot_media_type(const ElToritoBootImage *bootimg)
+/* API */
+int el_torito_get_isolinux_options(ElToritoBootImage *bootimg, int flag)
+{
+    return bootimg->isolinux_options & 0x03;
+}
+
+/* API */
+int el_torito_get_boot_media_type(ElToritoBootImage *bootimg,
+                                  enum eltorito_boot_media_type *media_type)
 {
     if (bootimg) {
         switch (bootimg->type) {
         case 1:
         case 2:
         case 3:
-            return ELTORITO_FLOPPY_EMUL;
-            break;
+            *media_type = ELTORITO_FLOPPY_EMUL;
+            return 1;
         case 4:
-            return ELTORITO_HARD_DISC_EMUL;
-            break;
+            *media_type = ELTORITO_HARD_DISC_EMUL;
+            return 1;
         case 0:
-            return ELTORITO_NO_EMUL;
-            break;
+            *media_type = ELTORITO_NO_EMUL;
+            return 1;
         default:
             /* should never happen */
             return ISO_ASSERT_FAILURE;
             break;
         }
-    } else {
-        return ISO_WRONG_ARG_VALUE;
     }
+    return ISO_WRONG_ARG_VALUE;
 }
 
 static
