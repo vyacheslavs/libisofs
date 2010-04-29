@@ -2631,34 +2631,40 @@ int el_torito_set_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
  */
 int el_torito_get_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
 
+
 /**
- * Specifies that this image needs to be patched. This involves the writing
- * of a 56 bytes boot information table at offset 8 of the boot image file.
- * The original boot image file won't be modified.
- * This is needed for isolinux boot images.
+ * Makes a guess whether the boot image was patched by a boot information
+ * table. It is advisable to patch such boot images if their content gets
+ * copied to a new location. See el_torito_set_isolinux_options().
+ * Note: The reply can be positive only if the boot image was imported
+ *       from an existing ISO image.
  *
- * @since 0.6.2
- * @deprecated Use el_torito_set_isolinux_options() instead
+ * @param bootimg
+ *      The image to inquire
+ * @return
+ *      1 = seems to contain oot info table , 0 = quite surely not
+ * @since 0.6.32
  */
-void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
+int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
 
 /**
  * Specifies options for ISOLINUX or GRUB boot images. This should only be used
  * if the type of boot image is known.
- *
- * Regrettably there is no unambigous way to detect the presence of a boot
- * info table in a boot image or the relation of a boot image to the System
- * Area and its eventual MBR.
  *
  * @param options
  *        bitmask style flag. The following values are defined:
  *
  *        bit 0 -> 1 to patch the boot info table of the boot image.
  *                 1 does the same as mkisofs option -boot-info-table.
- *                 Needed for ISOLINUX and for GRUB rescue boot images.
+ *                 Needed for ISOLINUX or GRUB boot images with platform ID 0.
  *                 The table is located at byte 8 of the boot image file.
  *                 Its size is 56 bytes. 
  *                 The original boot image file on disk will not be modified.
+ *
+ *                 One may use el_torito_seems_boot_info_table() for a
+ *                 qualified guess whether a boot info table is present in
+ *                 the boot image. If the result is 1 then it should get bit0
+ *                 set if its content gets copied to a new LBA.
  *
  *        bit 1 -> 1 to generate a ISOLINUX isohybrid image with MBR.
  *                 ----------------------------------------------------------
@@ -2694,6 +2700,17 @@ int el_torito_set_isolinux_options(ElToritoBootImage *bootimg,
  * @since 0.6.32
  */
 int el_torito_get_isolinux_options(ElToritoBootImage *bootimg, int flag);
+
+/** Deprecated:
+ * Specifies that this image needs to be patched. This involves the writing
+ * of a 16 bytes boot information table at offset 8 of the boot image file.
+ * The original boot image file won't be modified.
+ * This is needed for isolinux boot images.
+ *
+ * @since 0.6.2
+ * @deprecated Use el_torito_set_isolinux_options() instead
+ */
+void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
 
 /**
  * Obtain a copy of the eventually loaded first 32768 bytes of the imported

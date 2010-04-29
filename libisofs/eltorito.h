@@ -49,6 +49,10 @@ struct el_torito_boot_image {
 
     unsigned int bootable:1; /**< If the entry is bootable. */
     /**
+     * Whether the boot image seems to contain a boot_info_table
+     */
+    unsigned int seems_boot_info_table:1;
+    /**
      * isolinux options
      * bit 0 -> whether to patch image
      * bit 1 -> whether to put built-in isolinux 3.72 isohybrid-MBR into image
@@ -125,5 +129,15 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src);
  * Create a writer for el-torito information.
  */
 int eltorito_writer_create(Ecma119Image *target);
+
+/**
+ * Insert boot info table content into buf.
+ *
+ * @return
+ *      1 on success, 0 error (but continue), < 0 error
+ */
+int make_boot_info_table(uint8_t *buf, uint32_t pvd_lba,
+                         uint32_t boot_lba, uint32_t imgsize);
+
 
 #endif /* LIBISO_ELTORITO_H */

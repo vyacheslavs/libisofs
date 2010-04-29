@@ -2121,19 +2121,15 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 }
 
 static
-int read_pvm(_ImageFsData *data, uint32_t block)
+int read_pvd_block(IsoDataSource *src, uint32_t block, uint8_t *buffer,
+                   uint32_t *image_size)
 {
     int ret;
     struct ecma119_pri_vol_desc *pvm;
-    struct ecma119_dir_record *rootdr;
-    uint8_t buffer[BLOCK_SIZE];
 
-    /* read PVM */
-    ret = data->src->read_block(data->src, block, buffer);
-    if (ret < 0) {
+    ret = src->read_block(src, block, buffer);
+    if (ret < 0)
         return ret;
-    }
-
     pvm = (struct ecma119_pri_vol_desc *)buffer;
 
     /* sanity checks */
@@ -2143,8 +2139,24 @@ int read_pvm(_ImageFsData *data, uint32_t block)
 
         return ISO_WRONG_PVD;
     }
+    if (image_size != NULL)
+        *image_size = iso_read_bb(pvm->vol_space_size, 4, NULL);
+    return ISO_SUCCESS;
+}
 
+static
+int read_pvm(_ImageFsData *data, uint32_t block)
+{
+    int ret;
+    struct ecma119_pri_vol_desc *pvm;
+    struct ecma119_dir_record *rootdr;
+    uint8_t buffer[BLOCK_SIZE];
+
+    ret = read_pvd_block(data->src, block, buffer, NULL);
+    if (ret < 0)
+        return ret;
     /* ok, it is a valid PVD */
+    pvm = (struct ecma119_pri_vol_desc *)buffer;
 
     /* fill volume attributes  */
     /* TODO take care of input charset */
@@ -2206,6 +2218,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     struct el_torito_section_entry *entry; /* also usable as default_entry */
     unsigned char buffer[BLOCK_SIZE];
 
+    data->num_bootimgs = 0;
     ret = data->src->read_block(data->src, block, buffer);
     if (ret < 0) {
         return ret;
@@ -2281,7 +2294,6 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         }
     }
 after_bootblocks:;
-
     return ISO_SUCCESS;
 }
 
@@ -3005,6 +3017,105 @@ boot_fs_cleanup: ;
     return ret;
 }
 
+/** ??? ts B00428 : should the max size become public ? */
+#define Libisofs_boot_image_max_sizE (4096*1024)
+
+/** ts B00428 BOOT : perform boot-info-table detection
+*/
+static
+int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
+                         IsoDataSource *src, uint32_t iso_image_size, int flag)
+{
+    int i, ret, section_count, todo, chunk;
+    uint32_t img_lba, img_size, boot_pvd_found, image_pvd, alleged_size;
+    struct iso_file_section *sections = NULL;
+    struct el_torito_boot_image *boot;
+    uint8_t *boot_image_buf = NULL, boot_info_found[16], buf[BLOCK_SIZE];
+    IsoStream *stream = NULL;
+    IsoFile *boot_file;
+
+    if (image->bootcat == NULL)
+        return ISO_SUCCESS;
+    for (i = 0; i < image->bootcat->num_bootimages; i++) {
+        boot = image->bootcat->bootimages[i];
+        boot_file = boot->image;
+        boot->seems_boot_info_table = 0;
+        img_size = iso_file_get_size(boot_file);
+        if (img_size > Libisofs_boot_image_max_sizE || img_size < 64)
+    continue;
+        img_lba = 0;
+        sections = NULL;
+        ret = iso_file_get_old_image_sections(boot_file,
+                                              &section_count, &sections, 0);
+        if (ret == 1 && section_count > 0)
+            img_lba = sections[0].block;
+        if (sections != NULL) {
+            free(sections);
+            sections = NULL;
+        }
+        if(img_lba == 0)
+    continue;
+
+        boot_image_buf = calloc(1, img_size);
+        if (boot_image_buf == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto ex;
+        }
+        stream = iso_file_get_stream(boot_file);
+        ret = iso_stream_open(stream);
+        if (ret < 0) {
+            stream = NULL;
+            goto ex;
+        }
+        for (todo = img_size; todo > 0; ) {
+          if (todo > BLOCK_SIZE)
+              chunk = BLOCK_SIZE;
+          else
+              chunk = todo;
+          ret = iso_stream_read(stream, boot_image_buf + (img_size - todo),
+                                chunk);
+          if (ret != chunk) {
+            ret = (ret < 0) ? ret : ISO_FILE_READ_ERROR;
+            goto ex;
+          }
+          todo -= chunk;
+        }
+        iso_stream_close(stream);
+        stream = NULL;
+        
+        memcpy(boot_info_found, boot_image_buf + 8, 16);
+        boot_pvd_found = iso_read_lsb(boot_info_found, 4);
+        image_pvd = (uint32_t) (opts->block + 16);
+
+        /* Accomodate to eventually relocated superblock */
+        if (image_pvd != boot_pvd_found &&
+            image_pvd == 16 && boot_pvd_found < iso_image_size) {
+            /* Check whether there is a PVD at boot_pvd_found
+               and whether it bears the same image size 
+             */
+            ret = read_pvd_block(src, boot_pvd_found, buf, &alleged_size);
+            if (ret == 1 &&
+                alleged_size + boot_pvd_found == iso_image_size + image_pvd)
+              image_pvd = boot_pvd_found;
+        }
+
+        ret = make_boot_info_table(boot_image_buf, image_pvd,
+                                   img_lba, img_size);
+        if (ret < 0)
+            goto ex;
+        if (memcmp(boot_image_buf + 8, boot_info_found, 16) == 0)
+            boot->seems_boot_info_table = 1;
+        free(boot_image_buf);
+        boot_image_buf = NULL;
+    }
+    ret = 1;
+ex:;
+    if (boot_image_buf != NULL)
+        free(boot_image_buf);
+    if (stream != NULL)
+        iso_stream_close(stream);
+    return ret;
+}
 
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
@@ -3140,6 +3251,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 ret = ISO_OUT_OF_MEM;
                 goto import_revert;
             }
+            boot_image->image = NULL;
             boot_image->bootable = data->boot_flags[idx] & 1;
             boot_image->type = data->media_types[idx];
             boot_image->partition_type = data->partition_types[idx];
@@ -3313,6 +3425,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     }
 
 #endif /* Libisofs_with_checksumS */
+
+    /* ts B00428 */
+    ret = iso_image_eval_boot_info_table(image, opts, src, data->nblocks, 0);
+    if (ret < 0)
+        goto import_revert;
 
     ret = ISO_SUCCESS;
     goto import_cleanup;
