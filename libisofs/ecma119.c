@@ -343,7 +343,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
         iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
     }
     rec->flags[0] = ((node->type == ECMA119_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
-    iso_bb(rec->vol_seq_number, 1, 2);
+    iso_bb(rec->vol_seq_number, (uint32_t) 1, 2);
     rec->len_fi[0] = len_fi;
 
     /*
@@ -421,9 +421,9 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.system_id, system_id, 32);
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
     iso_bb(vol.vol_space_size, t->vol_space_size, 4);
-    iso_bb(vol.vol_set_size, 1, 2);
-    iso_bb(vol.vol_seq_number, 1, 2);
-    iso_bb(vol.block_size, BLOCK_SIZE, 2);
+    iso_bb(vol.vol_set_size, (uint32_t) 1, 2);
+    iso_bb(vol.vol_seq_number, (uint32_t) 1, 2);
+    iso_bb(vol.block_size, (uint32_t) BLOCK_SIZE, 2);
     iso_bb(vol.path_table_size, t->path_table_size, 4);
     iso_lsb(vol.l_path_table_pos, t->l_path_table_pos, 4);
     iso_msb(vol.m_path_table_pos, t->m_path_table_pos, 4);

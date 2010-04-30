@@ -109,12 +109,12 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
         PX[2] = 36;
     }
     PX[3] = 1;
-    iso_bb(&PX[4], px_get_mode(t, n), 4);
-    iso_bb(&PX[12], n->nlink, 4);
-    iso_bb(&PX[20], px_get_uid(t, n), 4);
-    iso_bb(&PX[28], px_get_gid(t, n), 4);
+    iso_bb(&PX[4], (uint32_t) px_get_mode(t, n), 4);
+    iso_bb(&PX[12], (uint32_t) n->nlink, 4);
+    iso_bb(&PX[20], (uint32_t) px_get_uid(t, n), 4);
+    iso_bb(&PX[28], (uint32_t) px_get_gid(t, n), 4);
     if (t->rrip_1_10_px_ino || !t->rrip_version_1_10) {
-        iso_bb(&PX[36], n->ino, 4);
+        iso_bb(&PX[36], (uint32_t) n->ino, 4);
     }
 
     return susp_append(t, susp, PX);
@@ -243,10 +243,10 @@ int rrip_add_PN(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     */
     if (sizeof(node->dev) > 4) {
         high_shift = 32;
-        iso_bb(&PN[4], node->dev >> high_shift, 4);
+        iso_bb(&PN[4], (uint32_t) (node->dev >> high_shift), 4);
     } else
         iso_bb(&PN[4], 0, 4);
-    iso_bb(&PN[12], node->dev & 0xffffffff, 4);
+    iso_bb(&PN[12], (uint32_t) (node->dev & 0xffffffff), 4);
     return susp_append(t, susp, PN);
 }
 
@@ -695,7 +695,7 @@ int susp_add_CE(Ecma119Image *t, size_t ce_len, struct susp_info *susp)
     CE[3] = 1;
     iso_bb(&CE[4], susp->ce_block, 4);
     iso_bb(&CE[12], susp->ce_len, 4);
-    iso_bb(&CE[20], ce_len, 4);
+    iso_bb(&CE[20], (uint32_t) ce_len, 4);
 
     return susp_append(t, susp, CE);
 }
