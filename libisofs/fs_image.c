@@ -279,7 +279,6 @@ typedef struct
 
     /* el-torito information */
     unsigned int eltorito : 1; /* is el-torito available */
-    /* ts B00419 */
     int num_bootimgs;
     unsigned char platform_ids[Libisofs_max_boot_imageS];
     unsigned char id_strings[Libisofs_max_boot_imageS][28];
@@ -2249,7 +2248,6 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     entry = (struct el_torito_section_entry *)(buffer + 32);
 
     data->eltorito = 1;
-    /* ts B00420 */
     /* The Default Entry is declared mandatory */
     data->num_bootimgs = 1;
     data->platform_ids[0] = ve->platform_id[0];
@@ -2264,7 +2262,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     /* The Default Entry has no selection criterion */
     memset(data->selection_crits[0], 0, 20);
 
-    /* ts B00420 : Read eventual more entries from the boot catalog */
+    /* Read eventual more entries from the boot catalog */
     last_done = 0;
     for (rx = 64; (buffer[rx] & 0xfe) == 0x90 && !last_done; rx += 32) {
         last_done = buffer[rx] & 1;
@@ -2783,7 +2781,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 new = (IsoNode*) file;
                 new->refcount = 0;
 
-                /* ts B00419 */
                 for (idx = 0; idx < fsdata->num_bootimgs; idx++)
                     if (fsdata->eltorito && data->sections[0].block ==
                         fsdata->bootblocks[idx])
@@ -2998,8 +2995,6 @@ int create_boot_img_filesrc(IsoImageFilesystem *fs, IsoImage *image, int idx,
     ifsdata->parent = NULL;
     ifsdata->info = atts;
     ifsdata->name = NULL;
-
-    /* ts B00420 */
     ifsdata->sections[0].block = fsdata->bootblocks[idx];
     ifsdata->sections[0].size = BLOCK_SIZE;
     ifsdata->nsections = 1;
@@ -3017,10 +3012,11 @@ boot_fs_cleanup: ;
     return ret;
 }
 
-/** ??? ts B00428 : should the max size become public ? */
+/** ??? >>> ts B00428 : should the max size become public ? */
 #define Libisofs_boot_image_max_sizE (4096*1024)
 
-/** ts B00428 BOOT : perform boot-info-table detection
+/** Guess which of the loaded boot images contain boot information tables.
+    Set boot->seems_boot_info_table accordingly.
 */
 static
 int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
@@ -3243,7 +3239,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             goto import_revert;
         }
 
-        /* ts B00421 */
         catalog->num_bootimages = 0;
         for (idx = 0; idx < data->num_bootimgs; idx++) {
             boot_image = calloc(1, sizeof(ElToritoBootImage));
@@ -3301,8 +3296,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     if (data->eltorito) {
         /* if catalog and boot image nodes were not filled,
            we create them here */
-
-        /* ts B00419 : now in a loop */
         for (idx = 0; idx < image->bootcat->num_bootimages; idx++) {
             if (image->bootcat->bootimages[idx]->image != NULL)
         continue;
@@ -3426,7 +3419,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
 #endif /* Libisofs_with_checksumS */
 
-    /* ts B00428 */
     ret = iso_image_eval_boot_info_table(image, opts, src, data->nblocks, 0);
     if (ret < 0)
         goto import_revert;

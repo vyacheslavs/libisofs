@@ -34,12 +34,10 @@ struct Iso_Boot
 struct el_torito_boot_catalog {
     IsoBoot *node; /* node of the catalog */
 
-    /* ts B00419 */
     int num_bootimages;
     struct el_torito_boot_image *bootimages[Libisofs_max_boot_imageS];
                                                   /* [0]= default boot image */
 
-    /* ts B00419 */
     /* Weight value for image sorting */
     int sort_weight;
 };
@@ -64,7 +62,6 @@ struct el_torito_boot_image {
     short load_seg; /**< Load segment for the initial boot image. */
     short load_size; /**< Number of sectors to load. */
 
-    /* ts B00419 */
     /* Byte 1 of Validation Entry or Section Header Entry:
        0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
     uint8_t platform_id;

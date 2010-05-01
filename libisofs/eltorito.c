@@ -640,8 +640,7 @@ void iso_image_remove_boot_image(IsoImage *image)
     image->bootcat = NULL;
 }
 
-/* ts B00420 */
-/* future API */
+/* API */
 int iso_image_add_boot_image(IsoImage *image, const char *image_path,
                              enum eltorito_boot_media_type type, int flag,
                              ElToritoBootImage **boot)
@@ -797,8 +796,7 @@ int catalog_open(IsoStream *stream)
     /* write default entry = first boot image */
     write_section_entry(data->buffer + 32, data->target, 0);
 
-    /* ts B00420 */
-    /* (The maximum number of boot images must fit into BLOCK_SIZE) */
+    /* IMPORTANT: The maximum number of boot images must fit into BLOCK_SIZE */
     wpt = data->buffer + 64;
     for (i = 1; i < cat->num_bootimages; ) {
         /* Look ahead and put images of same platform_id and id_string
@@ -1043,11 +1041,6 @@ int make_boot_info_table(uint8_t *buf, uint32_t pvd_lba,
 static
 int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize, int idx)
 {
-
-/* >>> ts B00428 BOOT : make this the default case */
-#define Libisofs_new_patch_boot_imagE 1 
-#ifdef Libisofs_new_patch_boot_imagE
-
     int ret;
 
     if (imgsize < 64) {
@@ -1058,48 +1051,6 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize, int idx)
                                t->bootsrc[idx]->sections[0].block,
                                (uint32_t) imgsize);
     return ret;
-
-#else /* Libisofs_new_patch_boot_imagE */
-
-    struct boot_info_table *info;
-    uint32_t checksum;
-    size_t offset;
-
-    if (imgsize < 64) {
-        return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
-            "Isolinux image too small. We won't patch it.");
-    }
-
-    /* compute checksum, as the the sum of all 32 bit words in boot image
-     * from offset 64 */
-    checksum = 0;
-    offset = (size_t) 64;
-
-    while (offset <= imgsize - 4) {
-        checksum += iso_read_lsb(buf + offset, 4);
-        offset += 4;
-    }
-    if (offset != imgsize) {
-        /*
-         * file length not multiple of 4
-         * empty space in isofs is padded with zero;
-         * assume same for last dword
-         */
-        checksum += iso_read_lsb(buf + offset, imgsize - offset);
-    }
-
-    /* patch boot info table */
-    info = (struct boot_info_table*)(buf + 8);
-    /*memset(info, 0, sizeof(struct boot_info_table));*/
-    iso_lsb(info->bi_pvd, t->ms_block + 16, 4);
-    iso_lsb(info->bi_file, t->bootsrc[idx]->sections[0].block, 4);
-    iso_lsb(info->bi_length, imgsize, 4);
-    iso_lsb(info->bi_csum, checksum, 4);
-    memset(buf + 24, 0, 40);
-    return ISO_SUCCESS;
-
-#endif /* ! Libisofs_new_patch_boot_imagE */
-
 }
 
 static
@@ -1122,7 +1073,6 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t = writer->target;
 
-    /* ts B00420 : now in loop */
     /* Patch the boot image info tables if indicated */
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
         if (!(t->catalog->bootimages[idx]->isolinux_options & 0x01))
@@ -1242,7 +1192,6 @@ int eltorito_writer_create(Ecma119Image *target)
         }
     }
 
-    /* ts B00420 : now in a loop */
     for (idx = 0; idx < target->catalog->num_bootimages; idx++) {
         bootimg = target->catalog->bootimages[idx]->image;
         ret = iso_file_src_create(target, bootimg, &src);
