@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [0.6.32], [http://libburnia-project.org])
+AC_INIT([libisofs], [0.6.33], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -46,7 +46,7 @@ dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
 dnl
 LIBISOFS_MAJOR_VERSION=0
 LIBISOFS_MINOR_VERSION=6
-LIBISOFS_MICRO_VERSION=32
+LIBISOFS_MICRO_VERSION=33
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
