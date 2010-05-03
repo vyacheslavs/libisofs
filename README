@@ -9,6 +9,39 @@ Copyright (C) 2008 - 2010 Vreixo Formoso, Mario Danic, Thomas Schmitt
 libisofs is part of the libburnia project (libburnia-project.org)
 ------------------------------------------------------------------------------
 
+                        Download, Build and Installation
+
+libisofs code is mantained in a Bazaar repository at Launchpad 
+(https://launchpad.net/libisofs/). You can download it with:
+
+$ bzr branch lp:libisofs/for-libisoburn
+
+Our build system is based on autotools. For preparing the build you will need 
+autotools of at least version 1.7. If you have download the code from the
+repository, first of all you need to execute
+
+   ./autogen.sh
+   
+on toplevel dir to execute autotools.
+
+Alternatively you may unpack a release tarball for which you do not need
+autotools installed. For the most recent release of libisofs see:
+   http://libburnia-project.org/wiki/Releases
+
+To build libisofs it should be sufficient to go into its toplevel directory 
+and execute
+
+   ./configure --prefix=/usr
+   make
+
+To make the libraries accessible for running resp. developing applications 
+   make install
+
+See INSTALL file for further details.
+
+
+------------------------------------------------------------------------------
+
 libisofs is a library to create an ISO-9660 filesystem, supports extensions
 like RockRidge or Joliet, and introduces an own extension AAIP.
 It is a full featured ISO-9660 editor which composes and changes the directory
@@ -23,7 +56,7 @@ Features:
 	- Creates ISO-9660 images from local files.
 	- Support for RockRidge and Joliet extensions.
 	- Support for ISO-9660:1999 (version 2).
-	- Support for El-Torito bootable images.
+	- Support for El-Torito bootable images. Tested are: PC-BIOS and EFI.
 	- Support for multi-extent data files up to 400 GB (level 3).
 	- Full-featured edition of the image files, including: addition of new
 	  files, removing of existent files, moving files, renaming files,
@@ -67,8 +100,9 @@ Features:
 Requirements:
 -------------
 
-- libburn 0.4.2 headers must be installed at compile time. It is not required
-  at runtime.
+- iconv() functions for character set conversion must be available.
+  Either implicitely as in Linux or by a separate library like libiconv
+  on FreeBSD.
   
 Know bugs:
 ----------
@@ -78,12 +112,12 @@ Multisession and image growing can lead to undesired results in several cases:
 a) Images with unsupported features, such as:
 	- UDF.
 	- HSF/HFS+ or other Mac extensions.
-	- El-Torito with multiple entries.
-	- ECMA-119 with extended attributes.
+	- ECMA-119 Extended attributes.
 	- Non El-Torito boot info.
 	- ...
    In all these cases, the resulting new image (or new session) could lack some
-   features of the original image.
+   features of the original image. Nevertheless, the ECMA-119 System Area with
+   an eventual Master Boot Record gets preserved by default.
    In some cases libisofs will issue warning messages, or even refuse to grow
    or modify the image. Others remain undetected. Images created with libisofs
    do not have this problems.
@@ -93,16 +127,19 @@ b) Bootable El-Torito images may have several problems, that result in a new
    cases it is recommended to add boot info again in the new session.
    
     - isolinux images won't be bootable after a modify. This is because 
-      isolinux images need to have hardcoded the root dir lba. libisofs cannot 
-      know whether an image is an isolinux image or not, so the user is 
-      responsible to tell libisofs that it must patch the image, with the
-      el_torito_patch_isolinux_image() function. This problem could also exists
-      on other boot images.
-	- Most boot images are highly dependent of the image contents, so if the 
-	  user moves or removes some files on image it is possible they won't boot 
-	  anymore.
-	- There is no safer way to modify hidden boot images, as the size of the 
-	  boot image can't be figured out.
+      isolinux images need to have hardcoded the root dir lba in their boot
+      information table.
+      libisofs makes an educated guess at load time whether a boot image
+      contains such a table. Its outcome can be inquired by call
+      el_torito_seems_boot_info_table().
+      If one knows to have isolinux or GRUB El-Torito-bootable images, or if
+      a boot information table seems to exist, it is advised to apply the
+      el_torito_patch_isolinux_image() function.
+      Most boot images are highly dependent of the image contents, so if the 
+      user moves or removes some files on image it is possible they won't boot 
+      anymore.
+    - There is no safe way to modify hidden boot images, as the size of the 
+      boot image can't be figured out.
 
 c) Generated images could have different ECMA-119 low level names, due to 
    different way to mangle names, to new files added that force old files to 
@@ -111,38 +148,6 @@ c) Generated images could have different ECMA-119 low level names, due to
    cases. If your app. relies on low level ISO-9660 names, you will need to 
    ensure all node names are valid ISO names (maybe together with some
    relaxed contraints), otherwise libisofs might arbitrarily change the names.
-
-
-------------------------------------------------------------------------------
-
-                        Download, Build and Installation
-
-libisofs code is mantained in a Bazaar repository at Launchpad 
-(https://launchpad.net/libisofs/). You can download it with:
-
-$ bzr branch lp:libisofs
-
-Our build system is based on autotools. For preparing the build you will need 
-autotools of at least version 1.7. If you have download the code from the
-repository, first of all you need to execute
-
-   ./autogen.sh
-   
-on toplevel dir to execute autotools.
-
-Alternatively you may unpack a release tarball for which you do not need
-autotools installed.
-
-To build libisofs it should be sufficient to go into its toplevel directory 
-and execute
-
-   ./configure --prefix=/usr
-   make
-
-To make the libraries accessible for running resp. developing applications 
-   make install
-
-See INSTALL file for further details.
 
 
 ------------------------------------------------------------------------------
