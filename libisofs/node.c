@@ -2660,9 +2660,6 @@ ex:;
 /* API */
 int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
 {
-
-#ifdef Libisofs_with_checksumS
-
     int ret, i;
     size_t value_len;
     char *value = NULL;
@@ -2702,21 +2699,12 @@ ex:;
     if (value != NULL)
         free(value);
     return ret;
-
-#else
-
-    return 0;
-
-#endif /* ! Libisofs_with_checksumS */
-
 }
 
 
 /* API */
 int iso_file_make_md5(IsoFile *file, int flag)
 {
-
-#ifdef Libisofs_with_checksumS
     int ret, dig = 0;
     char *md5 = NULL;
 
@@ -2737,13 +2725,6 @@ int iso_file_make_md5(IsoFile *file, int flag)
     ret = 1;
 ex:;
     return ret;
-
-#else
-
-    return ISO_ERROR;
-
-#endif /* ! Libisofs_with_checksumS */
-
 }
 
 

@@ -430,8 +430,6 @@ int checksum_md5_xinfo_func(void *data, int flag)
 
 /* MD5 checksum image writer */
 
-#ifdef Libisofs_with_checksumS
-
 /*
   @flag bit0= recursion
         bit1= session will be appended to an existing image
@@ -508,15 +506,10 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
     return ISO_SUCCESS;
 }
 
-#endif /* Libisofs_with_checksumS */
-
 
 static
 int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
 {
-
-#ifdef Libisofs_with_checksumS
-
     size_t size;
     Ecma119Image *t;
     int ret;
@@ -557,9 +550,6 @@ int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
                                t->checksum_idx_counter + 2, 16, "MD5", 0);
     if (ret < 0)
         return ret;
-
-#endif /* Libisofs_with_checksumS */
-
     return ISO_SUCCESS;
 }
 
@@ -580,9 +570,6 @@ int checksum_writer_write_vol_desc(IsoImageWriter *writer)
 static
 int checksum_writer_write_data(IsoImageWriter *writer)
 {
-
-#ifdef Libisofs_with_checksumS
-
     int wres, res;
     size_t i, size;
     Ecma119Image *t;
@@ -649,12 +636,6 @@ ex:;
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
     return(res);
-
-#else /* Libisofs_with_checksumS */
-
-    return ISO_SUCCESS;
-
-#endif /* ! Libisofs_with_checksumS */
 }
 
 
@@ -684,17 +665,11 @@ int checksum_writer_create(Ecma119Image *target)
 
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
-
-#ifdef Libisofs_with_checksumS
-
     /* Account for superblock checksum tag */
     if (target->md5_session_checksum) {
         target->checksum_sb_tag_pos = target->curblock;
         target->curblock++;
     }
-
-#endif /* Libisofs_with_checksumS */
-
     return ISO_SUCCESS;
 }
 
@@ -702,9 +677,6 @@ int checksum_writer_create(Ecma119Image *target)
 static
 int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
 {
-
-#ifdef Libisofs_with_checksumS
-
     void *ctx = NULL;
     off_t pos = 0, line_start;
     int record_len, block_len, res, i;
@@ -753,12 +725,6 @@ ex:;
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
     return res;
-
-#else
-
-    return ISO_SUCCESS;
-
-#endif /* Libisofs_with_checksumS */
 }
 
 
@@ -772,9 +738,6 @@ ex:;
  */
 int iso_md5_write_tag(Ecma119Image *t, int flag)
 {
-
-#ifdef Libisofs_with_checksumS
-
     int res, mode, l, i, wres, tag_id_len;
     void *ctx = NULL;
     char md5[16], tag_block[2048], *tag_id;
@@ -863,13 +826,6 @@ ex:;
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
     return res;
-
-#else /* Libisofs_with_checksumS */
-
-    return ISO_SUCCESS;
-
-#endif /* ! Libisofs_with_checksumS */
-
 }
 
 

@@ -2439,9 +2439,6 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     ifs->free = ifs_fs_free;
 
     /* read Volume Descriptors and ensure it is a valid image */
-
-#ifdef Libisofs_with_checksumS
-
     if (data->md5_load) {
         /* From opts->block on : check for superblock and tree tags */;
         ret = iso_src_check_sb_tree(src, opts->block, 0);
@@ -2455,8 +2452,6 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             goto fs_cleanup;
         }
     }
-
-#endif /* Libisofs_with_checksumS */
 
     /* 1. first, open the filesystem */
     ifs_fs_open(ifs);
@@ -3128,8 +3123,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     uint8_t *rpt;
     IsoFileSource *boot_src;
     IsoNode *node;
-
-#ifdef Libisofs_with_checksumS
     uint32_t old_checksum_start_lba;
     uint32_t old_checksum_end_lba;
     uint32_t old_checksum_idx_count;
@@ -3139,7 +3132,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     size_t size;
     void *ctx = NULL;
     char md5[16];
-#endif
 
     if (image == NULL || src == NULL || opts == NULL) {
         return ISO_NULL_POINTER;
@@ -3181,14 +3173,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     oldroot = image->root;
     oldbootcat = image->bootcat; /* could be NULL */
     image->bootcat = NULL;
-
-#ifdef Libisofs_with_checksumS
     old_checksum_start_lba = image->checksum_start_lba;
     old_checksum_end_lba = image->checksum_end_lba;
     old_checksum_idx_count = image->checksum_idx_count;
     old_checksum_array = image->checksum_array;
     image->checksum_array = NULL;
-#endif
 
     /* create new builder */
     ret = iso_image_builder_new(blback, &image->builder);
@@ -3363,8 +3352,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         (*features)->size = data->nblocks;
     }
 
-#ifdef Libisofs_with_checksumS
-
     if (data->md5_load) {
         /* Read checksum array */
         ret = iso_root_get_isofsca((IsoNode *) image->root,
@@ -3417,8 +3404,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         }
     }
 
-#endif /* Libisofs_with_checksumS */
-
     ret = iso_image_eval_boot_info_table(image, opts, src, data->nblocks, 0);
     if (ret < 0)
         goto import_revert;
@@ -3432,14 +3417,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     el_torito_boot_catalog_free(image->bootcat);
     image->root = oldroot;
     image->bootcat = oldbootcat;
-
-#ifdef Libisofs_with_checksumS
     old_checksum_start_lba = image->checksum_start_lba;
     old_checksum_end_lba = image->checksum_end_lba;
     old_checksum_idx_count = image->checksum_idx_count;
     image->checksum_array = old_checksum_array;
     old_checksum_array = NULL;
-#endif
 
     import_cleanup:;
 
@@ -3450,14 +3432,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_file_source_unref(newroot);
     fs->close(fs);
     iso_filesystem_unref(fs);
-
-#ifdef Libisofs_with_checksumS
     if (old_checksum_array != NULL)
         free(old_checksum_array);
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
-#endif
-
     return ret;
 }
 

@@ -152,8 +152,6 @@ struct iso_write_opts {
      */
     unsigned int dir_rec_mtime :1;
 
-#ifdef Libisofs_with_checksumS
-
     /**
      * Compute MD5 checksum for the whole session and record it as index 0 of
      * the checksum blocks after the data area of the session. The layout and
@@ -173,8 +171,6 @@ struct iso_write_opts {
      *       Raise MISHAP if mismatch.
      */
     unsigned int md5_file_checksums :2;
-
-#endif /* Libisofs_with_checksumS */
 
     /** If files should be sorted based on their weight. */
     unsigned int sort_files :1;
@@ -373,12 +369,8 @@ struct ecma119_image
     /* Store in ECMA-119 timestamp mtime of source */
     unsigned int dir_rec_mtime :1;
 
-#ifdef Libisofs_with_checksumS
-
     unsigned int md5_session_checksum :1;
     unsigned int md5_file_checksums :2;
-
-#endif /* Libisofs_with_checksumS */
 
     /*
      * Mode replace. If one of these flags is set, the correspodent values are
@@ -498,8 +490,6 @@ struct ecma119_image
     /* tree of files sources */
     IsoRBTree *files;
 
-#ifdef Libisofs_with_checksumS
-
     unsigned int checksum_idx_counter;
     void *checksum_ctx;
     off_t checksum_counter;
@@ -524,8 +514,6 @@ struct ecma119_image
 
     char scdbackup_tag_parm[100];
     char *scdbackup_tag_written;
-
-#endif /* Libisofs_with_checksumS */
 
     /* Buffer for communication between burn_source and writer thread */
     IsoRingBuffer *buffer;

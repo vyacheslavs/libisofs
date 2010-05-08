@@ -27,10 +27,7 @@
 #include "rockridge.h"
 #include "util.h"
 #include "system_area.h"
-
-#ifdef Libisofs_with_checksumS
 #include "md5.h"
-#endif
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -76,16 +73,12 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->bootsrc);
     if (t->system_area_data != NULL)
         free(t->system_area_data);
-
-#ifdef Libisofs_with_checksumS
     if (t->checksum_ctx != NULL) { /* dispose checksum context */
         char md5[16];
         iso_md5_end(&(t->checksum_ctx), md5);
     }
     if (t->checksum_buffer != NULL)
         free(t->checksum_buffer);
-#endif
-
     if (t->writers != NULL)
         free(t->writers);
     free(t);
@@ -256,17 +249,11 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target->m_path_table_pos = target->curblock;
     target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     target->path_table_size = path_table_size;
-
-#ifdef Libisofs_with_checksumS
-
     if (target->md5_session_checksum) {
         /* Account for tree checksum tag */
         target->checksum_tree_tag_pos = target->curblock;
         target->curblock++;
     }
-
-#endif /* Libisofs_with_checksumS */
-
     return ISO_SUCCESS;
 }
 
@@ -737,16 +724,10 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
     ret = write_path_tables(t);
     if (ret < 0)
         return ret;
-
-#ifdef Libisofs_with_checksumS
-
     if (t->md5_session_checksum) {
         /* Write tree checksum tag */
         ret = iso_md5_write_tag(t, 3);
     }
-
-#endif /* Libisofs_with_checksumS */
-
     return ret;
 }
 
@@ -934,17 +915,12 @@ void *write_function(void *arg)
         }
     }
 
-#ifdef Libisofs_with_checksumS
-
     /* Write superblock checksum tag */
     if (target->md5_session_checksum && target->checksum_ctx != NULL) {
         res = iso_md5_write_tag(target, 2);
         if (res < 0)
             goto write_error;
     }
-
-#endif /* Libisofs_with_checksumS */
-
 
     /* write data for each writer */
     for (i = 0; i < target->nwriters; ++i) {
@@ -955,12 +931,8 @@ void *write_function(void *arg)
         }
     }
 
-#ifdef Libisofs_with_checksumS
-
     /* Transplant checksum buffer from Ecma119Image to IsoImage */
     transplant_checksum_buffer(target, 0);
-
-#endif
 
     iso_ring_buffer_writer_close(target->buffer, 0);
 
@@ -981,14 +953,10 @@ void *write_function(void *arg)
     }
     iso_ring_buffer_writer_close(target->buffer, 1);
 
-#ifdef Libisofs_with_checksumS
-
     /* Transplant checksum buffer away from Ecma119Image */
     transplant_checksum_buffer(target, 0);
     /* Invalidate the transplanted checksum buffer in IsoImage */
     iso_image_free_checksums(target->image, 0);
-
-#endif
 
 #ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
@@ -997,9 +965,6 @@ void *write_function(void *arg)
 #endif
 
 }
-
-
-#ifdef Libisofs_with_checksumS
 
 
 static
@@ -1094,9 +1059,6 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     }
     return ISO_SUCCESS;
 }
-
-
-#endif /* Libisofs_with_checksumS */
 
 
 static
@@ -1222,8 +1184,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
 
-#ifdef Libisofs_with_checksumS
-
     target->md5_file_checksums = opts->md5_file_checksums;
     target->md5_session_checksum = opts->md5_session_checksum;
     strcpy(target->scdbackup_tag_parm, opts->scdbackup_tag_parm);
@@ -1240,8 +1200,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_range_start = 0;
     target->checksum_range_size = 0;
     target->opts_overwrite = 0;
-
-#endif
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -1266,9 +1224,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         nwriters++;
     }
 
-
-#ifdef Libisofs_with_checksumS
-
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
         image_checksums_mad = 1; /* from here on the loaded checksums are
@@ -1284,9 +1239,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         }
         target->checksum_idx_counter = 0;
     }
-
-#endif /* Libisofs_with_checksumS */
-
 
     target->writers = malloc(nwriters * sizeof(void*));
     if (target->writers == NULL) {
@@ -1345,18 +1297,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
     file_src_writer_index = target->nwriters - 1;
-
-
-#ifdef Libisofs_with_checksumS
-
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         ret = checksum_writer_create(target);
         if (ret < 0)
             goto target_cleanup;
     }
-
-#endif /* Libisofs_with_checksumS */
-
 
     /*
      * 3.
@@ -1456,8 +1401,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         memcpy(vol->std_identifier, "CD001", 5);
         vol->vol_desc_version[0] = 1;
 
-#ifdef Libisofs_with_checksumS
-
         /* Write relocated superblock checksum tag */
         tag_pos = voldesc_size / BLOCK_SIZE + 16 + 1;
         if (target->md5_session_checksum) {
@@ -1489,9 +1432,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             if (ret > 0)
                 opts->overwrite[i * 2048] = 0;
         }
-
-#endif /* Libisofs_with_checksumS */
-
     }
 
     /*
@@ -1503,8 +1443,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 
     /* 4. Create and start writing thread */
-
-#ifdef Libisofs_with_checksumS
     if (target->md5_session_checksum) {
         /* After any fake writes are done: Initialize image checksum context */
         if (target->checksum_ctx != NULL)
@@ -1517,8 +1455,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
        get attached at the end of write_function(). */
     iso_image_free_checksums(target->image, 0);
     image_checksums_mad = 0;
-
-#endif /* Libisofs_with_checksumS */
 
     /* ensure the thread is created joinable */
     pthread_attr_init(&(target->th_attr));
@@ -1544,14 +1480,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     return ISO_SUCCESS;
 
     target_cleanup: ;
-
-#ifdef Libisofs_with_checksumS
-
     if(image_checksums_mad) /* No checksums is better than mad checksums */
       iso_image_free_checksums(target->image, 0);
-
-#endif /* Libisofs_with_checksumS */
-
     ecma119_image_free(target);
     return ret;
 }
@@ -1691,17 +1621,11 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         /* reader cancelled */
         return ISO_CANCELED;
     }
-
-#ifdef Libisofs_with_checksumS
-
     if (target->checksum_ctx != NULL) {
         /* Add to image checksum */
         target->checksum_counter += count;
         iso_md5_compute(target->checksum_ctx, (char *) buf, (int) count);
     }
-
-#endif /* Libisofs_with_checksumS */
-
     /* total size is 0 when writing the overwrite buffer */
     if (ret > 0 && (target->total_size != (off_t) 0)){
         unsigned int kbw, kbt;
@@ -1977,14 +1901,8 @@ int iso_write_opts_set_sort_files(IsoWriteOpts *opts, int sort)
 
 int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files)
 {
-
-#ifdef Libisofs_with_checksumS
-
     opts->md5_session_checksum = session & 1;
     opts->md5_file_checksums = files & 3;
-
-#endif /* Libisofs_with_checksumS */
-
     return ISO_SUCCESS;
 }
 
@@ -1992,9 +1910,6 @@ int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
                                      char *name, char *timestamp,
                                      char *tag_written)
 {
-
-#ifdef Libisofs_with_checksumS
-
     char eff_name[81], eff_time[19];
     int i;
 
@@ -2020,9 +1935,6 @@ int iso_write_opts_set_scdbackup_tag(IsoWriteOpts *opts,
     opts->scdbackup_tag_written = tag_written;
     if (tag_written != NULL)
         tag_written[0] = 0;
-
-#endif /* Libisofs_with_checksumS */
-
     return ISO_SUCCESS;
 }
 

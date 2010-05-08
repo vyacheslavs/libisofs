@@ -864,9 +864,6 @@ int iso_stream_read_buffer(IsoStream *stream, char *buf, size_t count,
     return 1;
 }
 
-#ifdef Libisofs_with_checksumS
-
-
 /* @param flag bit0= dig out most original stream (e.g. because from old image)
    @return 1=ok, md5 is valid,
            0= not ok, 
@@ -923,6 +920,3 @@ ex:;
         iso_md5_end(&ctx, md5);
     return res;
 }
-
-#endif /* Libisofs_with_checksumS */
-

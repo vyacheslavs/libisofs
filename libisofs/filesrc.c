@@ -14,10 +14,7 @@
 #include "messages.h"
 #include "image.h"
 #include "stream.h"
-
-#ifdef Libisofs_with_checksumS
 #include "md5.h"
-#endif /*  Libisofs_with_checksumS */
 
 #include <stdlib.h>
 #include <string.h>
@@ -53,11 +50,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     unsigned int fs_id;
     dev_t dev_id;
     ino_t ino_id;
-
-#ifdef Libisofs_with_checksumS
     int cret, no_md5= 0;
     void *xipt = NULL;
-#endif
 
     if (img == NULL || file == NULL || src == NULL) {
         return ISO_NULL_POINTER;
@@ -103,9 +97,6 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
     if (ret <= 0) {
-
-#ifdef Libisofs_with_checksumS
-
         if (ret == 0 && (*src)->checksum_index > 0) {
             /* Duplicate file source was mapped to previously registered source
             */
@@ -113,16 +104,11 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
             if (cret < 0)
                 ret = cret;
         }
-
-#endif /* Libisofs_with_checksumS */
-
         free(fsrc->sections);
         free(fsrc);
         return ret;
     }
     iso_stream_ref(fsrc->stream);
-
-#ifdef Libisofs_with_checksumS
 
     if ((img->md5_file_checksums & 1) &&
         file->from_old_session && img->appendable) {
@@ -148,8 +134,6 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         if (cret < 0)
             return cret;
     }
-
-#endif /* Libisofs_with_checksumS */
 
     return ISO_SUCCESS;
 }
@@ -304,20 +288,15 @@ int filesrc_read(IsoFileSrc *file, char *buf, size_t count)
     return iso_stream_read_buffer(file->stream, buf, count, &got);
 }
 
-#ifdef Libisofs_with_checksumS
-
 /* @return 1=ok, md5 is valid,
            0= not ok, go on,
           <0 fatal error, abort 
 */  
-
 static
 int filesrc_make_md5(Ecma119Image *t, IsoFileSrc *file, char md5[16], int flag)
 {
     return iso_stream_make_md5(file->stream, md5, 0);
 }
-
-#endif /* Libisofs_with_checksumS */
 
 static
 int filesrc_writer_write_data(IsoImageWriter *writer)
@@ -331,13 +310,9 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     char buffer[BLOCK_SIZE];
     off_t file_size;
     uint32_t nblocks;
-
-#ifdef Libisofs_with_checksumS
     void *ctx= NULL;
     char md5[16], pre_md5[16];
     int pre_md5_valid = 0;
-#endif
-
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -353,17 +328,11 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         was_error = 0;
         file_size = iso_file_src_get_size(file);
         nblocks = DIV_UP(file_size, BLOCK_SIZE);
- 
-#ifdef Libisofs_with_checksumS
-
         pre_md5_valid = 0; 
         if (file->checksum_index > 0 && (t->md5_file_checksums & 2)) {
             /* Obtain an MD5 of content by a first read pass */
             pre_md5_valid = filesrc_make_md5(t, file, pre_md5, 0);
         }
-
-#endif /* Libisofs_with_checksumS */
-
         res = filesrc_open(file);
         iso_stream_get_file_name(file->stream, name);
         if (res < 0) {
@@ -407,18 +376,12 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         }
 #endif
 
- 
-#ifdef Libisofs_with_checksumS
- 
         if (file->checksum_index > 0) {
             /* initialize file checksum */
             res = iso_md5_start(&ctx);
             if (res <= 0)
                 file->checksum_index = 0;
         }
-
-#endif /* Libisofs_with_checksumS */
- 
         /* write file contents to image */
         for (b = 0; b < nblocks; ++b) {
             int wres;
@@ -434,9 +397,6 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 ret = wres;
                 goto ex;
             }
- 
-#ifdef Libisofs_with_checksumS
-
             if (file->checksum_index > 0) {
                 /* Add to file checksum */
                 if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
@@ -447,9 +407,6 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                 if (res <= 0)
                     file->checksum_index = 0;
             }
-
-#endif /* Libisofs_with_checksumS */
-    
         }
 
         filesrc_close(file);
@@ -484,9 +441,6 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                     ret = res;
                     goto ex;
                 }
- 
-#ifdef Libisofs_with_checksumS
-
                 if (file->checksum_index > 0) {
                     /* Add to file checksum */
                     if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
@@ -497,14 +451,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
                     if (res <= 0)
                         file->checksum_index = 0;
                 }
-
-#endif /* Libisofs_with_checksumS */
-    
             }
         }
-
-#ifdef Libisofs_with_checksumS
-
         if (file->checksum_index > 0 &&
             file->checksum_index <= t->checksum_idx_counter) {
             /* Obtain checksum and dispose checksum context */
@@ -529,19 +477,12 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             /* Write md5 into checksum buffer at file->checksum_index */
             memcpy(t->checksum_buffer + 16 * file->checksum_index, md5, 16);
         }
-
-#endif /* Libisofs_with_checksumS */
-
     }
 
     ret = ISO_SUCCESS;
 ex:;
-
-#ifdef Libisofs_with_checksumS
     if (ctx != NULL) /* avoid any memory leak */
         iso_md5_end(&ctx, md5);
-#endif
-
     return ret;
 }
 

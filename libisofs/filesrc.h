@@ -18,13 +18,7 @@
 struct Iso_File_Src
 {
     unsigned int prev_img :1; /**< if the file comes from a previous image */
-
-#ifdef Libisofs_with_checksumS
-
     unsigned int checksum_index :31;
-
-#endif /* Libisofs_with_checksumS */
-
 
     /** File Sections of the file in the image */
     struct iso_file_section *sections;

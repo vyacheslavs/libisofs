@@ -154,8 +154,6 @@ struct Iso_Image
     uint8_t *used_inodes;
     ino_t used_inodes_start;
 
-#ifdef Libisofs_with_checksumS
-
     /**
      * Array of MD5 checksums as announced by xattr "isofs.ca" of the 
      * root node. Array element 0 contains an overall image checksum for the
@@ -167,8 +165,6 @@ struct Iso_Image
     uint32_t checksum_end_lba;
     uint32_t checksum_idx_count;
     char *checksum_array;
-
-#endif /* Libisofs_with_checksumS */
 
 };
 

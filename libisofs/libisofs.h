@@ -6160,13 +6160,7 @@ struct burn_source {
 
 /* ---------------------------- Improvements --------------------------- */
 
-
-/* Checksums : During image writing equip IsoFile objects with MD5 checksums
-               and compute an overall checksum of the session. Store them in
-               a separate checksum block area after the data area of the
-               session.
-*/
-#define Libisofs_with_checksumS yes
+/* currently none being tested */
 
 
 /* ---------------------------- Experiments ---------------------------- */
