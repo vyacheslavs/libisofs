@@ -13,6 +13,10 @@
  * Rock Ridge and AAIP extensions on an ECMA-119 image.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "libisofs.h"
 #include "ecma119.h"
 #include "util.h"

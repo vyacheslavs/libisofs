@@ -8,6 +8,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "ecma119_tree.h"
 #include "ecma119.h"
 #include "node.h"

@@ -13,6 +13,10 @@
  * IsoDataSource to read image data.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "libisofs.h"
 #include "ecma119.h"
 #include "messages.h"

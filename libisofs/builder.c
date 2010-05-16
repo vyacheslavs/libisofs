@@ -8,6 +8,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 /* libisofs.h defines aaip_xinfo_func */
 #include "libisofs.h"
 

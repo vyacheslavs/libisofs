@@ -9,6 +9,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "rockridge.h"
 #include "node.h"
 #include "ecma119_tree.h"

@@ -8,6 +8,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "system_area.h"
 #include "eltorito.h"
 #include "filesrc.h"

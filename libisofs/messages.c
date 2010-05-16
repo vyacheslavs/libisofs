@@ -6,6 +6,11 @@
  * or later as published by the Free Software Foundation. 
  * See COPYING file for details.
  */
+
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>

@@ -14,6 +14,10 @@
 #include "messages.h"
 #include "../version.h"
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include <stdlib.h>
 #include <wchar.h>
 #include <string.h>

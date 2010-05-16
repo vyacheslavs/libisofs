@@ -11,6 +11,10 @@
  * Functions that act on the iso tree.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "libisofs.h"
 #include "node.h"
 #include "image.h"

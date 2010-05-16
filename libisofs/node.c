@@ -8,6 +8,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "libisofs.h"
 #include "image.h"
 #include "node.h"

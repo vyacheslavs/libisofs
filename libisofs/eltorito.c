@@ -8,6 +8,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "eltorito.h"
 #include "stream.h"
 #include "fsource.h"

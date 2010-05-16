@@ -7,6 +7,10 @@
  * See COPYING file for details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "iso1999.h"
 #include "messages.h"
 #include "writer.h"

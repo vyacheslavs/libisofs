@@ -12,6 +12,10 @@
  * Filesystem/FileSource implementation to access the local filesystem.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "fsource.h"
 #include "util.h"
 #include "aaip_0_2.h"

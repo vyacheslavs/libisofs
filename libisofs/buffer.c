@@ -17,6 +17,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 /*
    Use the copy of the struct burn_source definition in libisofs.h
 */
