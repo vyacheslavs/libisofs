@@ -17,6 +17,10 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "../libisofs.h"
 #include "../filter.h"
 #include "../fsource.h"
