@@ -170,13 +170,13 @@ int iso_image_free_checksums(IsoImage *image, int flag)
  */
 int iso_image_attach_data(IsoImage *image, void *data, void (*give_up)(void*))
 {
-    if (image == NULL || (data != NULL && free == NULL)) {
+    if (image == NULL) {
         return ISO_NULL_POINTER;
     }
 
     if (image->user_data != NULL) {
         /* free previously attached data */
-        if (image->user_data_free) {
+        if (image->user_data_free != NULL) {
             image->user_data_free(image->user_data);
         }
         image->user_data = NULL;
