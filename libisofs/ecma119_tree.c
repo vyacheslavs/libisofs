@@ -150,15 +150,11 @@ int create_dir(Ecma119Image *img, IsoDir *iso, Ecma119Node **node)
     return ISO_SUCCESS;
 }
 
-/**
- * Create a new ECMA-119 node representing a regular file from a iso file
- * node.
- */
+
 static
-int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
+int create_file_src(Ecma119Image *img, IsoFile *iso, IsoFileSrc **src)
 {
     int ret;
-    IsoFileSrc *src;
     off_t size;
 
     size = iso_stream_get_size(iso->stream);
@@ -170,8 +166,25 @@ int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
         free(ipath);
         return ret;
     }
+    ret = iso_file_src_create(img, iso, src);
+    if (ret < 0) {
+        return ret;
+    }
+    return 0;
+}
 
-    ret = iso_file_src_create(img, iso, &src);
+
+/**
+ * Create a new ECMA-119 node representing a regular file from a iso file
+ * node.
+ */
+static
+int create_file(Ecma119Image *img, IsoFile *iso, Ecma119Node **node)
+{
+    int ret;
+    IsoFileSrc *src;
+
+    ret = create_file_src(img, iso, &src);
     if (ret < 0) {
         return ret;
     }
@@ -271,58 +284,76 @@ void ecma119_node_free(Ecma119Node *node)
 }
 
 /**
- *
+ * @param flag
+ *      bit0= iso is in a hidden directory. Thus hide it.
  * @return
  *      1 success, 0 node ignored,  < 0 error
  *
  */
 static
 int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
-                int depth, int pathlen)
+                int depth, int pathlen, int flag)
 {
-    int ret;
-    Ecma119Node *node;
+    int ret, hidden;
+    Ecma119Node *node = NULL;
     int max_path;
-    char *iso_name= NULL;
+    char *iso_name= NULL, *ipath = NULL;
+    IsoFileSrc *src = NULL;
 
     if (image == NULL || iso == NULL || tree == NULL) {
         return ISO_NULL_POINTER;
     }
+    *tree = NULL;
 
+    hidden = flag & 1;
     if (iso->hidden & LIBISO_HIDE_ON_RR) {
-        /* file will be ignored */
-        return 0;
+        hidden = 1;
+        if (!((iso->hidden & LIBISO_HIDE_BUT_WRITE) ||
+              iso->type == LIBISO_BOOT)) {
+            return 0; /* file will be ignored */
+        }
     }
-    ret = get_iso_name(image, iso, &iso_name);
-    if (ret < 0) {
-        return ret;
-    }
-    max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
-    if (!image->rockridge) {
-        if ((iso->type == LIBISO_DIR && depth > 8) && !image->allow_deep_paths) {
-            char *ipath = iso_tree_get_node_path(iso);
-            return iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
-                         "File \"%s\" can't be added, because directory depth "
-                         "is greater than 8.", ipath);
-            free(iso_name);
-            free(ipath);
-            return ret;
-        } else if (max_path > 255 && !image->allow_longer_paths) {
-            char *ipath = iso_tree_get_node_path(iso);
-            ret = iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG, 0,
-                         "File \"%s\" can't be added, because path length "
-                         "is greater than 255 characters", ipath);
-            free(iso_name);
-            free(ipath);
-            return ret;
+
+    if (!hidden) {
+        ret = get_iso_name(image, iso, &iso_name);
+        if (ret < 0) {
+            iso_name = NULL; /* invalid, do not free */
+            goto ex;
+        }
+        max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
+        if (!image->rockridge) {
+            if ((iso->type == LIBISO_DIR && depth > 8) &&
+                !image->allow_deep_paths) {
+	        ipath = iso_tree_get_node_path(iso);
+                ret = iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG,
+                                     0, "File \"%s\" can't be added, "
+                                     "because directory depth "
+                                     "is greater than 8.", ipath);
+                goto ex;
+            } else if (max_path > 255 && !image->allow_longer_paths) {
+                ipath = iso_tree_get_node_path(iso);
+                ret = iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG,
+                                     0, "File \"%s\" can't be added, "
+                                     "because path length "
+                                     "is greater than 255 characters", ipath);
+                goto ex;
+            }
         }
     }
 
     switch (iso->type) {
     case LIBISO_FILE:
-        ret = create_file(image, (IsoFile*)iso, &node);
+        if (hidden) {
+            ret = create_file_src(image, (IsoFile *) iso, &src);
+        } else {
+            ret = create_file(image, (IsoFile*)iso, &node);
+        }
         break;
     case LIBISO_SYMLINK:
+        if (hidden) {
+            ret = 0; /* Hidden means non-existing */
+            goto ex;
+        }
         if (image->rockridge) {
             ret = create_symlink(image, (IsoSymlink*)iso, &node);
         } else {
@@ -335,6 +366,10 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         }
         break;
     case LIBISO_SPECIAL:
+        if (hidden) {
+            ret = 0; /* Hidden means non-existing */
+            goto ex;
+        }
         if (image->rockridge) {
             ret = create_special(image, (IsoSpecial*)iso, &node);
         } else {
@@ -348,7 +383,11 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         break;
     case LIBISO_BOOT:
         if (image->eltorito) {
-            ret = create_boot_cat(image, (IsoBoot*)iso, &node);
+            if (hidden) {
+                ret = el_torito_catalog_file_src_create(image, &src);
+            } else {
+                ret = create_boot_cat(image, (IsoBoot*)iso, &node);
+            }
         } else {
             /* log and ignore */
             ret = iso_msg_submit(image->image->id, ISO_FILE_IGNORED, 0,
@@ -359,21 +398,26 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         {
             IsoNode *pos;
             IsoDir *dir = (IsoDir*)iso;
-            ret = create_dir(image, dir, &node);
-            if (ret < 0) {
-                return ret;
+
+            if (!hidden) {
+                ret = create_dir(image, dir, &node);
+                if (ret < 0) {
+                    goto ex;
+                }
             }
             pos = dir->children;
             while (pos) {
                 int cret;
                 Ecma119Node *child;
-                cret = create_tree(image, pos, &child, depth + 1, max_path);
+                cret = create_tree(image, pos, &child, depth + 1, max_path,
+                                   !!hidden);
                 if (cret < 0) {
                     /* error */
-                    ecma119_node_free(node);
+                    if (!hidden)
+                        ecma119_node_free(node);
                     ret = cret;
                     break;
-                } else if (cret == ISO_SUCCESS) {
+                } else if (cret == ISO_SUCCESS && !hidden) {
                     /* add child to this node */
                     int nchildren = node->info.dir->nchildren++;
                     node->info.dir->children[nchildren] = child;
@@ -385,15 +429,30 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         break;
     default:
         /* should never happen */
-        return ISO_ASSERT_FAILURE;
+        ret = ISO_ASSERT_FAILURE;
+        goto ex;
     }
     if (ret <= 0) {
-        free(iso_name);
-        return ret;
+        goto ex;
     }
-    node->iso_name = iso_name;
-    *tree = node;
-    return ISO_SUCCESS;
+    if (!hidden) {
+        node->iso_name = iso_name;
+        iso_name = NULL; /* now owned by node, do not free */
+        *tree = node;
+        node = NULL;     /* now owned by caller, do not free */
+    }
+    ret = ISO_SUCCESS;
+ex:
+    if (iso_name != NULL)
+        free(iso_name);
+    if (ipath != NULL)
+        free(ipath);
+    if (node != NULL)
+        ecma119_node_free(node);
+    if (hidden && ret == ISO_SUCCESS)
+        ret = 0;
+    /* The sources of hidden files are now owned by the rb-tree */
+    return ret;
 }
 
 /**
@@ -985,7 +1044,7 @@ int ecma119_tree_create(Ecma119Image *img)
     int ret;
     Ecma119Node *root;
 
-    ret = create_tree(img, (IsoNode*)img->image->root, &root, 1, 0);
+    ret = create_tree(img, (IsoNode*)img->image->root, &root, 1, 0, 0);
     if (ret <= 0) {
         if (ret == 0) {
             /* unexpected error, root ignored!! This can't happen */

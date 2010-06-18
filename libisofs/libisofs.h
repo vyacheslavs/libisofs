@@ -168,7 +168,17 @@ enum IsoHideNodeFlag {
     /** Hide the node in the Joliet tree, if Joliet extension are enabled */
     LIBISO_HIDE_ON_JOLIET = 1 << 1,
     /** Hide the node in the ISO-9660:1999 tree, if that format is enabled */
-    LIBISO_HIDE_ON_1999 = 1 << 2
+    LIBISO_HIDE_ON_1999 = 1 << 2,
+
+    /** With IsoNode and IsoBoot: Write data content even if the node is
+     *                            not visible in any tree.
+     *  With directory nodes    : Write data content of IsoNode and IsoBoot
+     *                            in the directory's tree unless they are
+     *                            explicitely marked LIBISO_HIDE_ON_RR
+     *                            without LIBISO_HIDE_BUT_WRITE.
+     *  @since 0.6.34
+     */
+    LIBISO_HIDE_BUT_WRITE = 1 << 3
 };
 
 /**
@@ -2450,6 +2460,26 @@ void iso_image_remove_boot_image(IsoImage *image);
 int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight);
 
 /**
+ * Hides the boot catalog file from directory trees.
+ * 
+ * For the meaning of hiding files see iso_node_set_hidden().
+ *
+ * 
+ * @param image
+ *      The image to manipulate.
+ * @param hide_attrs
+ *      Or-combination of values from enum IsoHideNodeFlag to set the trees
+ *      in which the record.
+ * @return
+ *      0= no boot catalog attached , 1= ok , <0 = error
+ *
+ * @since 0.6.32
+ */
+int iso_image_set_boot_catalog_hidden(IsoImage *image, int hide_attrs);
+
+
+
+/**
  * Get the boot media type as of parameter "type" of iso_image_set_boot_image()
  * resp. iso_image_add_boot_image().
  *
@@ -2958,21 +2988,22 @@ void iso_node_set_ctime(IsoNode *node, time_t time);
 time_t iso_node_get_ctime(const IsoNode *node);
 
 /**
- * Set if the node will be hidden in RR/ISO tree, Joliet tree or both.
+ * Set whether the node will be hidden in the directory trees of RR/ISO 9660,
+ * or of Joliet (if enabled at all), or of ISO-9660:1999 (if enabled at all).
  *
- * If the file is set as hidden in one tree, it wil not be included there, so
- * it won't be visible in a OS accessing CD using that tree. For example,
- * GNU/Linux systems access to Rock Ridge / ISO9960 tree in order to see
- * what is recorded on CD, while MS Windows make use of the Joliet tree. If a
- * file is hidden only in Joliet, it wil not be visible in Windows systems,
- * while still visible in GNU/Linux.
+ * A hidden file does not show up by name in the affected directory tree.
+ * For example, if a file is hidden only in Joliet, it will normally
+ * not be visible on Windows systems, while being shown on GNU/Linux.
  *
- * If a file is hidden in both trees, it will not be written to image.
+ * If a file is not shown in any of the enabled trees, then its content will
+ * not be written to the image, unless LIBISO_HIDE_BUT_WRITE is given (which
+ * is available only since release 0.6.34).
  *
  * @param node
  *      The node that is to be hidden.
  * @param hide_attrs
- *      IsoHideNodeFlag's to set the trees in which file will be hidden.
+ *      Or-combination of values from enum IsoHideNodeFlag to set the trees
+ *      in which the node's name shall be hidden.
  *
  * @since 0.6.2
  */
@@ -3675,8 +3706,9 @@ void iso_tree_set_follow_symlinks(IsoImage *image, int follow);
 int iso_tree_get_follow_symlinks(IsoImage *image);
 
 /**
- * Set whether to skip or not hidden files when adding a directory recursibely.
- * Default behavior is to not ignore them, i.e., to add hidden files to image.
+ * Set whether to skip or not disk files with names beginning by '.'
+ * when adding a directory recursively.
+ * Default behavior is to not ignore them.
  *
  * @since 0.6.2
  */

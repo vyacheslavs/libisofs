@@ -674,6 +674,18 @@ int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight)
     return 1;
 }
 
+/* API */
+int iso_image_set_boot_catalog_hidden(IsoImage *image, int hide_attrs)
+{
+    if (image->bootcat == NULL)
+        return 0;
+    if (image->bootcat->node == NULL)
+        return 0;
+    iso_node_set_hidden((IsoNode *) image->bootcat->node, hide_attrs);
+    return 1;
+}
+
+
 void el_torito_boot_catalog_free(struct el_torito_boot_catalog *cat)
 {
     struct el_torito_boot_image *image;
