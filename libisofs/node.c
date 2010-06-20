@@ -432,6 +432,12 @@ void iso_node_set_hidden(IsoNode *node, int hide_attrs)
     }
 }
 
+int iso_node_get_hidden(IsoNode *node)
+{
+    return node->hidden;
+}
+
+
 /**
  * Add a new node to a dir. Note that this function don't add a new ref to
  * the node, so you don't need to free it, it will be automatically freed

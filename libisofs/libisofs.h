@@ -795,6 +795,7 @@ struct IsoStream_Iface
     /**
      * Type of Stream.
      * "fsrc" -> Read from file source
+     * "cout" -> Cut out interval from disk file
      * "mem " -> Read from memory
      * "boot" -> Boot catalog
      * "extf" -> External filter program
@@ -3008,6 +3009,19 @@ time_t iso_node_get_ctime(const IsoNode *node);
  * @since 0.6.2
  */
 void iso_node_set_hidden(IsoNode *node, int hide_attrs);
+
+/**
+ * Get the hide_attrs as eventually set by iso_node_set_hidden().
+ *
+ * @param node
+ *      The node to inquire.
+ * @return
+ *      Or-combination of values from enum IsoHideNodeFlag which are
+ *      currently set for the node.
+ *
+ * @since 0.6.34
+ */
+int iso_node_get_hidden(IsoNode *node);
 
 /**
  * Compare two nodes whether they are based on the same input and
