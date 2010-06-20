@@ -314,7 +314,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         }
     }
 
-    if (!hidden) {
+    if (hidden) {
+        max_path= pathlen;
+    } else {
         ret = get_iso_name(image, iso, &iso_name);
         if (ret < 0) {
             iso_name = NULL; /* invalid, do not free */
@@ -405,6 +407,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                     goto ex;
                 }
             }
+            ret = ISO_SUCCESS;
             pos = dir->children;
             while (pos) {
                 int cret;
