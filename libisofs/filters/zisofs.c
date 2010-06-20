@@ -830,6 +830,9 @@ int ziso_cmp_ino(IsoStream *s1, IsoStream *s2)
 /* ------------------------------------------------------------------------- */
 
 
+
+#ifdef Libisofs_with_zliB
+
 static
 void ziso_filter_free(FilterContext *filter)
 {
@@ -916,8 +919,6 @@ int ziso_filter_get_uncompressor(FilterContext *filter, IsoStream *original,
     return ziso_filter_get_filter(filter, original, filtered, 2);
 }
 
-
-#ifdef Libisofs_with_zliB
 
 /* Produce a parameter object suitable for iso_file_add_filter().
  * It may be disposed by free() after all those calls are made.
