@@ -284,6 +284,8 @@ const char *iso_error_to_msg(int errcode)
         return "Detected file content changes while it was written into the image";
     case ISO_SCDBACKUP_TAG_NOT_0:
         return "Session does not start at LBA 0. scdbackup checksum tag not written.";
+    case ISO_BOOT_NO_CATALOG:
+        return "No boot catalog created yet";
     default:
         return "Unknown error";
     }

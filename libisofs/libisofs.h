@@ -2354,14 +2354,14 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
  *      See iso_image_set_boot_image
  * @return
  *      1 on success, < 0 on error
+ *                    ISO_BOOT_NO_CATALOG means iso_image_set_boot_image()
+ *                    was not called first.
  *
  * @since 0.6.32
  */
 int iso_image_add_boot_image(IsoImage *image, const char *image_path,
                              enum eltorito_boot_media_type type, int flag,
                              ElToritoBootImage **boot);
-
-/* TODO #00026 : add support for "hidden" bootable images. */
 
 /**
  * Get the El-Torito boot catalog and the default boot image of an ISO image.
@@ -2474,10 +2474,9 @@ int iso_image_set_boot_catalog_weight(IsoImage *image, int sort_weight);
  * @return
  *      0= no boot catalog attached , 1= ok , <0 = error
  *
- * @since 0.6.32
+ * @since 0.6.34
  */
 int iso_image_set_boot_catalog_hidden(IsoImage *image, int hide_attrs);
-
 
 
 /**
@@ -3723,6 +3722,10 @@ int iso_tree_get_follow_symlinks(IsoImage *image);
  * Set whether to skip or not disk files with names beginning by '.'
  * when adding a directory recursively.
  * Default behavior is to not ignore them.
+ *
+ * Clarification: This is not related to the IsoNode property to be hidden
+ *                in one or more of the resulting image trees as of
+ *                IsoHideNodeFlag and iso_node_set_hidden().
  *
  * @since 0.6.2
  */
@@ -5755,6 +5758,10 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 
 /** Too many boot images (FAILURE,HIGH, -69) */
 #define ISO_BOOT_IMAGE_OVERFLOW         0xE830FFBA
+
+/** No boot catalog created yet ((FAILURE,HIGH, -70) */ /* @since 0.6.34 */
+#define ISO_BOOT_NO_CATALOG             0xE830FFB9
+
 
 /**
  * Error on file operation (FAILURE,HIGH, -128)

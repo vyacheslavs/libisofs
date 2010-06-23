@@ -653,6 +653,8 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
     struct el_torito_boot_catalog *catalog = image->bootcat;
     ElToritoBootImage *boot_img;
 
+    if(catalog == NULL)
+      return ISO_BOOT_NO_CATALOG;
     if (catalog->num_bootimages >= Libisofs_max_boot_imageS)
         return ISO_BOOT_IMAGE_OVERFLOW;
     ret = create_image(image, image_path, type, &boot_img);
