@@ -1102,7 +1102,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  */
 #define iso_lib_header_version_major  0
 #define iso_lib_header_version_minor  6
-#define iso_lib_header_version_micro  33
+#define iso_lib_header_version_micro  34
 
 /**
  * Usage discussion:
@@ -2372,7 +2372,7 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
  * example, to prevent the user removing it.
  *
  * Both nodes are owned by libisofs and should not be freed. You can get your
- * own ref with iso_node_ref(). You can can also check if the node is already
+ * own ref with iso_node_ref(). You can also check if the node is already
  * on the tree by getting its parent (note that when reading El-Torito info
  * from a previous image, the nodes might not be on the tree even if you haven't
  * removed them). Remember that you'll need to get a new ref

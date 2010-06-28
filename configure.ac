@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [0.6.33], [http://libburnia-project.org])
+AC_INIT([libisofs], [0.6.34], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -8,12 +8,6 @@ AC_CANONICAL_TARGET
 LIBBURNIA_SET_FLAGS
 
 AM_INIT_AUTOMAKE([subdir-objects])
-
-dnl A61101 This breaks Linux build (makes 32 bit off_t)
-dnl        http://sourceware.org/autobook/autobook/autobook_96.html says
-dnl        one must include some config.h and this was a pitfall.
-dnl        So why dig the pit at all ?
-dnl AM_CONFIG_HEADER(config.h)
 
 dnl
 dnl if MAJOR or MINOR version changes, be sure to change AC_INIT above to match
@@ -46,7 +40,7 @@ dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
 dnl
 LIBISOFS_MAJOR_VERSION=0
 LIBISOFS_MINOR_VERSION=6
-LIBISOFS_MICRO_VERSION=33
+LIBISOFS_MICRO_VERSION=34
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
@@ -57,9 +51,9 @@ AC_SUBST(LIBISOFS_VERSION)
 dnl Libtool versioning
 LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
 # 2010.05.03  development jump has not yet happened
-# SONAME = 34 - 28 = 6 . Library name = libisofs.6.28.0
-LT_CURRENT=34
-LT_AGE=28
+# SONAME = 36 - 30 = 6 . Library name = libisofs.6.30.0
+LT_CURRENT=36
+LT_AGE=30
 LT_REVISION=0
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
