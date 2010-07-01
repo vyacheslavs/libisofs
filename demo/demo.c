@@ -50,6 +50,7 @@ static char helptext[][80] = {
 #include <fcntl.h>
 #include <err.h>
 #include <limits.h>
+#include <alloca.h>
 
 
 
