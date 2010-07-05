@@ -50,21 +50,7 @@ static char helptext[][80] = {
 #include <fcntl.h>
 #include <err.h>
 #include <limits.h>
-#include <alloca.h>
 
-
-
-#define LIBISOFS_WITHOUT_LIBBURN yes
-#include "libisofs.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <err.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX Libisofs_default_path_maX
@@ -99,7 +85,9 @@ tree_print_dir(IsoDir *dir, int level)
     int i;
     IsoDirIter *iter;
     IsoNode *node;
-    char *sp = alloca(level * 2 + 1);
+    char *sp;
+
+    sp = calloc(1, level * 2 + 1);
     
     for (i = 0; i < level * 2; i += 2) {
         sp[i] = '|';
@@ -133,6 +121,7 @@ tree_print_dir(IsoDir *dir, int level)
         } 
     }
     iso_dir_iter_free(iter);
+    free(sp);
 }
 
 int gesture_tree(int argc, char **argv)
@@ -437,7 +426,9 @@ iso_read_print_dir(IsoFileSource *dir, int level)
     int ret, i;
     IsoFileSource *file;
     struct stat info;
-    char *sp = alloca(level * 2 + 1);
+    char *sp;
+
+    sp = calloc(1, level * 2 + 1);
 
     for (i = 0; i < level * 2; i += 2) {
         sp[i] = '|';
@@ -467,6 +458,7 @@ iso_read_print_dir(IsoFileSource *dir, int level)
     if (ret < 0) {
         printf ("Can't print dir\n");
     }
+    free(sp);
 }
 
 int gesture_iso_read(int argc, char **argv)
