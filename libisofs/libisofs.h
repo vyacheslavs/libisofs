@@ -8,6 +8,10 @@
  * See COPYING file for details.
  */
 
+/* Important: If you add a public API function then add its name to file
+                 libisofs/libisofs.ver 
+*/
+
 /* 
  *
  * Applications must use 64 bit off_t, e.g. on 32-bit GNU/Linux by defining

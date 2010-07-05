@@ -205,6 +205,24 @@ else
 fi
 AC_SUBST(ZLIB_DEF)
 
+# Library versioning normally serves a complex purpose.
+# Since libisofs obeys strict ABI backward compatibility, it needs only the
+# simple feature to declare function names "global:" or "local:". Only the
+# global ones are visible to applications at library load time.
+dnl
+dnl >>> TODO:
+dnl >>> make an actual try whether -Wl,--version-script=libisofs/libisofs.ver
+dnl >>> is accepted by the compiler
+dnl
+AC_ARG_ENABLE(versioned-libs,
+[  --enable-versioned-libs Enable strict symbol encapsulation , default=yes],
+               , enable_versioned_libs=yes)
+if test x$enable_versioned_libs = xyes; then
+    LDFLAGS="$LDFLAGS -Wl,--version-script=libisofs/libisofs.ver"
+    echo "enabled  strict symbol encapsulation"
+else
+    echo "disabled strict symbol encapsulation"
+fi
 
 AC_CONFIG_FILES([
 	Makefile
