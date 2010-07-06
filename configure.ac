@@ -218,8 +218,14 @@ AC_ARG_ENABLE(versioned-libs,
 [  --enable-versioned-libs Enable strict symbol encapsulation , default=yes],
                , enable_versioned_libs=yes)
 if test x$enable_versioned_libs = xyes; then
-    LDFLAGS="$LDFLAGS -Wl,--version-script=libisofs/libisofs.ver"
-    echo "enabled  strict symbol encapsulation"
+    vers_libs_test=no
+    LIBISOFS_ASSERT_VERS_LIBS
+    if test x$vers_libs_test = xno
+    then 
+        echo "disabled strict symbol encapsulation (test failed)"
+    else
+        echo "enabled  strict symbol encapsulation"
+    fi
 else
     echo "disabled strict symbol encapsulation"
 fi
