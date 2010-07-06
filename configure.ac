@@ -209,11 +209,6 @@ AC_SUBST(ZLIB_DEF)
 # Since libisofs obeys strict ABI backward compatibility, it needs only the
 # simple feature to declare function names "global:" or "local:". Only the
 # global ones are visible to applications at library load time.
-dnl
-dnl >>> TODO:
-dnl >>> make an actual try whether -Wl,--version-script=libisofs/libisofs.ver
-dnl >>> is accepted by the compiler
-dnl
 AC_ARG_ENABLE(versioned-libs,
 [  --enable-versioned-libs Enable strict symbol encapsulation , default=yes],
                , enable_versioned_libs=yes)
