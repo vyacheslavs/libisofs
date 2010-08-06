@@ -646,7 +646,7 @@ struct IsoFileSource_Iface
      *     The dest. will be copied there, and it will be NULL-terminated
      * @param bufsiz
      *     characters to be copied. Destination link will be truncated if
-     *     it is larger than given size. This include the \0 character.
+     *     it is larger than given size. This include the 0x0 character.
      * @return
      *     1 on success, < 0 on error (has to be a valid libisofs error code)
      *      Error codes:
@@ -1192,6 +1192,8 @@ void iso_write_opts_free(IsoWriteOpts *opts);
 /**
  * Set the ISO-9960 level to write at.
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param level
  *      -> 1 for higher compatibility with old systems. With this level
  *      filenames are restricted to 8.3 characters.
@@ -1215,6 +1217,8 @@ int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level);
  * directories, support for symbolic links or special files... All that
  * attributes can be modified/setted with the appropiate function.
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param enable
  *      1 to enable RR extension, 0 to not add them
  * @return
@@ -1232,6 +1236,8 @@ int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable);
  * Usage of Joliet supplies longer filesystem length (up to 64 unicode
  * characters), and deeper directory structure.
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param enable
  *      1 to enable Joliet extension, 0 to not add them
  * @return
@@ -1271,12 +1277,14 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
  * properties, then one of them will get assigned a new unique inode number.
  * I.e. the hardlink relation between both IsoNode objects ends.
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param enable 
- *     1 = Collect IsoNode objects which have identical data sources and
- *         properties.
- *     0 = Generate unique inode numbers for all IsoNode objects which do not
- *         have a valid inode number from an imported ISO image.
- *     All other values are reserved.
+ *      1 = Collect IsoNode objects which have identical data sources and
+ *          properties.
+ *      0 = Generate unique inode numbers for all IsoNode objects which do not
+ *          have a valid inode number from an imported ISO image.
+ *      All other values are reserved.
  *
  * @since 0.6.20
  */
@@ -1288,10 +1296,12 @@ int iso_write_opts_set_hardlinks(IsoWriteOpts *opts, int enable);
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For loading of this information from images see iso_read_opts_set_no_aaip().
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param enable
- *     1 = write AAIP information from nodes into the image
- *     0 = do not write AAIP information into the image
- *     All other values are reserved.
+ *      1 = write AAIP information from nodes into the image
+ *      0 = do not write AAIP information into the image
+ *      All other values are reserved.
  *
  * @since 0.6.14
  */
@@ -1301,6 +1311,8 @@ int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
  * Omit the version number (";1") at the end of the ISO-9660 identifiers.
  * This breaks ECMA-119 specification, but version numbers are usually not
  * used, so it should work on most systems. Use with caution.
+ * @param opts
+ *      The option set to be manipulated.
  * @param omit
  *      bit0= omit version number with ECMA-119 and Joliet
  *      bit1= omit version number with Joliet alone (@since 0.6.30)
@@ -1341,6 +1353,9 @@ int iso_write_opts_set_max_37_char_filenames(IsoWriteOpts *opts, int allow);
  * extension. libisofs adds it if original filename doesn't has one. Set
  * this to 1 to prevent this behavior.
  * This breaks ECMA-119 specification. Use with caution.
+ *
+ * @param opts
+ *      The option set to be manipulated.
  * @param no
  *      bit0= no forced dot with ECMA-119
  *      bit1= no forced dot with Joliet (@since 0.6.30)
@@ -1360,7 +1375,7 @@ int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
 
 /**
  * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
- * that "/" and "\0" characters are never allowed, even in RR names.
+ * that "/" and 0x0 characters are never allowed, even in RR names.
  * This breaks ECMA-119 specification. Use with caution.
  *
  * @since 0.6.2
@@ -1471,12 +1486,14 @@ int iso_write_opts_set_record_md5(IsoWriteOpts *opts, int session, int files);
  * Set the parameters "name" and "timestamp" for a scdbackup checksum tag.
  * It will be appended to the libisofs session tag if the image starts at
  * LBA 0 (see iso_write_opts_set_ms_block()). The scdbackup tag can be used
- * to verify the image by command scdbackup_verify <device> -auto_end.
+ * to verify the image by command scdbackup_verify device -auto_end.
  * See scdbackup/README appendix VERIFY for its inner details.
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param name
- *      A word of up to 80 characters. Typically <volno>_<totalno> telling
- *      that this is volume <volno> of a total of <totalno> volumes.
+ *      A word of up to 80 characters. Typically volno_totalno telling
+ *      that this is volume volno of a total of totalno volumes.
  * @param timestamp
  *      A string of 13 characters YYMMDD.hhmmss (e.g. A90831.190324).
  *      A9 = 2009, B0 = 2010, B1 = 2011, ... C0 = 2020, ...
@@ -1622,6 +1639,8 @@ int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
  * image will always be a stand-alone image, as there is no previous data to
  * refer to. 
  *
+ * @param opts
+ *      The option set to be manipulated.
  * @param append
  *      1 to create an appended image, 0 for an stand-alone one.
  *
@@ -1647,7 +1666,7 @@ int iso_write_opts_set_appendable(IsoWriteOpts *opts, int append);
 int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
 
 /**
- * Sets the buffer where to store the descriptors which shall to be written
+ * Sets the buffer where to store the descriptors which shall be written
  * at the beginning of an overwriteable media to point to the newly written
  * image.
  * This is needed if the write start address of the image is not 0.
@@ -1678,13 +1697,16 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
  *   and disk files to LBA 32 in order to preserve its descriptors from the
  *   subsequent overwriting by the descriptor buffer of later sessions.
  *
- * @param buffer
+ * @param opts
+ *      The option set to be manipulated.
+ * @param overwrite
  *      When not NULL, it should point to at least 64KiB of memory, where
  *      libisofs will install the contents that shall be written at the
  *      beginning of overwriteable media.
  *      You should initialize the buffer either with 0s, or with the contents
  *      of the first 32 blocks of the image you are growing. In most cases,
  *      0 is good enought.
+ *      >>> TWINTREE: must be larger by partion_offset
  *
  * @since 0.6.2
  */
@@ -1751,7 +1773,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
  * @param vol_effective_time
  *        When "the information in the volume may be used."
  *        A value of 0 means that not such retention is intended.
- * @param uuid
+ * @param vol_uuid
  *        If this text is not empty, then it overrides vol_creation_time and
  *        vol_modification_time by copying the first 16 decimal digits from
  *        uuid, eventually padding up with decimal '1', and writing a NUL-byte
@@ -1895,10 +1917,12 @@ int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For eventual writing of this information see iso_write_opts_set_aaip().
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param noaaip
- *     1 = Do not read AAIP information
- *     0 = Read AAIP information if available
- *     All other values are reserved.
+ *       1 = Do not read AAIP information
+ *       0 = Read AAIP information if available
+ *       All other values are reserved.
  * @since 0.6.14
  */
 int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip);
@@ -1909,10 +1933,12 @@ int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip);
  * Important: Loading of the MD5 array will only work if AAIP is enabled
  *            because its position and layout is recorded in xattr "isofs.ca".
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param no_md5
- *    1 = Do not read MD5 checksum array
- *    0 = Read Md% array if available
- *     All other values are reserved.
+ *       1 = Do not read MD5 checksum array
+ *       0 = Read Md% array if available
+ *       All other values are reserved.
  *
  * @since 0.6.22
  */
@@ -1930,6 +1956,8 @@ int iso_read_opts_set_no_md5(IsoReadOpts *opts, int no_md5);
  * Two image nodes which have the same inode number represent two hardlinks
  * of the same file object. So discarding the numbers splits hardlinks.
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param new_inos
  *     1 = Discard imported inode numbers and finally hand out a unique new
  *         one to each single file before it gets written into an ISO image.
@@ -1968,6 +1996,8 @@ int iso_read_opts_set_default_gid(IsoReadOpts *opts, gid_t gid);
 /**
  * Set default permissions for files when RR extensions are not present.
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param file_perm
  *      Permissions for files.
  * @param dir_perm
@@ -1984,6 +2014,8 @@ int iso_read_opts_set_default_permissions(IsoReadOpts *opts, mode_t file_perm,
  * in a charset different that the local one. This could happen, for example,
  * if the image was created on a system with different charset.
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param charset
  *      The charset to use as input charset.  You can obtain the list of
  *      charsets supported on your system executing "iconv -l" in a shell.
@@ -1996,6 +2028,8 @@ int iso_read_opts_set_input_charset(IsoReadOpts *opts, const char *charset);
  * Enable or disable methods to automatically choose an input charset.
  * This eventually overrides the name set via iso_read_opts_set_input_charset()
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param mode
  *       Bitfield for control purposes:
  *       bit0= Allow to use the input character set name which is eventually
@@ -2014,6 +2048,8 @@ int iso_read_opts_auto_input_charset(IsoReadOpts *opts, int mode);
 /**
  * Enable or disable loading of the first 32768 bytes of the session.
  *
+ * @param opts
+ *       The option set to be manipulated
  * @param mode
  *       Bitfield for control purposes:
  *       bit0= Load System Area data and attach them to the image so that they
@@ -2117,6 +2153,8 @@ void iso_image_unref(IsoImage *image);
  * to store addition info together with the IsoImage. If the image already
  * has data attached, the old data will be freed.
  *
+ * @param image
+ *      The image to which data shall be attached.
  * @param data
  *      Pointer to application defined data that will be attached to the
  *      image. You can pass NULL to remove any already attached data.
@@ -2675,6 +2713,8 @@ int el_torito_get_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
  *
  * @param bootimg
  *      The image to inquire
+ * @param flag
+ *        Reserved for future usage, set to 0.
  * @return
  *      1 = seems to contain oot info table , 0 = quite surely not
  * @since 0.6.32
@@ -2712,6 +2752,8 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  *                 For that you need isolinux.bin from SYSLINUX 3.72 or later.
  *                 IMPORTANT: The application has to take care that the image
  *                            on media gets padded up to the next full MB.
+ * @param bootimg
+ *      The image to set options on 
  * @param flag
  *        Reserved for future usage, set to 0.
  * @return
@@ -2853,6 +2895,10 @@ int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc);
  * Get the given extended info (defined by the proc function) from the
  * given node.
  *
+ * @param node
+ *      The node to inquire
+ * @param proc
+ *      The function pointer which serves as key
  * @param data
  *      Will be filled with the extended info corresponding to the given proc
  *      function
@@ -2895,6 +2941,8 @@ const char *iso_node_get_name(const IsoNode *node);
  * Set the permissions for the node. This attribute is only useful when
  * Rock Ridge extensions are enabled.
  *
+ * @param node
+ *      The node to change
  * @param mode
  *     bitmask with the permissions of the node, as specified in 'man 2 stat'.
  *     The file type bitfields will be ignored, only file permissions will be
@@ -3455,6 +3503,8 @@ const char *iso_symlink_get_dest(const IsoSymlink *link);
 /**
  * Set the destination of a link.
  *
+ * @param opts
+ *     The option set to be manipulated
  * @param dest
  *     New destination for the link. It must be a non-empty string, otherwise
  *     this function doesn't modify previous destination.
@@ -3762,9 +3812,11 @@ enum iso_replace_mode iso_tree_get_replace_mode(IsoImage *image);
 
 /**
  * Set whether to skip or not special files. Default behavior is to not skip
- * them. Note that, despite of this setting, special files won't never be added
+ * them. Note that, despite of this setting, special files will never be added
  * to an image unless RR extensions were enabled.
  *
+ * @param image
+ *      The image to manipulate.
  * @param skip
  *      Bitmask to determine what kind of special files will be skipped:
  *          bit0: ignore FIFOs
@@ -3852,6 +3904,8 @@ int iso_tree_remove_exclude(IsoImage *image, const char *path);
  * added to the given image by a recursive addition function. This includes
  * image import.
  *
+ * @param image
+ *      The image to manipulate.
  * @param report
  *      pointer to a function that will be called just before a file will be
  *      added to the image. You can control whether the file will be in fact
@@ -3980,7 +4034,7 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
  * TODO comment Builder and Filesystem related issues when exposing both
  *
  * @param image
- *      The image to which the directory belong.
+ *      The image to which the directory belongs.
  * @param parent
  *      Directory on the image tree where to add the contents of the dir
  * @param dir
@@ -3995,6 +4049,8 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 /**
  * Locate a node by its absolute path on image.
  *
+ * @param image
+ *     The image to which the node belongs.
  * @param node
  *     Location for a pointer to the node, it will filled with NULL if the
  *     given path does not exists on image.
@@ -4102,6 +4158,8 @@ int iso_set_msgs_severities(char *queue_severity, char *print_severity,
  * "NOTE", "UPDATE", "DEBUG", "ALL". To call with minimum_severity "NEVER"
  * will discard the whole queue.
  *
+ * @param minimum_severity
+ *     Threshhold
  * @param error_code
  *     Will become a unique error code as listed at the end of this header
  * @param imgid
@@ -4412,6 +4470,8 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
  * Repositions the offset of the given IsoFileSource (must be opened) to the
  * given offset according to the value of flag.
  *
+ * @param src
+ *     The given source
  * @param offset
  *      in bytes
  * @param flag
@@ -4430,7 +4490,7 @@ off_t iso_file_source_lseek(IsoFileSource *src, off_t offset, int flag);
 /**
  * Read a directory.
  *
- * Each call to this function will return a new children, until we reach
+ * Each call to this function will return a new child, until we reach
  * the end of file (i.e, no more children), in that case it returns 0.
  *
  * The dir must be open() before calling this, and close() when no more
@@ -4438,6 +4498,8 @@ off_t iso_file_source_lseek(IsoFileSource *src, off_t offset, int flag);
  *
  * Note that "." and ".." children MUST NOT BE returned.
  *
+ * @param src
+ *     The given source
  * @param child
  *     pointer to be filled with the given child. Undefined on error or OEF
  * @return
@@ -4464,7 +4526,7 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  *     The dest. will be copied there, and it will be NULL-terminated
  * @param bufsiz
  *     characters to be copied. Destination link will be truncated if
- *     it is larger than given size. This include the '\0' character.
+ *     it is larger than given size. This includes the 0x0 character.
  * @return
  *     1 on success, < 0 on error
  *      Error codes:
