@@ -62,9 +62,19 @@ char* lfs_get_path(IsoFileSource *src)
     if (data->parent == src) {
         return strdup("/");
     } else {
-        char *path = lfs_get_path(data->parent);
-        int pathlen = strlen(path);
-        path = realloc(path, pathlen + strlen(data->name) + 2);
+        char *path, *new_path;
+        int pathlen;
+
+        path = lfs_get_path(data->parent);
+        if (path == NULL)
+            return NULL;
+        pathlen = strlen(path);
+        new_path = realloc(path, pathlen + strlen(data->name) + 2);
+        if (new_path == NULL) {
+            free(path);
+            return NULL;
+        }
+        path= new_path;
         if (pathlen != 1) {
             /* pathlen can only be 1 for root */
             path[pathlen] = '/';

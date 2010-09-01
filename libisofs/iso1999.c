@@ -1028,6 +1028,7 @@ int iso1999_writer_create(Ecma119Image *target)
                   "Creating low level ISO 9660:1999 tree...");
     ret = iso1999_tree_create(target);
     if (ret < 0) {
+        free((char *) writer);
         return ret;
     }
 

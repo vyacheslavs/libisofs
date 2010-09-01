@@ -285,7 +285,7 @@ void ** iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *),
                             size_t *size)
 {
     size_t pos;
-    void **array;
+    void **array, **new_array;
 
     array = malloc((tree->size + 1) * sizeof(void*));
     if (array == NULL) {
@@ -296,7 +296,11 @@ void ** iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *),
     pos = rbtree_to_array_aux(tree->root, array, 0, include_item);
     array[pos] = NULL;
 
-    array = realloc(array, (pos + 1) * sizeof(void*));
+    new_array = realloc(array, (pos + 1) * sizeof(void*));
+    if (new_array == NULL) {
+        free((char *) array);
+        return NULL;
+    }
     if (size) {
         *size = pos;
     }

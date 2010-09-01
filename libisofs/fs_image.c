@@ -393,9 +393,19 @@ char* ifs_get_path(IsoFileSource *src)
     if (data->parent == NULL) {
         return strdup("");
     } else {
-        char *path = ifs_get_path(data->parent);
-        int pathlen = strlen(path);
-        path = realloc(path, pathlen + strlen(data->name) + 2);
+        char *path, *new_path;
+        int pathlen;
+
+        path = ifs_get_path(data->parent);
+        if (path == NULL)
+            return NULL;
+        pathlen = strlen(path);
+        new_path = realloc(path, pathlen + strlen(data->name) + 2);
+        if (new_path == NULL) {
+            free(path);
+            return NULL;
+        }
+        path= new_path;
         path[pathlen] = '/';
         path[pathlen + 1] = '\0';
         return strcat(path, data->name);

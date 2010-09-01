@@ -586,7 +586,7 @@ int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream)
         return ISO_OUT_OF_MEM;
     }
     data = malloc(sizeof(MemStreamData));
-    if (str == NULL) {
+    if (data == NULL) {
         free(str);
         return ISO_OUT_OF_MEM;
     }

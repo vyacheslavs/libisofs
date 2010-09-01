@@ -1102,6 +1102,7 @@ int joliet_writer_create(Ecma119Image *target)
     iso_msg_debug(target->image->id, "Creating low level Joliet tree...");
     ret = joliet_tree_create(target);
     if (ret < 0) {
+        free((char *) writer);
         return ret;
     }
 

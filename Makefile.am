@@ -42,7 +42,6 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/stream.c \
 	libisofs/filter.h \
 	libisofs/filter.c \
-	libisofs/filters/xor_encrypt.c \
 	libisofs/filters/external.c \
 	libisofs/filters/zisofs.c \
 	libisofs/filters/gzip.c \
@@ -80,6 +79,10 @@ libisofs_libisofs_la_LIBADD= \
 	$(THREAD_LIBS)
 libinclude_HEADERS = \
 	libisofs/libisofs.h
+
+
+# This is a now obsolete demo filter
+#	libisofs/filters/xor_encrypt.c
 
 ## ========================================================================= ##
 
