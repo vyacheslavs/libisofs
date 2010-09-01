@@ -301,6 +301,7 @@ void ** iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *),
         free((char *) array);
         return NULL;
     }
+    array= new_array;
     if (size) {
         *size = pos;
     }
