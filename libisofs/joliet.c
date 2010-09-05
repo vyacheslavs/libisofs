@@ -556,17 +556,20 @@ int joliet_tree_create(Ecma119Image *t)
     }
 
     /* the Joliet tree is stored in Ecma119Image target */
-    t->joliet_root = root;
+    /* TWINTREE: */
+    if (t->eff_partition_offset > 0) {
+        t->j_part_root = root;
+    } else {
+        t->joliet_root = root;
+    }
 
     iso_msg_debug(t->image->id, "Sorting the Joliet tree...");
     sort_tree(root);
 
     iso_msg_debug(t->image->id, "Mangling Joliet names...");
-    ret = mangle_tree(t, t->joliet_root);
-    if (ret < 0) {
+    ret = mangle_tree(t, root);
+    if (ret < 0)
         return ret;
-    }
-
     return ISO_SUCCESS;
 }
 
@@ -673,6 +676,7 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
     uint32_t path_table_size;
+    size_t ndirs;
 
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
@@ -695,6 +699,24 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
     t->joliet_m_path_table_pos = t->curblock;
     t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     t->joliet_path_table_size = path_table_size;
+
+    if (t->partition_offset > 0) {
+        /* TWINTREE: take into respect second directory tree */
+        ndirs = t->joliet_ndirs;
+        t->joliet_ndirs = 0;
+        calc_dir_pos(t, t->j_part_root);
+        if (t->joliet_ndirs != ndirs) {
+            iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
+                    "Number of directories differs in Joliet partiton_tree");
+            return ISO_ASSERT_FAILURE;
+        }
+        /* TWINTREE: take into respect second set of path tables */
+        path_table_size = calc_path_table_size(t->j_part_root);
+        t->j_part_l_path_table_pos = t->curblock;
+        t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
+        t->j_part_m_path_table_pos = t->curblock;
+        t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
+    }
 
     return ISO_SUCCESS;
 }
@@ -758,7 +780,8 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
         node = node->parent;
 
     rec->len_dr[0] = len_dr;
-    iso_bb(rec->block, block, 4);
+    /* TWINTREE: - t->eff_partition_offset */
+    iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
     iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
     rec->flags[0] = ((node->type == JOLIET_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
@@ -794,7 +817,6 @@ void ucsncpy_pad(uint16_t *dest, const uint16_t *src, size_t max)
     }
 }
 
-static
 int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 {
     IsoImage *image;
@@ -836,15 +858,27 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     /* make use of UCS-2 Level 3 */
     memcpy(vol.esc_sequences, "%/E", 3);
 
-    iso_bb(vol.vol_space_size, t->vol_space_size, 4);
+    /* TWINTREE: - t->eff_partition_offset */
+    iso_bb(vol.vol_space_size, t->vol_space_size  - t->eff_partition_offset,
+           4);
+
     iso_bb(vol.vol_set_size, (uint32_t) 1, 2);
     iso_bb(vol.vol_seq_number, (uint32_t) 1, 2);
     iso_bb(vol.block_size, (uint32_t) BLOCK_SIZE, 2);
     iso_bb(vol.path_table_size, t->joliet_path_table_size, 4);
-    iso_lsb(vol.l_path_table_pos, t->joliet_l_path_table_pos, 4);
-    iso_msb(vol.m_path_table_pos, t->joliet_m_path_table_pos, 4);
 
-    write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1, 0);
+    if (t->eff_partition_offset > 0) {
+        /* TWINTREE: point to second tables and second root */
+        iso_lsb(vol.l_path_table_pos,
+                t->j_part_l_path_table_pos - t->eff_partition_offset, 4);
+        iso_msb(vol.m_path_table_pos,
+                t->j_part_m_path_table_pos - t->eff_partition_offset, 4);
+        write_one_dir_record(t, t->j_part_root, 0, vol.root_dir_record, 1, 0);
+    } else {
+        iso_lsb(vol.l_path_table_pos, t->joliet_l_path_table_pos, 4);
+        iso_msb(vol.m_path_table_pos, t->joliet_m_path_table_pos, 4);
+        write_one_dir_record(t, t->joliet_root, 0, vol.root_dir_record, 1, 0);
+    }
 
     ucsncpy_pad((uint16_t*)vol.vol_set_id, volset_id, 128);
     ucsncpy_pad((uint16_t*)vol.publisher_id, pub_id, 128);
@@ -984,7 +1018,9 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
         rec = (struct ecma119_path_table_record*) buf;
         rec->len_di[0] = dir->parent ? (uint8_t) ucslen(dir->name) * 2 : 1;
         rec->len_xa[0] = 0;
-        write_int(rec->block, dir->info.dir->block, 4);
+        /* TWINTREE: - t->eff_partition_offset */
+        write_int(rec->block, dir->info.dir->block - t->eff_partition_offset,
+                  4);
         write_int(rec->parent, parent + 1, 2);
         if (dir->parent) {
             memcpy(rec->dir_id, dir->name, rec->len_di[0]);
@@ -1023,7 +1059,13 @@ int write_path_tables(Ecma119Image *t)
     if (pathlist == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    pathlist[0] = t->joliet_root;
+
+    /* TWINTREE: t->partition_root */
+    if (t->eff_partition_offset > 0) {
+        pathlist[0] = t->j_part_root;
+    } else {
+        pathlist[0] = t->joliet_root;
+    }
     cur = 1;
 
     for (i = 0; i < t->joliet_ndirs; i++) {
@@ -1051,18 +1093,22 @@ int write_path_tables(Ecma119Image *t)
 }
 
 static
-int joliet_writer_write_data(IsoImageWriter *writer)
+int joliet_writer_write_dirs(IsoImageWriter *writer)
 {
     int ret;
     Ecma119Image *t;
+    JolietNode *root;
 
-    if (writer == NULL) {
-        return ISO_NULL_POINTER;
-    }
     t = writer->target;
 
     /* first of all, we write the directory structure */
-    ret = write_dirs(t, t->joliet_root);
+    /* TWINTREE: t->root -> root */
+    if (t->eff_partition_offset > 0) {
+        root = t->j_part_root;
+    } else {
+        root = t->joliet_root;
+    }
+    ret = write_dirs(t, root);
     if (ret < 0) {
         return ret;
     }
@@ -1074,11 +1120,40 @@ int joliet_writer_write_data(IsoImageWriter *writer)
 }
 
 static
+int joliet_writer_write_data(IsoImageWriter *writer)
+{
+    int ret;
+    Ecma119Image *t;
+
+    if (writer == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    t = writer->target;
+
+    ret = joliet_writer_write_dirs(writer);
+    if (ret < 0)
+        return ret;
+
+    if (t->partition_offset > 0) {
+        /* TWINTREE: */
+        t->eff_partition_offset = t->partition_offset;
+        ret = joliet_writer_write_dirs(writer);
+        t->eff_partition_offset = 0;
+        if (ret < 0)
+            return ret;
+    }
+    return ISO_SUCCESS;
+}
+
+static
 int joliet_writer_free_data(IsoImageWriter *writer)
 {
     /* free the Joliet tree */
     Ecma119Image *t = writer->target;
     joliet_node_free(t->joliet_root);
+    if (t->j_part_root != NULL)
+        joliet_node_free(t->j_part_root);
+    t->j_part_root = NULL;
     return ISO_SUCCESS;
 }
 
@@ -1108,6 +1183,17 @@ int joliet_writer_create(Ecma119Image *target)
 
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
+
+   /* TWINTREE: */
+    if(target->partition_offset > 0) {
+        /* Create second tree */
+        target->eff_partition_offset = target->partition_offset;
+        ret = joliet_tree_create(target);
+        if (ret < 0) {
+            return ret;
+        }
+        target->eff_partition_offset = 0;
+    }
 
     /* we need the volume descriptor */
     target->curblock++;

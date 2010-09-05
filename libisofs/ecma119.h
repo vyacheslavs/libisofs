@@ -314,6 +314,15 @@ struct iso_write_opts {
      */
     char vol_uuid[17];
 
+    /* TWINTREE: The number of unclaimed 2K blocks before
+                 start of partition 1 as of the MBR in system area.
+                 Must be 0 or >= 16. (Actually >= #voldescr + checksum tag) */
+    uint32_t partition_offset;
+    /* TWINTREE: Partition table parameter: 1 to 63, 0= disabled/default */
+    int partition_secs_per_head;
+    /* TWINTREE: 1 to 255, 0= disabled/default */
+    int partition_heads_per_cyl;
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -404,8 +413,9 @@ struct ecma119_image
     off_t total_size;
     uint32_t vol_space_size;
 
-    /* Bytes already written, just for progress notification */
+    /* Bytes already written to image output */
     off_t bytes_written;
+    /* just for progress notification */
     int percent_written;
 
     /*
@@ -531,6 +541,30 @@ struct ecma119_image
      * by unconverted string with timezone 0
      */
     char vol_uuid[17];
+
+    /* TWINTREE: The number of unclaimed 2K blocks before
+                 start of partition 1 as of the MBR in system area. */
+    uint32_t partition_offset;
+    /* TWINTREE: Partition table parameter: 1 to 63, 0= disabled/default */
+    int partition_secs_per_head;
+    /* TWINTREE: 1 to 255, 0= disabled/default */
+    int partition_heads_per_cyl;
+
+    /* TWINTREE: The currently applicable LBA offset. To be subtracted from
+                 any LBA that is mentioned in volume descriptors or
+                 ECMA-119 tree. Either 0 or .partition_offset */
+    uint32_t eff_partition_offset;
+
+    /* TWINTREE: The second ECMA-119 directory tree and path tables */
+    Ecma119Node *partition_root;
+    uint32_t partition_l_table_pos;
+    uint32_t partition_m_table_pos;
+
+    /* TWINTREE: The second Joliet directory tree and path tables */
+    JolietNode *j_part_root;
+    uint32_t j_part_l_path_table_pos;
+    uint32_t j_part_m_path_table_pos;
+
 };
 
 #define BP(a,b) [(b) - (a) + 1]

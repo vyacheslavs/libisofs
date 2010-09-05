@@ -1693,9 +1693,12 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
  * - Together with iso_write_opts_set_appendable(opts, 0) the buffer allows
  *   to write the first session on overwriteable media to start addresses
  *   other than 0.
+ *   This address must not be smaller than 32 blocks plus the eventual
+ *   partition offset as defined by iso_write_opts_set_part_offset().
  *   libisoburn in most cases writes the first session on overwriteable media
- *   and disk files to LBA 32 in order to preserve its descriptors from the
- *   subsequent overwriting by the descriptor buffer of later sessions.
+ *   and disk files to LBA (32 + partition_offset) in order to preserve its
+ *   descriptors from the subsequent overwriting by the descriptor buffer of
+ *   later sessions.
  *
  * @param opts
  *      The option set to be manipulated.
@@ -1713,7 +1716,7 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
 int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
 
 /**
- * Set the size, in number of blocks, of the FIFO buffer used between the
+ * Set the size, in number of blocks, of the ring buffer used between the
  * writer thread and the burn_source. You have to provide at least a 32
  * blocks buffer. Default value is set to 2MB, if that is ok for you, you
  * don't need to call this function.
@@ -1761,6 +1764,8 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
  * Explicitely set the four timestamps of the emerging Primary Volume
  * Descriptor. Default with all parameters is 0.
  * ECMA-119 defines them as:
+ * @param opts
+ *        The option set to be manipulated.
  * @param vol_creation_time
  *        When "the information in the volume was created."
  *        A value of 0 means that the timepoint of write start is to be used.
@@ -1782,6 +1787,8 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
  *        is fully predictable and free of timezone pitfalls.
  *        It should express a reasonable time in form  YYYYMMDDhhmmsscc
  *        E.g.:  "2010040711405800" = 7 Apr 2010 11:40:58 (+0 centiseconds)
+ * @return
+ *        ISO_SUCCESS or error
  *
  * @since 0.6.30
  */
@@ -1789,6 +1796,44 @@ int iso_write_opts_set_pvd_times(IsoWriteOpts *opts,
                         time_t vol_creation_time, time_t vol_modification_time,
                         time_t vol_expiration_time, time_t vol_effective_time,
                         char *vol_uuid);
+
+
+/* CAUTION : Not yet completely implemented for checksums in the second tree
+ *           set and not yet tested for multi-session with overwrite buffer. 
+ *           Already usable for single session including bootability and
+ *           Joliet directory tree.
+ *
+ * Control production of a second set of volume descriptors (superblock)
+ * and directory trees, together with a partition table entry in the MBR which
+ * has non-zero start address.
+ * The second volume descriptor set and trees will allow to mount the ISO image
+ * at the start of the first partition, while it is still possible to mount it
+ * via the normal first volume descriptor set and tree at the start of the
+ * image resp. storage device.
+ * This makes few sense on optical media. But on USB sticks it creates a
+ * conventional partition table which makes it mountable on e.g. Linux via
+ * /dev/sdb and /dev/sdb1 alike.
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param block_offset_2k
+ *        The offset of the partition start relative to device start.
+ *        This is counted in 2 kB blocks. The partition table will show the
+ *        according number of 512 byte sectors.
+ *        Default is 0 which causes no second set and trees.
+ *        If it is not 0 then it must not be smaller than 16.
+ * @param secs_512_per_head
+ *        Number of 512 byte sectors per head. 1 to 63. 0=automatic.
+ * @param heads_per_cyl
+ *        Number of heads per cylinder. 1 to 255. 0=automatic.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 0.6.36
+ */
+int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
+                                   uint32_t block_offset_2k,
+                                   int secs_512_per_head, int heads_per_cyl);
 
 
 /**
@@ -6071,8 +6116,35 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 */
 #define ISO_SCDBACKUP_TAG_NOT_0   0xD030FE99
 
+/**
+ * The setting of iso_write_opts_set_ms_block() leaves not enough room
+ * for the prescibed size of iso_write_opts_set_overwrite_buf().
+ * (FAILURE, HIGH, -360)
+ * @since 0.6.36
+ */
+#define ISO_OVWRT_MS_TOO_SMALL    0xE830FE98
 
-/* ! PLACE NEW ERROR CODES HERE ! */
+/**
+ * The partition offset is not 0 and leaves not not enough room for
+ * system area, volume descriptors, and checksum tags of the first tree.
+ * (FAILURE, HIGH, -361)
+ */
+#define ISO_PART_OFFST_TOO_SMALL   0xE830FE97
+
+/**
+ * The ring buffer is smaller than 64 kB + partition offset.
+ * (FAILURE, HIGH, -362)
+ */
+#define ISO_OVWRT_FIFO_TOO_SMALL   0xE830FE96
+
+
+/* Internal developer note: 
+   Place new error codes directly above this comment. 
+   Newly introduced errors must get a message entry in
+   libisofs/message.c, function iso_error_to_msg()
+*/
+
+/* ! PLACE NEW ERROR CODES ABOVE. NOT AFTER THIS LINE ! */
 
 
 /** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
@@ -6088,7 +6160,7 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 #define ISO_DATA_SOURCE_FATAL     0xF030FCFF
 
 
-/* ! PLACE NEW ERROR CODES ABOVE. NOT HERE ! */
+/* ! PLACE NEW ERROR CODES SEVERAL LINES ABOVE. NOT HERE ! */
 
 
 /* ------------------------------------------------------------------------- */

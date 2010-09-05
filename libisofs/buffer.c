@@ -293,7 +293,51 @@ unsigned int iso_ring_buffer_get_times_empty(IsoRingBuffer *buf)
 }
 
 
-/**
+/** Internal via buffer.h
+ *
+ * Get the status of a ring buffer.
+ *
+ * @param buf
+ *      The ring buffer object to inquire
+ * @param size
+ *      Will be filled with the total size of the buffer, in bytes
+ * @param free_bytes
+ *      Will be filled with the bytes currently available in buffer
+ * @return
+ *      < 0 error, > 0 state:
+ *           1="active"    : input and consumption are active
+ *           2="ending"    : input has ended without error
+ *           3="failing"   : input had error and ended,
+ *           5="abandoned" : consumption has ended prematurely
+ *           6="ended"     : consumption has ended without input error
+ *           7="aborted"   : consumption has ended after input error
+ */
+int iso_ring_buffer_get_buf_status(IsoRingBuffer *buf, size_t *size,
+                                   size_t *free_bytes)
+{
+    int ret;
+
+    if (buf == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    /* get mutex */
+    pthread_mutex_lock(&buf->mutex);
+    if (size) {
+        *size = buf->cap;
+    }
+    if (free_bytes) {
+        *free_bytes = buf->cap - buf->size;
+    }
+
+    ret = (buf->rend ? 4 : 0) + (buf->wend + 1);
+
+    pthread_mutex_unlock(&buf->mutex);
+    return ret;
+}
+
+/** API via libisofs.h
+ *
  * Get the status of the buffer used by a burn_source.
  *
  * @param b
@@ -321,18 +365,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
         return ISO_NULL_POINTER;
     }
     buf = ((Ecma119Image*)(b->data))->buffer;
-
-    /* get mutex */
-    pthread_mutex_lock(&buf->mutex);
-    if (size) {
-        *size = buf->cap;
-    }
-    if (free_bytes) {
-        *free_bytes = buf->cap - buf->size;
-    }
-
-    ret = (buf->rend ? 4 : 0) + (buf->wend + 1);
-
-    pthread_mutex_unlock(&buf->mutex);
+    ret = iso_ring_buffer_get_buf_status(buf, size, free_bytes);
     return ret;
 }
+

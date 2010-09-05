@@ -714,6 +714,7 @@ static
 int mangle_tree(Ecma119Image *img, int recurse)
 {
     int max_file, max_dir;
+    Ecma119Node *root;
 
     if (img->max_37_char_filenames) {
         max_file = max_dir = 37;
@@ -723,10 +724,16 @@ int mangle_tree(Ecma119Image *img, int recurse)
     } else {
         max_file = max_dir = 31;
     }
-    if (recurse) {
-        return mangle_dir(img, img->root, max_file, max_dir);
+    /* TWINTREE: */
+    if (img->eff_partition_offset > 0) {
+        root = img->partition_root;
     } else {
-        return mangle_single_dir(img, img->root, max_file, max_dir);
+        root = img->root;
+    }
+    if (recurse) {
+        return mangle_dir(img, root, max_file, max_dir);
+    } else {
+        return mangle_single_dir(img, root, max_file, max_dir);
     }
 }
 
@@ -844,11 +851,18 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
 {
     int ret;
     size_t max_path;
+    Ecma119Node *root;
 
     max_path = pathlen + 1 + max_child_name_len(dir);
 
     if (level > 8 || max_path > 255) {
-        ret = reparent(dir, img->root);
+        /* TWINTREE: */
+        if (img->eff_partition_offset > 0) {
+            root = img->partition_root;
+        } else {
+            root = img->root;
+        }
+        ret = reparent(dir, root);
         if (ret < 0) {
             return ret;
         }
@@ -1055,10 +1069,16 @@ int ecma119_tree_create(Ecma119Image *img)
         }
         return ret;
     }
-    img->root = root;
+    /* TWINTREE: */
+    if (img->eff_partition_offset > 0) {
+        img->partition_root = root;
+    } else {
+        img->root = root;
+    }
 
     iso_msg_debug(img->image->id, "Matching hardlinks...");
-    ret = match_hardlinks(img, img->root, 0);
+    /* TWINTREE: img->root -> root */
+    ret = match_hardlinks(img, root, 0);
     if (ret < 0) {
         return ret;
     }
@@ -1075,7 +1095,8 @@ int ecma119_tree_create(Ecma119Image *img)
     if (img->rockridge && !img->allow_deep_paths) {
 
         /* reorder the tree, acording to RRIP, 4.1.5 */
-        ret = reorder_tree(img, img->root, 1, 0);
+        /* TWINTREE: img->root -> root */
+        ret = reorder_tree(img, root, 1, 0);
         if (ret < 0) {
             return ret;
         }

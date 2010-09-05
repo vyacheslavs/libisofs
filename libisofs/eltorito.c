@@ -942,7 +942,7 @@ int catalog_stream_new(Ecma119Image *target, IsoStream **stream)
         return ISO_OUT_OF_MEM;
     }
     data = calloc(1, sizeof(struct catalog_stream));
-    if (str == NULL) {
+    if (data == NULL) {
         free(str);
         return ISO_OUT_OF_MEM;
     }
@@ -1107,6 +1107,7 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
         }
         ret = iso_stream_open(original);
         if (ret < 0) {
+            free(buf);
             return ret;
         }
         ret = iso_stream_read(original, buf, size);
@@ -1157,7 +1158,10 @@ int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
     memcpy(vol.std_identifier, "CD001", 5);
     vol.vol_desc_version[0] = 1;
     memcpy(vol.boot_sys_id, "EL TORITO SPECIFICATION", 23);
-    iso_lsb(vol.boot_catalog, t->cat->sections[0].block, 4);
+
+    /* TWINTREE:  t->cat->sections[0].block - t->eff_partition_offset */
+    iso_lsb(vol.boot_catalog,
+            t->cat->sections[0].block - t->eff_partition_offset, 4);
 
     return iso_write(t, &vol, sizeof(struct ecma119_boot_rec_vol_desc));
 }

@@ -286,6 +286,12 @@ const char *iso_error_to_msg(int errcode)
         return "Session does not start at LBA 0. scdbackup checksum tag not written.";
     case ISO_BOOT_NO_CATALOG:
         return "No boot catalog created yet";
+    case ISO_OVWRT_MS_TOO_SMALL:
+        return "Multi-session offset too small for overwrite buffer";
+    case ISO_PART_OFFST_TOO_SMALL:
+        return "Partition offset too small for first tree root.";
+    case ISO_OVWRT_FIFO_TOO_SMALL:
+        return "The ring buffer is too small for overwrite buffer";
     default:
         return "Unknown error";
     }

@@ -272,6 +272,7 @@ iso_write_opts_set_no_force_dots;
 iso_write_opts_set_omit_version_numbers;
 iso_write_opts_set_output_charset;
 iso_write_opts_set_overwrite_buf;
+iso_write_opts_set_part_offset;
 iso_write_opts_set_pvd_times;
 iso_write_opts_set_record_md5;
 iso_write_opts_set_relaxed_vol_atts;
