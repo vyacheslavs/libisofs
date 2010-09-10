@@ -258,6 +258,12 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     target->path_table_size = path_table_size;
 
+    if (target->md5_session_checksum) {
+        /* Account for first tree checksum tag */
+        target->checksum_tree_tag_pos = target->curblock;
+        target->curblock++;
+    }
+
     if (target->partition_offset > 0) {
         /* TWINTREE: take into respect second directory tree */
         ndirs = target->ndirs;
@@ -274,12 +280,10 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
         target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
         target->partition_m_table_pos = target->curblock;
         target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
-    }
 
-    if (target->md5_session_checksum) {
-        /* Account for tree checksum tag */
-        target->checksum_tree_tag_pos = target->curblock;
-        target->curblock++;
+        /* >>> TWINTREE: >>> For now, checksum tags are only for the
+                             image start and not for the partition */;
+
     }
     return ISO_SUCCESS;
 }
@@ -757,9 +761,11 @@ int write_path_tables(Ecma119Image *t)
 static
 int ecma119_writer_write_dirs(IsoImageWriter *writer)
 {
-    int ret;
+    int ret, isofs_ca_changed = 0;
     Ecma119Image *t;
     Ecma119Node *root;
+    char *value = NULL;
+    size_t value_length;
 
     t = writer->target;
 
@@ -767,6 +773,24 @@ int ecma119_writer_write_dirs(IsoImageWriter *writer)
     /* TWINTREE: t->root -> root */
     if (t->eff_partition_offset > 0) {
         root = t->partition_root;
+
+        if ((t->md5_file_checksums & 1) || t->md5_session_checksum) {
+            /* Take into respect the address offset in "isofs.ca" */
+            ret = iso_node_lookup_attr((IsoNode *) t->image->root, "isofs.ca",
+                                       &value_length, &value, 0);
+            if (value != NULL)
+                free(value);
+            if (ret == 1 && value_length == 20) {
+                /* "isofs.ca" does really exist and has the expected length */
+                ret = iso_root_set_isofsca((IsoNode *) t->image->root,
+                             t->checksum_range_start - t->eff_partition_offset,
+                             t->checksum_array_pos - t->eff_partition_offset,
+                             t->checksum_idx_counter + 2, 16, "MD5", 0);
+                if (ret < 0)
+                    return ret;
+                isofs_ca_changed = 1;
+            }
+        }
     } else {
         root = t->root;
     }
@@ -782,11 +806,20 @@ int ecma119_writer_write_dirs(IsoImageWriter *writer)
     if (t->md5_session_checksum) {
         /* Write tree checksum tag */
         if (t->eff_partition_offset > 0) {
-            /* >>> TWINTREE: >>> For now, checksums and tags are only for the
-                                 first session */;
+            /* >>> TWINTREE: >>> For now, tags are only for the
+                                 image start and not for the partition */;
         } else {
             ret = iso_md5_write_tag(t, 3);
         }
+    }
+    if (isofs_ca_changed) {
+        /* Restore old addresses offset in "isofs.ca" of root node */
+        ret = iso_root_set_isofsca((IsoNode *) t->image->root,
+                             t->checksum_range_start,
+                             t->checksum_array_pos,
+                             t->checksum_idx_counter + 2, 16, "MD5", 0);
+        if (ret < 0)
+            return ret;
     }
     return ret;
 }
@@ -875,15 +908,17 @@ static
 int pad_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *target;
+    uint32_t min_size;
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
     }
-
     target = writer->target;
-    if (target->curblock < 32) {
-        target->pad_blocks = 32 - target->curblock;
-        target->curblock = 32;
+    /* TWINTREE: */
+    min_size = 32 + target->partition_offset;
+    if (target->curblock < min_size) {
+        target->pad_blocks = min_size - target->curblock;
+        target->curblock = min_size;
     }
     return ISO_SUCCESS;
 }

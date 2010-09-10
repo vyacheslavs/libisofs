@@ -147,6 +147,8 @@ int make_grub_msdos_label(uint32_t img_blocks, uint8_t *buf, int flag)
 }
 
 
+/* @param flag bit0= zeroize partitions entries 2, 3, 4
+*/
 static
 int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
                                int sph_in, int hpc_in, uint8_t *buf, int flag)
@@ -166,6 +168,9 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
                              &end_lba, &end_sec, &end_head, &end_cyl, 0);
     wpt = buf + 446;
 
+    /* Let pass only legal bootability values */
+    if (*wpt != 0 && *wpt != 0x80)
+        (*wpt) = 0;
     wpt++;
 
     /* C/H/S of the start */
@@ -190,12 +195,15 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
     for (i = 0; i < 4; i++)
        *(wpt++) = (end_lba >> (8 * i)) & 0xff;
 
-    /* at 446-462 */
     if (wpt - buf != 462) {
         fprintf(stderr,
     "libisofs: program error in iso_offset_partition_start: \"assert 462\"\n");
         return ISO_ASSERT_FAILURE;
     }
+
+    if (flag & 1) /* zeroize the other partition entries */
+        memset(wpt, 0, 3 * 16);
+
     return ISO_SUCCESS;
 }
 
@@ -265,7 +273,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         img_blocks = t->curblock;                  /* value might be altered */
         ret = iso_offset_partition_start(img_blocks, t->partition_offset,
                                          t->partition_secs_per_head,
-                                         t->partition_heads_per_cyl, buf, 0);
+                                         t->partition_heads_per_cyl, buf, 1);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
     }

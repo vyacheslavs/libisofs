@@ -1263,7 +1263,7 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
  * Inode numbers get written as "file serial number" with PX entries as of
  * RRIP-1.12. They may mark families of hardlinks.
  * RRIP-1.10 prescribes a PX entry without file serial number. If not overriden
- * by iso_write_opts_set_rrip_1_10_px_ino() there will be no file serial
+ * by iso_write_opts_set_rrip_1_10_px_ino() there will be no file serial number
  * written into RRIP-1.10 images.
  *
  * Inode number generation does not affect IsoNode objects which imported their

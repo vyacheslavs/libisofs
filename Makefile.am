@@ -81,9 +81,6 @@ libinclude_HEADERS = \
 	libisofs/libisofs.h
 
 
-# This is a now obsolete demo filter
-#	libisofs/filters/xor_encrypt.c
-
 ## ========================================================================= ##
 
 ## Build demo applications
