@@ -1713,7 +1713,8 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
  *      You should initialize the buffer either with 0s, or with the contents
  *      of the first 32 blocks of the image you are growing. In most cases,
  *      0 is good enought.
- *      >>> TWINTREE: must be larger by partion_offset
+ *      IMPORTANT: If you use iso_write_opts_set_part_offset() then the
+ *                 overwrite buffer must be larger by the offset defined there.
  *
  * @since 0.6.2
  */
@@ -1802,21 +1803,20 @@ int iso_write_opts_set_pvd_times(IsoWriteOpts *opts,
                         char *vol_uuid);
 
 
-/* CAUTION : Not yet completely implemented for checksums in the second tree
- *           set and not yet tested for multi-session with overwrite buffer. 
- *           Already usable for single session including bootability and
- *           Joliet directory tree.
- *
+/*
  * Control production of a second set of volume descriptors (superblock)
- * and directory trees, together with a partition table entry in the MBR which
- * has non-zero start address.
- * The second volume descriptor set and trees will allow to mount the ISO image
- * at the start of the first partition, while it is still possible to mount it
- * via the normal first volume descriptor set and tree at the start of the
- * image resp. storage device.
+ * and directory trees, together with a partition table in the MBR where the
+ * first partition has non-zero start address and the others are zeroed.
+ * The first partition stretches to the end of the whole ISO image.
+ * The additional volume descriptor set and trees will allow to mount the
+ * ISO image at the start of the first partition, while it is still possible
+ * to mount it via the normal first volume descriptor set and tree at the
+ * start of the image resp. storage device.
  * This makes few sense on optical media. But on USB sticks it creates a
  * conventional partition table which makes it mountable on e.g. Linux via
  * /dev/sdb and /dev/sdb1 alike.
+ * IMPORTANT: When submitting memory by iso_write_opts_set_overwrite_buf()
+ *            then its size must be at least 64 KiB + partition offset. 
  *
  * @param opts
  *        The option set to be manipulated.
@@ -1824,7 +1824,7 @@ int iso_write_opts_set_pvd_times(IsoWriteOpts *opts,
  *        The offset of the partition start relative to device start.
  *        This is counted in 2 kB blocks. The partition table will show the
  *        according number of 512 byte sectors.
- *        Default is 0 which causes no second set and trees.
+ *        Default is 0 which causes no special partition table preparations.
  *        If it is not 0 then it must not be smaller than 16.
  * @param secs_512_per_head
  *        Number of 512 byte sectors per head. 1 to 63. 0=automatic.

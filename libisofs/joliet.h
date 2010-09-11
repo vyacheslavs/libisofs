@@ -55,7 +55,7 @@ struct joliet_node
 int joliet_writer_create(Ecma119Image *target);
 
 
-/* TWINTREE: Not to be called but only for comparison with target->writers[i]
+/* Not to be called but only for comparison with target->writers[i]
 */
 int joliet_writer_write_vol_desc(IsoImageWriter *writer);
 

@@ -556,7 +556,6 @@ int joliet_tree_create(Ecma119Image *t)
     }
 
     /* the Joliet tree is stored in Ecma119Image target */
-    /* TWINTREE: */
     if (t->eff_partition_offset > 0) {
         t->j_part_root = root;
     } else {
@@ -701,7 +700,7 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
     t->joliet_path_table_size = path_table_size;
 
     if (t->partition_offset > 0) {
-        /* TWINTREE: take into respect second directory tree */
+        /* Take into respect second directory tree */
         ndirs = t->joliet_ndirs;
         t->joliet_ndirs = 0;
         calc_dir_pos(t, t->j_part_root);
@@ -710,7 +709,7 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
                     "Number of directories differs in Joliet partiton_tree");
             return ISO_ASSERT_FAILURE;
         }
-        /* TWINTREE: take into respect second set of path tables */
+        /* Take into respect second set of path tables */
         path_table_size = calc_path_table_size(t->j_part_root);
         t->j_part_l_path_table_pos = t->curblock;
         t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
@@ -780,7 +779,6 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
         node = node->parent;
 
     rec->len_dr[0] = len_dr;
-    /* TWINTREE: - t->eff_partition_offset */
     iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
     iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
@@ -857,18 +855,15 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
 
     /* make use of UCS-2 Level 3 */
     memcpy(vol.esc_sequences, "%/E", 3);
-
-    /* TWINTREE: - t->eff_partition_offset */
     iso_bb(vol.vol_space_size, t->vol_space_size  - t->eff_partition_offset,
            4);
-
     iso_bb(vol.vol_set_size, (uint32_t) 1, 2);
     iso_bb(vol.vol_seq_number, (uint32_t) 1, 2);
     iso_bb(vol.block_size, (uint32_t) BLOCK_SIZE, 2);
     iso_bb(vol.path_table_size, t->joliet_path_table_size, 4);
 
     if (t->eff_partition_offset > 0) {
-        /* TWINTREE: point to second tables and second root */
+        /* Point to second tables and second root */
         iso_lsb(vol.l_path_table_pos,
                 t->j_part_l_path_table_pos - t->eff_partition_offset, 4);
         iso_msb(vol.m_path_table_pos,
@@ -1018,7 +1013,6 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
         rec = (struct ecma119_path_table_record*) buf;
         rec->len_di[0] = dir->parent ? (uint8_t) ucslen(dir->name) * 2 : 1;
         rec->len_xa[0] = 0;
-        /* TWINTREE: - t->eff_partition_offset */
         write_int(rec->block, dir->info.dir->block - t->eff_partition_offset,
                   4);
         write_int(rec->parent, parent + 1, 2);
@@ -1060,7 +1054,6 @@ int write_path_tables(Ecma119Image *t)
         return ISO_OUT_OF_MEM;
     }
 
-    /* TWINTREE: t->partition_root */
     if (t->eff_partition_offset > 0) {
         pathlist[0] = t->j_part_root;
     } else {
@@ -1102,7 +1095,6 @@ int joliet_writer_write_dirs(IsoImageWriter *writer)
     t = writer->target;
 
     /* first of all, we write the directory structure */
-    /* TWINTREE: t->root -> root */
     if (t->eff_partition_offset > 0) {
         root = t->j_part_root;
     } else {
@@ -1135,7 +1127,6 @@ int joliet_writer_write_data(IsoImageWriter *writer)
         return ret;
 
     if (t->partition_offset > 0) {
-        /* TWINTREE: */
         t->eff_partition_offset = t->partition_offset;
         ret = joliet_writer_write_dirs(writer);
         t->eff_partition_offset = 0;
@@ -1184,7 +1175,6 @@ int joliet_writer_create(Ecma119Image *target)
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
 
-   /* TWINTREE: */
     if(target->partition_offset > 0) {
         /* Create second tree */
         target->eff_partition_offset = target->partition_offset;

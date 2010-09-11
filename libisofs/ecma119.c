@@ -265,7 +265,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     }
 
     if (target->partition_offset > 0) {
-        /* TWINTREE: take into respect second directory tree */
+        /* Take into respect the second directory tree */
         ndirs = target->ndirs;
         target->ndirs = 0;
         calc_dir_pos(target, target->partition_root);
@@ -274,7 +274,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
                     "Number of directories differs in ECMA-119 partiton_tree");
             return ISO_ASSERT_FAILURE;
 	}
-        /* TWINTREE: take into respect second set of path tables */
+        /* Take into respect the second set of path tables */
         path_table_size = calc_path_table_size(target->partition_root);
         target->partition_l_table_pos = target->curblock;
         target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
@@ -350,7 +350,6 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
         node = node->parent;
 
     rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
-    /* TWINTREE: - t->eff_partition_offset */
     iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
     if (t->dir_rec_mtime) {
@@ -439,18 +438,15 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_version[0] = 1;
     strncpy_pad((char*)vol.system_id, system_id, 32);
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
-
-    /* TWINTREE: - t->eff_partition_offset */
     iso_bb(vol.vol_space_size, t->vol_space_size  - t->eff_partition_offset,
            4);
-
     iso_bb(vol.vol_set_size, (uint32_t) 1, 2);
     iso_bb(vol.vol_seq_number, (uint32_t) 1, 2);
     iso_bb(vol.block_size, (uint32_t) BLOCK_SIZE, 2);
     iso_bb(vol.path_table_size, t->path_table_size, 4);
 
     if (t->eff_partition_offset > 0) {
-        /* TWINTREE: point to second tables and second root */
+        /* Point to second tables and second root */
         iso_lsb(vol.l_path_table_pos,
                 t->partition_l_table_pos - t->eff_partition_offset, 4);
         iso_msb(vol.m_path_table_pos,
@@ -679,7 +675,6 @@ int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
         rec = (struct ecma119_path_table_record*) buf;
         rec->len_di[0] = dir->parent ? (uint8_t) strlen(dir->iso_name) : 1;
         rec->len_xa[0] = 0;
-        /* TWINTREE: - t->eff_partition_offset */
         write_int(rec->block, dir->info.dir->block - t->eff_partition_offset,
                   4);
         write_int(rec->parent, parent + 1, 2);
@@ -721,7 +716,6 @@ int write_path_tables(Ecma119Image *t)
         return ISO_OUT_OF_MEM;
     }
 
-    /* TWINTREE: t->partition_root */
     if (t->eff_partition_offset > 0) {
         pathlist[0] = t->partition_root;
     } else {
@@ -770,7 +764,6 @@ int ecma119_writer_write_dirs(IsoImageWriter *writer)
     t = writer->target;
 
     /* first of all, we write the directory structure */
-    /* TWINTREE: t->root -> root */
     if (t->eff_partition_offset > 0) {
         root = t->partition_root;
 
@@ -845,7 +838,6 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
         return ret;
 
     if (t->partition_offset > 0) {
-        /* TWINTREE: */
         t->eff_partition_offset = t->partition_offset;
         ret = ecma119_writer_write_dirs(writer);
         t->eff_partition_offset = 0;
@@ -888,7 +880,6 @@ int ecma119_writer_create(Ecma119Image *target)
         return ret;
     }
 
-    /* TWINTREE: */
     if(target->partition_offset > 0) {
         /* Create second tree */
         target->eff_partition_offset = target->partition_offset;
@@ -914,7 +905,6 @@ int pad_writer_compute_data_blocks(IsoImageWriter *writer)
         return ISO_ASSERT_FAILURE;
     }
     target = writer->target;
-    /* TWINTREE: */
     min_size = 32 + target->partition_offset;
     if (target->curblock < min_size) {
         target->pad_blocks = min_size - target->curblock;
@@ -1079,7 +1069,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     if (target->partition_offset <= 0)
         return ISO_SUCCESS;
 
-    /* TWINTREE: write padding up to target->partition_offset + 16 */
+    /* Write padding up to target->partition_offset + 16 */
     memset(buf, 0, 2048);
     for(; *write_count < target->partition_offset + 16; (*write_count)++) {
         res = iso_write(target, buf, BLOCK_SIZE);
@@ -1087,17 +1077,18 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
             goto write_error;
     }
 
-    /* TWINTREE: write volume descriptors subtracting
-                 target->partiton_offset from any LBA pointer.
+    /* Write volume descriptors subtracting
+      target->partiton_offset from any LBA pointer.
     */
     target->eff_partition_offset = target->partition_offset;
     for (i = 0; i < target->nwriters; ++i) {
         writer = target->writers[i];
-        /* TWINTREE:
-           Not all writers have an entry in the partion volume descriptor set.
+        /* Not all writers have an entry in the partion volume descriptor set.
            It must be guaranteed that they write exactly one block.
         */
+
         /* >>> TWINTREE: Enhance ISO1999 writer and add it here */
+
         if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
            writer->write_vol_desc != joliet_writer_write_vol_desc)
     continue;
@@ -1183,10 +1174,7 @@ void *write_function(void *arg)
 #endif
 
     write_error: ;
-
-    /* TWINTREE: */
     target->eff_partition_offset = 0;
-
     if (res == ISO_CANCELED) {
         /* canceled */
         iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED, 0, NULL);
@@ -1304,9 +1292,6 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     return ISO_SUCCESS;
 }
 
-/*
-*/
-#define Libisofs_twintreE yes
 
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
@@ -1417,7 +1402,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->vol_effective_time = opts->vol_effective_time;
     strcpy(target->vol_uuid, opts->vol_uuid);
 
-    /* TWINTREE: */
     target->partition_offset = opts->partition_offset;
     target->partition_secs_per_head = opts->partition_secs_per_head;
     target->partition_heads_per_cyl = opts->partition_heads_per_cyl;
@@ -1474,7 +1458,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     if (opts->overwrite != NULL && target->ms_block != 0 &&
         target->ms_block < target->partition_offset + 32) {
-        /* TWINTREE: not enough room for superblock relocation */
+        /* Not enough room for superblock relocation */
         ret = ISO_OVWRT_MS_TOO_SMALL;
         goto target_cleanup;
     }
@@ -1572,24 +1556,26 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     
     if (target->partition_offset > 0) {
-        /* >>> TWINTREE: After volume descriptors and superblock tag are
-                         accounted for: account for second volset */
-
+        /* After volume descriptors and superblock tag are accounted for:
+           account for second volset
+        */
         if (target->ms_block + target->partition_offset + 16
             < target->curblock) {
-            /* TWINTREE: Overflow of partition system area */
+            /* Overflow of partition system area */
             ret = ISO_PART_OFFST_TOO_SMALL;
             goto target_cleanup;
         }
         target->curblock = target->ms_block + target->partition_offset + 16;
 
-        /* TWINTREE: Account for partition tree volume descriptors */
+        /* Account for partition tree volume descriptors */
         for (i = 0; i < target->nwriters; ++i) {
             /* Not all writers have an entry in the partition
                volume descriptor set.
             */
             writer = target->writers[i];
+
             /* >>> TWINTREE: Enhance ISO1999 writer and add it here */
+
             if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
                writer->write_vol_desc != joliet_writer_write_vol_desc)
         continue;
@@ -1642,8 +1628,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* create the ring buffer */
     if (opts->overwrite != NULL &&
         opts->fifo_size / 2048 < 32 + target->partition_offset) {
-        /* TWINTREE:
-           The ring buffer must be large enough to take opts->overwrite
+        /* The ring buffer must be large enough to take opts->overwrite
         */
         ret = ISO_OVWRT_FIFO_TOO_SMALL;
     }
@@ -1655,13 +1640,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* check if we need to provide a copy of volume descriptors */
     if (opts->overwrite != NULL) {
 
-        /* >>> TWINTREE: >>>
-           opts->overwrite must be larger by partion_offset
+        /* opts->overwrite must be larger by partion_offset
            This storage is provided by the application.
         */
 
-
-#ifdef Libisofs_twintreE
 
         /*
          * In the PVM to be written in the 16th sector of the disc, we
@@ -1685,64 +1667,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
                           "Error reading overwrite volume descriptors");
             goto target_cleanup;
         }
-
-#else /* Libisofs_twintreE */
-
-        /*
-         * Get a copy of the volume descriptors to be written in a DVD+RW
-         * disc
-         */
-
-        uint8_t *buf;
-        struct ecma119_vol_desc_terminator *vol;
-        IsoImageWriter *writer;
-
-        /*
-         * In the PVM to be written in the 16th sector of the disc, we
-         * need to specify the full size.
-         */
-        target->vol_space_size = target->curblock;
-
-        /* write volume descriptor */
-        for (i = 0; i < target->nwriters; ++i) {
-            writer = target->writers[i];
-            ret = writer->write_vol_desc(writer);
-            if (ret < 0) {
-                iso_msg_debug(target->image->id,
-                              "Error writing overwrite volume descriptors");
-                goto target_cleanup;
-            }
-        }
-
-        /* write the system area to the start of the overwrite buffer */
-        ret = iso_write_system_area(target, opts->overwrite);
-        if (ret < 0) {
-            iso_msg_debug(target->image->id,
-                          "Error writing system area to overwrite buffer");
-            goto target_cleanup;
-        }
-
-        /* copy the volume descriptors to the overwrite buffer... */
-        buf = opts->overwrite + 16 * BLOCK_SIZE;
-        voldesc_size *= BLOCK_SIZE;
-        ret = iso_ring_buffer_read(target->buffer, buf, voldesc_size);
-        if (ret < 0) {
-            iso_msg_debug(target->image->id,
-                          "Error reading overwrite volume descriptors");
-            goto target_cleanup;
-        }
-
-        /* ...including the vol desc terminator */
-        memset(buf + voldesc_size, 0, BLOCK_SIZE);
-        vol = (struct ecma119_vol_desc_terminator*) (buf + voldesc_size);
-        vol->vol_desc_type[0] = 255;
-        memcpy(vol->std_identifier, "CD001", 5);
-        vol->vol_desc_version[0] = 1;
-
-        write_count = voldesc_size / BLOCK_SIZE + 16;
-        write_count_mem= write_count;
-
-#endif /* ! Libisofs_twintreE */
 
         /* Write relocated superblock checksum tag */
         tag_pos = voldesc_size / BLOCK_SIZE + 16 + 1;
@@ -1777,13 +1701,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
                 opts->overwrite[i * 2048] = 0;
         }
 
-        /* TWINTREE: Write second set of volume descriptors */
+        /* Write second set of volume descriptors */
         write_count_mem= write_count;
         ret = write_head_part2(target, &write_count, 0);
         if (ret < 0)
             goto target_cleanup;
 
-        /* TWINTREE: read written data into opts->overwrite */
+        /* Read written data into opts->overwrite */
         ret = iso_ring_buffer_read(target->buffer,
                                 opts->overwrite + write_count_mem * BLOCK_SIZE,
                                 (write_count - write_count_mem) * BLOCK_SIZE);

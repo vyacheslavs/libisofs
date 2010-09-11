@@ -184,7 +184,6 @@ int rrip_add_PL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     PL[3] = 1;
 
     /* write the location of the real parent, already computed */
-    /* TWINTREE: - t->eff_partition_offset */
     iso_bb(&PL[4],
        n->info.dir->real_parent->info.dir->block - t->eff_partition_offset, 4);
     return susp_append(t, susp, PL);
@@ -279,7 +278,6 @@ int rrip_add_CL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     CL[1] = 'L';
     CL[2] = 12;
     CL[3] = 1;
-    /* TWINTREE: - t->eff_partition_offset */
     iso_bb(&CL[4], n->info.real_me->info.dir->block - t->eff_partition_offset,
            4);
     return susp_append(t, susp, CL);
@@ -702,7 +700,6 @@ int susp_add_CE(Ecma119Image *t, size_t ce_len, struct susp_info *susp)
     CE[2] = 28;
     CE[3] = 1;
 
-    /* TWINTREE: susp->ce_block - t->eff_partition_offset */
     iso_bb(&CE[4], susp->ce_block - t->eff_partition_offset, 4);
     iso_bb(&CE[12], susp->ce_len, 4);
     iso_bb(&CE[20], (uint32_t) ce_len, 4);

@@ -724,7 +724,6 @@ int mangle_tree(Ecma119Image *img, int recurse)
     } else {
         max_file = max_dir = 31;
     }
-    /* TWINTREE: */
     if (img->eff_partition_offset > 0) {
         root = img->partition_root;
     } else {
@@ -856,7 +855,6 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
     max_path = pathlen + 1 + max_child_name_len(dir);
 
     if (level > 8 || max_path > 255) {
-        /* TWINTREE: */
         if (img->eff_partition_offset > 0) {
             root = img->partition_root;
         } else {
@@ -1069,7 +1067,6 @@ int ecma119_tree_create(Ecma119Image *img)
         }
         return ret;
     }
-    /* TWINTREE: */
     if (img->eff_partition_offset > 0) {
         img->partition_root = root;
     } else {
@@ -1077,7 +1074,6 @@ int ecma119_tree_create(Ecma119Image *img)
     }
 
     iso_msg_debug(img->image->id, "Matching hardlinks...");
-    /* TWINTREE: img->root -> root */
     ret = match_hardlinks(img, root, 0);
     if (ret < 0) {
         return ret;
@@ -1095,7 +1091,6 @@ int ecma119_tree_create(Ecma119Image *img)
     if (img->rockridge && !img->allow_deep_paths) {
 
         /* reorder the tree, acording to RRIP, 4.1.5 */
-        /* TWINTREE: img->root -> root */
         ret = reorder_tree(img, root, 1, 0);
         if (ret < 0) {
             return ret;

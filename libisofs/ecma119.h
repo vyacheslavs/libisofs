@@ -314,13 +314,14 @@ struct iso_write_opts {
      */
     char vol_uuid[17];
 
-    /* TWINTREE: The number of unclaimed 2K blocks before
-                 start of partition 1 as of the MBR in system area.
-                 Must be 0 or >= 16. (Actually >= #voldescr + checksum tag) */
+    /* The number of unclaimed 2K blocks before start of partition 1 as of
+       the MBR in system area.
+       Must be 0 or >= 16. (Actually >= number of voldescr + checksum tag)
+    */
     uint32_t partition_offset;
-    /* TWINTREE: Partition table parameter: 1 to 63, 0= disabled/default */
+    /* Partition table parameter: 1 to 63, 0= disabled/default */
     int partition_secs_per_head;
-    /* TWINTREE: 1 to 255, 0= disabled/default */
+    /* 1 to 255, 0= disabled/default */
     int partition_heads_per_cyl;
 
 };
@@ -542,25 +543,26 @@ struct ecma119_image
      */
     char vol_uuid[17];
 
-    /* TWINTREE: The number of unclaimed 2K blocks before
-                 start of partition 1 as of the MBR in system area. */
+    /* The number of unclaimed 2K blocks before
+       start of partition 1 as of the MBR in system area. */
     uint32_t partition_offset;
-    /* TWINTREE: Partition table parameter: 1 to 63, 0= disabled/default */
+    /* Partition table parameter: 1 to 63, 0= disabled/default */
     int partition_secs_per_head;
-    /* TWINTREE: 1 to 255, 0= disabled/default */
+    /* 1 to 255, 0= disabled/default */
     int partition_heads_per_cyl;
 
-    /* TWINTREE: The currently applicable LBA offset. To be subtracted from
-                 any LBA that is mentioned in volume descriptors or
-                 ECMA-119 tree. Either 0 or .partition_offset */
+    /* The currently applicable LBA offset. To be subtracted from any LBA
+     *  that is mentioned in volume descriptors, trees, path tables,
+     *  Either 0 or .partition_offset
+     */
     uint32_t eff_partition_offset;
 
-    /* TWINTREE: The second ECMA-119 directory tree and path tables */
+    /* The second ECMA-119 directory tree and path tables */
     Ecma119Node *partition_root;
     uint32_t partition_l_table_pos;
     uint32_t partition_m_table_pos;
 
-    /* TWINTREE: The second Joliet directory tree and path tables */
+    /* The second Joliet directory tree and path tables */
     JolietNode *j_part_root;
     uint32_t j_part_l_path_table_pos;
     uint32_t j_part_m_path_table_pos;

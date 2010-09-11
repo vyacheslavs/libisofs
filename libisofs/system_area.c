@@ -262,14 +262,13 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ret;
     } else if(t->partition_offset > 0) {
         /* Write a simple partition table. */
-        /* >>> TWINTREE: ??? Shall the partition stay marked as bootable ? */
         ret = make_grub_msdos_label(img_blocks, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
     }
 
     if (t->partition_offset > 0) {
-        /* TWINTREE: adjust partition table to partition offset */
+        /* Adjust partition table to partition offset */
         img_blocks = t->curblock;                  /* value might be altered */
         ret = iso_offset_partition_start(img_blocks, t->partition_offset,
                                          t->partition_secs_per_head,
