@@ -734,6 +734,7 @@ struct IsoFileSource_Iface
      */
 };
 
+#ifndef Libisofs_h_as_cpluspluS
 /**
  * An IsoFile Source is a POSIX abstraction of a file.
  *
@@ -745,6 +746,7 @@ struct iso_file_source
     int refcount;
     void *data;
 };
+#endif /* ! Libisofs_h_as_cpluspluS */
 
 /**
  * Representation of file contents. It is an stream of bytes, functionally
@@ -955,6 +957,7 @@ struct IsoStream_Iface
 
 };
 
+#ifndef Libisofs_h_as_cpluspluS
 /**
  * Representation of file contents as a stream of bytes.
  *
@@ -966,6 +969,7 @@ struct iso_stream
     int refcount;
     void *data;
 };
+#endif /* ! Libisofs_h_as_cpluspluS */
 
 
 /**
