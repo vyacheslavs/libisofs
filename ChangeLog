@@ -1,3 +1,14 @@
+libisofs-0.6.36.tar.gz Wed Sep 15 2010
+===============================================================================
+* New API function iso_write_opts_set_part_offset() controls creation of
+  an MBR with a first partiton table entry that bears non-zero start address.
+  A second set of volume descriptors and directory tree+tables gets created
+  which can be used to mount the image at the partition start.
+* Hiding all non-API symbols from the linker by use of --version-scrip
+* Automatic C++ detection in libisofs.h by using macro __cplusplus
+* Corrected several memory leaks and potential NULL pointer evaluations
+  in case of memory shortage.
+
 libisofs-0.6.34.tar.gz Tue Jun 29 2010
 ===============================================================================
 * New API call iso_image_set_boot_catalog_hidden()
@@ -194,3 +205,4 @@ libisofs-0.2.3.tar.gz Sat Dec 02 2006
 ===============================================================================
 * Bugfix release, with some improvements for freebsd support. 
 * Requires libburn to compile.
+
