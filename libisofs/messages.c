@@ -432,8 +432,6 @@ int iso_obtain_msgs(char *minimum_severity, int *error_code, int *imgid,
 }
 
 
-/* ts A80222 : derived from libburn/init.c:burn_msgs_submit()
-*/
 int iso_msgs_submit(int error_code, char msg_text[], int os_errno,
 			char severity[], int origin)
 {
@@ -461,8 +459,6 @@ int iso_msgs_submit(int error_code, char msg_text[], int os_errno,
 }
 
 
-/* ts A80222 : derived from libburn/init.c:burn_text_to_sev()
-*/
 int iso_text_to_sev(char *severity_name, int *sevno)
 {
     int ret;
@@ -474,8 +470,6 @@ int iso_text_to_sev(char *severity_name, int *sevno)
 }
 
 
-/* ts A80222 : derived from libburn/init.c:burn_sev_to_text()
-*/
 int iso_sev_to_text(int severity_number, char **severity_name)
 {
     int ret;
@@ -514,7 +508,6 @@ int iso_error_get_code(int e)
 }
 
 
-/* ts A80222 */
 int iso_report_errfile(char *path, int error_code, int os_errno, int flag)
 {
     libiso_msgs_submit(libiso_msgr, 0, error_code,
