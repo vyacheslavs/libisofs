@@ -4,10 +4,11 @@ libisofs-0.6.36.tar.gz Wed Sep 15 2010
   an MBR with a first partiton table entry that bears non-zero start address.
   A second set of volume descriptors and directory tree+tables gets created
   which can be used to mount the image at the partition start.
-* Hiding all non-API symbols from the linker by use of --version-scrip
+* Hiding all non-API symbols from the linker by use of --version-script
 * Automatic C++ detection in libisofs.h by using macro __cplusplus
 * Corrected several memory leaks and potential NULL pointer evaluations
   in case of memory shortage.
+* Now with history of release notes in ./ChangeLog file.
 
 libisofs-0.6.34.tar.gz Tue Jun 29 2010
 ===============================================================================

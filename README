@@ -37,7 +37,25 @@ and execute
 To make the libraries accessible for running resp. developing applications 
    make install
 
-See INSTALL file for further details.
+On GNU/Linux it will try to run program ldconfig with the library installation
+directory as only argument. Failure to do so will not abort installation.
+One may disable ldconfig by ./configure option --disable-ldconfig-at-install .
+
+By use of a version script, the libisofs.so library exposes no other function
+names but those of the API definitions in <libisofs/libisofs.h>.
+If -Wl,--version-script=... makes problems with the local compiler, then
+disable this encapsulation feature by
+    ./configure --disable-versioned-libs
+    make clean ; make
+
+The ./configure script checks for the availability of supporting libraries.
+If found, they will become mandatory for the emerging libisofs.so and all
+applications which use it. This dependency can be avoided by configure options
+    --disable-libacl   avoid use of ACL functions like acl_to_text()
+    --disable-xattr    avoid use of xattr functions like listxattr()
+    --disable-zlib     avoid use of zlib functions like compress2()
+
+See INSTALL file for general options of ./configure.
 
 
 ------------------------------------------------------------------------------
@@ -113,7 +131,6 @@ a) Images with unsupported features, such as:
 	- UDF.
 	- HSF/HFS+ or other Mac extensions.
 	- ECMA-119 Extended attributes.
-	- Non El-Torito boot info.
 	- ...
    In all these cases, the resulting new image (or new session) could lack some
    features of the original image. Nevertheless, the ECMA-119 System Area with
@@ -122,22 +139,9 @@ a) Images with unsupported features, such as:
    or modify the image. Others remain undetected. Images created with libisofs
    do not have this problems.
 
-b) Bootable El-Torito images may have several problems, that result in a new
-   image that is not bootable, or that boots from an outdated session. In many
-   cases it is recommended to add boot info again in the new session.
-   
-    - isolinux images won't be bootable after a modify. This is because 
-      isolinux images need to have hardcoded the root dir lba in their boot
-      information table.
-      libisofs makes an educated guess at load time whether a boot image
-      contains such a table. Its outcome can be inquired by call
-      el_torito_seems_boot_info_table().
-      If one knows to have isolinux or GRUB El-Torito-bootable images, or if
-      a boot information table seems to exist, it is advised to apply the
-      el_torito_patch_isolinux_image() function.
-      Most boot images are highly dependent of the image contents, so if the 
-      user moves or removes some files on image it is possible they won't boot 
-      anymore.
+b) Bootable El-Torito images may have problems, that result in a new image that
+   is not bootable, or that boots from an outdated session. In some cases it
+   might be necessary to add boot info again in a new first session.
     - There is no safe way to modify hidden boot images, as the size of the 
       boot image can't be figured out.
 
