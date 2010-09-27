@@ -16,7 +16,9 @@ libisofs_libisofs_la_LDFLAGS = \
 
 # Eventually enabling system adapters for ACL and EA.
 # ts A90409: Eventually enabling use of zlib.
-libisofs_libisofs_la_CFLAGS = $(LIBACL_DEF) $(XATTR_DEF) $(ZLIB_DEF)
+# ts B00927: Eventually enabling use of libjte (Jigdo Template Extraction)
+libisofs_libisofs_la_CFLAGS = $(LIBACL_DEF) $(XATTR_DEF) $(ZLIB_DEF) \
+                              $(LIBJTE_DEF)
 
 # ts A90114 : added aaip_0_2.*
 

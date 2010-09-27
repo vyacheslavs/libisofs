@@ -324,6 +324,12 @@ struct iso_write_opts {
     /* 1 to 255, 0= disabled/default */
     int partition_heads_per_cyl;
 
+#ifdef Libisofs_with_libjtE
+    /* Parameters and state of Jigdo Template Export environment.
+    */
+    struct libjte_env *libjte_handle;
+#endif /* Libisofs_with_libjtE */
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -566,6 +572,10 @@ struct ecma119_image
     JolietNode *j_part_root;
     uint32_t j_part_l_path_table_pos;
     uint32_t j_part_m_path_table_pos;
+
+#ifdef Libisofs_with_libjtE
+    struct libjte_env *libjte_handle;
+#endif /* Libisofs_with_libjtE */
 
 };
 

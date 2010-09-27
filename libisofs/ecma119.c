@@ -41,6 +41,10 @@
 #include <langinfo.h>
 #include <stdio.h>
 
+#ifdef Libisofs_with_libjtE
+#include <libjte/libjte.h>
+#endif
+
 /*
  * TODO #00011 : guard against bad path table usage with more than 65535 dirs
  * image with more than 65535 directories have path_table related problems
@@ -89,6 +93,29 @@ void ecma119_image_free(Ecma119Image *t)
         ecma119_node_free(t->partition_root);
     t->partition_root = NULL;
     free(t);
+}
+
+static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
+{
+
+#ifdef Libisofs_with_libjtE
+
+    int ret;
+
+    if (target->libjte_handle == NULL)
+        return ISO_SUCCESS;
+
+    /* >>> What is the meaning of libjte_show_data_chunk(islast) ? */
+
+    ret = libjte_show_data_chunk(target->libjte_handle, buf, BLOCK_SIZE,
+                  count / BLOCK_SIZE, 0, 
+                  target->bytes_written + (off_t) count == target->total_size);
+    if (ret <= 0)
+        return ISO_LIBJTE_FILE_FAILED;
+
+#endif /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
 }
 
 /**
@@ -1136,6 +1163,26 @@ int write_head_part(Ecma119Image *target, int flag)
     return ISO_SUCCESS;
 }
 
+
+/* Eventually end Jigdo Template Extraction */
+static int finish_libjte(Ecma119Image *target)
+{
+#ifdef Libisofs_with_libjtE
+
+    int ret;
+
+    if (target->libjte_handle != NULL) {
+        ret = libjte_write_footer(target->libjte_handle);
+        if (ret <= 0)
+            return ISO_LIBJTE_END_FAILED;
+    }
+
+#endif /* Libisofs_with_libjtE */
+
+    return 1;
+}
+
+
 static
 void *write_function(void *arg)
 {
@@ -1167,6 +1214,10 @@ void *write_function(void *arg)
 
     iso_ring_buffer_writer_close(target->buffer, 0);
 
+    res = finish_libjte(target);
+    if (res <= 0)
+        goto write_error;
+
 #ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
 #else
@@ -1174,6 +1225,8 @@ void *write_function(void *arg)
 #endif
 
     write_error: ;
+    if (res != ISO_LIBJTE_END_FAILED)
+        finish_libjte(target);
     target->eff_partition_offset = 0;
     if (res == ISO_CANCELED) {
         /* canceled */
@@ -1412,7 +1465,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->j_part_root = NULL;
     target->j_part_l_path_table_pos = 0;
     target->j_part_m_path_table_pos = 0;
-
     target->input_charset = strdup(iso_get_local_charset(0));
     if (target->input_charset == NULL) {
         ret = ISO_OUT_OF_MEM;
@@ -1445,6 +1497,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->checksum_range_start = 0;
     target->checksum_range_size = 0;
     target->opts_overwrite = NULL;
+
+#ifdef Libisofs_with_libjtE
+    target->libjte_handle = opts->libjte_handle;
+#endif /* Libisofs_with_libjtE */
+
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -1726,6 +1783,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
 
+#ifdef Libisofs_with_libjtE
+
+    /* Eventually start Jigdo Template Extraction */
+    if (target->libjte_handle != NULL) {
+        ret = libjte_write_header(target->libjte_handle);
+        if (ret <= 0) {
+            ret = ISO_LIBJTE_START_FAILED;
+            goto target_cleanup;
+        }
+    }
+    
+#endif /* Libisofs_with_libjtE */
+
+
     /* 4. Create and start writing thread */
     if (target->md5_session_checksum) {
         /* After any fake writes are done: Initialize image checksum context */
@@ -1910,6 +1981,11 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         target->checksum_counter += count;
         iso_md5_compute(target->checksum_ctx, (char *) buf, (int) count);
     }
+
+    ret = show_chunk_to_jte(target, buf, count);
+    if (ret != ISO_SUCCESS)
+        return ret;
+
     /* total size is 0 when writing the overwrite buffer */
     if (ret > 0 && (target->total_size != (off_t) 0)){
         unsigned int kbw, kbt;
@@ -1987,6 +2063,10 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->partition_secs_per_head = 0;
     wopts->partition_heads_per_cyl = 0;
 
+#ifdef Libisofs_with_libjtE
+    wopts->libjte_handle = NULL;
+#endif /* Libisofs_with_libjtE */
+
     *opts = wopts;
     return ISO_SUCCESS;
 }
@@ -1998,8 +2078,14 @@ void iso_write_opts_free(IsoWriteOpts *opts)
     }
 
     free(opts->output_charset);
-    if(opts->system_area_data != NULL)
+    if (opts->system_area_data != NULL)
         free(opts->system_area_data);
+
+#ifdef Libisofs_with_libjtE
+    if (opts->libjte_handle != NULL)
+        libjte_destroy(&(opts->libjte_handle));
+#endif /* Libisofs_with_libjtE */
+
     free(opts);
 }
 
@@ -2424,4 +2510,138 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
     opts->partition_heads_per_cyl = heads_per_cyl;
     return ISO_SUCCESS;
 }
-                                  
+
+static int iso_write_opts_assert_jte_handle(IsoWriteOpts *opts)
+{
+#ifdef Libisofs_with_libjtE
+
+    int ret;
+
+    if (opts->libjte_handle == NULL) {
+        ret = libjte_new(&(opts->libjte_handle), 0);
+        if (ret <= 0 || opts->libjte_handle == NULL)
+            return ISO_OUT_OF_MEM;
+    }
+    return ISO_SUCCESS;
+
+#else
+
+    return ISO_LIBJTE_NOT_ENABLED;
+
+#endif /* ! Libisofs_with_libjtE */
+
+}
+
+/* >>> documentation: mandatory are iso_path, template_path, jigdo_path
+*/
+int iso_write_opts_set_jte_files(IsoWriteOpts *opts, char *iso_path,
+                                 char *template_path, char *jigdo_path,
+                                 char *md5_list_path)
+{
+    int ret;
+
+    ret = iso_write_opts_assert_jte_handle(opts);
+    if (ret != ISO_SUCCESS)
+        return ret;
+
+#ifdef Libisofs_with_libjtE
+    if (libjte_set_outfile(opts->libjte_handle, iso_path) <= 0)
+        return ISO_OUT_OF_MEM;
+    if (libjte_set_template_out(opts->libjte_handle, template_path) <= 0)
+        return ISO_OUT_OF_MEM;
+    if (libjte_set_jjigdo_out(opts->libjte_handle, jigdo_path) <= 0)
+        return ISO_OUT_OF_MEM;
+    if (libjte_set_jmd5_list(opts->libjte_handle, md5_list_path) <= 0)
+        return ISO_OUT_OF_MEM;
+#endif /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
+}
+
+/* >>> documentation : this call is not mandatory
+   >>> need representations for algorithm macros of libjte
+*/
+int iso_write_opts_set_jte_params(IsoWriteOpts *opts,
+                                  int verbose, int min_size,
+                                  char *template_compression,
+                                  char *template_checksums,
+                                  char *jigdo_checksums)
+{
+    int ret;
+
+    ret = iso_write_opts_assert_jte_handle(opts);
+    if (ret != ISO_SUCCESS)
+        return ret;
+
+#ifdef Libisofs_with_libjtE
+    libjte_set_verbose(opts->libjte_handle, verbose);
+    libjte_set_jte_min_size(opts->libjte_handle, min_size);
+
+    /* >>> Interpret template_compression , template_checksums ,
+                     jigdo_checksums
+    */;
+    
+#endif /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_add_jte_exclude(IsoWriteOpts *opts, char *pattern)
+{
+    int ret;
+
+    ret = iso_write_opts_assert_jte_handle(opts);
+    if (ret != ISO_SUCCESS)
+        return ret;
+
+#ifdef Libisofs_with_libjtE
+
+    ret = libjte_add_exclude(opts->libjte_handle, pattern);
+    if (ret <= 0)
+        return ISO_OUT_OF_MEM;
+
+#endif /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
+}
+ 
+
+int iso_write_opts_add_jte_include(IsoWriteOpts *opts, char *pattern)
+{
+    int ret;
+
+    ret = iso_write_opts_assert_jte_handle(opts);
+    if (ret != ISO_SUCCESS)
+        return ret;
+
+#ifdef Libisofs_with_libjtE
+
+    ret = libjte_add_include(opts->libjte_handle, pattern);
+    if (ret <= 0)
+        return ISO_OUT_OF_MEM;
+
+#endif /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
+}
+ 
+
+int iso_write_opts_add_jte_mapping(IsoWriteOpts *opts, char *arg)
+{
+    int ret;
+
+    ret = iso_write_opts_assert_jte_handle(opts);
+    if (ret != ISO_SUCCESS)
+        return ret;
+
+#ifdef Libisofs_with_libjtE
+
+    ret = libjte_add_mapping(opts->libjte_handle, arg);
+    if (ret <= 0)
+        return ISO_OUT_OF_MEM;
+
+#endif /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
+}
+ 

@@ -25,6 +25,11 @@
 #include <limits.h>
 
 
+#ifdef Libisofs_with_libjtE
+#include <libjte/libjte.h>
+#endif
+
+
 #ifndef PATH_MAX
 #define PATH_MAX Libisofs_default_path_maX
 #endif
@@ -317,6 +322,9 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     void *ctx= NULL;
     char md5[16], pre_md5[16];
     int pre_md5_valid = 0;
+#ifdef Libisofs_with_libjtE
+    int jte_begun = 0;
+#endif
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -379,6 +387,19 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             iso_msg_debug(t->image->id, "Writing file %s", name);
         }
 #endif
+
+#ifdef Libisofs_with_libjtE
+        if (t->libjte_handle != NULL) {
+            res = libjte_begin_data_file(t->libjte_handle, name,
+                                         BLOCK_SIZE, file_size);
+            if (res <= 0) {
+                filesrc_close(file);
+                ret = ISO_LIBJTE_FILE_FAILED;
+                goto ex;
+            }
+            jte_begun = 1;
+        }
+#endif /* Libisofs_with_libjtE */
 
         if (file->checksum_index > 0) {
             /* initialize file checksum */
@@ -481,12 +502,30 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             /* Write md5 into checksum buffer at file->checksum_index */
             memcpy(t->checksum_buffer + 16 * file->checksum_index, md5, 16);
         }
+
+#ifdef Libisofs_with_libjtE
+        if (t->libjte_handle != NULL) {
+            res = libjte_end_data_file(t->libjte_handle);
+            if (res <= 0) {
+                ret = ISO_LIBJTE_FILE_FAILED;
+                goto ex;
+            }
+            jte_begun = 0;
+        }
+#endif /* Libisofs_with_libjtE */
+
     }
 
     ret = ISO_SUCCESS;
 ex:;
     if (ctx != NULL) /* avoid any memory leak */
         iso_md5_end(&ctx, md5);
+
+#ifdef Libisofs_with_libjtE
+    if (jte_begun) 
+        libjte_end_data_file(t->libjte_handle);
+#endif /* Libisofs_with_libjtE */
+
     return ret;
 }
 

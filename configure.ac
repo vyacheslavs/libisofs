@@ -205,6 +205,18 @@ else
 fi
 AC_SUBST(ZLIB_DEF)
 
+dnl ts B00927
+AC_ARG_ENABLE(libjte,
+[  --enable-libjte           Enable use of libjte by libisofs, default=yes],
+               , enable_libjte=yes)
+if test "x$enable_libjte" = xyes; then
+    LIBJTE_DEF="-DLibisofs_with_libjtE"
+    AC_CHECK_HEADER(libjte/libjte.h, AC_CHECK_LIB(jte, libjte_new, , LIBJTE_DEF= ), LIBJTE_DEF= )
+else
+    LIBJTE_DEF=
+fi
+AC_SUBST(LIBJTE_DEF)
+
 # Library versioning normally serves a complex purpose.
 # Since libisofs obeys strict ABI backward compatibility, it needs only the
 # simple feature to declare function names "global:" or "local:". Only the

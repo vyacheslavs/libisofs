@@ -292,6 +292,14 @@ const char *iso_error_to_msg(int errcode)
         return "Partition offset too small for first tree root.";
     case ISO_OVWRT_FIFO_TOO_SMALL:
         return "The ring buffer is too small for overwrite buffer";
+    case ISO_LIBJTE_NOT_ENABLED:
+        return "Use of libjte was not enabled at compile time";
+    case ISO_LIBJTE_START_FAILED:
+        return "Failed to start up Jigdo Template Extraction";
+    case ISO_LIBJTE_END_FAILED:
+        return "Failed to finish Jigdo Template Extraction";
+    case ISO_LIBJTE_FILE_FAILED:
+        return "Failed process file for Jigdo Template Extraction";
     default:
         return "Unknown error";
     }

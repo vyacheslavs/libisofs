@@ -1848,6 +1848,48 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
                                    int secs_512_per_head, int heads_per_cyl);
 
 
+/** >>> ts B00927
+
+ * Mandatory are iso_path, template_path, jigdo_path.
+ * md5_list_path is allowed to be NULL.
+
+ * @since 0.6.38
+*/
+int iso_write_opts_set_jte_files(IsoWriteOpts *opts, char *iso_path,
+                                 char *template_path, char *jigdo_path,
+                                 char *md5_list_path);
+
+/** >>> ts B00927
+
+  >>> need representations for algorithm macros of libjte
+
+ * @since 0.6.38
+*/
+int iso_write_opts_set_jte_params(IsoWriteOpts *opts,
+                                  int verbose, int min_size,
+                                  char *template_compression,
+                                  char *template_checksums,
+                                  char *jigdo_checksums);
+
+/** >>> ts B00927
+
+ * @since 0.6.38
+*/
+int iso_write_opts_add_jte_exclude(IsoWriteOpts *opts, char *pattern);
+
+/** >>> ts B00927
+
+ * @since 0.6.38
+*/
+int iso_write_opts_add_jte_include(IsoWriteOpts *opts, char *pattern);
+
+/** >>> ts B00927
+
+ * @since 0.6.38
+*/
+int iso_write_opts_add_jte_mapping(IsoWriteOpts *opts, char *arg);
+
+
 /**
  * Inquire the start address of the file data blocks after having used
  * IsoWriteOpts with iso_image_create_burn_source().
@@ -6148,6 +6190,19 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
  * (FAILURE, HIGH, -362)
  */
 #define ISO_OVWRT_FIFO_TOO_SMALL   0xE830FE96
+
+/** Use of libjte was not enabled at compile time (FAILURE, HIGH, -363) */
+#define ISO_LIBJTE_NOT_ENABLED     0xE830FE95
+
+/** Failed to start up Jigdo Template Extraction (FAILURE, HIGH, -364) */
+#define ISO_LIBJTE_START_FAILED    0xE830FE94
+
+/** Failed to finish Jigdo Template Extraction (FAILURE, HIGH, -365) */
+#define ISO_LIBJTE_END_FAILED      0xE830FE93
+
+/** Failed to process file for Jigdo Template Extraction
+   (FAILURE, HIGH, -366) */
+#define ISO_LIBJTE_FILE_FAILED      0xE830FE92
 
 
 /* Internal developer note: 
