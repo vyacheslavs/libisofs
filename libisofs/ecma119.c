@@ -1358,7 +1358,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 
     /* ts B00927 : Provisory hardcoded test of libjte
- # define Libisofs_hardcoded_test_libjtE yes
+    # define Libisofs_hardcoded_test_libjtE yes
     */
 #ifdef Libisofs_hardcoded_test_libjtE
 
@@ -1379,23 +1379,18 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     */
 
-    /* For iso_write_opts_set_jte_files() */
     char *iso_path =      "/home/steve/test1.iso";
     char *template_path = "/home/steve/test1.template";
     char *jigdo_path =    "/home/steve/test1.jigdo";
     char *md5_list_path = "/home/steve/md5.list";
-
-    /* For iso_write_opts_set_jte_params() */
     int verbose =                0;
     int min_size =               16384;
     char *template_compression = "-not-yet-interpreted-";
     char *template_checksums =   "-not-yet-interpreted-";
     char *jigdo_checksums =      "-not-yet-interpreted-";
 
-    /* For iso_write_opts_add_jte_exclude() */
     char *exclude_pattern =      "README*";
-
-    /* For iso_write_opts_add_jte_mapping() */
+    char *force_md5_pattern =    "/pool/";
     char *mapping =              "Debian=/mirror/debian";
 
     struct libjte_env *jte_handle = NULL;
@@ -1408,9 +1403,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     template_path = "/home/test/test_jte.template";
     jigdo_path = "/home/test/test_jte.jigdo";
     mapping = "Debian=/home/test/cdrskin-0.7.2";
+    force_md5_pattern = "/home/test/cdrskin-0.7.2/libburn/";
 
-    /* >>> ??? Where to get the md5 list ? */
-    md5_list_path = NULL; 
+    /* md5 list produced by xorriso/make_jigdo_md5_entry.sh */
+    md5_list_path = "/home/test/test_jte.md5"; 
 
     /* This is quite some memory leak:
        - Throwing away eventual jte_handle of opts
@@ -1442,7 +1438,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     if (libjte_add_exclude(jte_handle, exclude_pattern) <= 0)
         return ISO_LIBJTE_START_FAILED;
-
+    if (libjte_add_include(jte_handle, force_md5_pattern) <= 0)
+        return ISO_LIBJTE_START_FAILED;
     if (libjte_add_mapping(jte_handle, mapping) <= 0)
         return ISO_LIBJTE_START_FAILED;
 
