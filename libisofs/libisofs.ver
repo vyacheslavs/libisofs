@@ -243,6 +243,8 @@ iso_tree_set_ignore_special;
 iso_tree_set_replace_mode;
 iso_tree_set_report_callback;
 iso_util_decode_md5_tag;
+iso_write_opts_attach_jte;
+iso_write_opts_detach_jte;
 iso_write_opts_free;
 iso_write_opts_get_data_start;
 iso_write_opts_new;

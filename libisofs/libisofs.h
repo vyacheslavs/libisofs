@@ -1848,46 +1848,42 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
                                    int secs_512_per_head, int heads_per_cyl);
 
 
-/** >>> ts B00927
+/** 
+ * Associate a libjte environment object to the upcomming write run.
+ * libjte implements Jigdo Template Extraction as of Steve McIntyre and
+ * Richard Atterer.
+ * The call will fail if no libjte support was enabled at compile time.
+ * @param opts
+ *        The option set to be manipulated.
+ * @param libjte_handle
+ *        Pointer to a struct libjte_env e.g. created by libjte_new().
+ *        It must stay existent from the start of image writing by
+ *        iso_image_create_burn_source() until the write thread has ended.
 
- * Mandatory are iso_path, template_path, jigdo_path.
- * md5_list_path is allowed to be NULL.
+ *    >>> ts B00928 Need a way to inquire run status independent of libburn.
 
+ *        In order to keep the libisofs API identical with and without
+ *        libjte support the parameter type is (void *).
+ * @return
+ *        ISO_SUCCESS or error
+ *
  * @since 0.6.38
 */
-int iso_write_opts_set_jte_files(IsoWriteOpts *opts, char *iso_path,
-                                 char *template_path, char *jigdo_path,
-                                 char *md5_list_path);
+int iso_write_opts_attach_jte(IsoWriteOpts *opts, void *libjte_handle);
 
-/** >>> ts B00927
-
-  >>> need representations for algorithm macros of libjte
-
+/**
+ * Remove eventual association to a libjte environment handle.
+ * The call will fail if no libjte support was enabled at compile time.
+ * @param opts
+ *        The option set to be manipulated.
+ * @param libjte_handle
+ *        Returns the previously set libjte handle
+ * @return
+ *        ISO_SUCCESS or error
+ *
  * @since 0.6.38
 */
-int iso_write_opts_set_jte_params(IsoWriteOpts *opts,
-                                  int verbose, int min_size,
-                                  char *template_compression,
-                                  char *template_checksums,
-                                  char *jigdo_checksums);
-
-/** >>> ts B00927
-
- * @since 0.6.38
-*/
-int iso_write_opts_add_jte_exclude(IsoWriteOpts *opts, char *pattern);
-
-/** >>> ts B00927
-
- * @since 0.6.38
-*/
-int iso_write_opts_add_jte_include(IsoWriteOpts *opts, char *pattern);
-
-/** >>> ts B00927
-
- * @since 0.6.38
-*/
-int iso_write_opts_add_jte_mapping(IsoWriteOpts *opts, char *arg);
+int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle);
 
 
 /**
