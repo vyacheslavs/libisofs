@@ -1358,8 +1358,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 
     /* ts B00927 : Provisory hardcoded test of libjte
+ # define Libisofs_hardcoded_test_libjtE yes
     */
-#define Libisofs_hardcoded_test_libjtE yes
 #ifdef Libisofs_hardcoded_test_libjtE
 
     /* Example: xorriso/genisoimage -J -r -o /home/steve/test1.iso \
