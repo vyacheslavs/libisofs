@@ -1402,7 +1402,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     iso_path = "/home/test/test_jte.iso";
     template_path = "/home/test/test_jte.template";
     jigdo_path = "/home/test/test_jte.jigdo";
-    mapping = "Debian=/home/test/cdrskin-0.7.2";
+    mapping = "Debian=/home/test/cdrskin-0.7.2/";
     force_md5_pattern = "/home/test/cdrskin-0.7.2/libburn/";
 
     /* md5 list produced by xorriso/make_jigdo_md5_entry.sh */
@@ -2609,7 +2609,8 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle)
 {
 #ifdef Libisofs_with_libjtE
 
-    *libjte_handle = opts->libjte_handle;
+    if (*libjte_handle != NULL)
+        *libjte_handle = opts->libjte_handle;
     opts->libjte_handle = NULL;
     return ISO_SUCCESS;
 

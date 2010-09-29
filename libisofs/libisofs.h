@@ -1877,7 +1877,8 @@ int iso_write_opts_attach_jte(IsoWriteOpts *opts, void *libjte_handle);
  * @param opts
  *        The option set to be manipulated.
  * @param libjte_handle
- *        Returns the previously set libjte handle
+ *        If not submitted as NULL, this will return the previously set
+ *        libjte handle. 
  * @return
  *        ISO_SUCCESS or error
  *
