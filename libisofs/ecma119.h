@@ -330,6 +330,10 @@ struct iso_write_opts {
     struct libjte_env *libjte_handle;
 #endif /* Libisofs_with_libjtE */
 
+    /* A trailing padding of zero bytes which belongs to the image
+    */
+    uint32_t tail_blocks;
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -499,7 +503,7 @@ struct ecma119_image
      * file data is written in the first 64 KiB, that are the bytes we usually
      * overwrite.
      */
-    uint32_t pad_blocks;
+    uint32_t mspad_blocks;
 
     size_t nwriters;
     IsoImageWriter **writers;
@@ -577,6 +581,7 @@ struct ecma119_image
     struct libjte_env *libjte_handle;
 #endif /* Libisofs_with_libjtE */
 
+    uint32_t tail_blocks;
 };
 
 #define BP(a,b) [(b) - (a) + 1]

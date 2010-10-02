@@ -1888,6 +1888,29 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle);
 
 
 /**
+ * Cause a number of blocks with zero bytes to be written after the payload
+ * data, but before the eventual checksum data. Unlike libburn tail padding,
+ * these blocks are counted as part of the image and covered by eventual
+ * image checksums.
+ * A reason for such padding can be the wish to prevent the Linux read-ahead
+ * bug by sacrificial data which still belong to image and Jigdo template.
+ * Normally such padding would be the job of the burn program which should know
+ * that it is needed with CD write type TAO if Linux read(2) shall be able
+ * to read all payload blocks.
+ * 150 blocks = 300 kB is the traditional sacrifice to the Linux kernel.
+ * @param opts
+ *        The option set to be manipulated.
+ * @param num_blocks
+ *        Number of extra 2 kB blocks to be written.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 0.6.38
+ */
+int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
+
+
+/**
  * Inquire the start address of the file data blocks after having used
  * IsoWriteOpts with iso_image_create_burn_source().
  * @param opts

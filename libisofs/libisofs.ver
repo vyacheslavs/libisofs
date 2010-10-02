@@ -286,6 +286,7 @@ iso_write_opts_set_rrip_version_1_10;
 iso_write_opts_set_scdbackup_tag;
 iso_write_opts_set_sort_files;
 iso_write_opts_set_system_area;
+iso_write_opts_set_tail_blocks;
 iso_zisofs_get_params;
 iso_zisofs_get_refcounts;
 iso_zisofs_set_params;

@@ -299,7 +299,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_LIBJTE_END_FAILED:
         return "Failed to finish Jigdo Template Extraction";
     case ISO_LIBJTE_FILE_FAILED:
-        return "Failed process file for Jigdo Template Extraction";
+        return "Failed to process file for Jigdo Template Extraction";
     default:
         return "Unknown error";
     }

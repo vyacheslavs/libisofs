@@ -922,7 +922,7 @@ int ecma119_writer_create(Ecma119Image *target)
 
 /** compute how many padding bytes are needed */
 static
-int pad_writer_compute_data_blocks(IsoImageWriter *writer)
+int mspad_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *target;
     uint32_t min_size;
@@ -933,24 +933,25 @@ int pad_writer_compute_data_blocks(IsoImageWriter *writer)
     target = writer->target;
     min_size = 32 + target->partition_offset;
     if (target->curblock < min_size) {
-        target->pad_blocks = min_size - target->curblock;
+        target->mspad_blocks = min_size - target->curblock;
         target->curblock = min_size;
     }
     return ISO_SUCCESS;
 }
 
 static
-int pad_writer_write_vol_desc(IsoImageWriter *writer)
+int mspad_writer_write_vol_desc(IsoImageWriter *writer)
 {
     /* nothing to do */
     return ISO_SUCCESS;
 }
+
 static
-int pad_writer_write_data(IsoImageWriter *writer)
+int mspad_writer_write_data(IsoImageWriter *writer)
 {
     int ret;
     Ecma119Image *t;
-    uint32_t pad[BLOCK_SIZE];
+    uint8_t pad[BLOCK_SIZE];
     size_t i;
 
     if (writer == NULL) {
@@ -958,12 +959,12 @@ int pad_writer_write_data(IsoImageWriter *writer)
     }
     t = writer->target;
 
-    if (t->pad_blocks == 0) {
+    if (t->mspad_blocks == 0) {
         return ISO_SUCCESS;
     }
 
     memset(pad, 0, BLOCK_SIZE);
-    for (i = 0; i < t->pad_blocks; ++i) {
+    for (i = 0; i < t->mspad_blocks; ++i) {
         ret = iso_write(t, pad, BLOCK_SIZE);
         if (ret < 0) {
             return ret;
@@ -974,14 +975,14 @@ int pad_writer_write_data(IsoImageWriter *writer)
 }
 
 static
-int pad_writer_free_data(IsoImageWriter *writer)
+int mspad_writer_free_data(IsoImageWriter *writer)
 {
     /* nothing to do */
     return ISO_SUCCESS;
 }
 
 static
-int pad_writer_create(Ecma119Image *target)
+int mspad_writer_create(Ecma119Image *target)
 {
     IsoImageWriter *writer;
 
@@ -990,11 +991,105 @@ int pad_writer_create(Ecma119Image *target)
         return ISO_OUT_OF_MEM;
     }
 
-    writer->compute_data_blocks = pad_writer_compute_data_blocks;
-    writer->write_vol_desc = pad_writer_write_vol_desc;
-    writer->write_data = pad_writer_write_data;
-    writer->free_data = pad_writer_free_data;
+    writer->compute_data_blocks = mspad_writer_compute_data_blocks;
+    writer->write_vol_desc = mspad_writer_write_vol_desc;
+    writer->write_data = mspad_writer_write_data;
+    writer->free_data = mspad_writer_free_data;
     writer->data = NULL;
+    writer->target = target;
+
+    /* add this writer to image */
+    target->writers[target->nwriters++] = writer;
+    return ISO_SUCCESS;
+}
+
+
+/** ----- Zero padding writer ----- */
+
+struct iso_zero_writer_data_struct {
+    uint32_t num_blocks;
+};
+
+static
+int zero_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    Ecma119Image *target;
+    struct iso_zero_writer_data_struct *data;
+
+    if (writer == NULL)
+        return ISO_ASSERT_FAILURE;
+    target = writer->target;
+    data = (struct iso_zero_writer_data_struct *) writer->data;
+    target->curblock += data->num_blocks;
+    return ISO_SUCCESS;
+}
+
+static
+int zero_writer_write_vol_desc(IsoImageWriter *writer)
+{
+    /* nothing to do */
+    return ISO_SUCCESS;
+}
+
+static
+int zero_writer_write_data(IsoImageWriter *writer)
+{
+    int ret;
+    Ecma119Image *t;
+    struct iso_zero_writer_data_struct *data;
+    uint8_t pad[BLOCK_SIZE];
+    size_t i;
+
+    if (writer == NULL)
+        return ISO_ASSERT_FAILURE;
+    t = writer->target;
+    data = (struct iso_zero_writer_data_struct *) writer->data;
+
+    if (data->num_blocks == 0) 
+        return ISO_SUCCESS;
+    memset(pad, 0, BLOCK_SIZE);
+    for (i = 0; i < data->num_blocks; ++i) {
+        ret = iso_write(t, pad, BLOCK_SIZE);
+        if (ret < 0) 
+            return ret;
+    }
+    return ISO_SUCCESS;
+}
+
+static
+int zero_writer_free_data(IsoImageWriter *writer)
+{
+    if (writer == NULL)
+        return ISO_SUCCESS;
+    if (writer->data == NULL)
+        return ISO_SUCCESS;
+    free(writer->data);
+    writer->data = NULL;
+    return ISO_SUCCESS;
+}
+
+static
+int zero_writer_create(Ecma119Image *target, uint32_t num_blocks)
+{
+    IsoImageWriter *writer;
+    struct iso_zero_writer_data_struct *data;
+
+    writer = malloc(sizeof(IsoImageWriter));
+    if (writer == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+    data = calloc(1, sizeof(struct iso_zero_writer_data_struct));
+    if (data == NULL) {
+        free(writer);
+        return ISO_OUT_OF_MEM;
+    }
+    data->num_blocks = num_blocks;
+
+    writer->compute_data_blocks = zero_writer_compute_data_blocks;
+    writer->write_vol_desc = zero_writer_write_vol_desc;
+    writer->write_data = zero_writer_write_data;
+    writer->free_data = zero_writer_free_data;
+    writer->data = data;
     writer->target = target;
 
     /* add this writer to image */
@@ -1095,7 +1190,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     if (target->partition_offset <= 0)
         return ISO_SUCCESS;
 
-    /* Write padding up to target->partition_offset + 16 */
+    /* Write multi-session padding up to target->partition_offset + 16 */
     memset(buf, 0, 2048);
     for(; *write_count < target->partition_offset + 16; (*write_count)++) {
         res = iso_write(target, buf, BLOCK_SIZE);
@@ -1513,6 +1608,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     
 #endif /* Libisofs_with_libjtE */
 
+    target->tail_blocks = opts->tail_blocks;
+
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
      * Each writer inits its structures and stores needed info into
@@ -1531,7 +1628,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
 
     /* the number of writers is dependent of the extensions */
-    nwriters = 1 + 1 + 1; /* ECMA-119 + padding + files */
+    nwriters = 1 + 1 + 1; /* ECMA-119 + multi-session padding + files */
 
     if (target->eltorito) {
         nwriters++;
@@ -1542,7 +1639,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->iso1999) {
         nwriters++;
     }
-
+    if (target->tail_blocks > 0) 
+        nwriters++;
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
         image_checksums_mad = 1; /* from here on the loaded checksums are
@@ -1605,7 +1703,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
      * Create the writer for possible padding to ensure that in case of image
      * growing we can safely overwrite the first 64 KiB of image.
      */
-    ret = pad_writer_create(target);
+    ret = mspad_writer_create(target);
     if (ret < 0) {
         goto target_cleanup;
     }
@@ -1616,6 +1714,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
     file_src_writer_index = target->nwriters - 1;
+
+
+    /* IMPORTANT: This must be the last writer before the checksum writer */
+    if (target->tail_blocks > 0) {
+        ret = zero_writer_create(target, target->tail_blocks);
+        if (ret < 0)
+            goto target_cleanup;
+    }
+
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         ret = checksum_writer_create(target);
         if (ret < 0)
@@ -2062,6 +2169,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 #ifdef Libisofs_with_libjtE
     wopts->libjte_handle = NULL;
 #endif /* Libisofs_with_libjtE */
+
+    wopts->tail_blocks = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -2532,4 +2641,9 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle)
 #endif /* Libisofs_with_libjtE */
 }
  
- 
+int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks)
+{
+     opts->tail_blocks = num_blocks;
+     return ISO_SUCCESS;
+}
+
