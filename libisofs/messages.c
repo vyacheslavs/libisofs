@@ -75,6 +75,41 @@ struct libiso_msgs *libiso_msgr = NULL;
 int iso_init_with_flag(int flag)
 {
 
+#ifdef Libisofs_with_libjtE
+
+ /* Ugly compile time check for header version compatibility.
+    If everthing matches, then it produces no C code. In case of mismatch,
+    intentionally faulty C code will be inserted.
+ */ 
+ /* The indendation is an advise of man gcc to help old compilers ignoring */
+ #if iso_libjte_req_major > LIBJTE_VERSION_MAJOR
+ #define Libisofs_libjte_dot_h_too_olD 1
+ #endif
+ #if iso_libjte_req_major == LIBJTE_VERSION_MAJOR && iso_libjte_req_minor > LIBJTE_VERSION_MINOR
+ #define Libisofs_libjte_dot_h_too_olD 1
+ #endif
+ #if iso_libjte_req_minor == LIBJTE_VERSION_MINOR && iso_libjte_req_micro > LIBJTE_VERSION_MICRO
+ #define Libisofs_libjte_dot_h_too_olD 1
+ #endif
+
+#ifdef Libisofs_libjte_dot_h_too_olD
+LIBJTE_MISCONFIGURATION = 0;
+INTENTIONAL_ABORT_OF_COMPILATION__HEADERFILE_libjte_dot_h_TOO_OLD__SEE_libisofs_dot_h_AND_messages_c = 0;
+LIBJTE_MISCONFIGURATION_ = 0;
+#endif
+
+    if (! libjte__is_compatible(LIBJTE_VERSION_MAJOR, LIBJTE_VERSION_MINOR,
+                                LIBJTE_VERSION_MICRO, 0)) {
+        fprintf(stderr,
+              "\nlibisofs: libjte TOO OLD ! Need at least libjte-%d.%d.%d\n\n",
+              LIBJTE_VERSION_MAJOR, LIBJTE_VERSION_MINOR,
+              LIBJTE_VERSION_MICRO);
+        return ISO_FATAL_ERROR;
+    }
+
+#endif /* Libisofs_with_libjtE */
+
+
     if (! (flag & 1)) {
         iso_init_locale(0);
     }

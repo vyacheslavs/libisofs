@@ -1848,6 +1848,15 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
                                    int secs_512_per_head, int heads_per_cyl);
 
 
+/** The minimum version of libjte to be used with this version of libisofs
+    at compile time. The use of libjte is optional and depends on configure
+    tests. It can be prevented by ./configure option --disable-libjte .
+    @since 0.6.36
+*/
+#define iso_libjte_req_major 0
+#define iso_libjte_req_minor 1
+#define iso_libjte_req_micro 0
+
 /** 
  * Associate a libjte environment object to the upcomming write run.
  * libjte implements Jigdo Template Extraction as of Steve McIntyre and
