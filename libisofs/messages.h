@@ -54,4 +54,10 @@ int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...);
 int iso_report_errfile(char *path, int error_code, int os_errno, int flag);
 
 
+/* Drains the libjte message list and puts out the messages via
+   iso_msg_submit()
+*/
+int iso_libjte_forward_msgs(void *libjte_handle,
+                            int imgid, int errcode, int flag);
+
 #endif /*MESSAGES_H_*/

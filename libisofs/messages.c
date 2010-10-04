@@ -17,6 +17,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#ifdef Libisofs_with_libjtE
+#include <libjte/libjte.h>
+#endif
+
 #include "libiso_msgs.h"
 #include "libisofs.h"
 #include "messages.h"
@@ -523,3 +527,33 @@ int iso_report_errfile(char *path, int error_code, int os_errno, int flag)
                        path, os_errno, 0);
     return(1);
 }
+
+
+int iso_libjte_forward_msgs(void *libjte_handle,
+                            int imgid, int errcode, int flag)
+{
+
+#ifdef Libisofs_with_libjtE
+
+    char *msg = NULL;
+    int res;
+    struct libjte_env *handle = (struct libjte_env *) libjte_handle;
+
+    res = ISO_SUCCESS;
+    while(1) {
+       msg= libjte_get_next_message(handle);
+       if(msg == NULL)
+    break;
+       res = iso_msg_submit(imgid, errcode, 0, msg);
+       free(msg);
+    }
+    return res;
+
+#else /* Libisofs_with_libjtE */
+
+    return ISO_SUCCESS;
+
+#endif /* ! Libisofs_with_libjtE */
+
+}
+

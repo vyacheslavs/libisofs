@@ -393,9 +393,13 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             res = libjte_begin_data_file(t->libjte_handle, name,
                                          BLOCK_SIZE, file_size);
             if (res <= 0) {
-                filesrc_close(file);
-                ret = ISO_LIBJTE_FILE_FAILED;
-                goto ex;
+                res = iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+                                        ISO_LIBJTE_FILE_FAILED, 0);
+                if (res < 0) {
+                    filesrc_close(file);
+                    ret = ISO_LIBJTE_FILE_FAILED;
+                    goto ex;
+                }
             }
             jte_begun = 1;
         }
@@ -507,6 +511,8 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
         if (t->libjte_handle != NULL) {
             res = libjte_end_data_file(t->libjte_handle);
             if (res <= 0) {
+                iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+                                        ISO_LIBJTE_FILE_FAILED, 0);
                 ret = ISO_LIBJTE_FILE_FAILED;
                 goto ex;
             }
@@ -522,8 +528,11 @@ ex:;
         iso_md5_end(&ctx, md5);
 
 #ifdef Libisofs_with_libjtE
-    if (jte_begun) 
+    if (jte_begun) {
         libjte_end_data_file(t->libjte_handle);
+        iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+                                ISO_LIBJTE_END_FAILED, 0);
+    }
 #endif /* Libisofs_with_libjtE */
 
     return ret;

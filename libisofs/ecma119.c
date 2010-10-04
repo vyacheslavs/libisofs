@@ -104,13 +104,13 @@ static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
 
     if (target->libjte_handle == NULL)
         return ISO_SUCCESS;
-
-    /* >>> What is the meaning of libjte_show_data_chunk(islast) ? */
-
     ret = libjte_show_data_chunk(target->libjte_handle, buf, count, 1, 0, 
                   target->bytes_written + (off_t) count == target->total_size);
-    if (ret <= 0)
+    if (ret <= 0) {
+        iso_libjte_forward_msgs(target->libjte_handle,
+                                target->image->id, ISO_LIBJTE_FILE_FAILED, 0);
         return ISO_LIBJTE_FILE_FAILED;
+    }
 
 #endif /* Libisofs_with_libjtE */
 
@@ -1267,8 +1267,11 @@ static int finish_libjte(Ecma119Image *target)
 
     if (target->libjte_handle != NULL) {
         ret = libjte_write_footer(target->libjte_handle);
-        if (ret <= 0)
+        if (ret <= 0) {
+            iso_libjte_forward_msgs(target->libjte_handle, 
+                                target->image->id, ISO_LIBJTE_END_FAILED, 0);
             return ISO_LIBJTE_END_FAILED;
+        }
     }
 
 #endif /* Libisofs_with_libjtE */
@@ -1601,6 +1604,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         target->libjte_handle = opts->libjte_handle;
         ret = libjte_write_header(target->libjte_handle);
         if (ret <= 0) {
+            iso_libjte_forward_msgs(target->libjte_handle, 
+                                target->image->id, ISO_LIBJTE_START_FAILED, 0);
             ret = ISO_LIBJTE_START_FAILED;
             goto target_cleanup;
         }

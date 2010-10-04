@@ -6221,8 +6221,8 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 #define ISO_LIBJTE_END_FAILED      0xE830FE93
 
 /** Failed to process file for Jigdo Template Extraction
-   (FAILURE, HIGH, -366) */
-#define ISO_LIBJTE_FILE_FAILED      0xE830FE92
+   (MISHAP, HIGH, -366) */
+#define ISO_LIBJTE_FILE_FAILED      0xE430FE92
 
 
 /* Internal developer note: 
