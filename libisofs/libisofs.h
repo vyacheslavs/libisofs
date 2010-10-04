@@ -983,6 +983,7 @@ struct iso_stream
 /**
  * Initialize libisofs. Before any usage of the library you must either call
  * this function or iso_init_with_flag().
+ * Only exception from this rule: iso_lib_version(), iso_lib_is_compatible().
  * @return 1 on success, < 0 on error
  *
  * @since 0.6.2
@@ -992,6 +993,7 @@ int iso_init();
 /**
  * Initialize libisofs. Before any usage of the library you must either call
  * this function or iso_init() which is equivalent to iso_init_with_flag(0).
+ * Only exception from this rule: iso_lib_version(), iso_lib_is_compatible().
  * @param flag
  *      Bitfield for control purposes
  *      bit0= do not set up locale by LC_* environment variables
@@ -1084,6 +1086,7 @@ void iso_image_set_ignore_aclea(IsoImage *image, int what);
  */
 /**
  * Get version of the libisofs library at runtime.
+ * NOTE: This function may be called before iso_init().
  *
  * @since 0.6.2
  */
@@ -1091,6 +1094,7 @@ void iso_lib_version(int *major, int *minor, int *micro);
 
 /**
  * Check at runtime if the library is ABI compatible with the given version.
+ * NOTE: This function may be called before iso_init().
  *
  * @return
  *      1 lib is compatible, 0 is not.
@@ -1851,7 +1855,7 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
 /** The minimum version of libjte to be used with this version of libisofs
     at compile time. The use of libjte is optional and depends on configure
     tests. It can be prevented by ./configure option --disable-libjte .
-    @since 0.6.36
+    @since 0.6.38
 */
 #define iso_libjte_req_major 0
 #define iso_libjte_req_minor 1
