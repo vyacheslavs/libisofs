@@ -295,9 +295,9 @@ ex:;
    aaip_get_acl_text("", &a_acl_text, 1 << 15); /* free */
  if(d_acl_text != NULL)
    aaip_get_acl_text("", &d_acl_text, 1 << 15); /* free */
+ if(list != NULL)
+   free(list);
  if(ret <= 0 || (flag & (1 << 15))) {
-   if(list != NULL)
-     free(list);
    if(*names != NULL) {
      for(i= 0; i < *num_attrs; i++)
        free((*names)[i]);
