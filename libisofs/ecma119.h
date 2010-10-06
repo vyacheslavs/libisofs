@@ -345,6 +345,8 @@ typedef struct Iso_Image_Writer IsoImageWriter;
 
 struct ecma119_image
 {
+    int refcount;
+
     IsoImage *image;
     Ecma119Node *root;
 

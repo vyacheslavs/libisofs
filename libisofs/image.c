@@ -89,6 +89,7 @@ int iso_image_new(const char *name, IsoImage **image)
     img->checksum_end_lba = 0;
     img->checksum_idx_count = 0;
     img->checksum_array = NULL;
+    img->generator_is_running = 0;
     *image = img;
     return ISO_SUCCESS;
 }
@@ -605,5 +606,10 @@ int iso_image_set_checksums(IsoImage *image, char *checksum_array,
     image->checksum_end_lba = end_lba;
     image->checksum_idx_count = idx_count;
     return 1;
+}
+
+int iso_image_generator_is_running(IsoImage *image)
+{
+    return image->generator_is_running;
 }
 

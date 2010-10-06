@@ -166,6 +166,12 @@ struct Iso_Image
     uint32_t checksum_idx_count;
     char *checksum_array;
 
+    /**
+     * Whether a write run has been started by iso_image_create_burn_source()
+     * and has not yet been finished.
+     */
+    int generator_is_running;
+
 };
 
 

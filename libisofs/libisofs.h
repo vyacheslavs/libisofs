@@ -1870,11 +1870,9 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
  *        The option set to be manipulated.
  * @param libjte_handle
  *        Pointer to a struct libjte_env e.g. created by libjte_new().
- *        It must stay existent from the start of image writing by
+ *        It must stay existent from the start of image generation by
  *        iso_image_create_burn_source() until the write thread has ended.
-
- *    >>> ts B00928 Need a way to inquire run status independent of libburn.
-
+ *        This can be inquired by iso_image_generator_is_running().
  *        In order to keep the libisofs API identical with and without
  *        libjte support the parameter type is (void *).
  * @return
@@ -1941,6 +1939,20 @@ int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
                                   int flag);
 
 /**
+ * Update the sizes of all files added to image.
+ *
+ * This may be called just before iso_image_create_burn_source() to force
+ * libisofs to check the file sizes again (they're already checked when added
+ * to IsoImage). It is useful if you have changed some files after adding then
+ * to the image.
+ *
+ * @return
+ *    1 on success, < 0 on error
+ * @since 0.6.8
+ */
+int iso_image_update_sizes(IsoImage *image);
+
+/**
  * Create a burn_source and a thread which immediately begins to generate
  * the image. That burn_source can be used with libburn as a data source
  * for a track. A copy of its public declaration in libburn.h can be found
@@ -1966,18 +1978,22 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src);
 
 /**
- * Update the sizes of all files added to image.
- *
- * This may be called just before iso_image_create_burn_source() to force
- * libisofs to check the file sizes again (they're already checked when added
- * to IsoImage). It is useful if you have changed some files after adding then
- * to the image.
- *
+ * Inquire whether the image generator thread is still at work. As soon as the
+ * reply is 0, the caller of iso_image_create_burn_source() may assume that
+ * the image generation has ended.
+ * Nevertheless there may still be readily formatted output data pending in
+ * the burn_source or its consumers. So the final delivery of the image has
+ * also to be checked at the data consumer side,e.g. by burn_drive_get_status()
+ * in case of libburn as consumer.
+ * @param image
+ *     The image to inquire.
  * @return
- *    1 on success, < 0 on error
- * @since 0.6.8
+ *     1 generating of image stream is still in progress
+ *     0 generating of image stream has ended meanwhile
+ *
+ * @since 0.6.38
  */
-int iso_image_update_sizes(IsoImage *image);
+int iso_image_generator_is_running(IsoImage *image);
 
 /**
  * Creates an IsoReadOpts for reading an existent image. You should set the

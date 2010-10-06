@@ -59,6 +59,12 @@ void ecma119_image_free(Ecma119Image *t)
 
     if (t == NULL)
         return;
+
+    if (t->refcount > 1) {
+        t->refcount--;
+        return;
+    }
+
     if (t->root != NULL)
         ecma119_node_free(t->root);
     if (t->image != NULL)
@@ -1315,6 +1321,12 @@ void *write_function(void *arg)
     if (res <= 0)
         goto write_error;
 
+    target->image->generator_is_running = 0;
+
+    /* Give up reference claim made in ecma119_image_new().
+       Eventually free target */
+    ecma119_image_free(target);
+
 #ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
 #else
@@ -1339,6 +1351,12 @@ void *write_function(void *arg)
     transplant_checksum_buffer(target, 0);
     /* Invalidate the transplanted checksum buffer in IsoImage */
     iso_image_free_checksums(target->image, 0);
+
+    target->image->generator_is_running = 0;
+
+    /* Give up reference claim made in ecma119_image_new().
+       Eventually free target */
+    ecma119_image_free(target);
 
 #ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
@@ -1460,6 +1478,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target == NULL) {
         return ISO_OUT_OF_MEM;
     }
+    /* This reference will be transfered to the burn_source and released by
+       bs_free_data.
+    */
+    target->refcount = 1;
 
     /* create the tree for file caching */
     ret = iso_rbtree_new(iso_file_src_cmp, &(target->files));
@@ -1923,9 +1945,24 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     pthread_attr_init(&(target->th_attr));
     pthread_attr_setdetachstate(&(target->th_attr), PTHREAD_CREATE_JOINABLE);
 
+    /* To avoid race conditions with the caller, this mark must be set
+       before the thread starts. So the caller can rely on a value of 0
+       really meaning that the write has ended, and not that it might not have
+       begun yet.
+       In normal processing, the value will be changed to 0 at the end of
+       write_function().
+    */
+    target->image->generator_is_running = 1;
+
+
+    /* Claim that target may not get destroyed by bs_free_data() before
+       write_function() is done with it */
+    target->refcount++;
+
     ret = pthread_create(&(target->wthread), &(target->th_attr),
                          write_function, (void *) target);
     if (ret != 0) {
+        target->refcount--;
         iso_msg_submit(target->image->id, ISO_THREAD_ERROR, 0,
                       "Cannot create writer thread");
         ret = ISO_THREAD_ERROR;
@@ -1945,6 +1982,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target_cleanup: ;
     if(image_checksums_mad) /* No checksums is better than mad checksums */
       iso_image_free_checksums(target->image, 0);
+    target->image->generator_is_running = 0;
     ecma119_image_free(target);
     return ret;
 }
@@ -1995,7 +2033,7 @@ static void bs_free_data(struct burn_source *bs)
                   iso_ring_buffer_get_times_full(target->buffer),
                   iso_ring_buffer_get_times_empty(target->buffer));
 
-    /* now we can safety free target */
+    /* The reference to target was inherited from ecma119_image_new() */
     ecma119_image_free(target);
 }
 

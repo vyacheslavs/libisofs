@@ -80,6 +80,7 @@ iso_image_fs_get_publisher_id;
 iso_image_fs_get_system_id;
 iso_image_fs_get_volset_id;
 iso_image_fs_get_volume_id;
+iso_image_generator_is_running;
 iso_image_get_abstract_file_id;
 iso_image_get_all_boot_imgs;
 iso_image_get_application_id;
