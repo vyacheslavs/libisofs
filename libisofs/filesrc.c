@@ -25,9 +25,20 @@
 #include <limits.h>
 
 
+/* >>> later change this to  Xorriso_standalonE */
+#ifdef Xorriso_jte_standalonE
+
+#ifdef Xorriso_with_libjtE
+#include "../libjte/libjte.h"
+#endif
+
+#else
+
 #ifdef Libisofs_with_libjtE
 #include <libjte/libjte.h>
 #endif
+
+#endif /* ! Xorriso_jte_standalonE */
 
 
 #ifndef PATH_MAX

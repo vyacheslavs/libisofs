@@ -1859,7 +1859,7 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
 */
 #define iso_libjte_req_major 0
 #define iso_libjte_req_minor 1
-#define iso_libjte_req_micro 0
+#define iso_libjte_req_micro 1
 
 /** 
  * Associate a libjte environment object to the upcomming write run.

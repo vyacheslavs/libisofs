@@ -41,9 +41,20 @@
 #include <langinfo.h>
 #include <stdio.h>
 
+/* >>> later change this to  Xorriso_standalonE */
+#ifdef Xorriso_jte_standalonE
+
+#ifdef Xorriso_with_libjtE
+#include "../libjte/libjte.h"
+#endif
+
+#else
+
 #ifdef Libisofs_with_libjtE
 #include <libjte/libjte.h>
 #endif
+
+#endif /* ! Xorriso_jte_standalonE */
 
 /*
  * TODO #00011 : guard against bad path table usage with more than 65535 dirs
@@ -110,8 +121,7 @@ static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
 
     if (target->libjte_handle == NULL)
         return ISO_SUCCESS;
-    ret = libjte_show_data_chunk(target->libjte_handle, buf, count, 1, 0, 
-                  target->bytes_written + (off_t) count == target->total_size);
+    ret = libjte_show_data_chunk(target->libjte_handle, buf, count, 1); 
     if (ret <= 0) {
         iso_libjte_forward_msgs(target->libjte_handle,
                                 target->image->id, ISO_LIBJTE_FILE_FAILED, 0);
