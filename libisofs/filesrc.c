@@ -11,6 +11,7 @@
 #include "../config.h"
 #endif
 
+#include "libisofs.h"
 #include "filesrc.h"
 #include "node.h"
 #include "util.h"

@@ -1755,15 +1755,26 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *        Either NULL or 32 kB of data. Do not submit less bytes !
  * @param options
  *        Can cause manipulations of submitted data before they get written:
- *        bit0= apply a --protective-msdos-label as of grub-mkisofs.
+ *        bit0= Only with System area type 0 = MBR
+ *              Apply a --protective-msdos-label as of grub-mkisofs.
  *              This means to patch bytes 446 to 512 of the system area so
  *              that one partition is defined which begins at the second
  *              512-byte block of the image and ends where the image ends.
  *              This works with and without system_area_data.
- *        bit1= apply isohybrid MBR patching to the system area.
+ *        bit1= Only with System area type 0 = MBR
+ *              Apply isohybrid MBR patching to the system area.
  *              This works only with system area data from SYSLINUX plus an
  *              ISOLINUX boot image (see iso_image_set_boot_image()) and
  *              only if not bit0 is set.
+ *        bit2-7= System area type
+ *              0= with bit0 or bit1: MBR
+ *                 else: unspecified type
+ *              @since 0.6.38
+ *              1= MIPS Big Endian Volume Header
+                   >>> EXPERIMENTAL:
+                   Submit MIPS boot image files as El Torito Boot image to
+                   iso_image_set_boot_image() , iso_image_add_boot_image().
+                   No El Torito info will be produced with system area type 1.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.

@@ -1567,6 +1567,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     } else if (src->system_area_data != NULL) {
         system_area = src->system_area_data;
         system_area_options = src->system_area_options;
+    } else {
+        system_area_options = opts->system_area_options & 0xfc;
     }
     target->system_area_data = NULL;
     if (system_area != NULL) {
@@ -2614,9 +2616,24 @@ int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
 
 /*
  * @param data     Either NULL or 32 kB of data. Do not submit less bytes !
- * @param options  bit0 = apply GRUB protective msdos label
+ * @param options 
+ *        Can cause manipulations of submitted data before they get written:
+ *        bit0= apply a --protective-msdos-label as of grub-mkisofs.
+ *              This means to patch bytes 446 to 512 of the system area so
+ *              that one partition is defined which begins at the second
+ *              512-byte block of the image and ends where the image ends.
+ *              This works with and without system_area_data.
+ *        bit1= apply isohybrid MBR patching to the system area.
+ *              This works only with system area data from SYSLINUX plus an
+ *              ISOLINUX boot image (see iso_image_set_boot_image()) and
+ *              only if not bit0 is set.
+ *        bit2-7= System area type
+ *              0= PC-BIOS DOS MBR
+ *              1= MIPS Big Endian Volume Header
  * @param flag     bit0 = invalidate any attached system area data
  *                        same as data == NULL
+ *                 bit1 = keep data unaltered
+ *                 bit2 = keep options unaltered
  */
 int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
                                    int options, int flag)
@@ -2634,7 +2651,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         memcpy(opts->system_area_data, data, 32768);
     }
     if (!(flag & 4))
-        opts->system_area_options = options & 3;
+        opts->system_area_options = options & 0xff;
     return ISO_SUCCESS;
 }
 

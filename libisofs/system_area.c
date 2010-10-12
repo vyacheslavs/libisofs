@@ -12,6 +12,7 @@
 #include "../config.h"
 #endif
 
+#include "libisofs.h"
 #include "system_area.h"
 #include "eltorito.h"
 #include "filesrc.h"
@@ -208,9 +209,102 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
 }
 
 
+/* This function was implemented according to a byte map which was derived
+   by Thomas Schmitt from
+   cdrkit-1.1.10/genisoimage/boot-mips.c by Steve McIntyre which is based
+   on work of Florian Lohoff and Thiemo Seufer who possibly learned from
+   documents of MIPS Computer Systems, Inc. and Silicon Graphics Computer
+   Systems, Inc.
+   This function itself is entirely under copyright (C) 2010 Thomas Schmitt.
+*/
+static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
+{
+    char *namept, *name_field;
+    uint32_t num_cyl, idx, blocks, num, checksum;
+    off_t image_size;
+    static uint32_t bps = 512, spt = 32;
+
+    memset(buf, 0, 16 * BLOCK_SIZE);
+
+    image_size = t->curblock * 2048;
+
+    /* 0 -   3 | 0x0be5a941 | Magic number */
+    iso_msb(buf, 0x0be5a941, 4);
+
+    /* 28 -  29 |  num_cyl_l | Number of usable cylinder, lower two bytes */
+    /* >>> Shall i rather orund up ? */
+    num_cyl = image_size / (bps * spt);
+    iso_msb(buf + 28, num_cyl & 0xffff, 2);
+
+    /* 32 -  33 |          1 | Number of tracks per cylinder */
+    iso_msb(buf + 32, 1, 2);
+
+    /* 35 -  35 |  num_cyl_h | Number of usable cylinders, high byte */
+    buf[35] = (num_cyl >> 16) & 0xff;
+    
+    /* 38 -  39 |         32 | Sectors per track */
+    iso_msb(buf + 38, spt, 2);
+
+    /* 40 -  41 |        512 | Bytes per sector */
+    iso_msb(buf + 40, bps, 2);
+
+    /* 44 -  47 | 0x00000034 | Controller characteristics */
+    iso_msb(buf + 44, 0x00000034, 4);
+
+    /*  72 -  87 | ========== | Volume Directory Entry 1 */
+    /*  72 -  79 |  boot_name | Boot file basename */
+    /*  80 -  83 | boot_block | ISO 9660 LBA of boot file * 4 */
+    /*  84 -  87 | boot_bytes | File length in bytes */
+    /*  88 - 311 |          0 | Volume Directory Entries 2 to 15 */
+    for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
+
+        /* >>> skip non-MIPS boot images */;
+
+        namept = iso_node_get_name(
+                       (IsoNode *) t->catalog->bootimages[idx]->image);
+        name_field = (char *) (buf + (72 + 16 * idx));
+        strncpy(name_field, namept, 8);
+        iso_msb(buf + (72 + 16 * idx) + 8,
+                t->bootsrc[idx]->sections[0].block * 4, 4);
+
+        /* >>> shall i really round up to 2048 ? */
+        iso_msb(buf + (72 + 16 * idx) + 12,
+                ((t->bootsrc[idx]->sections[0].size + 2047) / 2048 ) * 2048,
+                4);
+    }
+
+    /* 408 - 411 |  part_blks | Number of 512 byte blocks in partition */
+    blocks = (image_size + bps - 1) / bps;
+    iso_msb(buf + 408, blocks, 4);
+    /* 416 - 419 |          0 | Partition is volume header */
+    iso_msb(buf + 416, 0, 4);
+
+    /* 432 - 435 |  part_blks | Number of 512 byte blocks in partition */
+    iso_msb(buf + 432, blocks, 4);
+    iso_msb(buf + 444, 6, 4);
+
+    /* 504 - 507 |   head_chk | Volume header checksum  
+                                The two's complement of bytes 0 to 503 read
+                                as big endian unsigned 32 bit:
+                                  sum(32-bit-words) + head_chk == 0
+    */
+    checksum = 0;
+    for (idx = 0; idx < 504; idx += 4) {
+        num = iso_read_msb(buf + idx, 4);
+        /* Addition modulo a natural number is commutative and associative.
+           Thus the inverse of a sum is the sum of the inverses of the addends.
+        */
+        checksum -= num;
+    }
+    iso_msb(buf + 504, checksum, 4);
+
+    return 1;
+}
+
+
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
-    int ret, int_img_blocks;
+    int ret, int_img_blocks, sa_type;
     uint32_t img_blocks;
 
     if ((t == NULL) || (buf == NULL)) {
@@ -220,12 +314,13 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     /* set buf to 0s */
     memset(buf, 0, 16 * BLOCK_SIZE);
 
+    sa_type = (t->system_area_options >> 2) & 0x3f;
     img_blocks = t->curblock;
     if (t->system_area_data != NULL) {
         /* Write more or less opaque boot image */
         memcpy(buf, t->system_area_data, 16 * BLOCK_SIZE);
 
-    } else if (t->catalog != NULL &&
+    } else if (sa_type == 0 && t->catalog != NULL &&
                (t->catalog->bootimages[0]->isolinux_options & 0x0a) == 0x02) {
         /* Check for isolinux image with magic number of 3.72 and produce
            an MBR from our built-in template. (Deprecated since 31 Mar 2010)
@@ -243,12 +338,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
         return ISO_SUCCESS;
     }
-    if (t->system_area_options & 1) {
+    if (sa_type == 0 && (t->system_area_options & 1)) {
         /* Write GRUB protective msdos label, i.e. a simple partition table */
         ret = make_grub_msdos_label(img_blocks, buf, 0);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
-    } else if(t->system_area_options & 2) {
+    } else if(sa_type == 0 && (t->system_area_options & 2)) {
         /* Patch externally provided system area as isohybrid MBR */
         if (t->catalog == NULL || t->system_area_data == NULL) {
             /* isohybrid makes only sense together with ISOLINUX boot image
@@ -260,6 +355,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                                 (uint32_t) 0, 64, 32, 0, 1, 0x17, buf, 1);
         if (ret != 1)
             return ret;
+    } else if(sa_type == 1) {
+        ret = make_mips_volume_header(t, buf, 0);
+        if (ret != ISO_SUCCESS) /* error should never happen */
+            return ISO_ASSERT_FAILURE;
     } else if(t->partition_offset > 0) {
         /* Write a simple partition table. */
         ret = make_grub_msdos_label(img_blocks, buf, 2);

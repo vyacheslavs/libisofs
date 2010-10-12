@@ -1091,6 +1091,10 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t = writer->target;
 
+    /* >>> Preliminary: No El Torito with system area type other than MBR */
+    if (t->system_area_options & 0xfc)
+        return ISO_SUCCESS;
+
     /* Patch the boot image info tables if indicated */
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
         if (!(t->catalog->bootimages[idx]->isolinux_options & 0x01))
@@ -1150,6 +1154,10 @@ int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
 
     t = writer->target;
     cat = t->catalog;
+
+    /* >>> Preliminary: No El Torito with system area type other than MBR */
+    if (t->system_area_options & 0xfc)
+        return ISO_SUCCESS;
 
     iso_msg_debug(t->image->id, "Write El-Torito boot record");
 
@@ -1224,6 +1232,10 @@ int eltorito_writer_create(Ecma119Image *target)
             src->prev_img = 0;
         }
     }
+
+    /* >>> Preliminary: No El Torito with system area type other than MBR */
+    if (target->system_area_options & 0xfc)
+        return ISO_SUCCESS;
 
     /* we need the bootable volume descriptor */
     target->curblock++;
