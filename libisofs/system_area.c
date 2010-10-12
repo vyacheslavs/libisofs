@@ -260,8 +260,8 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
 
         /* >>> skip non-MIPS boot images */;
 
-        namept = iso_node_get_name(
-                       (IsoNode *) t->catalog->bootimages[idx]->image);
+        namept = (char *) iso_node_get_name(
+                               (IsoNode *) t->catalog->bootimages[idx]->image);
         name_field = (char *) (buf + (72 + 16 * idx));
         strncpy(name_field, namept, 8);
         iso_msb(buf + (72 + 16 * idx) + 8,
