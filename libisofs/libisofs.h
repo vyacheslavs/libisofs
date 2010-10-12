@@ -1771,10 +1771,8 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 else: unspecified type
  *              @since 0.6.38
  *              1= MIPS Big Endian Volume Header
-                   >>> EXPERIMENTAL:
-                   Submit MIPS boot image files as El Torito Boot image to
-                   iso_image_set_boot_image() , iso_image_add_boot_image().
-                   No El Torito info will be produced with system area type 1.
+ *                 Submit up to 15 MIPS Big Endian boot files by
+ *                 iso_image_add_mips_boot_file().
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
@@ -2968,6 +2966,52 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
  */
 int iso_image_get_system_area(IsoImage *img, char data[32768],
                               int *options, int flag);
+
+/**
+ * Add a MIPS Big Endian boot file to the image. Up to 15 such files can be
+ * written into a MIPS Big Endian Volume Header if this is enabled by
+ * value 1 in iso_write_opts_set_system_area() option bits 2 to 7. 
+ * @param img
+ *        The image to be manipulated.
+ * @param path
+ *        Absolute path of the boot file in the ISO 9660 Rock Ridge tree
+ * @param flag
+ *        Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *        1 on success, < 0 error
+ * @since 0.6.38
+ */
+int iso_image_add_mips_boot_file(IsoImage *image, char *path, int flag);
+
+/**
+ * Obtain the number of added MIPS Big Endian boot files and pointers to
+ * their paths in the ISO 9660 Rock Ridge tree.
+ * @param img
+ *        The image to be inquired.
+ * @param paths
+ *        An array of pointers to be set to the registered boot file paths.
+ *        This are just pointers to data inside IsoImage. Do not free() them.
+ *        Eventually make own copies of the data before manipulating the image.
+ * @param flag
+ *        Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *        >= 0 is the number of valid path pointers , <0 means error
+ * @since 0.6.38
+ */
+int iso_image_get_mips_boot_files(IsoImage *image, char *paths[15], int flag);
+
+/**
+ * Clear the list of MIPS Big Endian boot file paths.
+ * @param img
+ *        The image to be manipulated.
+ * @param flag
+ *        Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *        1 is success , <0 means error
+ * @since 0.6.38
+ */
+int iso_image_give_up_mips_boot(IsoImage *image, int flag);
+
 
 /**
  * Increments the reference counting of the given node.
@@ -6262,7 +6306,14 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 
 /** Failed to process file for Jigdo Template Extraction
    (MISHAP, HIGH, -366) */
-#define ISO_LIBJTE_FILE_FAILED      0xE430FE92
+#define ISO_LIBJTE_FILE_FAILED     0xE430FE92
+
+/** Too many MIPS Big Endian boot files given (max. 15) (FAILURE, HIGH, -365)*/
+#define ISO_BOOT_TOO_MANY_MIPS     0xE830FE91
+
+/** MIPS Big Endian boot file missing in image (MISHAP, HIGH, -364) */
+#define ISO_BOOT_MIPS_MISSING      0xE430FE90
+
 
 
 /* Internal developer note: 
@@ -6491,5 +6542,9 @@ struct burn_source {
  #define Libisofs_with_rrip_rR yes
 */
 
+
+/* Try to address MIPS Big Endian boot files via their ISO/RR paths
+ */
+#define Libisofs_mips_boot_file_pathS yes
 
 #endif /*LIBISO_LIBISOFS_H_*/

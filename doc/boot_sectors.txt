@@ -1,0 +1,238 @@
+
+
+
+            Collection of Boot Sector Formats for ISO 9660 Images
+
+
+            by Thomas Schmitt    - mailto:scdbackup@gmx.net
+            Libburnia project    - mailto:libburn-hackers@pykix.org
+
+This information is collected from various sources. Some is backed by
+specifications, some is just rumor which happens to work.
+
+------------------------------------------------------------------------------
+
+>>> EL Torito
+
+El Torito, Bootable CD-ROM Format Specification, Version 1.0, January 25, 1995
+
+>>> El Torito Volume Descriptor
+
+>>> Boot Catalog
+
+>>> Boot Images
+
+------------------------------------------------------------------------------
+
+>>> MBR
+
+http://en.wikipedia.org/wiki/Master_boot_record
+
+
+>>> iso_write_opts_set_part_offset()
+
+
+------------------------------------------------------------------------------
+
+                             SYSLINUX Isohybrid MBR
+
+Sources:
+    syslinux-3.72/utils/isohybrid , a perl script by H. Peter Anvin = hpa.
+    Mailing list conversations with hpa.
+
+An isohybrid MBR directs the booting BIOS to an Isolinux boot image which
+is also the target of an El Torito boot catalog entry.
+For that purpose one has to take an MBR template and has to set a few bytes
+to values which sufficiently describe the ISO image and the boot image file.
+
+Words are composed little-endian style.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 - 431 | = opaque = | Syslinux machine code provided by MBR template
+           |            |
+ 432 - 439 | hd_bootlba | Address of the ISOLINUX boot image file in the
+           |            | ISO image. Counted in 512 byte blocks.
+ 440 - 443 |     mbr_id | Random number
+ 444 - 445 |          0 | Padding
+           |            |
+ 446 - 509 | ========== | Partition table
+           |            |
+ 446 - 461 | part_entry | Partition table entry 1 describing ISO image size
+           |            |
+ 462 - 509 |          0 | Unused partition entries 2 to 4
+           |            |
+ 510 - 511 |     0xaa55 | MBR signature
+---------- | ---------- | ----------------------------------------------------
+
+
+hpa about MBR templates and partition table filesystem types:
+-------------------------------------------------------------
+
+[MBR templates] are available in the Syslinux build tree under the names:
+
+  mbr/isohdp[fp]x*.bin
+
+The default probably should be mbr/isohdppx.bin, but it's ultimately up
+to the user.
+
+Note: the filesystem type is largely arbitrary, in theory it can be any
+value other than 0x00, 0x05, 0x0f, 0x85, 0xee, or 0xef.  0x17 ("Windows
+IFS Hidden") seems safeish, some people believe 0x83 (Linux) is better.
+
+
+------------------------------------------------------------------------------
+
+>>> GRUB2 MBR
+
+------------------------------------------------------------------------------
+
+
+                               MIPS Volume Header
+                       for MIPS Big Endian, e.g. SGI Indigo2
+
+Sources:
+   cdrkit-1.1.10/genisoimage/boot-mips.c
+   by Steve McIntyre <steve@einval.com>
+   which refers to
+      genisovh by Florian Lohoff <flo@rfc822.org>
+              and Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+      who seem to have learned parameter settings from IRIX CD media
+      There are traces in the web which relate this to specs by
+               MIPS Computer Systems, Inc. , 1985
+               Silicon Graphics Computer Systems, Inc. , 2000
+
+
+The first 512 bytes of the media constitute the Volume Header.
+Words are composed big-endian style.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   3 | 0x0be5a941 | Magic number
+   4 -   5 |          0 | Root partition number
+   6 -   7 |          0 | Swap partition number
+   8 -  23 |          0 | Name of file to boot (unclear what this means)
+           |            |
+  24 -  71 | ========== | Device Parameters
+           |            |
+  24 -  24 |          0 | Spiral addressing skew (unclear what this means)
+  25 -  25 |          0 | Words of 0 before header
+  26 -  26 |          0 | Words of 0 between hdr and data
+  27 -  27 |          0 | Spare sectors per cylinder
+  28 -  29 |  num_cyl_l | Number of usable cylinder, lower two bytes
+           |            |  ((iso_size + BYTES_PER_SECTOR - 1) /
+           |            |   (SECTORS_PER_TRACK * BYTES_PER_SECTOR)) & 0xffff
+  30 -  31 |          0 | Starting head of volume 0 
+  32 -  33 |          1 | Number of tracks per cylinder
+  34 -  34 |          0 | Depth of CTQ queue (unclear what this means)
+  35 -  35 |  num_cyl_h | Number of usable cylinders, high byte 
+           |            |  ((iso_size + BYTES_PER_SECTOR - 1) /
+           |            |   (SECTORS_PER_TRACK * BYTES_PER_SECTOR)) >> 16
+  36 -  37 |          0 | unused
+  38 -  39 |         32 | SECTORS_PER_TRACK
+  40 -  41 |        512 | BYTES_PER_SECTOR
+  42 -  43 |          0 | Sector interleave (unclear what this means)
+  44 -  47 | 0x00000034 | Controller characteristics composed from
+           |            | DP_RESEEK 0x00000020 /* recalibrate as last resort */
+           |            | DP_IGNOREERRORS 0x00000010
+           |            |              /* transfer data regardless of errors */
+           |            | DP_TRKFWD 0x00000004
+           |            |                    /* forward to replacement track */
+  48 -  51 |          0 | Bytes/sec for kernel stats
+  52 -  55 |          0 | Max num retries on data error
+  56 -  59 |          0 | ms per word to xfer, for iostat
+  60 -  71 |          0 | 6 parameter words for xylogics controllers
+           |            |
+  72 - 311 | ========== | Volume Directory with 15 entries of 16 bytes each
+           |            |
+  72 -  87 | ========== | Volume Directory Entry 1
+  72 -  79 |  boot_name | Boot file basename, eventually padded by 0 to lenght 8
+  80 -  83 | boot_block | ISO 9660 LBA of boot file * 4, i.e. in blocks of 512
+  84 -  87 | boot_bytes | File length in bytes
+           |            |
+  88 - 311 | see above  | Volume Directory Entries 2 to 15
+           |            |
+ 312 - 504 | ========== | Partition Table with 16 entries of 12 bytes each
+           |            |
+ 312 - 407 |          0 | Unused partition entries 1 to 8
+           |            |
+ 408 - 419 | ========== | Partition Table Entry 9 for Volume Header
+ 408 - 411 |  part_blks | Number of 512 byte blocks in partition
+           |            |(iso_size + (BYTES_PER_SECTOR - 1)) / BYTES_PER_SECTOR
+ 412 - 415 |          0 | Start block of partition
+ 416 - 419 |          0 | PTYPE_VOLHDR = Partition is volume header
+           |            |
+ 420 - 431 |          0 | Unused partition entry 10
+           |            |
+ 432 - 443 | ========== | Partition Table Entry 11 for Volume
+ 432 - 435 |  part_blks | Number of 512 byte blocks in partition
+           |            |(iso_size + (BYTES_PER_SECTOR - 1)) / BYTES_PER_SECTOR
+ 436 - 439 |          0 | Start block of partition
+ 440 - 443 |          6 | PTYPE_VOLUME = Partition is entire volume
+           |            |
+ 444 - 503 |          0 | Unused partition entries 12 to 16
+           |            |
+ 504 - 507 |   head_chk | Volume header checksum
+           |            | The two's complement of bytes 0 to 503 read as big
+           |            | endian unsigned 32 bit: sum(words) + head_chk == 0
+           |            |
+ 508 - 511 |          0 | Volume header end padding
+           |            |
+up to 2048 |          0 | ISO 9660 Block end padding
+---------- | ---------- | ----------------------------------------------------
+
+Test image produced by
+  genisoimage -o /u/test/mips_boot.iso -mips-boot checksum.c jte
+which reports
+  Found mips boot image checksum.c, using extent 636 (0x27C), #blocks 14336 (0x3800)
+
+xorriso reports as 2048 byte LBA of the boot image dummy file
+  File data lba:  0 ,      159 ,        7 ,    14330 , '/CHECKSUM.C'
+
+First 512 bytes in hex:
+       0 :    0b  e5  a9  41  00  00  00  00  00  00  00  00  00  00  00  00
+      16 :    00  00  00  00  00  00  00  00  00  00  00  00  00  51  00  00
+      32 :    00  01  00  00  00  00  00  20  02  00  00  00  00  00  00  34
+      48 :    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+      64 :    00  00  00  00  00  00  00  00  63  68  65  63  6b  73  75  6d
+      80 :    00  00  02  7c  00  00  38  00  00  00  00  00  00  00  00  00
+... 0 ...
+     400 :    00  00  00  00  00  00  00  00  00  00  0a  28  00  00  00  00
+     416 :    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+     432 :    00  00  0a  28  00  00  00  00  00  00  00  06  00  00  00  00
+... 0 ...
+     496 :    00  00  00  00  00  00  00  00  22  ec  2c  c9  00  00  00  00
+
+The 32 bit two's complement of bytes 0 to 503 is 0x22ec2cc9.
+
+In decimal:
+       0 :    11 229 169  65   0   0   0   0   0   0   0   0   0   0   0   0
+      16 :     0   0   0   0   0   0   0   0   0   0   0   0   0  81   0   0
+      32 :     0   1   0   0   0   0   0  32   2   0   0   0   0   0   0  52
+      48 :     0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+      64 :     0   0   0   0   0   0   0   0  99 104 101  99 107 115 117 109
+      80 :     0   0   2 124   0   0  56   0   0   0   0   0   0   0   0   0
+... 0 ...
+     400 :     0   0   0   0   0   0   0   0   0   0  10  40   0   0   0   0
+     416 :     0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
+     432 :     0   0  10  40   0   0   0   0   0   0   0   6   0   0   0   0
+... 0 ...
+     496 :     0   0   0   0   0   0   0   0  34 236  44 201   0   0   0   0
+
+Cleartext part:
+      64 :                                     c   h   e   c   k   s   u   m
+
+------------------------------------------------------------------------------
+
+>>> MIPSEL  Little Endian MIPS , e.g. DECstation
+
+------------------------------------------------------------------------------
+
+>>> ??? HP-PA
+
+------------------------------------------------------------------------------
+
+>>> ??? DEC Alpha
+
+------------------------------------------------------------------------------
+

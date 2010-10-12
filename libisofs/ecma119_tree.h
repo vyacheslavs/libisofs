@@ -90,4 +90,11 @@ int ecma119_tree_create(Ecma119Image *img);
  */
 void ecma119_node_free(Ecma119Node *node);
 
+/**
+ * Search the tree for a certain IsoNode and return its owning Ecma119Node
+ * or NULL.
+ */
+Ecma119Node *ecma119_search_iso_node(Ecma119Image *img, IsoNode *node);
+
+
 #endif /*LIBISO_ECMA119_TREE_H_*/

@@ -36,7 +36,7 @@
  */
 int iso_image_new(const char *name, IsoImage **image)
 {
-    int res;
+    int res, i;
     IsoImage *img;
 
     if (image == NULL) {
@@ -80,6 +80,9 @@ int iso_image_new(const char *name, IsoImage **image)
     }
     img->system_area_data = NULL;
     img->system_area_options = 0;
+    img->num_mips_boot_files = 0;
+    for (i = 0; i < 15; i++)
+         img->mips_boot_file_paths[i] = NULL;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
     img->inode_counter = 0;
@@ -103,7 +106,7 @@ void iso_image_ref(IsoImage *image)
 }
 
 /**
- * Decrements the reference couting of the given image.
+ * Decrements the reference counting of the given image.
  * If it reaches 0, the image is free, together with its tree nodes (whether
  * their refcount reach 0 too, of course).
  */
@@ -127,6 +130,7 @@ void iso_image_unref(IsoImage *image)
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);
         el_torito_boot_catalog_free(image->bootcat);
+        iso_image_give_up_mips_boot(image, 0);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
@@ -613,3 +617,41 @@ int iso_image_generator_is_running(IsoImage *image)
     return image->generator_is_running;
 }
 
+
+/* API */
+int iso_image_add_mips_boot_file(IsoImage *image, char *path, int flag)
+{
+    if (image->num_mips_boot_files >= 15)
+        return ISO_BOOT_TOO_MANY_MIPS;
+    image->mips_boot_file_paths[image->num_mips_boot_files] = strdup(path);
+    if (image->mips_boot_file_paths[image->num_mips_boot_files] == NULL)
+        return ISO_OUT_OF_MEM;
+    image->num_mips_boot_files++;
+    return ISO_SUCCESS;
+}
+
+/* API */
+int iso_image_get_mips_boot_files(IsoImage *image, char *paths[15], int flag)
+{
+    int i;
+
+    for (i = 0; i < image->num_mips_boot_files; i++)
+         paths[i] = image->mips_boot_file_paths[image->num_mips_boot_files];
+    for (; i < 15; i++)
+         paths[i] = NULL;
+    return image->num_mips_boot_files;
+}
+
+/* API */
+int iso_image_give_up_mips_boot(IsoImage *image, int flag)
+{
+    int i;
+
+    for (i = 0; i < image->num_mips_boot_files; i++)
+        if (image->mips_boot_file_paths[i] != NULL) {
+            free(image->mips_boot_file_paths[i]);
+            image->mips_boot_file_paths[i] = NULL;
+        }
+    image->num_mips_boot_files = 0;
+    return ISO_SUCCESS;
+}

@@ -16,6 +16,9 @@
 #include "system_area.h"
 #include "eltorito.h"
 #include "filesrc.h"
+#include "ecma119_tree.h"
+#include "image.h"
+#include "messages.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -209,8 +212,8 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
 }
 
 
-/* This function was implemented according to a byte map which was derived
-   by Thomas Schmitt from
+/* This function was implemented according to doc/boot_sectors.txt section
+   "MIPS Volume Header" which was derived by Thomas Schmitt from
    cdrkit-1.1.10/genisoimage/boot-mips.c by Steve McIntyre which is based
    on work of Florian Lohoff and Thiemo Seufer who possibly learned from
    documents of MIPS Computer Systems, Inc. and Silicon Graphics Computer
@@ -223,6 +226,15 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     uint32_t num_cyl, idx, blocks, num, checksum;
     off_t image_size;
     static uint32_t bps = 512, spt = 32;
+
+#ifdef Libisofs_mips_boot_file_pathS
+    Ecma119Node *ecma_node;
+    IsoNode *node;
+    IsoStream *stream;
+    off_t file_size;
+    uint32_t file_lba;
+    int ret;
+#endif
 
     memset(buf, 0, 16 * BLOCK_SIZE);
 
@@ -256,6 +268,58 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     /*  80 -  83 | boot_block | ISO 9660 LBA of boot file * 4 */
     /*  84 -  87 | boot_bytes | File length in bytes */
     /*  88 - 311 |          0 | Volume Directory Entries 2 to 15 */
+
+#ifdef Libisofs_mips_boot_file_pathS
+
+    for (idx = 0; idx < t->image->num_mips_boot_files; idx++) {
+        ret = iso_tree_path_to_node(t->image,
+                                   t->image->mips_boot_file_paths[idx], &node);
+        if (ret < 0) {
+            iso_msg_submit(t->image->id, ISO_BOOT_MIPS_MISSING, 0,
+                           "Cannot find MIPS boot file '%s'",
+                           t->image->mips_boot_file_paths[idx]);
+            return ISO_BOOT_MIPS_MISSING;
+        }
+        if (node->type != LIBISO_FILE) {
+            iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                          "Designated MIPS boot file is not a data file: '%s'",
+                          t->image->mips_boot_file_paths[idx]);
+            return ISO_BOOT_IMAGE_NOT_VALID;
+        }
+
+        namept = (char *) iso_node_get_name(node);
+        name_field = (char *) (buf + (72 + 16 * idx));
+        strncpy(name_field, namept, 8);
+
+        ecma_node= ecma119_search_iso_node(t, node);
+        if (ecma_node != NULL) {
+            if (ecma_node->type != ECMA119_FILE) {
+                iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+              "Program error: Ecma119Node of IsoFile is no ECMA119_FILE: '%s'",
+                          t->image->mips_boot_file_paths[idx]);
+                return ISO_ASSERT_FAILURE;
+            }
+        } else {
+            iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                           "Program error: IsoFile has no Ecma119Node: '%s'",
+                           t->image->mips_boot_file_paths[idx]);
+            return ISO_ASSERT_FAILURE;
+        }
+        file_lba = ecma_node->info.file->sections[0].block;
+
+        iso_msb(buf + (72 + 16 * idx) + 8, file_lba * 4, 4);
+
+        stream = iso_file_get_stream((IsoFile *) node);
+        file_size = iso_stream_get_size(stream);
+
+        /* >>> shall i really round up to 2048 ? */
+        iso_msb(buf + (72 + 16 * idx) + 12,
+                ((file_size + 2047) / 2048 ) * 2048, 4);
+        
+    }
+
+#else /* Libisofs_mips_boot_file_pathS */
+
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
 
         /* >>> skip non-MIPS boot images */;
@@ -272,6 +336,8 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
                 ((t->bootsrc[idx]->sections[0].size + 2047) / 2048 ) * 2048,
                 4);
     }
+
+#endif /* ! Libisofs_mips_boot_file_pathS */
 
     /* 408 - 411 |  part_blks | Number of 512 byte blocks in partition */
     blocks = (image_size + bps - 1) / bps;
@@ -357,8 +423,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ret;
     } else if(sa_type == 1) {
         ret = make_mips_volume_header(t, buf, 0);
-        if (ret != ISO_SUCCESS) /* error should never happen */
-            return ISO_ASSERT_FAILURE;
+        if (ret != ISO_SUCCESS)
+            return ret;
     } else if(t->partition_offset > 0) {
         /* Write a simple partition table. */
         ret = make_grub_msdos_label(img_blocks, buf, 2);

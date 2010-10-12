@@ -58,6 +58,14 @@ struct Iso_Image
     /* Prescribed/detected options, see iso_write_opts_set_system_area() */
     int system_area_options;
 
+   /*
+    * Up to 15 boot files can be referred by a MIPS Big Endian Volume Header.
+      The mips_boot_file_paths are ISO 9660 Rock Ridge paths.
+    */
+    int num_mips_boot_files;
+    char *mips_boot_file_paths[15]; /* ISO 9660 Rock Ridge Paths */
+
+
     /* image identifier, for message origin identifier */
     int id;
 

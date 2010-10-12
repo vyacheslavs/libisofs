@@ -1109,3 +1109,35 @@ int ecma119_tree_create(Ecma119Image *img)
 
     return ISO_SUCCESS;
 }
+
+/**
+ * Search the tree for a certain IsoNode and return its owning Ecma119Node
+ * or NULL.
+ */
+static
+Ecma119Node *search_iso_node(Ecma119Node *root, IsoNode *node)
+{
+    size_t i;
+    Ecma119Node *res = NULL;
+
+    if (root->node == node)
+        return root;
+    for (i = 0; i < root->info.dir->nchildren && res == NULL; i++) {
+        if (root->info.dir->children[i]->type == ECMA119_DIR)
+            res = search_iso_node(root->info.dir->children[i], node);
+        else if (root->info.dir->children[i]->node == node)
+            res = root->info.dir->children[i];
+    }
+    return res;
+}
+
+
+Ecma119Node *ecma119_search_iso_node(Ecma119Image *img, IsoNode *node)
+{
+    Ecma119Node *res = NULL;
+
+    if (img->root != NULL)
+        res = search_iso_node(img->root, node);
+    return res;
+}
+
