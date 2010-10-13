@@ -2968,13 +2968,15 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
                               int *options, int flag);
 
 /**
- * Add a MIPS Big Endian boot file to the image. Up to 15 such files can be
- * written into a MIPS Big Endian Volume Header if this is enabled by
+ * Add a MIPS Big Endian boot file path to the image. Up to 15 such files can
+ * be written into a MIPS Big Endian Volume Header if this is enabled by
  * value 1 in iso_write_opts_set_system_area() option bits 2 to 7. 
+ * The data files which shall serve as MIPS boot files have to be brought into
+ * the image by the normal means.
  * @param img
  *        The image to be manipulated.
  * @param path
- *        Absolute path of the boot file in the ISO 9660 Rock Ridge tree
+ *        Absolute path of the boot file in the ISO 9660 Rock Ridge tree.
  * @param flag
  *        Bitfield for control purposes, unused yet, submit 0
  * @return

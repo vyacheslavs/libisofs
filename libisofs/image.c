@@ -636,7 +636,7 @@ int iso_image_get_mips_boot_files(IsoImage *image, char *paths[15], int flag)
     int i;
 
     for (i = 0; i < image->num_mips_boot_files; i++)
-         paths[i] = image->mips_boot_file_paths[image->num_mips_boot_files];
+         paths[i] = image->mips_boot_file_paths[i];
     for (; i < 15; i++)
          paths[i] = NULL;
     return image->num_mips_boot_files;

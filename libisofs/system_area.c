@@ -236,7 +236,8 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     int ret;
 #endif
 
-    memset(buf, 0, 16 * BLOCK_SIZE);
+    /* Bytes 512 to 32767 may come from image or external file */
+    memset(buf, 0, 512);
 
     image_size = t->curblock * 2048;
 
@@ -425,14 +426,14 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         ret = make_mips_volume_header(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
-    } else if(t->partition_offset > 0) {
+    } else if(t->partition_offset > 0 && sa_type == 0) {
         /* Write a simple partition table. */
         ret = make_grub_msdos_label(img_blocks, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
     }
 
-    if (t->partition_offset > 0) {
+    if (t->partition_offset > 0 && sa_type == 0) {
         /* Adjust partition table to partition offset */
         img_blocks = t->curblock;                  /* value might be altered */
         ret = iso_offset_partition_start(img_blocks, t->partition_offset,
