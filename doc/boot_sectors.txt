@@ -8,37 +8,267 @@
             Libburnia project    - mailto:libburn-hackers@pykix.org
 
 This information is collected from various sources. Some is backed by
-specifications, some is just rumor which happens to work.
+specifications, some is just rumor which happens to work (maybe not even that).
+
+
+                             Content
+
+EL Torito CD booting, for PC-BIOS x86, PowerPC, (old) Mac, EFI.
+
+MBR, for PC-BIOS x86 from (pseudo-) hard disk
+- SYSLINUX Isohybrid MBR
+- GRUB2 grub-mkrescue MBR.
+
+MIPS Volume Header, for MIPS Big Endian, e.g. SGI Indigo2.
 
 ------------------------------------------------------------------------------
 
->>> EL Torito
+                         EL Torito CD booting
+                 for PC-BIOS x86, PowerPC, (old) Mac, EFI
 
-El Torito, Bootable CD-ROM Format Specification, Version 1.0, January 25, 1995
+Sources:
+    El Torito, Bootable CD-ROM Format Specification, Version 1.0, 1995
+    which refers to ECMA-119, the standard for ISO 9660 filesystems.
+    libisofs/eltorito.[ch] by Vreixo Formoso.
+    man mkisofs by Joerg Schilling.
 
->>> El Torito Volume Descriptor
 
->>> Boot Catalog
+ECMA-119 prescribes that the first 32 kB of an ISO 9660 image are System Area
+with arbitrary content. This prescription is obeyed by PC-BIOS systems only
+if the ISO 9660 image is presented on CD, DVD or BD media.
+In this case the El Torito Boot record is the starting point of booting.
 
->>> Boot Images
+The Boot Record is a ECMA-119 Volume Descriptor which is eventually located
+at 2 kB block number 17 (decimal). Its content points to the location of the
+Boot Catalog.
+The format is described in part by ECMA-119 8.2 "Boot Record" and further
+specified by El Torito figure 7.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   0 |          0 | Volume Descriptor Type. 0= Boot record
+   1 -   5 |    "CD001" | Standard Identifier
+   6 -   6 |          1 | Volume Descriptor Version
+   7 -  38 |  el_torito | Boot System Identifier
+  39 -  70 |          0 | Boot Identifier
+           |            |
+  71 -2047 | ========== | Boot System Use
+           |            |
+  71 - 74  | cataloglba | The 2 kB block number of the Boot Catalog
+           |            | as little-endian 32 bit number.
+           |            |
+  75 -2047 |          0 | Unused
+---------- | ---------- | ----------------------------------------------------
+
+el_torito is the constant string "EL TORITO SPECIFICATION" padded by 9 zeros.
+cataloglba has to be provided by the file system generator.
+
+
+The Boot Catalog lists the available boot images which may be prepared for
+multiple system architectures, called "platforms".
+It consists of one or more 2 kB blocks. The content is a sequence of fixed
+format entries, 32 bytes each.
+The entries are grouped in sections, which assign the entries to a particular
+system architecture. The booting system will then choose an entry from an
+appropriate section.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -  31 | ========== | Validation Entry
+           |            | begins the first section, specifies an architecture
+  32 -  63 | ========== | Initial/Default Entry
+           |            | points to a boot image for given architecture
+---------- | ---------- | ----------------------------------------------------
+Optional: 
+---------- | ---------- | ----------------------------------------------------
+  64 -  95 | ========== | Section Header entry
+           |            | begins new section, specifies an architecture
+  96 - 127 | ========== | Section Entry
+           |            | points to a boot image for given architecture
+    ...    | .......... | Optional more Section Entries
+    ...    | .......... | Optional more Section Headers and their Section
+           |            | Entries
+---------- | ---------- | ----------------------------------------------------
+
+An architecture is refered by a Platform Id number.
+Defined by El Torito are:
+    0 = "80x86" which is used for standard PCs with Intel x86 or compatible CPU
+    1 = "PowerPC" (possibly for IBM machines with PowerPC CPU)
+    2 = "Mac" (possibly for Apple computers with MC68000 or PowerPC CPU)
+Further in use by GRUB2 is:
+ 0xef = EFI, a competitor resp. successor to PC-BIOS, possibly in use with
+             Intel ia64 Itanium and possibly with newer Apple machines.
+
+Words resp. numbers are represented are little-endian. 
+
+Validation Entry:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   0 |          1 | Header Id
+           |            |
+   1 -   1 | platform_id| Platform Id. One of: 0, 1, 2, 0xef. See above.
+           |            |
+   2 -   3 |          0 | Reserved
+   4 -  27 |  manuf_dev | ID string identifies the manufacturer/developer
+           |            | (no non-zero examples known yet)
+           |            |
+  28 -  29 |   checksum | Checksum Word for the Validation Entry. 
+           |            | The sum of all words in the entry has to be 0.
+           |            |
+  30 -  30 |       0x55 | 
+  31 -  31 |       0xaa | 
+---------- | ---------- | ----------------------------------------------------
+
+
+Initial/Default Entry:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   0 | boot_indct | Boot Indicator: 0x88 = bootable, 0x00 = not bootable
+           |            |
+   1 -   1 | boot_media | Boot Media Type (i.e. media emulated by boot image):
+           |            | 0= no emulation , 1= 1.2 MB diskette, 2=1.44 MB,
+           |            | 3= 2.88 MB , 4= hard disk
+           |            | (About everybody uses 0 = no emulation)
+           |            |
+   2 -   3 |   load_seg | Load Segment. (meaning unclear)
+           |            | "If this value is 0 the system will use the
+           |            |  traditional segment of 7C0."
+           |            | libisofs default is 0
+           |            |
+   4 -   4 |   sys_type | System Type.
+           |            | "Must be a copy of byte 5 from the partition table
+           |            |  found in the boot image."
+           |            | libisofs reads the start the boot image as MBR
+           |            | if  boot_media == 4. This emulated MBR has a
+           |            | partition table from where a byte gets copied.
+           |            | Else this byte is 0.
+           |            |
+   5 -   5 |          0 | Unused
+           |            |
+   6 -   7 |  sec_count | Sector Count.
+           |            | "the number of virtual/emulated sectors the system
+           |            |  will store at Load Segment during the initial boot
+           |            |  procedure."
+           |            | libisofs stores 1 for emulated boot_media and
+           |            | 0 for boot_media == 0.
+           |            |
+   8 -  11 |  load_rba  | Load RBA. The 2 kB block address where the boot
+           |            | image file content is located in the ISO 9660 image.
+           |            |
+  12 -  31 |          0 | Unused
+---------- | ---------- | ----------------------------------------------------
+
+
+Section Header Entry:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   0 |   head_ind | Header Indicator: 0x90 = more headers follow
+           |            |                   0x91 = final header, last section
+           |            |
+   1 -   1 | platform_id| Platform Id. One of: 0, 1, 2, 0xef. See above.
+           |            |
+   2 -   3 | num_entries| Number of entries to follow in this section
+           |            |
+   4 -  31 |            | ID string identifies the manufacturer/developer
+---------- | ---------- | ----------------------------------------------------
+
+
+Section Entry:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   0 | boot_indct | Boot Indicator: 0x88 = bootable, 0x00 = not bootable
+           |            |
+   1 -   1 | boot_media | Boot Media Type (i.e. media emulated by boot image):
+           |            | Bit 0 to 3 govern emulation
+           |            |   0= no emulation , 1= 1.2 MB diskette, 2=1.44 MB,
+           |            |   3= 2.88 MB , 4= hard disk
+           |            |   (About everybody uses 0 = no emulation)
+           |            | Bit 4 is reserved and must be 0
+           |            | Bit 5 "Continuation entry follows" (meaning unclear)
+           |            |       Might be the indicator for Extension Entries,
+           |            |       which are not described here.
+           |            | Bit 6 "Image contains an ATAPI driver"
+           |            | Bit 7 "Image contains SCSI drivers"
+           |            |
+   2 -   3 |   load_seg | Load Segment. (meaning unclear)
+           |            | See above Initial/Default Entry
+           |            | libisofs default is 0.
+   4 -   4 |   sys_type | System Type.
+           |            | See above Initial/Default Entry
+           |            | 0 if not emulation == 4.
+   5 -   5 |          0 | Unused
+           |            |
+   6 -   7 |  sec_count | Sector Count.
+           |            | See above Initial/Default Entry
+           |            | libisofs stores 1 for emulated boot_media and
+           |            | 0 for boot_media == 0.
+           |            |
+   8 -  11 |  load_rba  | Load RBA. The 2 kB block address where the boot
+           |            | image file content is located in the ISO 9660 image.
+           |            |
+  12 -  31 |   sel_crit | "Vendor unique selection criteria."
+---------- | ---------- | ----------------------------------------------------
+
+
+The boot image file content is mostly opaque to the ISO 9660 image generator.
+Nevertheless there is a tradition named "Boot Info Table" which prescribes
+to write information into byte fields of the boot image file content.
+There are no general means known how a producer of ISO 9660 images could
+detect the need for Boot Info Table production.
+It rather needs a hint from the user who has to know whether the boot image
+expects a Boot Info Table.
+The Boot Info Table begins at byte 8 of the boot image content.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   8 -  11 |    pvd_lba | Block address of the Primary Volume Descriptor
+           |            | This is the session start LBA + 16.
+           |            |
+  12 -  15 |   file_lba | Block address of the start of the boot image file
+           |            | content.
+           |            |
+  16 -  19 |   file_len | Number of bytes in boot image file content.
+           |            |
+  20 -  23 |   checksum | Little-endian: The sum of all 32-bit words of the
+           |            | file content from byte 64 to file end.
+           |            |
+  24 -  63 |          0 | Reserved
+---------- | ---------- | ----------------------------------------------------
+
 
 ------------------------------------------------------------------------------
 
->>> MBR
+                                   MBR
+                  for PC-BIOS x86 from (pseudo-) hard disk
 
-http://en.wikipedia.org/wiki/Master_boot_record
+Sources:
+    http://en.wikipedia.org/wiki/Master_boot_record
 
+
+The candidates for MBR booting will normally use El Torito rather than MBR
+if the ISO image is presented on CD, DVD, or BD media.
+The eventual MBR comes into effect it the image is on a media that is
+interpreted by the BIOS as some kind of hard disk. Usually real hard disks,
+floppy disks, USB sticks, memory cards.
+
+>>>
 
 >>> iso_write_opts_set_part_offset()
 
 
 ------------------------------------------------------------------------------
 
+
                              SYSLINUX Isohybrid MBR
 
 Sources:
     syslinux-3.72/utils/isohybrid , a perl script by H. Peter Anvin = hpa.
     Mailing list conversations with hpa.
+
 
 An isohybrid MBR directs the booting BIOS to an Isolinux boot image which
 is also the target of an El Torito boot catalog entry.
@@ -50,7 +280,6 @@ Words are composed little-endian style.
 Byte Range | Value      | Meaning
 ---------- | ---------- | ----------------------------------------------------
    0 - 431 | = opaque = | Syslinux machine code provided by MBR template
-           |            |
  432 - 439 | hd_bootlba | Address of the ISOLINUX boot image file in the
            |            | ISO image. Counted in 512 byte blocks.
  440 - 443 |     mbr_id | Random number
@@ -61,29 +290,56 @@ Byte Range | Value      | Meaning
  446 - 461 | part_entry | Partition table entry 1 describing ISO image size
            |            |
  462 - 509 |          0 | Unused partition entries 2 to 4
-           |            |
  510 - 511 |     0xaa55 | MBR signature
 ---------- | ---------- | ----------------------------------------------------
 
 
 hpa about MBR templates and partition table filesystem types:
--------------------------------------------------------------
 
-[MBR templates] are available in the Syslinux build tree under the names:
-
-  mbr/isohdp[fp]x*.bin
-
-The default probably should be mbr/isohdppx.bin, but it's ultimately up
-to the user.
-
-Note: the filesystem type is largely arbitrary, in theory it can be any
-value other than 0x00, 0x05, 0x0f, 0x85, 0xee, or 0xef.  0x17 ("Windows
-IFS Hidden") seems safeish, some people believe 0x83 (Linux) is better.
-
+"[MBR templates] are available in the Syslinux build tree under the names:
+   mbr/isohdp[fp]x*.bin
+ The default probably should be mbr/isohdppx.bin, but it's ultimately up
+ to the user.
+ [...]
+ Note: the filesystem type is largely arbitrary, in theory it can be any
+ value other than 0x00, 0x05, 0x0f, 0x85, 0xee, or 0xef.  0x17 ("Windows
+ IFS Hidden") seems safeish, some people believe 0x83 (Linux) is better.
+"
 
 ------------------------------------------------------------------------------
 
->>> GRUB2 MBR
+
+                          GRUB2 grub-mkrescue MBR
+
+Sources:
+    Mailing list conversations with Vladimir Serbinenko.
+
+
+The MBR file that is used with GRUB2 script grub-mkrescue needs only a
+partition table entry which describes the image size.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 - 445 | = opaque = | GRUB2 machine code provided by MBR template
+           |            |
+ 446 - 509 | ========== | Partition table
+           |            |
+ 446 - 461 | part_entry | Partition table entry 1 describing ISO image size
+           |            | Peculiar is the start offset of 1 block.
+           |            | This prevents mounting of the partition.
+           |            |
+ 462 - 509 |          0 | Unused partition entries 2 to 4
+ 510 - 511 |     0xaa55 | MBR signature
+---------- | ---------- | ----------------------------------------------------
+
+Vladimir Serbinenko about the partition table entry:
+"Currently we use first and not last entry. You need to:
+ 1) Zero-fill 446-510
+ 2) Put 0x55, 0xAA into 510-512
+ 3) Put 0x80 (for bootable partition), 0, 2, 0 (C/H/S of the start), 0xcd
+   (partition type), [3 bytes of C/H/S end], 0x01, 0x00, 0x00, 0x00 (LBA
+   start in little endian), [LBA end in little endian] at 446-462
+"
 
 ------------------------------------------------------------------------------
 
@@ -224,7 +480,84 @@ Cleartext part:
 
 ------------------------------------------------------------------------------
 
->>> MIPSEL  Little Endian MIPS , e.g. DECstation
+                  MIPSEL  Little Endian MIPS , e.g. DECstation
+
+Sources:
+   cdrkit-1.1.10/genisoimage/boot-mipsel.c
+   by Steve McIntyre <steve@einval.com>
+   which refers to
+      delo   by Florian Lohoff <flo@rfc822.org>
+            and Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+   cdrkit-1.1.10/include/glibc_elf.h
+   by Steve McIntyre
+   which is based on
+      <elf.h> from GNUC C Library by Free Software Foundation, Inc. 
+
+
+There seems to be only one boot file possible.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   7 |          0 | Padding
+           |            |
+   8 -  11 | 0x0002757a | Magic number
+           |            |
+  12 -  15 |          1 | Mode /* 0: Single extent, 1: Multi extent boot */
+           |            |
+  16 -  19 |   load_adr | Load address /* Load below kernel */
+           |            | Stems from ELF header of boot file.
+           |            | See below Elf32_Phdr field p_vaddr.
+           |            |
+  20 -  23 |   exec_adr | Execution address /* And exec there */
+           |            | Stems from ELF header of boot file.
+           |            | See below Elf32_Ehdr field e_entry.
+           |            |
+  24 -  31 | ========== | Boot Map Entry 1
+           |            |
+  24 -  27 |      count | Segment size in file.
+           |            | Stems from ELF header of boot file.
+           |            | (Elf32_Phdr field p_filesz + 511) / 512;
+           |            |
+  28 -  31 |      start | Segment file offset
+           |            | Stems from ELF header of boot file.
+           |            | (Elf32_Phdr field p_offset + 511) / 512;
+           |            |
+  32 - 431 | ========== | Boot Map Entries 2 to 51
+           |          0 |
+           |            |
+---------- | ---------- | ----------------------------------------------------
+
+
+Elf32_Ehdr gets loaded from boot file byte address 0:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -  23 |            | ( Magic number, file information )
+           |            | 
+  24 -  27 |    e_entry | /* Entry point virtual address */
+           | = exec_adr | Needed for exec_adr
+           |            |
+  28 -  31 |    e_phoff | /* Program header table file offset */
+           |            | Byte address of Elf32_Phdr
+           |            |
+
+Elf32_Phdr gets loaded from boot file byte_address Elf32_Ehdr.e_phoff :
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   3 |            | ( Segment type )
+           |            |
+   4 -   7 |   p_offset | /* Segment file offset */
+           |   -> start | Needed for start
+           |            |
+   8 -  11 |    p_vaddr | /* Segment virtual address */
+           =load_address| Needed for load_address
+           |            |
+  12 -  15 |            | (Segment physical address)
+           |            |
+  16 -  19 |   p_filesz | /* Segment size in file */
+           |   -> count | Needed for count
+           |            |
+
 
 ------------------------------------------------------------------------------
 

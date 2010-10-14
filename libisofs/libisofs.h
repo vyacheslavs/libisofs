@@ -1768,11 +1768,13 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              only if not bit0 is set.
  *        bit2-7= System area type
  *              0= with bit0 or bit1: MBR
- *                 else: unspecified type
+ *                 else: unspecified type which will be used unaltered.
  *              @since 0.6.38
  *              1= MIPS Big Endian Volume Header
  *                 Submit up to 15 MIPS Big Endian boot files by
  *                 iso_image_add_mips_boot_file().
+ *                 This will overwrite the first 512 bytes of the submitted
+ *                 data.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
