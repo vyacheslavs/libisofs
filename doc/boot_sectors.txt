@@ -16,12 +16,16 @@ specifications, some is just rumor which happens to work (maybe not even that).
 EL Torito CD booting, for PC-BIOS x86, PowerPC, (old) Mac, EFI.
 
 MBR, for PC-BIOS x86 from (pseudo-) hard disk
-- SYSLINUX Isohybrid MBR
+- SYSLINUX isohybrid MBR
 - GRUB2 grub-mkrescue MBR.
 
 MIPS Volume Header, for MIPS Big Endian, e.g. SGI Indigo2.
 
+DEC Boot Block, for MIPS Little Endian , e.g. DECstation.
+
+
 ------------------------------------------------------------------------------
+
 
                          EL Torito CD booting
                  for PC-BIOS x86, PowerPC, (old) Mac, EFI
@@ -239,8 +243,8 @@ Byte Range | Value      | Meaning
   24 -  63 |          0 | Reserved
 ---------- | ---------- | ----------------------------------------------------
 
-
 ------------------------------------------------------------------------------
+
 
                                    MBR
                   for PC-BIOS x86 from (pseudo-) hard disk
@@ -480,7 +484,9 @@ Cleartext part:
 
 ------------------------------------------------------------------------------
 
-                  MIPSEL  Little Endian MIPS , e.g. DECstation
+
+                               DEC Boot Block
+                    for MIPS Little Endian , e.g. DECstation
 
 Sources:
    cdrkit-1.1.10/genisoimage/boot-mipsel.c
@@ -495,6 +501,7 @@ Sources:
 
 
 There seems to be only one boot file possible.
+Some information needs to be read out of the ELF headers of this boot file.
 
 Byte Range | Value      | Meaning
 ---------- | ---------- | ----------------------------------------------------
@@ -514,12 +521,13 @@ Byte Range | Value      | Meaning
            |            |
   24 -  31 | ========== | Boot Map Entry 1
            |            |
-  24 -  27 |      count | Segment size in file.
+  24 -  27 |   seg_size | Segment size in file. Blocks of 512 bytes.
            |            | Stems from ELF header of boot file.
            |            | (Elf32_Phdr field p_filesz + 511) / 512;
            |            |
-  28 -  31 |      start | Segment file offset
-           |            | Stems from ELF header of boot file.
+  28 -  31 |  seg_start | Segment file offset. Blocks 512 bytes.
+           |            | ISO 9660 LBA of boot file * 4 plus offset
+           |            | + offset which stems from ELF header of boot file:
            |            | (Elf32_Phdr field p_offset + 511) / 512;
            |            |
   32 - 431 | ========== | Boot Map Entries 2 to 51
@@ -547,15 +555,15 @@ Byte Range | Value      | Meaning
    0 -   3 |            | ( Segment type )
            |            |
    4 -   7 |   p_offset | /* Segment file offset */
-           |   -> start | Needed for start
+           |-> seg_start| Needed for seg_start
            |            |
    8 -  11 |    p_vaddr | /* Segment virtual address */
-           =load_address| Needed for load_address
+           |  =load_adr | Needed for load_adr
            |            |
   12 -  15 |            | (Segment physical address)
            |            |
   16 -  19 |   p_filesz | /* Segment size in file */
-           |   -> count | Needed for count
+           |-> seg_size | Needed for seg_size
            |            |
 
 

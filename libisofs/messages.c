@@ -352,8 +352,8 @@ const char *iso_error_to_msg(int errcode)
         return "Failed to process file for Jigdo Template Extraction";
     case ISO_BOOT_TOO_MANY_MIPS:
         return "Too many MIPS Big Endian boot files given (max. 15)";
-    case ISO_BOOT_MIPS_MISSING:
-        return "MIPS Big Endian boot file missing in image";
+    case ISO_BOOT_FILE_MISSING:
+        return "Boot file missing in image";
     default:
         return "Unknown error";
     }

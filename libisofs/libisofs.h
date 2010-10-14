@@ -1775,6 +1775,11 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 iso_image_add_mips_boot_file().
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
+ *              2= DEC Boot Block for MIPS Little Endian
+ *                 The first boot file submitted by
+ *                 iso_image_add_mips_boot_file() will be activated.
+ *                 This will overwrite the first 512 bytes of the submitted
+ *                 data.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
@@ -2970,9 +2975,13 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
                               int *options, int flag);
 
 /**
- * Add a MIPS Big Endian boot file path to the image. Up to 15 such files can
- * be written into a MIPS Big Endian Volume Header if this is enabled by
- * value 1 in iso_write_opts_set_system_area() option bits 2 to 7. 
+ * Add a MIPS boot file path to the image.
+ * Up to 15 such files can be written into a MIPS Big Endian Volume Header
+ * if this is enabled by value 1 in iso_write_opts_set_system_area() option
+ * bits 2 to 7. 
+ * A single file can be written into a DEC Boot Block if this is enabled by
+ * value 2 in iso_write_opts_set_system_area() option bits 2 to 7. So only
+ * the first added file gets into effect with this system area type.
  * The data files which shall serve as MIPS boot files have to be brought into
  * the image by the normal means.
  * @param img
@@ -6315,8 +6324,8 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Too many MIPS Big Endian boot files given (max. 15) (FAILURE, HIGH, -365)*/
 #define ISO_BOOT_TOO_MANY_MIPS     0xE830FE91
 
-/** MIPS Big Endian boot file missing in image (MISHAP, HIGH, -364) */
-#define ISO_BOOT_MIPS_MISSING      0xE430FE90
+/** Boot file missing in image (MISHAP, HIGH, -364) */
+#define ISO_BOOT_FILE_MISSING      0xE430FE90
 
 
 

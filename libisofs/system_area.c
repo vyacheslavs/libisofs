@@ -212,6 +212,41 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
 }
 
 
+static int boot_nodes_from_iso_path(Ecma119Image *t, char *path, 
+                                   IsoNode **iso_node, Ecma119Node **ecma_node,
+                                   char *purpose, int flag)
+{
+    int ret;
+
+    ret = iso_tree_path_to_node(t->image, path, iso_node);
+    if (ret < 0) {
+        iso_msg_submit(t->image->id, ISO_BOOT_FILE_MISSING, 0,
+                       "Cannot find %s '%s'", purpose, path);
+        return ISO_BOOT_FILE_MISSING;
+    }
+    if ((*iso_node)->type != LIBISO_FILE) {
+        iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                       "Designated boot file is not a data file: '%s'", path);
+        return ISO_BOOT_IMAGE_NOT_VALID;
+    }
+
+    *ecma_node= ecma119_search_iso_node(t, *iso_node);
+    if (*ecma_node == NULL) {
+        iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                      "Program error: IsoFile has no Ecma119Node: '%s'", path);
+        return ISO_ASSERT_FAILURE;
+    } else {
+        if ((*ecma_node)->type != ECMA119_FILE) {
+            iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+              "Program error: Ecma119Node of IsoFile is no ECMA119_FILE: '%s'",
+                          path);
+            return ISO_ASSERT_FAILURE;
+        }
+    }
+    return ISO_SUCCESS;
+}
+
+
 /* This function was implemented according to doc/boot_sectors.txt section
    "MIPS Volume Header" which was derived by Thomas Schmitt from
    cdrkit-1.1.10/genisoimage/boot-mips.c by Steve McIntyre which is based
@@ -273,13 +308,27 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
 #ifdef Libisofs_mips_boot_file_pathS
 
     for (idx = 0; idx < t->image->num_mips_boot_files; idx++) {
+
+#ifndef NIX
+
+        ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[idx], 
+                                       &node, &ecma_node, "MIPS boot file", 0);
+        if (ret < 0)
+            return ret;
+
+        namept = (char *) iso_node_get_name(node);
+        name_field = (char *) (buf + (72 + 16 * idx));
+        strncpy(name_field, namept, 8);
+
+#else /* ! NIX */
+
         ret = iso_tree_path_to_node(t->image,
                                    t->image->mips_boot_file_paths[idx], &node);
         if (ret < 0) {
-            iso_msg_submit(t->image->id, ISO_BOOT_MIPS_MISSING, 0,
+            iso_msg_submit(t->image->id, ISO_BOOT_FILE_MISSING, 0,
                            "Cannot find MIPS boot file '%s'",
                            t->image->mips_boot_file_paths[idx]);
-            return ISO_BOOT_MIPS_MISSING;
+            return ISO_BOOT_FILE_MISSING;
         }
         if (node->type != LIBISO_FILE) {
             iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
@@ -306,6 +355,10 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
                            t->image->mips_boot_file_paths[idx]);
             return ISO_ASSERT_FAILURE;
         }
+
+#endif /* NIX */
+
+
         file_lba = ecma_node->info.file->sections[0].block;
 
         iso_msb(buf + (72 + 16 * idx) + 8, file_lba * 4, 4);
@@ -365,7 +418,129 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     }
     iso_msb(buf + 504, checksum, 4);
 
-    return 1;
+    return ISO_SUCCESS;
+}
+
+
+/* This function was implemented according to doc/boot_sectors.txt section
+   "MIPS Little Endian" which was derived by Thomas Schmitt from
+   cdrkit-1.1.10/genisoimage/boot-mipsel.c by Steve McIntyre which is based
+   on work of Florian Lohoff and Thiemo Seufer, and from <elf.h> by Free
+   Software Foundation, Inc.
+   This function itself is entirely under copyright (C) 2010 Thomas Schmitt.
+*/
+static int make_mipsel_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
+{
+    uint32_t load_adr, exec_adr, seg_size, seg_start, p_offset, p_filesz;
+    uint32_t phdr_adr;
+    off_t image_size;
+    int ret;
+    uint8_t elf_buf[32];
+    char *path = NULL;
+    IsoNode *iso_node;
+    Ecma119Node *ecma_node;
+    IsoStream *stream;
+    FILE *fp = NULL;
+    
+    /* Bytes 512 to 32767 may come from image or external file */
+    memset(buf, 0, 512);
+
+    /* <<< Unused. No partition table or such ? */
+    image_size = t->curblock * 2048;
+
+    if (t->image->num_mips_boot_files <= 0)
+        return ISO_SUCCESS; /* There seems to be no partition table */
+
+    ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[0],
+                                   &iso_node, &ecma_node, "MIPS boot file", 0);
+    if (ret < 0)
+        return ret;
+    stream = iso_file_get_stream((IsoFile *) iso_node);
+
+
+    /* <<< This does not work for boot file in old session */
+    /* >>> Replace by iso_stream_open(), iso_stream_read() which has to be
+           done earlier, or system area production must happen before
+           iso_image_create_burn_source() ends.
+    */
+    path= iso_stream_get_source_path(stream, 0);
+    if (path == NULL) {
+        iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
+               "Cannot determine disk path of designated MIPS boot file: '%s'",
+               t->image->mips_boot_file_paths[0]);
+        return ISO_ASSERT_FAILURE;
+    }
+    fp = fopen(path, "r");
+    if (fp == NULL) {
+cannot_read:;
+        iso_msg_submit(t->image->id, ISO_FILE_ERROR, 0,
+                       "Cannot open designated MIPS boot file: '%s'",
+                       path[0]);
+        if (fp != NULL)
+            fclose(fp);
+        free(path);
+        return ISO_FILE_ERROR;
+    }
+    free(path);
+    path = NULL;
+
+    /* Read necessary ELF info */
+    ret = fread(elf_buf, 32, 1, fp);
+    if (ret != 1)
+        goto cannot_read;
+
+
+    /*  24 -  27 |    e_entry | Entry point virtual address */
+    exec_adr = iso_read_lsb(elf_buf + 24, 4);
+
+    /* 28 -  31 |    e_phoff | Program header table file offset */
+    phdr_adr = iso_read_lsb(elf_buf + 28, 4);
+
+    /* <<< This does not work for boot file in old session */
+    /* >>> replace by skip-reading of stream data */
+    ret = fseek(fp, (long) phdr_adr, SEEK_SET);
+    if (ret != 1)
+        goto cannot_read;
+    ret = fread(elf_buf, 20, 1, fp);
+    if (ret != 1)
+        goto cannot_read;
+
+    /*  4 -   7 |   p_offset | Segment file offset */
+    p_offset = iso_read_lsb(elf_buf + 4, 4);
+
+    /*  8 -  11 |    p_vaddr | Segment virtual address */
+    load_adr = iso_read_lsb(elf_buf + 8, 4);
+
+    /* 16 -  19 |   p_filesz | Segment size in file */
+    p_filesz = iso_read_lsb(elf_buf + 16, 4);
+
+    fclose(fp);
+    fp = NULL;
+
+    /* Write DEC Bootblock */
+
+    /*  8 -  11 | 0x0002757a | Magic number */
+    iso_lsb(buf + 8, 0x0002757a, 4);
+
+    /* 12 -  15 |          1 | Mode  1: Multi extent boot */
+    iso_lsb(buf + 12, 1, 4);
+
+    /* 16 -  19 |   load_adr | Load address */
+    iso_lsb(buf + 16, load_adr, 4);
+
+    /* 20 -  23 |   exec_adr | Execution address */
+    iso_lsb(buf + 20, exec_adr, 4);
+
+    /* 24 -  27 |   seg_size | Segment size in file. */
+    seg_size = (p_filesz + 511) / 512;
+    iso_lsb(buf + 24, seg_size, 4);
+    
+    /* 28 -  31 |  seg_start | Segment file offset */
+    seg_start = ecma_node->info.file->sections[0].block * 4
+                + (p_offset + 511) / 512;
+    iso_lsb(buf + 28, seg_start, 4);
+
+    return ISO_SUCCESS;
 }
 
 
@@ -424,6 +599,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ret;
     } else if(sa_type == 1) {
         ret = make_mips_volume_header(t, buf, 0);
+        if (ret != ISO_SUCCESS)
+            return ret;
+    } else if(sa_type == 2) {
+        ret = make_mipsel_volume_header(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
     } else if(t->partition_offset > 0 && sa_type == 0) {
