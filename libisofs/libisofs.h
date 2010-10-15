@@ -6556,8 +6556,4 @@ struct burn_source {
 */
 
 
-/* Try to address MIPS Big Endian boot files via their ISO/RR paths
- */
-#define Libisofs_mips_boot_file_pathS yes
-
 #endif /*LIBISO_LIBISOFS_H_*/

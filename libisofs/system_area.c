@@ -261,15 +261,12 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     uint32_t num_cyl, idx, blocks, num, checksum;
     off_t image_size;
     static uint32_t bps = 512, spt = 32;
-
-#ifdef Libisofs_mips_boot_file_pathS
     Ecma119Node *ecma_node;
     IsoNode *node;
     IsoStream *stream;
     off_t file_size;
     uint32_t file_lba;
     int ret;
-#endif
 
     /* Bytes 512 to 32767 may come from image or external file */
     memset(buf, 0, 512);
@@ -304,8 +301,6 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     /*  80 -  83 | boot_block | ISO 9660 LBA of boot file * 4 */
     /*  84 -  87 | boot_bytes | File length in bytes */
     /*  88 - 311 |          0 | Volume Directory Entries 2 to 15 */
-
-#ifdef Libisofs_mips_boot_file_pathS
 
     for (idx = 0; idx < t->image->num_mips_boot_files; idx++) {
 
@@ -372,27 +367,6 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
         
     }
 
-#else /* Libisofs_mips_boot_file_pathS */
-
-    for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
-
-        /* >>> skip non-MIPS boot images */;
-
-        namept = (char *) iso_node_get_name(
-                               (IsoNode *) t->catalog->bootimages[idx]->image);
-        name_field = (char *) (buf + (72 + 16 * idx));
-        strncpy(name_field, namept, 8);
-        iso_msb(buf + (72 + 16 * idx) + 8,
-                t->bootsrc[idx]->sections[0].block * 4, 4);
-
-        /* >>> shall i really round up to 2048 ? */
-        iso_msb(buf + (72 + 16 * idx) + 12,
-                ((t->bootsrc[idx]->sections[0].size + 2047) / 2048 ) * 2048,
-                4);
-    }
-
-#endif /* ! Libisofs_mips_boot_file_pathS */
-
     /* 408 - 411 |  part_blks | Number of 512 byte blocks in partition */
     blocks = (image_size + bps - 1) / bps;
     iso_msb(buf + 408, blocks, 4);
@@ -429,7 +403,7 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
    Software Foundation, Inc.
    This function itself is entirely under copyright (C) 2010 Thomas Schmitt.
 */
-static int make_mipsel_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
+static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
 {
     uint32_t load_adr, exec_adr, seg_size, seg_start, p_offset, p_filesz;
     uint32_t phdr_adr;
@@ -602,7 +576,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         if (ret != ISO_SUCCESS)
             return ret;
     } else if(sa_type == 2) {
-        ret = make_mipsel_volume_header(t, buf, 0);
+        ret = make_mipsel_boot_block(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
     } else if(t->partition_offset > 0 && sa_type == 0) {
