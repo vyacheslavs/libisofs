@@ -41,8 +41,7 @@
 #include <langinfo.h>
 #include <stdio.h>
 
-/* >>> later change this to  Xorriso_standalonE */
-#ifdef Xorriso_jte_standalonE
+#ifdef Xorriso_standalonE
 
 #ifdef Xorriso_with_libjtE
 #include "../libjte/libjte.h"
@@ -54,7 +53,7 @@
 #include <libjte/libjte.h>
 #endif
 
-#endif /* ! Xorriso_jte_standalonE */
+#endif /* ! Xorriso_standalonE */
 
 /*
  * TODO #00011 : guard against bad path table usage with more than 65535 dirs

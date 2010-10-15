@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ *               2010 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -26,8 +27,7 @@
 #include <limits.h>
 
 
-/* >>> later change this to  Xorriso_standalonE */
-#ifdef Xorriso_jte_standalonE
+#ifdef Xorriso_standalonE
 
 #ifdef Xorriso_with_libjtE
 #include "../libjte/libjte.h"
@@ -39,7 +39,7 @@
 #include <libjte/libjte.h>
 #endif
 
-#endif /* ! Xorriso_jte_standalonE */
+#endif /* ! Xorriso_standalonE */
 
 
 #ifndef PATH_MAX

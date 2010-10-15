@@ -17,8 +17,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-/* >>> later change this to  Xorriso_standalonE */
-#ifdef Xorriso_jte_standalonE
+#ifdef Xorriso_standalonE
 
 #ifdef Xorriso_with_libjtE
 #include "../libjte/libjte.h"
@@ -30,7 +29,7 @@
 #include <libjte/libjte.h>
 #endif
 
-#endif /* ! Xorriso_jte_standalonE */
+#endif /* ! Xorriso_standalonE */
 
 #include "libiso_msgs.h"
 #include "libisofs.h"
