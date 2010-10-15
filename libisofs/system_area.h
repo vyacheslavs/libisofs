@@ -46,4 +46,11 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
  */
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf);
 
+
+/** 
+ * Read the necessary ELF information from the first MIPS boot file.
+ * See doc/boot_sectors.txt "DEC Boot Block" for "MIPS Little Endian".
+ */
+int iso_read_mipsel_elf(Ecma119Image *t, int flag);
+
 #endif /* SYSTEM_AREA_H_ */

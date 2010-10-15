@@ -588,6 +588,12 @@ struct ecma119_image
     struct libjte_env *libjte_handle;
 #endif /* Libisofs_with_libjtE */
 
+    /* Memorized ELF parameters from MIPS Little Endian boot file */
+    uint32_t mipsel_e_entry;
+    uint32_t mipsel_p_offset;
+    uint32_t mipsel_p_vaddr;
+    uint32_t mipsel_p_filesz;
+
     uint32_t tail_blocks;
 };
 

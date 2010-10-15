@@ -1647,6 +1647,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     
 #endif /* Libisofs_with_libjtE */
 
+    target->mipsel_e_entry = 0;
+    target->mipsel_p_offset = 0;
+    target->mipsel_p_vaddr = 0;
+    target->mipsel_p_filesz = 0;
+
     target->tail_blocks = opts->tail_blocks;
 
     /*
@@ -1810,12 +1815,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     for (i = 0; i < target->nwriters; ++i) {
         IsoImageWriter *writer = target->writers[i];
 
-#define Libisofs_patch_ticket_145 yes
-#ifdef Libisofs_patch_ticket_145
         /* Delaying boot image patching until new LBA is known */
         if (i == el_torito_writer_index)
     continue;
-#endif
 
         /* Exposing address of data start to IsoWriteOpts */
         if (i == file_src_writer_index) {
@@ -1827,8 +1829,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
-#ifdef Libisofs_patch_ticket_145
-    /* Now perform delayed image patching */
+
+    /* Now perform delayed image patching and System Area preparations */
     if (el_torito_writer_index >= 0) {
         IsoImageWriter *writer = target->writers[el_torito_writer_index];
         ret = writer->compute_data_blocks(writer);
@@ -1836,7 +1838,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
-#endif /* Libisofs_patch_ticket_145 */
+    if (((target->system_area_options & 0xfc) >> 2) == 2) {
+        ret = iso_read_mipsel_elf(target, 0);
+        if (ret < 0)
+            goto target_cleanup;
+    }
 
     /* create the ring buffer */
     if (opts->overwrite != NULL &&

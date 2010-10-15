@@ -396,34 +396,30 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
 }
 
 
-/* This function was implemented according to doc/boot_sectors.txt section
-   "MIPS Little Endian" which was derived by Thomas Schmitt from
+/* The following two functions were implemented according to
+   doc/boot_sectors.txt section "MIPS Little Endian" which was derived
+   by Thomas Schmitt from
    cdrkit-1.1.10/genisoimage/boot-mipsel.c by Steve McIntyre which is based
    on work of Florian Lohoff and Thiemo Seufer, and from <elf.h> by Free
    Software Foundation, Inc.
-   This function itself is entirely under copyright (C) 2010 Thomas Schmitt.
+   Both functions are entirely under copyright (C) 2010 Thomas Schmitt.
 */
-static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
+
+/**
+ * Read the necessary ELF information from the first MIPS boot file.
+ * This is done before image writing starts.
+ */
+int iso_read_mipsel_elf(Ecma119Image *t, int flag)
 {
-    uint32_t load_adr, exec_adr, seg_size, seg_start, p_offset, p_filesz;
-    uint32_t phdr_adr;
-    off_t image_size;
+    uint32_t phdr_adr, todo, count;
     int ret;
-    uint8_t elf_buf[32];
-    char *path = NULL;
+    uint8_t elf_buf[2048];
     IsoNode *iso_node;
     Ecma119Node *ecma_node;
     IsoStream *stream;
-    FILE *fp = NULL;
     
-    /* Bytes 512 to 32767 may come from image or external file */
-    memset(buf, 0, 512);
-
-    /* <<< Unused. No partition table or such ? */
-    image_size = t->curblock * 2048;
-
     if (t->image->num_mips_boot_files <= 0)
-        return ISO_SUCCESS; /* There seems to be no partition table */
+        return ISO_SUCCESS;
 
     ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[0],
                                    &iso_node, &ecma_node, "MIPS boot file", 0);
@@ -431,6 +427,135 @@ static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
         return ret;
     stream = iso_file_get_stream((IsoFile *) iso_node);
 
+    ret = iso_stream_open(stream);
+    if (ret < 0) {
+        iso_msg_submit(t->image->id, ret, 0,
+                       "Cannot open designated MIPS boot file '%s'",
+                       t->image->mips_boot_file_paths[0]);
+        return ret;
+    }
+    ret = iso_stream_read(stream, elf_buf, 32);
+    if (ret != 32) {
+cannot_read:;
+        iso_stream_close(stream);
+        iso_msg_submit(t->image->id, ret, 0,
+                       "Cannot read from designated MIPS boot file '%s'",
+                       t->image->mips_boot_file_paths[0]);
+        return ret;
+    }
+
+
+    /*  24 -  27 |    e_entry | Entry point virtual address */
+    t->mipsel_e_entry = iso_read_lsb(elf_buf + 24, 4);
+
+    /* 28 -  31 |    e_phoff | Program header table file offset */
+    phdr_adr = iso_read_lsb(elf_buf + 28, 4);
+
+    /* Skip stream up to byte address phdr_adr */
+    todo = phdr_adr - 32;
+    while (todo > 0) {
+        if (todo > 2048)
+            count = 2048;
+        else
+            count = todo;
+        todo -= count;
+        ret = iso_stream_read(stream, elf_buf, count);
+        if (ret != count)
+            goto cannot_read;
+    }
+    ret = iso_stream_read(stream, elf_buf, 20);
+    if (ret != 20)
+        goto cannot_read;
+
+    /*  4 -   7 |   p_offset | Segment file offset */
+    t->mipsel_p_offset = iso_read_lsb(elf_buf + 4, 4);
+
+    /*  8 -  11 |    p_vaddr | Segment virtual address */
+    t->mipsel_p_vaddr = iso_read_lsb(elf_buf + 8, 4);
+
+    /* 16 -  19 |   p_filesz | Segment size in file */
+    t->mipsel_p_filesz = iso_read_lsb(elf_buf + 16, 4);
+
+    iso_stream_close(stream);
+    return ISO_SUCCESS;
+}
+
+
+/**
+ * Write DEC Bootblock from previously read ELF parameters.
+ * This is done when image writing has already begun.
+ */
+static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
+{
+
+#ifndef NIX
+
+    int ret;
+    uint32_t seg_size, seg_start;
+    IsoNode *iso_node;
+    Ecma119Node *ecma_node;
+    
+    /* Bytes 512 to 32767 may come from image or external file */
+    memset(buf, 0, 512);
+
+    if (t->image->num_mips_boot_files <= 0)
+        return ISO_SUCCESS;
+
+    ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[0],
+                                   &iso_node, &ecma_node, "MIPS boot file", 0);
+    if (ret < 0)
+        return ret;
+
+    /*  8 -  11 | 0x0002757a | Magic number */
+    iso_lsb(buf + 8, 0x0002757a, 4);
+
+    /* 12 -  15 |          1 | Mode  1: Multi extent boot */
+    iso_lsb(buf + 12, 1, 4);
+
+    /* 16 -  19 |   load_adr | Load address */
+    iso_lsb(buf + 16, t->mipsel_p_vaddr, 4);
+
+    /* 20 -  23 |   exec_adr | Execution address */
+    iso_lsb(buf + 20, t->mipsel_e_entry, 4);
+
+    /* 24 -  27 |   seg_size | Segment size in file. */
+    seg_size = (t->mipsel_p_filesz + 511) / 512;
+    iso_lsb(buf + 24, seg_size, 4);
+    
+    /* 28 -  31 |  seg_start | Segment file offset */
+    seg_start = ecma_node->info.file->sections[0].block * 4
+                + (t->mipsel_p_offset + 511) / 512;
+    iso_lsb(buf + 28, seg_start, 4);
+    
+    return ISO_SUCCESS;
+
+#else
+
+    uint32_t load_adr, exec_adr, p_offset, p_filesz, phdr_adr;
+    uint8_t elf_buf[32];
+    char *path = NULL;
+    IsoNode *iso_node;
+    Ecma119Node *ecma_node;
+    IsoStream *stream;
+    FILE *fp = NULL;
+    off_t image_size;
+    int ret;
+    uint32_t seg_size, seg_start;
+    
+    /* Bytes 512 to 32767 may come from image or external file */
+    memset(buf, 0, 512);
+
+    if (t->image->num_mips_boot_files <= 0)
+        return ISO_SUCCESS;
+
+    /* <<< Unused. No partition table or such ? */
+    image_size = t->curblock * 2048;
+
+    ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[0],
+                                   &iso_node, &ecma_node, "MIPS boot file", 0);
+    if (ret < 0)
+        return ret;
+    stream = iso_file_get_stream((IsoFile *) iso_node);
 
     /* <<< This does not work for boot file in old session */
     /* >>> Replace by iso_stream_open(), iso_stream_read() which has to be
@@ -515,6 +640,9 @@ cannot_read:;
     iso_lsb(buf + 28, seg_start, 4);
 
     return ISO_SUCCESS;
+
+#endif /* NIX */
+
 }
 
 
