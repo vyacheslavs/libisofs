@@ -277,8 +277,7 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     iso_msb(buf, 0x0be5a941, 4);
 
     /* 28 -  29 |  num_cyl_l | Number of usable cylinder, lower two bytes */
-    /* >>> Shall i rather orund up ? */
-    num_cyl = image_size / (bps * spt);
+    num_cyl = (image_size + (bps * spt) - 1) / (bps * spt);
     iso_msb(buf + 28, num_cyl & 0xffff, 2);
 
     /* 32 -  33 |          1 | Number of tracks per cylinder */
@@ -361,7 +360,7 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
         stream = iso_file_get_stream((IsoFile *) node);
         file_size = iso_stream_get_size(stream);
 
-        /* >>> shall i really round up to 2048 ? */
+        /* Shall i really round up to 2048 ? Steve says yes.*/
         iso_msb(buf + (72 + 16 * idx) + 12,
                 ((file_size + 2047) / 2048 ) * 2048, 4);
         

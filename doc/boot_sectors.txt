@@ -251,6 +251,7 @@ Byte Range | Value      | Meaning
 
 Sources:
     http://en.wikipedia.org/wiki/Master_boot_record
+    Mailing list conversations with H. Peter Anvin and Vladimir Serbinenko.
 
 
 The candidates for MBR booting will normally use El Torito rather than MBR
@@ -259,9 +260,86 @@ The eventual MBR comes into effect it the image is on a media that is
 interpreted by the BIOS as some kind of hard disk. Usually real hard disks,
 floppy disks, USB sticks, memory cards.
 
->>>
+An important part of an MBR is the DOS style partition table. It describes up
+to four primary partitions. There are two formats used for block address:
+Cylinder/Head/Sector (C/H/S) and Logical Block Address (LBA). Both are based
+on units of 512 bytes. So MBR_LBA = ISO_LBA * 4.
 
->>> iso_write_opts_set_part_offset()
+For C/H/S, the sector address is broken up into whole cylinders, remaining
+heads, and remaining sectors. The nomenclature seems to stem from antique
+drum storage.
+C/H/S counting starts with 0/0/1, not 0/0/0.
+There are two parameters, sectors_per_head and heads_per_cylinder which are not
+stored in the MBR. So it is more or less arbitray how to convert a LBA into
+a C/H/S address and vice versa. For maximum range of C/H/S addresses one
+may use sectors_per_head = 63 , heads_per_cylinder = 255.
+
+
+Words are composed little-endian style.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 - 439 | = opaque = | Code Area filled with bytes for some boot system,
+           |            | typically machine code.
+           |            |
+ 440 - 443 | disk_sgntr | Disc signature, an individual disk id of obscure
+           |            | usability.
+           |            | (The Code Area might extend up to this field.)
+           |            |
+ 444 - 445 |          0 | "usually nulls"
+           |            | (The Code Area might extend up to this field.)
+           |            |
+ 446 - 461 | ========== | Partition Table Entry for partition 1
+           |            |
+ 446 - 446 |     status | Governs bootability:
+           |            | 0x80 = bootable/active , 0x00 non-bootable/inactive
+           |            |
+ 447 - 449 | ========== | C/H/S address of partition start
+ 447 - 447 | start_head | Heads part of start address.
+ 448 - 448 |  start_c_s | Bits 0 to 5 : Sectors part of start address.
+           |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
+ 449 - 449 |  start_cyl | Lower 8 bits of cylinders part of start address
+           |            |
+ 450 - 450 |  part_type | Partition type indicates the purpose or kind of
+           |            | filesystem in the partition.
+           |            |
+ 451 - 453 | ========== | C/H/S address of last absolute sector in partition
+ 451 - 451 |   end_head | Heads part of end address.
+ 452 - 452 |    end_c_s | Bits 0 to 5 : Sectors part of end address.
+           |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
+ 453 - 453 |    end_cyl | Lower 8 bits of cylinders part of end address
+           |            |
+ 454 - 457 |  start_lba | LBA of first absolute sector in partiton. 
+           |            | Block size is 512. Counting starts at 0.
+           |            |
+ 458 - 461 | num_blocks | Number of sectors in partition.
+           |            |
+ 462 - 477 | ========== | Partition Table Entry for partition 2
+           | part_entr2 | 16 bytes. Format as with partition 1.
+           |            | All 0 means that partition is unused/undefined.
+           |            |
+ 478 - 493 | ========== | Partition Table Entry for partition 3
+           | part_entr3 | 16 bytes. See above.
+           |            |
+ 494 - 509 | ========== | Partition Table Entry for partition 4
+           | part_entr4 | 16 bytes. See above.
+           |            |
+ 510 - 510 |       0x55 | MBR signature
+ 511 - 511 |       0xaa | MBR signature
+           |            |
+---------- | ---------- | ----------------------------------------------------
+
+
+By tradition the MBR itself and possibly more blocks are not claimed by any
+partition. But starting the first partition at a non-zero block address causes
+on Linux a partition device file (e.g. /dev/sdb1) which cannot be used to mount
+the ISO filesystem.
+
+libisofs is able to produce a second set of trees and meta data which is
+suitable for being mounted at start block 16 (ISO) resp. 64 (MBR).
+See <libisofs/libisofs.h> for call iso_write_opts_set_part_offset()
+and http://libburnia-project.org/wiki/PartitionOffset for examples with
+program xorriso.
 
 
 ------------------------------------------------------------------------------
@@ -274,7 +352,7 @@ Sources:
     Mailing list conversations with hpa.
 
 
-An isohybrid MBR directs the booting BIOS to an Isolinux boot image which
+An isohybrid MBR directs the booting BIOS to an ISOLINUX boot image which
 is also the target of an El Torito boot catalog entry.
 For that purpose one has to take an MBR template and has to set a few bytes
 to values which sufficiently describe the ISO image and the boot image file.
@@ -284,14 +362,18 @@ Words are composed little-endian style.
 Byte Range | Value      | Meaning
 ---------- | ---------- | ----------------------------------------------------
    0 - 431 | = opaque = | Syslinux machine code provided by MBR template
+           |            |
  432 - 439 | hd_bootlba | Address of the ISOLINUX boot image file in the
            |            | ISO image. Counted in 512 byte blocks.
+           |            |
  440 - 443 |     mbr_id | Random number
  444 - 445 |          0 | Padding
            |            |
  446 - 509 | ========== | Partition table
            |            |
  446 - 461 | part_entry | Partition table entry 1 describing ISO image size
+           |            | starting at LBA 0. I.e. contrary to tradition.
+           |            | See above for partition table entry format.
            |            |
  462 - 509 |          0 | Unused partition entries 2 to 4
  510 - 511 |     0xaa55 | MBR signature
@@ -331,6 +413,7 @@ Byte Range | Value      | Meaning
  446 - 461 | part_entry | Partition table entry 1 describing ISO image size
            |            | Peculiar is the start offset of 1 block.
            |            | This prevents mounting of the partition.
+           |            | See above for partition table entry format.
            |            |
  462 - 509 |          0 | Unused partition entries 2 to 4
  510 - 511 |     0xaa55 | MBR signature
