@@ -22,6 +22,9 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 
 /*
@@ -72,6 +75,85 @@ void iso_compute_cyl_head_sec(uint32_t *img_blocks, int hpc, int sph,
 }
 
 
+/* Compute size and position of appended partitions.
+*/
+int iso_compute_append_partitions(Ecma119Image *t, int flag)
+{
+    int ret, i;
+    uint32_t pos, size;
+    struct stat stbuf;
+
+    pos = (t->vol_space_size + t->ms_block);
+    for (i = 0; i < 4; i++) {
+        if (t->appended_partitions[i] == NULL)
+    continue;
+        ret = stat(t->appended_partitions[i], &stbuf);
+        if (ret == -1)
+            return ISO_BAD_PARTITION_FILE;
+        if (! S_ISREG(stbuf.st_mode))
+            return ISO_BAD_PARTITION_FILE;
+        size = ((stbuf.st_size + 2047) / 2048);
+        t->appended_part_start[i] = pos;
+        t->appended_part_size[i] = size;
+        pos += size;
+        t->total_size += size * 2048;
+    }
+    return ISO_SUCCESS;
+}
+
+
+/* Note: partition_offset and partition_size are counted in 2048 blocks
+ */
+static int write_mbr_partition_entry(int partition_number, int partition_type,
+                  uint32_t partition_offset, uint32_t partition_size,
+                  int sph, int hpc, uint8_t *buf, int flag)
+{
+    uint8_t *wpt;
+    uint32_t end_lba, end_sec, end_head, end_cyl;
+    uint32_t start_lba, start_sec, start_head, start_cyl;
+    uint32_t after_end;
+    int i;
+
+    after_end = partition_offset + partition_size;
+    iso_compute_cyl_head_sec(&partition_offset, hpc, sph,
+                           &start_lba, &start_sec, &start_head, &start_cyl, 1);
+    iso_compute_cyl_head_sec(&after_end, hpc, sph,
+                             &end_lba, &end_sec, &end_head, &end_cyl, 0);
+    wpt = buf + 446 + (partition_number - 1) * 16;
+
+    /* Not bootable */
+    *(wpt++) = 0x00;
+
+    /* C/H/S of the start */
+    *(wpt++) = start_head;
+    *(wpt++) = start_sec | ((start_cyl & 0x300) >> 2);
+    *(wpt++) = start_cyl & 0xff;
+
+    /* (partition type) */
+    *(wpt++) = partition_type;
+
+    /* 3 bytes of C/H/S end */
+    *(wpt++) = end_head;
+    *(wpt++) = end_sec | ((end_cyl & 0x300) >> 2);
+    *(wpt++) = end_cyl & 0xff;
+    
+    /* LBA start in little endian */
+    for (i = 0; i < 4; i++)
+       *(wpt++) = (start_lba >> (8 * i)) & 0xff;
+
+    /* Number of sectors in partition, little endian */
+    end_lba = end_lba - start_lba + 1;
+    for (i = 0; i < 4; i++)
+       *(wpt++) = (end_lba >> (8 * i)) & 0xff;
+
+    /* Afaik, partition tables are recognize donly with MBR signature */
+    buf[510] = 0x55;
+    buf[511] = 0xAA;
+
+    return ISO_SUCCESS;
+}
+
+
 /* This is the gesture of grub-mkisofs --protective-msdos-label as explained by
    Vladimir Serbinenko <phcoder@gmail.com>, 2 April 2010, on grub-devel@gnu.org
    "Currently we use first and not last entry. You need to:
@@ -92,11 +174,12 @@ void iso_compute_cyl_head_sec(uint32_t *img_blocks, int hpc, int sph,
           bit1= do not mark partition as bootable
 */
 static
-int make_grub_msdos_label(uint32_t img_blocks, uint8_t *buf, int flag)
+int make_grub_msdos_label(uint32_t img_blocks, int sph, int hpc,
+                          uint8_t *buf, int flag)
 {
     uint8_t *wpt;
     uint32_t end_lba, end_sec, end_head, end_cyl;
-    int sph = 63, hpc = 255, i;
+    int i;
 
     iso_compute_cyl_head_sec(&img_blocks, hpc, sph,
                              &end_lba, &end_sec, &end_head, &end_cyl, 0);
@@ -155,17 +238,13 @@ int make_grub_msdos_label(uint32_t img_blocks, uint8_t *buf, int flag)
 */
 static
 int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
-                               int sph_in, int hpc_in, uint8_t *buf, int flag)
+                               int sph, int hpc, uint8_t *buf, int flag)
 {
     uint8_t *wpt;
     uint32_t end_lba, end_sec, end_head, end_cyl;
     uint32_t start_lba, start_sec, start_head, start_cyl;
-    int sph = 63, hpc = 255, i;
+    int i;
 
-    if (sph_in > 0)
-      sph = sph_in;
-    if (hpc_in > 0)
-      hpc = hpc_in;
     iso_compute_cyl_head_sec(&partition_offset, hpc, sph,
                            &start_lba, &start_sec, &start_head, &start_cyl, 1);
     iso_compute_cyl_head_sec(&img_blocks, hpc, sph,
@@ -180,7 +259,7 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
     /* C/H/S of the start */
     *(wpt++) = start_head;
     *(wpt++) = start_sec | ((start_cyl & 0x300) >> 2);
-    *(wpt++) = end_cyl & 0xff;
+    *(wpt++) = start_cyl & 0xff;
 
     /* (partition type) */
     wpt++;
@@ -302,9 +381,6 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     /*  88 - 311 |          0 | Volume Directory Entries 2 to 15 */
 
     for (idx = 0; idx < t->image->num_mips_boot_files; idx++) {
-
-#ifndef NIX
-
         ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[idx], 
                                        &node, &ecma_node, "MIPS boot file", 0);
         if (ret < 0)
@@ -313,45 +389,6 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
         namept = (char *) iso_node_get_name(node);
         name_field = (char *) (buf + (72 + 16 * idx));
         strncpy(name_field, namept, 8);
-
-#else /* ! NIX */
-
-        ret = iso_tree_path_to_node(t->image,
-                                   t->image->mips_boot_file_paths[idx], &node);
-        if (ret < 0) {
-            iso_msg_submit(t->image->id, ISO_BOOT_FILE_MISSING, 0,
-                           "Cannot find MIPS boot file '%s'",
-                           t->image->mips_boot_file_paths[idx]);
-            return ISO_BOOT_FILE_MISSING;
-        }
-        if (node->type != LIBISO_FILE) {
-            iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
-                          "Designated MIPS boot file is not a data file: '%s'",
-                          t->image->mips_boot_file_paths[idx]);
-            return ISO_BOOT_IMAGE_NOT_VALID;
-        }
-
-        namept = (char *) iso_node_get_name(node);
-        name_field = (char *) (buf + (72 + 16 * idx));
-        strncpy(name_field, namept, 8);
-
-        ecma_node= ecma119_search_iso_node(t, node);
-        if (ecma_node != NULL) {
-            if (ecma_node->type != ECMA119_FILE) {
-                iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
-              "Program error: Ecma119Node of IsoFile is no ECMA119_FILE: '%s'",
-                          t->image->mips_boot_file_paths[idx]);
-                return ISO_ASSERT_FAILURE;
-            }
-        } else {
-            iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
-                           "Program error: IsoFile has no Ecma119Node: '%s'",
-                           t->image->mips_boot_file_paths[idx]);
-            return ISO_ASSERT_FAILURE;
-        }
-
-#endif /* NIX */
-
 
         file_lba = ecma_node->info.file->sections[0].block;
 
@@ -529,7 +566,7 @@ static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
 
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
-    int ret, int_img_blocks, sa_type;
+    int ret, int_img_blocks, sa_type, i;
     uint32_t img_blocks;
 
     if ((t == NULL) || (buf == NULL)) {
@@ -565,7 +602,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
     if (sa_type == 0 && (t->system_area_options & 1)) {
         /* Write GRUB protective msdos label, i.e. a simple partition table */
-        ret = make_grub_msdos_label(img_blocks, buf, 0);
+        ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
+                                    t->partition_heads_per_cyl, buf, 0);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
     } else if(sa_type == 0 && (t->system_area_options & 2)) {
@@ -577,7 +615,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ISO_ISOLINUX_CANT_PATCH;
         }
         ret = make_isolinux_mbr(&img_blocks, t->bootsrc[0]->sections[0].block,
-                                (uint32_t) 0, 64, 32, 0, 1, 0x17, buf, 1);
+                               (uint32_t) 0, t->partition_heads_per_cyl,
+                               t->partition_secs_per_head, 0, 1, 0x17, buf, 1);
         if (ret != 1)
             return ret;
     } else if(sa_type == 1) {
@@ -590,7 +629,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ret;
     } else if(t->partition_offset > 0 && sa_type == 0) {
         /* Write a simple partition table. */
-        ret = make_grub_msdos_label(img_blocks, buf, 2);
+        ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
+                                    t->partition_heads_per_cyl, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
     }
@@ -603,6 +643,18 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                                          t->partition_heads_per_cyl, buf, 1);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
+    }
+
+    /* This eventually overwrites the partition table entries made so far */
+    for (i = 0; i < 4; i++) {
+        if (t->appended_partitions[i] == NULL)
+    continue;
+        ret = write_mbr_partition_entry(i + 1, t->appended_part_types[i],
+                        t->appended_part_start[i], t->appended_part_size[i],
+                        t->partition_secs_per_head, t->partition_heads_per_cyl,
+                        buf, 0);
+        if (ret < 0)
+            return ret;
     }
 
     return ISO_SUCCESS;

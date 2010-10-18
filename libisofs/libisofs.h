@@ -1936,6 +1936,32 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle);
  */
 int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
 
+/**
+ * Cause an arbitrary data file to be appended to the ISO image and to be
+ * described by a partition table entry in an MBR at the start of the
+ * ISO image.
+ * The partition entry will bear the size of the image file rounded up to
+ * the next multiple of 2048 bytes.
+ * @param opts
+ *        The option set to be manipulated.
+ * @param partition_number
+ *        Depicts the partition table entry which shall describe the
+ *        appended image. Range 1 to 4.
+ *        1 will cause the whole ISO image to be unclaimable space before
+ *        partition 1.
+ * @param image_path
+ *        File address in the local file system.
+ * @param image_type
+ *        The partition type. E.g. FAT12 = 0x01 , FAT16 = 0x06, 
+ *        Linux Native Partition = 0x83. See fdisk command L.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 0.6.38
+ */
+int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
+                           uint8_t partition_type, char *image_path, int flag);
+
 
 /**
  * Inquire the start address of the file data blocks after having used
@@ -6321,12 +6347,17 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
    (MISHAP, HIGH, -366) */
 #define ISO_LIBJTE_FILE_FAILED     0xE430FE92
 
-/** Too many MIPS Big Endian boot files given (max. 15) (FAILURE, HIGH, -365)*/
+/** Too many MIPS Big Endian boot files given (max. 15) (FAILURE, HIGH, -367)*/
 #define ISO_BOOT_TOO_MANY_MIPS     0xE830FE91
 
-/** Boot file missing in image (MISHAP, HIGH, -364) */
+/** Boot file missing in image (MISHAP, HIGH, -368) */
 #define ISO_BOOT_FILE_MISSING      0xE430FE90
 
+/** Partition number out of range (FAILURE, HIGH, -369) */
+#define ISO_BAD_PARTITION_NO       0xE830FE8F
+
+/** Cannot open data file for appended partition (FAILURE, HIGH, -370) */
+#define ISO_BAD_PARTITION_FILE      0xE830FE8E
 
 
 /* Internal developer note: 

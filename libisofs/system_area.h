@@ -53,4 +53,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf);
  */
 int iso_read_mipsel_elf(Ecma119Image *t, int flag);
 
+
+/* Compute size and position of appended partitions.
+*/
+int iso_compute_append_partitions(Ecma119Image *t, int flag);
+
 #endif /* SYSTEM_AREA_H_ */

@@ -107,7 +107,10 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->writers);
     if (t->partition_root != NULL)
         ecma119_node_free(t->partition_root);
-    t->partition_root = NULL;
+    for (i = 0; i < 4; i++)
+        if (t->appended_partitions[i] != NULL)
+            free(t->appended_partitions[i]);
+
     free(t);
 }
 
@@ -1295,6 +1298,39 @@ static int finish_libjte(Ecma119Image *target)
 }
 
 
+static int write_mbr_partition_file(Ecma119Image *target, char *path,
+                                    uint32_t blocks, int flag)
+{
+    FILE *fp = NULL;
+    uint32_t i;
+    uint8_t buf[BLOCK_SIZE];
+    int ret;
+
+    fp = fopen(path, "rb");
+    if (fp == NULL)
+        return ISO_BAD_PARTITION_FILE;
+
+    for (i = 0; i < blocks; i++) {
+        memset(buf, 0, BLOCK_SIZE);
+        if (fp != NULL) {
+            ret = fread(buf, 1, BLOCK_SIZE, fp);
+            if (ret != BLOCK_SIZE) {
+                 fclose(fp);
+                 fp = NULL;
+            }
+        }
+        ret = iso_write(target, buf, BLOCK_SIZE);
+        if (ret < 0) {
+            fclose(fp);
+            return ret;
+        }
+    }
+    
+    fclose(fp);
+    return ISO_SUCCESS;
+}
+
+
 static
 void *write_function(void *arg)
 {
@@ -1320,6 +1356,17 @@ void *write_function(void *arg)
             goto write_error;
         }
     }
+
+    /* Append partition data */
+    for (i = 0; i < 4; i++) {
+        if (target->appended_partitions[i] == NULL)
+    continue;
+        res = write_mbr_partition_file(target, target->appended_partitions[i],
+                                       target->appended_part_size[i], 0);
+        if (res < 0)
+            goto write_error;
+    }
+
 
     /* Transplant checksum buffer from Ecma119Image to IsoImage */
     transplant_checksum_buffer(target, 0);
@@ -1469,7 +1516,6 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     return ISO_SUCCESS;
 }
 
-
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
@@ -1589,6 +1635,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->partition_offset = opts->partition_offset;
     target->partition_secs_per_head = opts->partition_secs_per_head;
     target->partition_heads_per_cyl = opts->partition_heads_per_cyl;
+    if (target->partition_secs_per_head == 0)
+        target->partition_secs_per_head = 63;
+    if (target->partition_heads_per_cyl == 0)
+        target->partition_heads_per_cyl = 255;
     target->eff_partition_offset = 0;
     target->partition_root = NULL;
     target->partition_l_table_pos = 0;
@@ -1646,12 +1696,24 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     
 #endif /* Libisofs_with_libjtE */
 
+    target->tail_blocks = opts->tail_blocks;
+
     target->mipsel_e_entry = 0;
     target->mipsel_p_offset = 0;
     target->mipsel_p_vaddr = 0;
     target->mipsel_p_filesz = 0;
 
-    target->tail_blocks = opts->tail_blocks;
+    for (i = 0; i < 4; i++) {
+        if (opts->appended_partitions[i] != NULL) {
+            target->appended_partitions[i] =
+                                          strdup(opts->appended_partitions[i]);
+            if (target->appended_partitions[i] == NULL)
+                return ISO_OUT_OF_MEM;
+            target->appended_part_types[i] = opts->appended_part_types[i];
+        }
+        target->appended_part_start[i] = target->appended_part_size[i] = 0;
+    }
+
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -1843,6 +1905,18 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
     }
 
+    /*
+     * The volume space size is just the size of the last session, in
+     * case of ms images.
+     */
+    target->vol_space_size = target->curblock - target->ms_block;
+    target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
+
+    /* Add sizes of eventually appended partitions */
+    ret = iso_compute_append_partitions(target, 0);
+    if (ret < 0)
+        goto target_cleanup;
+
     /* create the ring buffer */
     if (opts->overwrite != NULL &&
         opts->fifo_size / 2048 < 32 + target->partition_offset) {
@@ -1935,13 +2009,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
-
-    /*
-     * The volume space size is just the size of the last session, in
-     * case of ms images.
-     */
-    target->vol_space_size = target->curblock - target->ms_block;
-    target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
 
     /* 4. Create and start writing thread */
@@ -2172,6 +2239,7 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
 
 int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 {
+    int i;
     IsoWriteOpts *wopts;
 
     if (opts == NULL) {
@@ -2231,6 +2299,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 #endif /* Libisofs_with_libjtE */
 
     wopts->tail_blocks = 0;
+    for (i = 0; i < 4; i++)
+        wopts->appended_partitions[i] = NULL;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -2238,13 +2308,17 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 
 void iso_write_opts_free(IsoWriteOpts *opts)
 {
+    int i;
+
     if (opts == NULL) {
         return;
     }
-
     free(opts->output_charset);
     if (opts->system_area_data != NULL)
         free(opts->system_area_data);
+    for (i = 0; i < 4; i++)
+        if (opts->appended_partitions[i] != NULL)
+            free(opts->appended_partitions[i]);
 
     free(opts);
 }
@@ -2718,7 +2792,23 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle)
  
 int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks)
 {
-     opts->tail_blocks = num_blocks;
-     return ISO_SUCCESS;
+    opts->tail_blocks = num_blocks;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
+                            uint8_t partition_type, char *image_path, int flag)
+{
+    if (partition_number < 1 || partition_number > 4)
+        return ISO_BAD_PARTITION_NO;
+
+    if (opts->appended_partitions[partition_number - 1] != NULL)
+        free(opts->appended_partitions[partition_number - 1]);
+    opts->appended_partitions[partition_number - 1] = strdup(image_path);
+    if (opts->appended_partitions[partition_number - 1] == NULL)
+        return ISO_OUT_OF_MEM;
+    opts->appended_part_types[partition_number - 1] = partition_type;
+
+    return ISO_SUCCESS;
 }
 

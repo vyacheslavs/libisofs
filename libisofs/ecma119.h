@@ -334,6 +334,11 @@ struct iso_write_opts {
     */
     uint32_t tail_blocks;
 
+    /* Eventual disk file paths of prepared images which shall be appended
+       after the ISO image and described by partiton table entries in a MBR
+    */
+    char *appended_partitions[4]; 
+    uint8_t appended_part_types[4];
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -588,13 +593,20 @@ struct ecma119_image
     struct libjte_env *libjte_handle;
 #endif /* Libisofs_with_libjtE */
 
+    uint32_t tail_blocks;
+
     /* Memorized ELF parameters from MIPS Little Endian boot file */
     uint32_t mipsel_e_entry;
     uint32_t mipsel_p_offset;
     uint32_t mipsel_p_vaddr;
     uint32_t mipsel_p_filesz;
 
-    uint32_t tail_blocks;
+    char *appended_partitions[4]; 
+    uint8_t appended_part_types[4];
+    /* Counted in blocks of 2048 */
+    uint32_t appended_part_start[4];
+    uint32_t appended_part_size[4];
+
 };
 
 #define BP(a,b) [(b) - (a) + 1]

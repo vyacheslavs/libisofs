@@ -266,9 +266,8 @@ Cylinder/Head/Sector (C/H/S) and Logical Block Address (LBA). Both are based
 on units of 512 bytes. So MBR_LBA = ISO_LBA * 4.
 
 For C/H/S, the sector address is broken up into whole cylinders, remaining
-heads, and remaining sectors. The nomenclature seems to stem from antique
+heads, and remaining sectors + 1. The nomenclature seems to stem from antique
 drum storage.
-C/H/S counting starts with 0/0/1, not 0/0/0.
 There are two parameters, sectors_per_head and heads_per_cylinder which are not
 stored in the MBR. So it is more or less arbitray how to convert a LBA into
 a C/H/S address and vice versa. For maximum range of C/H/S addresses one
@@ -306,6 +305,7 @@ Byte Range | Value      | Meaning
  451 - 453 | ========== | C/H/S address of last absolute sector in partition
  451 - 451 |   end_head | Heads part of end address.
  452 - 452 |    end_c_s | Bits 0 to 5 : Sectors part of end address.
+                        |               Values: 1 to 63, not 0.
            |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
  453 - 453 |    end_cyl | Lower 8 bits of cylinders part of end address
            |            |

@@ -353,6 +353,10 @@ const char *iso_error_to_msg(int errcode)
         return "Too many MIPS Big Endian boot files given (max. 15)";
     case ISO_BOOT_FILE_MISSING:
         return "Boot file missing in image";
+    case ISO_BAD_PARTITION_NO:
+        return "Partition number out of range";
+    case ISO_BAD_PARTITION_FILE:
+        return "Cannot open data file for appended partition";
     default:
         return "Unknown error";
     }
