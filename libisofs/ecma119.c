@@ -2015,6 +2015,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         }
     }
 
+    /* This was possibly altered by above overwrite buffer production */
+    target->vol_space_size = target->curblock - target->ms_block;
 
     /* 4. Create and start writing thread */
     if (target->md5_session_checksum) {
