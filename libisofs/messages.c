@@ -357,6 +357,8 @@ const char *iso_error_to_msg(int errcode)
         return "Partition number out of range";
     case ISO_BAD_PARTITION_FILE:
         return "Cannot open data file for appended partition";
+    case ISO_NON_MBR_SYS_AREA:
+        return "May not combine appended partition with non-MBR system area";
     default:
         return "Unknown error";
     }

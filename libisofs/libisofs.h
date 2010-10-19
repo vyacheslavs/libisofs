@@ -6357,7 +6357,11 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 #define ISO_BAD_PARTITION_NO       0xE830FE8F
 
 /** Cannot open data file for appended partition (FAILURE, HIGH, -370) */
-#define ISO_BAD_PARTITION_FILE      0xE830FE8E
+#define ISO_BAD_PARTITION_FILE     0xE830FE8E
+
+/** May not combine appended partition with non-MBR system area
+                                                       (FAILURE, HIGH, -371) */
+#define ISO_NON_MBR_SYS_AREA       0xE830FE8D
 
 
 /* Internal developer note: 

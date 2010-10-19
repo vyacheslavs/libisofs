@@ -436,8 +436,9 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
    doc/boot_sectors.txt section "MIPS Little Endian" which was derived
    by Thomas Schmitt from
    cdrkit-1.1.10/genisoimage/boot-mipsel.c by Steve McIntyre which is based
-   on work of Florian Lohoff and Thiemo Seufer, and from <elf.h> by Free
-   Software Foundation, Inc.
+   on work of Florian Lohoff and Thiemo Seufer,
+   and from <elf.h> by Free Software Foundation, Inc.
+
    Both functions are entirely under copyright (C) 2010 Thomas Schmitt.
 */
 
@@ -566,7 +567,7 @@ static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
 
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
-    int ret, int_img_blocks, sa_type, i;
+    int ret, int_img_blocks, sa_type, i, will_append = 0;
     uint32_t img_blocks;
 
     if ((t == NULL) || (buf == NULL)) {
@@ -577,6 +578,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     memset(buf, 0, 16 * BLOCK_SIZE);
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
+    for (i = 0; i < 4; i++)
+        if (t->appended_partitions[i] != NULL) {
+            will_append = 1;
+    break;
+        }
+
     img_blocks = t->curblock;
     if (t->system_area_data != NULL) {
         /* Write more or less opaque boot image */
@@ -619,20 +626,28 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                                t->partition_secs_per_head, 0, 1, 0x17, buf, 1);
         if (ret != 1)
             return ret;
-    } else if(sa_type == 1) {
+    } else if (sa_type == 1) {
         ret = make_mips_volume_header(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
-    } else if(sa_type == 2) {
+    } else if (sa_type == 2) {
         ret = make_mipsel_boot_block(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
-    } else if(t->partition_offset > 0 && sa_type == 0) {
+    } else if ((t->partition_offset > 0 || will_append) && sa_type == 0) {
         /* Write a simple partition table. */
         ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
                                     t->partition_heads_per_cyl, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
+        if (t->partition_offset == 0) {
+            /* Re-write partion entry 1 : start at 0, type Linux */
+            ret = write_mbr_partition_entry(1, 0x83, 0, img_blocks,
+                        t->partition_secs_per_head, t->partition_heads_per_cyl,
+                        buf, 0);
+            if (ret < 0)
+                return ret;
+        }
     }
 
     if (t->partition_offset > 0 && sa_type == 0) {

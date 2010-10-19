@@ -1615,6 +1615,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     } else {
         system_area_options = opts->system_area_options & 0xfc;
     }
+    if ((system_area_options & 0xfc) != 0)
+        for (i = 0; i < 4; i++)
+            if (opts->appended_partitions[i] != NULL)
+                return ISO_NON_MBR_SYS_AREA;
+
     target->system_area_data = NULL;
     if (system_area != NULL) {
         target->system_area_data = calloc(32768, 1);
