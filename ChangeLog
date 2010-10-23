@@ -1,6 +1,19 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-0.6.38.tar.gz)
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-0.6.40.tar.gz)
 ===============================================================================
-* New API calls iso_write_opts_attach_jte() and iso_write_opts_detach_jte().
+- no novelties yet -
+
+libisofs-0.6.38.tar.gz Sat Oct 23 2010
+===============================================================================
+* New API calls iso_write_opts_attach_jte() and iso_write_opts_detach_jte()
+  allow to use of libjte for jigdo production.
+* New API call iso_write_opts_set_tail_blocks() for tail padding inside
+  ISO image.
+* New API call iso_image_generator_is_running() to learn when the write thread
+  is done.
+* New API calls iso_image_add_mips_boot_file(),
+  iso_image_get_mips_boot_files(), iso_image_give_up_mips_boot().
+* New API call iso_write_opts_set_partition_img() for appending e.g. a small
+  empty FAT12 filesystem which may be used on USB stick.
 
 libisofs-0.6.36.tar.gz Wed Sep 15 2010
 ===============================================================================
