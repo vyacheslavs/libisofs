@@ -5,7 +5,7 @@ bzr branch lp:libisofs/for-libisoburn (to become libisofs-0.6.40.tar.gz)
 libisofs-0.6.38.tar.gz Sat Oct 23 2010
 ===============================================================================
 * New API calls iso_write_opts_attach_jte() and iso_write_opts_detach_jte()
-  allow to use of libjte for jigdo production.
+  allow to use libjte for jigdo production.
 * New API call iso_write_opts_set_tail_blocks() for tail padding inside
   ISO image.
 * New API call iso_image_generator_is_running() to learn when the write thread

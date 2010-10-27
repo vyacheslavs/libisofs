@@ -248,7 +248,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
             char *ipath = iso_tree_get_node_path(iso);
             ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
                  "Can't add %s to Joliet tree. %s can only be added to a "
-                 "Rock Ridget tree.", ipath, (iso->type == LIBISO_SYMLINK ?
+                 "Rock Ridge tree.", ipath, (iso->type == LIBISO_SYMLINK ?
                                              "Symlinks" : "Special files"));
             free(ipath);
         }
