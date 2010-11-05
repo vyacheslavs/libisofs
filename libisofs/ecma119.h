@@ -32,6 +32,26 @@
  */
 #define ISO_EXTENT_SIZE             0xFFFFF800
 
+/*
+ * The maximum number of partition images that can be registered. Depending
+ * on the system area type, the effectively usable number may be smaller or
+ * even 0.
+ */
+#define ISO_MAX_PARTITIONS 8
+
+/*
+ * The cylindersize with SUN Disk Label
+ * (512 bytes/sector, 640 sectors/head, 1 head/cyl = 320 KiB).
+ * Expressed in ECMA-119 blocks of 2048 bytes/block.
+ */
+#define ISO_SUN_CYL_SIZE 160
+
+/*
+ * Maximum length of a disc label text plus 1.
+ */
+#define ISO_DISC_LABEL_SIZE 129
+
+
 /**
  * Holds the options for the image generation.
  */
@@ -337,8 +357,12 @@ struct iso_write_opts {
     /* Eventual disk file paths of prepared images which shall be appended
        after the ISO image and described by partiton table entries in a MBR
     */
-    char *appended_partitions[4]; 
-    uint8_t appended_part_types[4];
+    char *appended_partitions[ISO_MAX_PARTITIONS]; 
+    uint8_t appended_part_types[ISO_MAX_PARTITIONS];
+
+    /* Eventual name of the non-ISO aspect of the image. E.g. SUN ASCII label.
+     */
+    char ascii_disc_label[ISO_DISC_LABEL_SIZE];
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -601,11 +625,14 @@ struct ecma119_image
     uint32_t mipsel_p_vaddr;
     uint32_t mipsel_p_filesz;
 
-    char *appended_partitions[4]; 
-    uint8_t appended_part_types[4];
+    char *appended_partitions[ISO_MAX_PARTITIONS]; 
+    uint8_t appended_part_types[ISO_MAX_PARTITIONS];
     /* Counted in blocks of 2048 */
-    uint32_t appended_part_start[4];
-    uint32_t appended_part_size[4];
+    uint32_t appended_part_prepad[ISO_MAX_PARTITIONS];
+    uint32_t appended_part_start[ISO_MAX_PARTITIONS];
+    uint32_t appended_part_size[ISO_MAX_PARTITIONS];
+
+    char ascii_disc_label[ISO_DISC_LABEL_SIZE];
 
 };
 

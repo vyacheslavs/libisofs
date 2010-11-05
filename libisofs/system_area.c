@@ -19,6 +19,7 @@
 #include "ecma119_tree.h"
 #include "image.h"
 #include "messages.h"
+#include "ecma119.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -79,13 +80,16 @@ void iso_compute_cyl_head_sec(uint32_t *img_blocks, int hpc, int sph,
 */
 int iso_compute_append_partitions(Ecma119Image *t, int flag)
 {
-    int ret, i;
-    uint32_t pos, size;
+    int ret, i, sa_type;
+    uint32_t pos, size, add_pos = 0;
     struct stat stbuf;
 
+    sa_type = (t->system_area_options >> 2) & 0x3f;
     pos = (t->vol_space_size + t->ms_block);
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         if (t->appended_partitions[i] == NULL)
+    continue;
+        if (t->appended_partitions[i][0] == 0)
     continue;
         ret = stat(t->appended_partitions[i], &stbuf);
         if (ret == -1)
@@ -93,10 +97,13 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
         if (! S_ISREG(stbuf.st_mode))
             return ISO_BAD_PARTITION_FILE;
         size = ((stbuf.st_size + 2047) / 2048);
-        t->appended_part_start[i] = pos;
+        if (sa_type == 3 && (pos % ISO_SUN_CYL_SIZE))
+            add_pos = ISO_SUN_CYL_SIZE - (pos % ISO_SUN_CYL_SIZE);
+        t->appended_part_prepad[i] = add_pos;
+        t->appended_part_start[i] = pos + add_pos;
         t->appended_part_size[i] = size;
-        pos += size;
-        t->total_size += size * 2048;
+        pos += add_pos + size;
+        t->total_size += (add_pos + size) * 2048;
     }
     return ISO_SUCCESS;
 }
@@ -565,9 +572,122 @@ static int make_mipsel_boot_block(Ecma119Image *t, uint8_t *buf, int flag)
 }
 
 
+/* The following two functions were implemented according to
+   doc/boot_sectors.txt section "SUN Disk Label and boot images" which
+   was derived by Thomas Schmitt from
+     cdrtools-2.01.01a77/mkisofs/sunlabel.h
+     cdrtools-2.01.01a77/mkisofs/mkisofs.8
+     by Joerg Schilling
+
+   Both functions are entirely under copyright (C) 2010 Thomas Schmitt.
+*/
+
+/* @parm flag bit0= copy from next lower valid partition table entry
+ */
+static int write_sun_partition_entry(int partition_number,
+                  char *appended_partitions[],
+                  uint32_t partition_offset[], uint32_t partition_size[],
+                  uint32_t cyl_size, uint8_t *buf, int flag)
+{
+    uint8_t *wpt;
+    int read_idx, i;
+
+    if (partition_number < 1 || partition_number > 8)
+        return ISO_ASSERT_FAILURE;
+    
+    /* 142 - 173 | ========== | 8 partition entries of 4 bytes */
+    wpt = buf + 142 + (partition_number - 1) * 4;
+    if (partition_number == 1)
+        iso_msb(wpt, 4, 2);                            /* 4 = User partition */
+    else
+        iso_msb(wpt, 2, 2);            /* 2 = Root partition with boot image */
+    iso_msb(wpt + 2, 0x10, 2);              /* Permissions: 0x10 = read-only */
+
+    /* 444 - 507 | ========== | Partition table */
+    wpt = buf + 444 + (partition_number - 1) * 8;
+    read_idx = partition_number - 1;
+    if (flag & 1) {
+        /* Search next lower valid partition table entry. #1 is default */
+        for (read_idx = partition_number - 2; read_idx > 0; read_idx--)
+            if (appended_partitions[read_idx] != NULL)
+                if (appended_partitions[read_idx][0] != 0)
+        break;
+    }
+    iso_msb(wpt, partition_offset[read_idx] / (uint32_t) ISO_SUN_CYL_SIZE, 4);
+    iso_msb(wpt + 4, partition_size[read_idx] * 4, 4);
+
+    /* 510 - 511 |   checksum | The result of exoring 2-byte words 0 to 254 */
+    buf[510] = buf[511] = 0;
+    for (i = 0; i < 510; i += 2) {
+        buf[510] ^= buf[i];
+        buf[511] ^= buf[i + 1];
+    }
+
+    return ISO_SUCCESS;
+}
+
+/**
+ * Write SUN Disk Label with ISO in partition 1 and unused 2 to 8
+ */
+static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
+{
+    int ret;
+
+    /* Bytes 512 to 32767 may come from image or external file */
+    memset(buf, 0, 512);
+
+    /* 0 - 127 |      label | ASCII Label */
+    if (t->ascii_disc_label[0])
+        strncpy((char *) buf, t->ascii_disc_label, 128);
+    else
+        strcpy((char *) buf,
+               "CD-ROM Disc with Sun sparc boot created by libisofs");
+    
+    /* 128 - 131 |          1 | Layout version */
+    iso_msb(buf + 128, 1, 4);
+
+    /* 140 - 141 |          8 | Number of partitions */
+    iso_msb(buf + 140, 8, 2);
+
+    /* 188 - 191 | 0x600ddeee | vtoc sanity */
+    iso_msb(buf + 188, 0x600ddeee, 4);
+
+    /* 420 - 421 |        350 | Rotations per minute */
+    iso_msb(buf + 420, 350, 2);
+
+    /* 422 - 423 |       2048 | Number of physical cylinders (fixely 640 MB) */
+    iso_msb(buf + 422, 2048, 2);
+
+    /* 430 - 431 |          1 | interleave factor */
+    iso_msb(buf + 430, 1, 2);
+
+    /* 432 - 433 |       2048 | Number of data cylinders (fixely 640 MB) */
+    iso_msb(buf + 432, 2048, 2);
+
+    /* 436 - 437 |          1 | Number of heads per cylinder (1 cyl = 320 kB)*/
+    iso_msb(buf + 436, 1, 2);
+
+    /* 438 - 439 |        640 | Number of sectors per head (1 head = 320 kB) */
+    iso_msb(buf + 438, 640, 2);
+
+    /* 508 - 509 |     0xdabe | Magic Number */
+    iso_msb(buf + 508, 0xdabe, 2);
+
+    /* Set partition 1 to describe ISO image and compute checksum */
+    t->appended_part_start[0] = 0;
+    t->appended_part_size[0] = t->curblock;
+    ret = write_sun_partition_entry(1, t->appended_partitions,
+                  t->appended_part_start, t->appended_part_size,
+                  ISO_SUN_CYL_SIZE, buf, 0);
+ 
+    return ISO_SUCCESS;
+}
+
+
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
     int ret, int_img_blocks, sa_type, i, will_append = 0;
+    int first_partition = 1, last_partition = 4;
     uint32_t img_blocks;
 
     if ((t == NULL) || (buf == NULL)) {
@@ -578,7 +698,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     memset(buf, 0, 16 * BLOCK_SIZE);
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
-    for (i = 0; i < 4; i++)
+    if (sa_type == 3) {
+        first_partition = 2;
+        last_partition = 8;
+    }
+    for (i = first_partition - 1; i <= last_partition - 1; i++)
         if (t->appended_partitions[i] != NULL) {
             will_append = 1;
     break;
@@ -648,6 +772,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             if (ret < 0)
                 return ret;
         }
+    } else if (sa_type == 3) {
+        ret = make_sun_disk_label(t, buf, 0);
+        if (ret != ISO_SUCCESS)
+            return ret;
     }
 
     if (t->partition_offset > 0 && sa_type == 0) {
@@ -661,13 +789,20 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
 
     /* This eventually overwrites the partition table entries made so far */
-    for (i = 0; i < 4; i++) {
+    for (i = first_partition - 1; i <= last_partition - 1; i++) {
         if (t->appended_partitions[i] == NULL)
     continue;
-        ret = write_mbr_partition_entry(i + 1, t->appended_part_types[i],
+        if (sa_type == 3) {
+          ret = write_sun_partition_entry(i + 1, t->appended_partitions,
+                        t->appended_part_start, t->appended_part_size,
+                        ISO_SUN_CYL_SIZE,
+                        buf, t->appended_partitions[i][0] == 0);
+        } else {
+          ret = write_mbr_partition_entry(i + 1, t->appended_part_types[i],
                         t->appended_part_start[i], t->appended_part_size[i],
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
                         buf, 0);
+        }
         if (ret < 0)
             return ret;
     }

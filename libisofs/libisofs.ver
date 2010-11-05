@@ -266,6 +266,7 @@ iso_write_opts_set_default_gid;
 iso_write_opts_set_default_timestamp;
 iso_write_opts_set_default_uid;
 iso_write_opts_set_dir_rec_mtime;
+iso_write_opts_set_disc_label;
 iso_write_opts_set_fifo_size;
 iso_write_opts_set_hardlinks;
 iso_write_opts_set_iso1999;

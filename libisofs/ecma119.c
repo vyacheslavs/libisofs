@@ -107,7 +107,7 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->writers);
     if (t->partition_root != NULL)
         ecma119_node_free(t->partition_root);
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         if (t->appended_partitions[i] != NULL)
             free(t->appended_partitions[i]);
 
@@ -1299,12 +1299,19 @@ static int finish_libjte(Ecma119Image *target)
 
 
 static int write_mbr_partition_file(Ecma119Image *target, char *path,
-                                    uint32_t blocks, int flag)
+                                    uint32_t prepad, uint32_t blocks, int flag)
 {
     FILE *fp = NULL;
     uint32_t i;
     uint8_t buf[BLOCK_SIZE];
     int ret;
+
+    memset(buf, 0, BLOCK_SIZE);
+    for (i = 0; i < prepad; i++) {
+        ret = iso_write(target, buf, BLOCK_SIZE);
+        if (ret < 0)
+            return ret;
+    }
 
     fp = fopen(path, "rb");
     if (fp == NULL)
@@ -1325,8 +1332,8 @@ static int write_mbr_partition_file(Ecma119Image *target, char *path,
             return ret;
         }
     }
-    
-    fclose(fp);
+    if (fp != NULL) 
+        fclose(fp);
     return ISO_SUCCESS;
 }
 
@@ -1334,7 +1341,7 @@ static int write_mbr_partition_file(Ecma119Image *target, char *path,
 static
 void *write_function(void *arg)
 {
-    int res;
+    int res, first_partition = 1, last_partition = 0, sa_type;
     size_t i;
     IsoImageWriter *writer;
 
@@ -1358,15 +1365,25 @@ void *write_function(void *arg)
     }
 
     /* Append partition data */
-    for (i = 0; i < 4; i++) {
+    sa_type = (target->system_area_options >> 2) & 0x3f;
+    if (sa_type == 0) { /* MBR */
+        first_partition = 1;
+        last_partition = 4;
+    } else if (sa_type == 3) { /* SUN Disk Label */
+        first_partition = 2;
+        last_partition = 8;
+    }
+    for (i = first_partition - 1; i <= last_partition - 1; i++) {
         if (target->appended_partitions[i] == NULL)
     continue;
+        if (target->appended_partitions[i][0] == 0)
+    continue;
         res = write_mbr_partition_file(target, target->appended_partitions[i],
+                                       target->appended_part_prepad[i],
                                        target->appended_part_size[i], 0);
         if (res < 0)
             goto write_error;
     }
-
 
     /* Transplant checksum buffer from Ecma119Image to IsoImage */
     transplant_checksum_buffer(target, 0);
@@ -1520,6 +1537,7 @@ static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters, image_checksums_mad = 0, tag_pos;
+    int sa_type;
     Ecma119Image *target;
     IsoImageWriter *writer;
     int el_torito_writer_index = -1, file_src_writer_index = -1;
@@ -1615,8 +1633,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     } else {
         system_area_options = opts->system_area_options & 0xfc;
     }
-    if ((system_area_options & 0xfc) != 0)
-        for (i = 0; i < 4; i++)
+    sa_type = (system_area_options >> 2) & 0x3f;
+    if (sa_type != 0 && sa_type != 3)
+        for (i = 0; i < ISO_MAX_PARTITIONS; i++)
             if (opts->appended_partitions[i] != NULL)
                 return ISO_NON_MBR_SYS_AREA;
 
@@ -1708,7 +1727,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->mipsel_p_vaddr = 0;
     target->mipsel_p_filesz = 0;
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
+        target->appended_partitions[i] = NULL;
         if (opts->appended_partitions[i] != NULL) {
             target->appended_partitions[i] =
                                           strdup(opts->appended_partitions[i]);
@@ -1716,9 +1736,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
                 return ISO_OUT_OF_MEM;
             target->appended_part_types[i] = opts->appended_part_types[i];
         }
+        target->appended_part_prepad[i] = 0;
         target->appended_part_start[i] = target->appended_part_size[i] = 0;
     }
-
+    strcpy(target->ascii_disc_label, opts->ascii_disc_label);
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -2306,8 +2327,9 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 #endif /* Libisofs_with_libjtE */
 
     wopts->tail_blocks = 0;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         wopts->appended_partitions[i] = NULL;
+    wopts->ascii_disc_label[0] = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -2323,7 +2345,7 @@ void iso_write_opts_free(IsoWriteOpts *opts)
     free(opts->output_charset);
     if (opts->system_area_data != NULL)
         free(opts->system_area_data);
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         if (opts->appended_partitions[i] != NULL)
             free(opts->appended_partitions[i]);
 
@@ -2806,7 +2828,7 @@ int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks)
 int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
                             uint8_t partition_type, char *image_path, int flag)
 {
-    if (partition_number < 1 || partition_number > 4)
+    if (partition_number < 1 || partition_number > ISO_MAX_PARTITIONS)
         return ISO_BAD_PARTITION_NO;
 
     if (opts->appended_partitions[partition_number - 1] != NULL)
@@ -2816,6 +2838,13 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
         return ISO_OUT_OF_MEM;
     opts->appended_part_types[partition_number - 1] = partition_type;
 
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label)
+{
+    strncpy(opts->ascii_disc_label, label, ISO_DISC_LABEL_SIZE - 1);
+    opts->ascii_disc_label[ISO_DISC_LABEL_SIZE - 1] = 0;
     return ISO_SUCCESS;
 }
 

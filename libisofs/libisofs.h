@@ -1751,6 +1751,9 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *
  * If system area data are given or options bit0 is set, then bit1 of
  * el_torito_set_isolinux_options() is automatically disabled.
+ *
+ * @param opts
+ *      The option set to be manipulated.
  * @param data
  *        Either NULL or 32 kB of data. Do not submit less bytes !
  * @param options
@@ -1780,6 +1783,13 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 iso_image_add_mips_boot_file() will be activated.
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
+ *              @since 0.6.40
+ *              3= SUN Disk Label for SUN SPARC
+ *                 Submit up to 7 SPARC boot images by
+ *                 iso_write_opts_set_partition_img() for partition numbers 2
+ *                 to 8.
+ *                 This will overwrite the first 512 bytes of the submitted
+ *                 data.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
@@ -1787,11 +1797,27 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *        bit1 = keep data unaltered
  *        bit2 = keep options unaltered
  * @return
- *        ISO_SUCCESS or error
+ *      ISO_SUCCESS or error
  * @since 0.6.30
  */
 int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
                                    int options, int flag);
+
+/**
+ * Set a name for the system area. This setting is ignored unless system area
+ * type 3 "SUN Disk Label" is in effect by iso_write_opts_set_system_area().
+ * In this case it will replace the default text at the start of the image:
+ *   "CD-ROM Disc with Sun sparc boot created by libisofs"
+ *
+ * @param opts
+ *      The option set to be manipulated.
+ * @param label
+ *      A text of up to 128 characters.
+ * @return
+ *      ISO_SUCCESS or error
+ * @since 0.6.40
+*/
+int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label);
 
 /**
  * Explicitely set the four timestamps of the emerging Primary Volume
@@ -1936,24 +1962,33 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle);
  */
 int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
 
+
 /**
  * Cause an arbitrary data file to be appended to the ISO image and to be
- * described by a partition table entry in an MBR at the start of the
- * ISO image.
+ * described by a partition table entry in an MBR or SUN Disk Label at the
+ * start of the ISO image.
  * The partition entry will bear the size of the image file rounded up to
  * the next multiple of 2048 bytes.
+ * MBR or SUN Disk Label are selected by iso_write_opts_set_system_area()
+ * system area type: 0 selects MBR partition table. 3 selects a SUN partition
+ * table with 320 kB start alignment.
+ *
  * @param opts
  *        The option set to be manipulated.
  * @param partition_number
  *        Depicts the partition table entry which shall describe the
- *        appended image. Range 1 to 4.
- *        1 will cause the whole ISO image to be unclaimable space before
- *        partition 1.
+ *        appended image.
+ *        Range with MBR: 1 to 4. 1 will cause the whole ISO image to be
+ *                        unclaimable space before partition 1.
+ *        Range with SUN Disk Label: 2 to 8.
  * @param image_path
  *        File address in the local file system.
+ *        With SUN Disk Label: an empty name causes the partition to become
+ *        a copy of the next lower partition.
  * @param image_type
- *        The partition type. E.g. FAT12 = 0x01 , FAT16 = 0x06, 
+ *        The MBR partition type. E.g. FAT12 = 0x01 , FAT16 = 0x06, 
  *        Linux Native Partition = 0x83. See fdisk command L.
+ *        This parameter is ignored with SUN Disk Label.
  * @return
  *        ISO_SUCCESS or error
  *
