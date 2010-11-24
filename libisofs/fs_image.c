@@ -2796,8 +2796,17 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 break;
                 if (idx < fsdata->num_bootimgs) {
                     /* it is boot image node */
-
                     if (image->bootcat->bootimages[idx]->image != NULL) {
+                        /* idx is already occupied, try to find unoccupied one
+                           which has the same block address.
+                        */
+                        for (; idx < fsdata->num_bootimgs; idx++)
+                            if (fsdata->eltorito && data->sections[0].block ==
+                                fsdata->bootblocks[idx] &&
+                                image->bootcat->bootimages[idx]->image == NULL)
+                        break;
+                    }
+                    if (idx >= fsdata->num_bootimgs) {
                         ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
              "More than one ISO node has been found for the same boot image.");
                         if (ret < 0) {
