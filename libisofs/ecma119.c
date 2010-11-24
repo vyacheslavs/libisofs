@@ -1412,7 +1412,9 @@ void *write_function(void *arg)
     target->eff_partition_offset = 0;
     if (res == ISO_CANCELED) {
         /* canceled */
-        iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED, 0, NULL);
+        if (!target->will_cancel)
+            iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED,
+                           0, NULL);
     } else {
         /* image write error */
         iso_msg_submit(target->image->id, ISO_WRITE_ERROR, res,
@@ -1565,6 +1567,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->image = src;
     iso_image_ref(src);
 
+    target->will_cancel = opts->will_cancel;
     target->iso_level = opts->level;
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
@@ -2330,6 +2333,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         wopts->appended_partitions[i] = NULL;
     wopts->ascii_disc_label[0] = 0;
+    wopts->will_cancel = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -2350,6 +2354,15 @@ void iso_write_opts_free(IsoWriteOpts *opts)
             free(opts->appended_partitions[i]);
 
     free(opts);
+}
+
+int iso_write_opts_set_will_cancel(IsoWriteOpts *opts, int will_cancel)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->will_cancel = !!will_cancel;
+    return ISO_SUCCESS;
 }
 
 int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level)

@@ -1206,6 +1206,26 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile);
 void iso_write_opts_free(IsoWriteOpts *opts);
 
 /**
+ * Announce that only the image size is desired and that the write thread
+ * will be cancelled by the .cancel() method of the struct burn_source that
+ * consumes the image output stream.
+ * This avoids to generate a MISHAP event when the effect of .cancel()
+ * reaches the image generator thread.
+ * 
+ * @param opts
+ *      The option set to be manipulated.
+ * @param will_cancel
+ *      0= normal image generation
+ *      1= prepare for being canceled before image stream output is completed
+ * @return
+ *      1 success, < 0 error
+ *
+ * @since 0.6.40
+ */
+int iso_write_opts_set_will_cancel(IsoWriteOpts *opts, int will_cancel);
+
+
+/**
  * Set the ISO-9960 level to write at.
  *
  * @param opts

@@ -57,6 +57,8 @@
  */
 struct iso_write_opts {
 
+    int will_cancel;
+
     int level; /**< ISO level to write at. (ECMA-119, 10) */
 
     /** Which extensions to support. */
@@ -378,6 +380,8 @@ struct ecma119_image
 
     IsoImage *image;
     Ecma119Node *root;
+
+    int will_cancel :1;
 
     unsigned int iso_level :2;
 

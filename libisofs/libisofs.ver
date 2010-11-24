@@ -293,6 +293,7 @@ iso_write_opts_set_scdbackup_tag;
 iso_write_opts_set_sort_files;
 iso_write_opts_set_system_area;
 iso_write_opts_set_tail_blocks;
+iso_write_opts_set_will_cancel;
 iso_zisofs_get_params;
 iso_zisofs_get_refcounts;
 iso_zisofs_set_params;
