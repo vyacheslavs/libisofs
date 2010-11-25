@@ -318,6 +318,9 @@ int create_image(IsoImage *image, const char *image_path,
         return ret;
     }
     if (ret == 0) {
+        iso_msg_submit(image->id, ISO_NODE_DOESNT_EXIST, 0,
+                       "El Torito boot image file missing in ISO image: '%s'",
+                       image_path);
         return ISO_NODE_DOESNT_EXIST;
     }
 
@@ -479,6 +482,9 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
             catname[0] = '\0';
             ret = iso_tree_path_to_node(image, catdir, &p);
             if (ret <= 0) {
+                iso_msg_submit(image->id, ISO_NODE_DOESNT_EXIST, 0,
+         "Cannot find directory for El Torito boot catalog in ISO image: '%s'",
+                               catdir);
                 free(catdir);
                 return ret < 0 ? ret : ISO_NODE_DOESNT_EXIST;
             }
