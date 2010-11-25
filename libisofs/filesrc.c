@@ -266,7 +266,12 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
         /*
          * final section
          */
-        file->sections[extent].block = t->curblock + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
+        if (section_size <= 0) {
+            file->sections[extent].block = t->empty_file_block;
+        } else {
+            file->sections[extent].block =
+                         t->curblock + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
+        }
         file->sections[extent].size = (uint32_t)section_size;
 
         t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);

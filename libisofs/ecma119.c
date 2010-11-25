@@ -1730,6 +1730,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->mipsel_p_vaddr = 0;
     target->mipsel_p_filesz = 0;
 
+    target->empty_file_block = 0;
+
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         target->appended_partitions[i] = NULL;
         if (opts->appended_partitions[i] != NULL) {
@@ -1832,6 +1834,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* Volume Descriptor Set Terminator */
     target->curblock++;
+
+    /* All empty files point to the Volume Descriptor Set Terminator
+     * rather than to addresses of non-empty files.
+     */
+    target->empty_file_block = target->curblock - 1;
 
     /*
      * Create the writer for possible padding to ensure that in case of image

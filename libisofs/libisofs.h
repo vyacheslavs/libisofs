@@ -1224,7 +1224,6 @@ void iso_write_opts_free(IsoWriteOpts *opts);
  */
 int iso_write_opts_set_will_cancel(IsoWriteOpts *opts, int will_cancel);
 
-
 /**
  * Set the ISO-9960 level to write at.
  *

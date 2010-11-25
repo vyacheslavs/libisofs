@@ -309,6 +309,7 @@ int create_image(IsoImage *image, const char *image_path,
     int boot_media_type = 0;
     int load_sectors = 0; /* number of sector to load */
     unsigned char partition_type = 0;
+    off_t size;
     IsoNode *imgfile;
     IsoStream *stream;
 
@@ -331,9 +332,16 @@ int create_image(IsoImage *image, const char *image_path,
         return ISO_BOOT_IMAGE_NOT_VALID;
     }
 
+    size = iso_stream_get_size(stream);
+    if (size <= 0) {
+        iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                       "Boot image file is empty");
+        return ISO_BOOT_IMAGE_NOT_VALID;
+    }
+
     switch (type) {
     case ELTORITO_FLOPPY_EMUL:
-        switch (iso_stream_get_size(stream)) {
+        switch (size) {
         case 1200 * 1024:
             boot_media_type = 1; /* 1.2 meg diskette */
             break;

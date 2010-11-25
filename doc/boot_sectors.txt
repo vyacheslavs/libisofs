@@ -258,7 +258,7 @@ Sources:
 
 The candidates for MBR booting will normally use El Torito rather than MBR
 if the ISO image is presented on CD, DVD, or BD media.
-The eventual MBR comes into effect it the image is on a media that is
+The eventual MBR comes into effect if the image is on a media that is
 interpreted by the BIOS as some kind of hard disk. Usually real hard disks,
 floppy disks, USB sticks, memory cards.
 
@@ -526,46 +526,6 @@ Byte Range | Value      | Meaning
 up to 2048 |          0 | ISO 9660 Block end padding
 ---------- | ---------- | ----------------------------------------------------
 
-Test image produced by
-  genisoimage -o /u/test/mips_boot.iso -mips-boot checksum.c jte
-which reports
-  Found mips boot image checksum.c, using extent 636 (0x27C), #blocks 14336 (0x3800)
-
-xorriso reports as 2048 byte LBA of the boot image dummy file
-  File data lba:  0 ,      159 ,        7 ,    14330 , '/CHECKSUM.C'
-
-First 512 bytes in hex:
-       0 :    0b  e5  a9  41  00  00  00  00  00  00  00  00  00  00  00  00
-      16 :    00  00  00  00  00  00  00  00  00  00  00  00  00  51  00  00
-      32 :    00  01  00  00  00  00  00  20  02  00  00  00  00  00  00  34
-      48 :    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-      64 :    00  00  00  00  00  00  00  00  63  68  65  63  6b  73  75  6d
-      80 :    00  00  02  7c  00  00  38  00  00  00  00  00  00  00  00  00
-... 0 ...
-     400 :    00  00  00  00  00  00  00  00  00  00  0a  28  00  00  00  00
-     416 :    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-     432 :    00  00  0a  28  00  00  00  00  00  00  00  06  00  00  00  00
-... 0 ...
-     496 :    00  00  00  00  00  00  00  00  22  ec  2c  c9  00  00  00  00
-
-The 32 bit two's complement of bytes 0 to 503 is 0x22ec2cc9.
-
-In decimal:
-       0 :    11 229 169  65   0   0   0   0   0   0   0   0   0   0   0   0
-      16 :     0   0   0   0   0   0   0   0   0   0   0   0   0  81   0   0
-      32 :     0   1   0   0   0   0   0  32   2   0   0   0   0   0   0  52
-      48 :     0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-      64 :     0   0   0   0   0   0   0   0  99 104 101  99 107 115 117 109
-      80 :     0   0   2 124   0   0  56   0   0   0   0   0   0   0   0   0
-... 0 ...
-     400 :     0   0   0   0   0   0   0   0   0   0  10  40   0   0   0   0
-     416 :     0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
-     432 :     0   0  10  40   0   0   0   0   0   0   0   6   0   0   0   0
-... 0 ...
-     496 :     0   0   0   0   0   0   0   0  34 236  44 201   0   0   0   0
-
-Cleartext part:
-      64 :                                     c   h   e   c   k   s   u   m
 
 ------------------------------------------------------------------------------
 

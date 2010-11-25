@@ -471,6 +471,11 @@ struct ecma119_image
     uint32_t curblock;
 
     /*
+     * The address to be used for the content pointer of empty data files.
+     */
+    uint32_t empty_file_block;
+
+    /*
      * number of dirs in ECMA-119 tree, computed together with dir position,
      * and needed for path table computation in a efficient way
      */
