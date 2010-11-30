@@ -322,7 +322,7 @@ struct iso_data_source
      * automatically called by iso_data_source_unref() when refcount reach
      * 0.
      */
-    void (*free_data)(IsoDataSource *);
+    void (*free_data)(IsoDataSource *src);
 
     /** Source specific data */
     void *data;
@@ -6416,6 +6416,10 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** May not combine appended partition with non-MBR system area
                                                        (FAILURE, HIGH, -371) */
 #define ISO_NON_MBR_SYS_AREA       0xE830FE8D
+
+/** Displacement offset leads outside 32 bit range (FAILURE, HIGH, -372) */
+#define ISO_DISPLACE_ROLLOVER      0xE830FE8C
+
 
 
 /* Internal developer note: 

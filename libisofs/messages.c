@@ -359,6 +359,8 @@ const char *iso_error_to_msg(int errcode)
         return "Cannot open data file for appended partition";
     case ISO_NON_MBR_SYS_AREA:
         return "May not combine appended partition with non-MBR system area";
+    case ISO_DISPLACE_ROLLOVER:
+        return "Displacement offset leads outside 32 bit range";
     default:
         return "Unknown error";
     }
