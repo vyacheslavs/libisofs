@@ -586,6 +586,7 @@ struct ecma119_image
 
     /* writer thread descriptor */
     pthread_t wthread;
+    int wthread_is_running;
     pthread_attr_t th_attr;
 
     /* User settable PVD time stamps */

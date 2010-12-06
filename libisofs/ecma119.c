@@ -1732,6 +1732,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->empty_file_block = 0;
 
+    target->wthread_is_running = 0;
+
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         target->appended_partitions[i] = NULL;
         if (opts->appended_partitions[i] != NULL) {
@@ -2049,6 +2051,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* This was possibly altered by above overwrite buffer production */
     target->vol_space_size = target->curblock - target->ms_block;
 
+/*
+*/
+#define Libisofs_print_size_no_forK 1
+
+#ifdef Libisofs_print_size_no_forK
+    if (opts->will_cancel) {
+        iso_msg_debug(target->image->id,
+      "Will not start write thread because of iso_write_opts_set_will_cancel");
+        *img = target;
+        return ISO_SUCCESS;
+    }
+#endif
+
+
     /* 4. Create and start writing thread */
     if (target->md5_session_checksum) {
         /* After any fake writes are done: Initialize image checksum context */
@@ -2090,6 +2106,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         ret = ISO_THREAD_ERROR;
         goto target_cleanup;
     }
+    target->wthread_is_running= 1;
 
     /*
      * Notice that once we reach this point, target belongs to the writer
@@ -2146,8 +2163,11 @@ static void bs_free_data(struct burn_source *bs)
         iso_ring_buffer_reader_close(target->buffer, 0);
 
         /* wait until writer thread finishes */
-        pthread_join(target->wthread, NULL);
-        iso_msg_debug(target->image->id, "Writer thread joined");
+        if (target->wthread_is_running) {
+            pthread_join(target->wthread, NULL);
+            target->wthread_is_running = 0;
+            iso_msg_debug(target->image->id, "Writer thread joined");
+        }
     }
 
     iso_msg_debug(target->image->id,
@@ -2179,9 +2199,11 @@ int bs_cancel(struct burn_source *bs)
     }
 
     /* wait until writer thread finishes */
-    pthread_join(target->wthread, NULL);
-
-    iso_msg_debug(target->image->id, "Writer thread joined");
+    if (target->wthread_is_running) {
+        pthread_join(target->wthread, NULL);
+        target->wthread_is_running = 0;
+        iso_msg_debug(target->image->id, "Writer thread joined");
+    }
     return ISO_SUCCESS;
 }
 
