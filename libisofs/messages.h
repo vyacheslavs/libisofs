@@ -46,7 +46,6 @@ int iso_msg_is_abort(int errcode);
 int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...);
 
 
-/* ts A80222 */
 /* To be called with events which report incidents with individual input 
    files from the local filesystem. Not with image nodes, files containing an
    image or similar file-like objects.
