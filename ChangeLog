@@ -1,6 +1,15 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-0.6.40.tar.gz)
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-0.6.42.tar.gz)
 ===============================================================================
-- no novelties yet -
+- no novelties yet
+
+libisofs-0.6.40.tar.gz Fri Dec 10 2010
+===============================================================================
+* New API call iso_write_opts_set_disc_label(), new system area type
+  3 = SUN Disk Label for booting SUN SPARC systems.
+* New API call iso_write_opts_set_will_cancel() avoids start of write thread
+  and is to be used to inquire the future image size.
+* New error reply code ISO_DISPLACE_ROLLOVER for external data sources with
+  address displacement.
 
 libisofs-0.6.38.tar.gz Sat Oct 23 2010
 ===============================================================================
@@ -197,30 +206,4 @@ Libisofs 0.6.2
 * Initial release of new generation libisofs
 * Completely new API
 * Long term commitment to ABI libisofs.so.6
-
-libisofs-0.2.8.tar.gz Tue Jul 31 2007
-===============================================================================
-* Support for hidden files
-* Eltorito support
-* Charset support
-* Support for inode caching
-* Ordering files on image
-* Unit tests
-* A lot of other features and bugfixes
-* Note: ABI has been broken.
-
-libisofs-0.2.5.tar.gz Tue Jul 31 2007
-===============================================================================
-* Bugfix release. Fixed the ECMA-related problem with iso tree generation. 
-  There is newer release 0.2.8 with a lot of new features.
-
-libisofs-0.2.4.tar.gz Jan 03 2007
-===============================================================================
-* Bugfix release. Fixes lots of problems people have encountered, including but
-  not limited to broken docs generation.
-
-libisofs-0.2.3.tar.gz Sat Dec 02 2006
-===============================================================================
-* Bugfix release, with some improvements for freebsd support. 
-* Requires libburn to compile.
 
