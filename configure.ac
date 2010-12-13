@@ -133,15 +133,15 @@ AC_ARG_ENABLE(debug,
               , enable_debug=yes)
 if test x$enable_debug != xyes; then
     if test x$GCC = xyes; then
-        CFLAGS="$CFLAGS -O3"
-        CFLAGS="$CFLAGS -fexpensive-optimizations"
+        CFLAGS="-O3 $CFLAGS"
+        CFLAGS="-fexpensive-optimizations $CFLAGS"
     fi
-    CFLAGS="$CFLAGS -DNDEBUG"
+    CFLAGS="-DNDEBUG $CFLAGS"
 else
     if test x$GCC = xyes; then
-        CFLAGS="$CFLAGS -g -pedantic -Wall"
+        CFLAGS="-g -pedantic -Wall $CFLAGS"
     fi
-    CFLAGS="$CFLAGS -DDEBUG"
+    CFLAGS="-DDEBUG $CFLAGS"
 fi
 
 dnl Verbose debug to make libisofs issue more debug messages
