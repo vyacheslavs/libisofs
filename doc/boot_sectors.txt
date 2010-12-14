@@ -157,8 +157,8 @@ Byte Range | Value      | Meaning
            |            | "the number of virtual/emulated sectors the system
            |            |  will store at Load Segment during the initial boot
            |            |  procedure."
-           |            | libisofs stores 1 for emulated boot_media and
-           |            | 0 for boot_media == 0.
+           |            | libisofs stores 1 for emulated boot_media and a
+           |            | user defined value for boot_media == 0. Often: 4.
            |            |
    8 -  11 |  load_rba  | Load RBA. The 2 kB block address where the boot
            |            | image file content is located in the ISO 9660 image.
@@ -210,8 +210,8 @@ Byte Range | Value      | Meaning
            |            |
    6 -   7 |  sec_count | Sector Count.
            |            | See above Initial/Default Entry
-           |            | libisofs stores 1 for emulated boot_media and
-           |            | 0 for boot_media == 0.
+           |            | libisofs stores 1 for emulated boot_media and a
+           |            | user defined value for boot_media == 0. Often: 4.
            |            |
    8 -  11 |  load_rba  | Load RBA. The 2 kB block address where the boot
            |            | image file content is located in the ISO 9660 image.
