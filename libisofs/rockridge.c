@@ -13,6 +13,9 @@
 #include "../config.h"
 #endif
 
+#include <string.h>
+#include <stdio.h>
+
 #include "rockridge.h"
 #include "node.h"
 #include "ecma119_tree.h"
@@ -22,7 +25,12 @@
 #include "aaip_0_2.h"
 #include "libisofs.h"
 
-#include <string.h>
+
+#ifdef Libisofs_with_rrip_rR
+#define ISO_ROCKRIDGE_IN_DIR_REC 128
+#else
+#define ISO_ROCKRIDGE_IN_DIR_REC 124
+#endif
 
 
 static
@@ -1104,27 +1112,30 @@ unannounced_ca:;
  * @param type
  *      0 normal entry, 1 "." entry for that node (it is a dir), 2 ".."
  *      for that node (i.e., it will refer to the parent)
- * @param space
- *      Available space in the System Use Area for the directory record.
+ * @param used_up
+ *      Already occupied space in the directory record.
  * @param ce
  *      Will be filled with the space needed in a CE
  * @return
  *      The size needed for the RR entries in the System Use Area
  */
-size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
+size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
                      size_t *ce)
 {
-    size_t su_size;
+    size_t su_size, space;
     int ret;
 
-    /* space min is 255 - 33 - 37 = 185
-     * At the same time, it is always an odd number, but we need to pad it
-     * propertly to ensure the length of a directory record is a even number
-     * (ECMA-119, 9.1.13). Thus, in fact the real space is always space - 1
-     */
-    space--;
-    *ce = 0;
+    /* Directory record length must be even (ECMA-119, 9.1.13). Maximum is 254.
+    */
+    space = 254 - used_up - (used_up % 2);
+    if (type < 0 || type > 2 || space < ISO_ROCKRIDGE_IN_DIR_REC) {
+        iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
+          "Unknown node type %d or short RR space %d < %d in directory record",
+          type, (int) space, ISO_ROCKRIDGE_IN_DIR_REC);
+        return ISO_ASSERT_FAILURE;
+    }
 
+    *ce = 0;
     su_size = 0;
 
     /* If AAIP enabled and announced by ER : account for 5 bytes of ES */;
@@ -1268,8 +1279,8 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
  * @param type
  *      0 normal entry, 1 "." entry for that node (it is a dir), 2 ".."
  *      for that node (i.e., it will refer to the parent)
- * @param space
- *      Available space in the System Use Area for the directory record.
+ * @param used_up
+ *      Already occupied space in the directory record.
  * @param info
  *      Pointer to the struct susp_info where the entries will be stored.
  *      If some entries need to go to a Continuation Area, they will be added
@@ -1279,7 +1290,7 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
  *      1 success, < 0 error
  */
 int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
-                         size_t space, struct susp_info *info)
+                         size_t used_up, struct susp_info *info)
 {
     int ret;
     size_t i;
@@ -1291,13 +1302,20 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
     size_t aaip_sua_free= 0, aaip_len= 0;
+    size_t space;
 
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
-    if (type < 0 || type > 2 || space < 185) {
-        /* space min is 255 - 33 - 37 = 185 */
-        return ISO_WRONG_ARG_VALUE;
+
+    /* Directory record length must be even (ECMA-119, 9.1.13). Maximum is 254.
+    */
+    space = 254 - used_up - (used_up % 2);
+    if (type < 0 || type > 2 || space < ISO_ROCKRIDGE_IN_DIR_REC) {
+        iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
+          "Unknown node type %d or short RR space %d < %d in directory record",
+          type, (int) space, ISO_ROCKRIDGE_IN_DIR_REC);
+        return ISO_ASSERT_FAILURE;
     }
 
     if (type == 2 && n->parent != NULL) {
@@ -1305,13 +1323,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     } else {
         node = n;
     }
-
-    /* space min is 255 - 33 - 37 = 185
-     * At the same time, it is always an odd number, but we need to pad it
-     * propertly to ensure the length of a directory record is a even number
-     * (ECMA-119, 9.1.13). Thus, in fact the real space is always space - 1
-     */
-    space--;
 
     /* 
      * SP must be the first entry for the "." record of the root directory
@@ -1383,6 +1394,16 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             goto add_susp_cleanup;
         }
     }
+
+
+    /* <<< ts B01222 : For testing only */
+    if (info->suf_len + 28 > space) {
+        fprintf(stderr,
+                "libisofs_debug: Directory Record overflow. name='%s' , info->suf_len=%d > space=%d - 28\n", 
+                node->iso_name, (int) info->suf_len, (int) space);
+        return ISO_ASSERT_FAILURE;
+    }
+
 
     if (type == 0) {
         size_t sua_free; /* free space in the SUA */

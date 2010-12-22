@@ -52,6 +52,17 @@
 #define ISO_DISC_LABEL_SIZE 129
 
 
+/* The maximum lenght of an specs violating ECMA-119 file identifier.
+   The theoretical limit is  254 - 34 - 28 (len of SUSP CE entry) = 192
+   Currently the practical limit is 254 - 34 - 96 (non-CE RR entries) - 28 (CE)
+*/
+#ifdef Libisofs_with_rrip_rR
+#define ISO_UNTRANSLATED_NAMES_MAX 92
+#else
+#define ISO_UNTRANSLATED_NAMES_MAX 96
+#endif
+
+
 /**
  * Holds the options for the image generation.
  */
@@ -212,6 +223,21 @@ struct iso_write_opts {
     unsigned int replace_file_mode :2;
     unsigned int replace_uid :2;
     unsigned int replace_gid :2;
+
+    /**
+     * Extra Caution: This option breaks any assumptions about names that
+     *                are supported by ECMA-119 specifications. 
+     * Omit any translation which would make a file name compliant to the
+     * ECMA-119 rules. This includes and exceeds omit_version_numbers,
+     * max_37_char_filenames, no_force_dots bit0, allow_lowercase.
+     * The maximum name length is given by this variable.
+     * There is a length limit of ISO_UNTRANSLATED_NAMES_MAX characters,
+     * because ECMA-119 allows 254 byte in a directory record, some
+     * of them are occupied by ECMA-119, some more are needed for SUSP CE,
+     * and some are fixely occupied by libisofs Rock Ridge code.
+     * The default value 0 disables this feature.
+     */
+    unsigned int untranslated_name_len;
 
     mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
     mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
@@ -436,6 +462,8 @@ struct ecma119_image
     unsigned int replace_file_mode :1;
     unsigned int replace_dir_mode :1;
     unsigned int replace_timestamps :1;
+
+    unsigned int untranslated_name_len;
 
     uid_t uid;
     gid_t gid;

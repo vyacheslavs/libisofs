@@ -773,6 +773,8 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
         len = size;
     }
     dest = malloc(len + 1);
+    if (dest == NULL)
+        return NULL;
     for (i = 0; i < len; i++) {
         char c= src[i];
         if (relaxed == 2) {
@@ -1036,6 +1038,8 @@ uint16_t *ucsdup(const uint16_t *str)
     size_t len = ucslen(str);
     
     ret = malloc(2 * (len + 1));
+    if (ret == NULL)
+        return NULL;
     if (ret != NULL) {
         memcpy(ret, str, 2 * (len + 1));
     }
@@ -1460,6 +1464,8 @@ char *ucs2str(const char *buf, size_t len)
     
     /* ensure enought space */
     out = calloc(outbytes, 1);
+    if (out == NULL)
+        return NULL;
 
     /* convert to local charset */
     conv_ret = iso_iconv_open(&conv, iso_get_local_charset(0), "UCS-2BE", 0);

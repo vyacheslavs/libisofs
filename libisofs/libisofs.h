@@ -1345,6 +1345,34 @@ int iso_write_opts_set_hardlinks(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
 
 /**
+ * Caution: This option breaks any assumptions about names that
+ *          are supported by ECMA-119 specifications. 
+ * Try to omit any translation which would make a file name compliant to the
+ * ECMA-119 rules. This includes and exceeds omit_version_numbers,
+ * max_37_char_filenames, no_force_dots bit0, allow_full_ascii. Further it
+ * prevents the conversion from local character set to ASCII.
+ * The maximum name length is given by this call. If a filename exceeds
+ * this length or cannot be recorded untranslated for other reasons, then
+ * image production is aborted with ISO_NAME_NEEDS_TRANSL.
+ * Currently the length limit is 96 characters, because an ECMA-119 directory
+ * record may at most have 254 bytes and up to 158 other bytes must fit into
+ * the record. Probably 96 more bytes can be made free for the name in future.
+ * @param opts
+ *      The option set to be manipulated.
+ * @param len
+ *      0 = disable this feature and perform name translation according to
+ *          other settings.
+ *     >0 = Omit any translation. Eventually abort image production
+ *          if a name is longer than the given value.
+ *     -1 = Like >0. Allow maximum possible length (currently 96)
+ * @return >=0 success, <0 failure
+ *         In case of >=0 the return value tells the effectively set len.
+ *         E.g. 96 after using len == -1.
+ * @since 0.6.42
+ */
+int iso_write_opts_set_untranslated_name_len(IsoWriteOpts *opts, int len);
+
+/**
  * Omit the version number (";1") at the end of the ISO-9660 identifiers.
  * This breaks ECMA-119 specification, but version numbers are usually not
  * used, so it should work on most systems. Use with caution.
@@ -6422,6 +6450,9 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Displacement offset leads outside 32 bit range (FAILURE, HIGH, -372) */
 #define ISO_DISPLACE_ROLLOVER      0xE830FE8C
 
+/** File name cannot be written into ECMA-119 untranslated
+                                                       (FAILURE, HIGH, -373) */
+#define ISO_NAME_NEEDS_TRANSL      0xE830FE8B
 
 
 /* Internal developer note: 

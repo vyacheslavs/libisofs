@@ -141,7 +141,7 @@ static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
 static
 int need_version_number(Ecma119Image *t, Ecma119Node *n)
 {
-    if (t->omit_version_numbers & 1) {
+    if ((t->omit_version_numbers & 1) || t->untranslated_name_len > 0) {
         return 0;
     }
     if (n->type == ECMA119_DIR || n->type == ECMA119_PLACEHOLDER) {
@@ -188,9 +188,9 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
     /* size of "." and ".." entries */
     len = 34 + 34;
     if (t->rockridge) {
-        len += rrip_calc_len(t, dir, 1, 255 - 34, &ce_len);
+        len += rrip_calc_len(t, dir, 1, 34, &ce_len);
         *ce += ce_len;
-        len += rrip_calc_len(t, dir, 2, 255 - 34, &ce_len);
+        len += rrip_calc_len(t, dir, 2, 34, &ce_len);
         *ce += ce_len;
     }
 
@@ -203,7 +203,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         for (section = 0; section < nsections; ++section) {
             size_t dirent_len = calc_dirent_len(t, child);
             if (t->rockridge) {
-                dirent_len += rrip_calc_len(t, child, 0, 255 - dirent_len, &ce_len);
+                dirent_len += rrip_calc_len(t, child, 0, dirent_len, &ce_len);
                 *ce += ce_len;
             }
             remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
@@ -594,7 +594,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
 
     /* write the "." and ".." entries first */
     if (t->rockridge) {
-        ret = rrip_get_susp_fields(t, dir, 1, 255 - 32, &info);
+        ret = rrip_get_susp_fields(t, dir, 1, 34, &info);
         if (ret < 0) {
             return ret;
         }
@@ -604,7 +604,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
     buf += len;
 
     if (t->rockridge) {
-        ret = rrip_get_susp_fields(t, dir, 2, 255 - 32, &info);
+        ret = rrip_get_susp_fields(t, dir, 2, 34, &info);
         if (ret < 0) {
             return ret;
         }
@@ -630,7 +630,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
 
             /* get the SUSP fields if rockridge is enabled */
             if (t->rockridge) {
-                ret = rrip_get_susp_fields(t, child, 0, 255 - len, &info);
+                ret = rrip_get_susp_fields(t, child, 0, len, &info);
                 if (ret < 0) {
                     return ret;
                 }
@@ -1575,6 +1575,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
     target->always_gmt = opts->always_gmt;
+    target->untranslated_name_len = opts->untranslated_name_len;
     target->omit_version_numbers = opts->omit_version_numbers
                                  | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;
@@ -2363,6 +2364,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->appended_partitions[i] = NULL;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
+    wopts->untranslated_name_len = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -2449,6 +2451,22 @@ int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable)
     }
     opts->aaip = enable ? 1 : 0;
     return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_untranslated_name_len(IsoWriteOpts *opts, int len)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (len == -1)
+        opts->untranslated_name_len = ISO_UNTRANSLATED_NAMES_MAX;
+    else if(len == 0)
+        opts->untranslated_name_len = 0;
+    else if(len > ISO_UNTRANSLATED_NAMES_MAX || len < 0)
+        return ISO_WRONG_ARG_VALUE;
+    else
+        opts->untranslated_name_len = len;
+    return opts->untranslated_name_len;
 }
 
 int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit)

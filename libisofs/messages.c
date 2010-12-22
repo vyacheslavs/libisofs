@@ -361,6 +361,8 @@ const char *iso_error_to_msg(int errcode)
         return "May not combine appended partition with non-MBR system area";
     case ISO_DISPLACE_ROLLOVER:
         return "Displacement offset leads outside 32 bit range";
+    case ISO_NAME_NEEDS_TRANSL:
+        return "File name cannot be written into ECMA-119 untranslated";
     default:
         return "Unknown error";
     }

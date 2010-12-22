@@ -12,6 +12,9 @@
 #include "../config.h"
 #endif
 
+/* Must be before ecma119.h because of eventual Libisofs_with_rrip_rR */
+#include "libisofs.h"
+
 #include "ecma119_tree.h"
 #include "ecma119.h"
 #include "node.h"
@@ -29,7 +32,7 @@
 static
 int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
-    int ret, relaxed;
+    int ret, relaxed, free_ascii_name= 0;
     char *ascii_name;
     char *isoname= NULL;
 
@@ -38,9 +41,15 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
         return ISO_SUCCESS;
     }
 
-    ret = str2ascii(img->input_charset, iso->name, &ascii_name);
+    if (img->untranslated_name_len > 0) {
+        ascii_name = iso->name;
+    } else {
+        ret = str2ascii(img->input_charset, iso->name, &ascii_name);
+        free_ascii_name = 1;
+    }
     if (ret < 0) {
-        iso_msg_submit(img->image->id, ret, 0, "Can't convert %s", iso->name);
+        iso_msg_submit(img->image->id, ret, 0,
+                       "Cannot convert name '%s' to ASCII", iso->name);
         return ret;
     }
 
@@ -50,7 +59,17 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
         relaxed = (int)img->allow_lowercase;
     }
     if (iso->type == LIBISO_DIR) {
-        if (img->max_37_char_filenames) {
+        if (img->untranslated_name_len > 0) {
+            if (strlen(ascii_name) > img->untranslated_name_len) {
+needs_transl:;
+                iso_msg_submit(img->image->id, ISO_NAME_NEEDS_TRANSL, 0,
+              "File name too long (%d > %d) for untranslated recording:  '%s'",
+                               strlen(ascii_name), img->untranslated_name_len,
+                               ascii_name);
+                return ISO_NAME_NEEDS_TRANSL;
+            }
+            isoname = strdup(ascii_name);
+        } else if (img->max_37_char_filenames) {
             isoname = iso_r_dirid(ascii_name, 37, relaxed);
         } else if (img->iso_level == 1) {
             if (relaxed) {
@@ -66,7 +85,11 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
             }
         }
     } else {
-        if (img->max_37_char_filenames) {
+        if (img->untranslated_name_len > 0) {
+            if (strlen(ascii_name) > img->untranslated_name_len)
+                goto needs_transl;
+            isoname = strdup(ascii_name);
+        } else if (img->max_37_char_filenames) {
             isoname = iso_r_fileid(ascii_name, 36, relaxed,
                                    (img->no_force_dots & 1) ? 0 : 1);
         } else if (img->iso_level == 1) {
@@ -85,7 +108,8 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
             }
         }
     }
-    free(ascii_name);
+    if (free_ascii_name)
+        free(ascii_name);
     if (isoname != NULL) {
         *name = isoname;
         return ISO_SUCCESS;
@@ -416,8 +440,6 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                                    !!hidden);
                 if (cret < 0) {
                     /* error */
-                    if (!hidden)
-                        ecma119_node_free(node);
                     ret = cret;
                     break;
                 } else if (cret == ISO_SUCCESS && !hidden) {
@@ -535,6 +557,18 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
         if (j == i) {
             /* name is unique */
             continue;
+        }
+
+        if (img->untranslated_name_len) {
+            /* This should not happen because no two IsoNode names should be
+               identical and only unaltered IsoNode names should be seen here.
+               Thus the Ema119Node names should be unique.
+            */
+            iso_msg_submit(img->image->id, ISO_NAME_NEEDS_TRANSL, 0,
+                           "ECMA-119 file name collision: '%s'",
+                           children[i]->iso_name);
+            ret = ISO_NAME_NEEDS_TRANSL;
+            goto mangle_cleanup;
         }
 
         /*
@@ -716,7 +750,9 @@ int mangle_tree(Ecma119Image *img, int recurse)
     int max_file, max_dir;
     Ecma119Node *root;
 
-    if (img->max_37_char_filenames) {
+    if (img->untranslated_name_len > 0) {
+        max_file = max_dir = img->untranslated_name_len;
+    } else if (img->max_37_char_filenames) {
         max_file = max_dir = 37;
     } else if (img->iso_level == 1) {
         max_file = 12; /* 8 + 3 + 1 */
