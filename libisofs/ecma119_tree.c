@@ -79,7 +79,7 @@ needs_transl:;
             }
         } else {
             if (relaxed) {
-                isoname = iso_r_dirid(ascii_name, 8, relaxed);
+                isoname = iso_r_dirid(ascii_name, 31, relaxed);
             } else {
                 isoname = iso_2_dirid(ascii_name);
             }
