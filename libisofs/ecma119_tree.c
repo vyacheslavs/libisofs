@@ -32,7 +32,7 @@
 static
 int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
-    int ret, relaxed, free_ascii_name= 0;
+    int ret, relaxed, free_ascii_name= 0, force_dots = 0, max_len;
     char *ascii_name;
     char *isoname= NULL;
 
@@ -58,7 +58,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
     } else {
         relaxed = (int)img->allow_lowercase;
     }
-    if (iso->type == LIBISO_DIR) {
+    if (iso->type == LIBISO_DIR && !(img->allow_dir_id_ext)) {
         if (img->untranslated_name_len > 0) {
             if (strlen(ascii_name) > img->untranslated_name_len) {
 needs_transl:;
@@ -85,24 +85,27 @@ needs_transl:;
             }
         }
     } else {
+        force_dots = !((img->no_force_dots & 1) || iso->type == LIBISO_DIR);
         if (img->untranslated_name_len > 0) {
             if (strlen(ascii_name) > img->untranslated_name_len)
                 goto needs_transl;
             isoname = strdup(ascii_name);
         } else if (img->max_37_char_filenames) {
-            isoname = iso_r_fileid(ascii_name, 36, relaxed,
-                                   (img->no_force_dots & 1) ? 0 : 1);
+            isoname = iso_r_fileid(ascii_name, 36, relaxed, force_dots);
         } else if (img->iso_level == 1) {
-            if (relaxed) {
-                isoname = iso_r_fileid(ascii_name, 11, relaxed,
-                                       (img->no_force_dots & 1) ? 0 : 1);
+            if (relaxed || !force_dots) {
+                if (strchr(ascii_name, '.') == NULL)
+                    max_len = 8;
+                else
+                    max_len = 11;
+                isoname = iso_r_fileid(ascii_name, max_len, relaxed,
+                                       force_dots);
             } else {
                 isoname = iso_1_fileid(ascii_name);
             }
         } else {
-            if (relaxed) {
-                isoname = iso_r_fileid(ascii_name, 30, relaxed,
-                                       (img->no_force_dots & 1) ? 0 : 1);
+            if (relaxed || !force_dots) {
+                isoname = iso_r_fileid(ascii_name, 30, relaxed, force_dots);
             } else {
                 isoname = iso_2_fileid(ascii_name);
             }
@@ -587,10 +590,11 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
 
             /* compute name and extension */
             dot = strrchr(full_name, '.');
-            if (dot != NULL && children[i]->type != ECMA119_DIR) {
+            if (dot != NULL &&
+                (children[i]->type != ECMA119_DIR || img->allow_dir_id_ext)) {
 
                 /*
-                 * File (not dir) with extension
+                 * File (normally not dir) with extension
                  * Note that we don't need to check for placeholders, as
                  * tree reparent happens later, so no placeholders can be
                  * here at this time.
@@ -630,10 +634,10 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                     name[max] = '\0';
                 }
             } else {
-                /* Directory, or file without extension */
+                /* Directory (normally), or file without extension */
                 if (children[i]->type == ECMA119_DIR) {
                     max = max_dir_len - digits;
-                    dot = NULL; /* dots have no meaning in dirs */
+                    dot = NULL; /* dots (normally) have no meaning in dirs */
                 } else {
                     max = max_file_len - digits;
                 }

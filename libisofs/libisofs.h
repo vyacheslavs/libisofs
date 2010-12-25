@@ -1373,6 +1373,22 @@ int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_untranslated_name_len(IsoWriteOpts *opts, int len);
 
 /**
+ * Convert directory names for ECMA-119 similar to other file names, but do
+ * not force a dot or add a version number.
+ * This violates ECMA-119 by allowing one "." and especially ISO level 1 
+ * by allowing DOS style 8.3 names rather than only 8 characters.
+ * (mkisofs and its clones seem to do this violation.)
+ * @param opts
+ *      The option set to be manipulated.
+ * @param allow
+ *      1= allow dots , 0= disallow dots and convert them
+ * @return
+ *      1 success, < 0 error
+ * @since 0.6.42
+ */
+int iso_write_opts_set_allow_dir_id_ext(IsoWriteOpts *opts, int allow);
+
+/**
  * Omit the version number (";1") at the end of the ISO-9660 identifiers.
  * This breaks ECMA-119 specification, but version numbers are usually not
  * used, so it should work on most systems. Use with caution.

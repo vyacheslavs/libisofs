@@ -88,6 +88,14 @@ struct iso_write_opts {
      */
 
     /**
+     * Convert directory names for ECMA-119 the same way as other file names
+     * but do not force dots or add version numbers.
+     * This violates ECMA-119 by allowing one "." and especially ISO level 1
+     * by allowing DOS style 8.3 names rather than only 8 characters.
+     */
+    unsigned int allow_dir_id_ext :1;
+
+    /**
      * Omit the version number (";1") at the end of the ISO-9660 identifiers.
      * Version numbers are usually not used.
      * bit0= ECMA-119 and Joliet (for historical reasons)
@@ -425,6 +433,7 @@ struct ecma119_image
     unsigned int always_gmt :1;
 
     /* relaxed constraints */
+    unsigned int allow_dir_id_ext :1;
     unsigned int omit_version_numbers :2;
     unsigned int allow_deep_paths :1;
     unsigned int allow_longer_paths :1;

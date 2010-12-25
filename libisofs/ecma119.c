@@ -1576,6 +1576,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->aaip = opts->aaip;
     target->always_gmt = opts->always_gmt;
     target->untranslated_name_len = opts->untranslated_name_len;
+    target->allow_dir_id_ext = opts->allow_dir_id_ext;
     target->omit_version_numbers = opts->omit_version_numbers
                                  | opts->max_37_char_filenames;
     target->allow_deep_paths = opts->allow_deep_paths;
@@ -2364,6 +2365,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->appended_partitions[i] = NULL;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
+    wopts->allow_dir_id_ext = 0;
     wopts->untranslated_name_len = 0;
 
     *opts = wopts;
@@ -2467,6 +2469,15 @@ int iso_write_opts_set_untranslated_name_len(IsoWriteOpts *opts, int len)
     else
         opts->untranslated_name_len = len;
     return opts->untranslated_name_len;
+}
+
+int iso_write_opts_set_allow_dir_id_ext(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->allow_dir_id_ext = allow ? 1 : 0;
+    return ISO_SUCCESS;
 }
 
 int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit)
