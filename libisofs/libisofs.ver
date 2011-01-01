@@ -133,6 +133,7 @@ iso_md5_compute;
 iso_md5_end;
 iso_md5_match;
 iso_md5_start;
+iso_memory_stream_new;
 iso_msgs_submit;
 iso_new_find_conditions_and;
 iso_new_find_conditions_atime;
