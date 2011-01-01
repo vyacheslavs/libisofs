@@ -12,8 +12,8 @@
 #include "../config.h"
 #endif
 
+#include "libisofs.h"
 #include "eltorito.h"
-#include "stream.h"
 #include "fsource.h"
 #include "filesrc.h"
 #include "image.h"

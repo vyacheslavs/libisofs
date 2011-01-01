@@ -4027,6 +4027,24 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream,
                           IsoFile **file);
 
 /**
+ * Create an IsoStream object from content which is stored in a dynamically
+ * allocated memory buffer. The new stream will become owner of the buffer
+ * and apply free() to it when the stream finally gets destroyed itself.
+ *
+ * @param buf
+ *     The dynamically allocated memory buffer with the stream content.
+ * @parm size
+ *     The number of bytes which may be read from buf.
+ * @param stream
+ *     Will return a reference to the newly created stream.
+ * @return
+ *     ISO_SUCCESS or <0 for error. E.g. ISO_NULL_POINTER, ISO_OUT_OF_MEM.
+ *
+ * @since 0.6.42
+ */
+int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
+
+/**
  * Add a new symlink to the directory tree. Permissions are set to 0777,
  * owner and hidden atts are taken from parent. You can modify any of them
  * later.

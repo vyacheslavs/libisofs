@@ -56,15 +56,6 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
                            IsoStream **stream);
 
 /**
- * Create a stream for reading from a arbitrary memory buffer.
- * When the Stream refcount reach 0, the buffer is free(3).
- *
- * @return
- *      1 sucess, < 0 error
- */
-int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
-
-/**
  * Obtain eventual zisofs ZF field entry parameters from a file source out
  * of a loaded ISO image.
  * To make hope for non-zero reply the stream has to be the original stream
