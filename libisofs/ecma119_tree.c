@@ -43,6 +43,7 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 
     if (img->untranslated_name_len > 0) {
         ascii_name = iso->name;
+        ret = 1;
     } else {
         ret = str2ascii(img->input_charset, iso->name, &ascii_name);
         free_ascii_name = 1;
