@@ -1120,9 +1120,9 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  *
  * @since 0.6.2
  */
-#define iso_lib_header_version_major  0
-#define iso_lib_header_version_minor  6
-#define iso_lib_header_version_micro  41
+#define iso_lib_header_version_major  1
+#define iso_lib_header_version_minor  0
+#define iso_lib_header_version_micro  0
 
 /**
  * Usage discussion:
@@ -1368,7 +1368,7 @@ int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
  * @return >=0 success, <0 failure
  *         In case of >=0 the return value tells the effectively set len.
  *         E.g. 96 after using len == -1.
- * @since 0.6.42
+ * @since 1.0.0
  */
 int iso_write_opts_set_untranslated_name_len(IsoWriteOpts *opts, int len);
 
@@ -1384,7 +1384,7 @@ int iso_write_opts_set_untranslated_name_len(IsoWriteOpts *opts, int len);
  *      1= allow dots , 0= disallow dots and convert them
  * @return
  *      1 success, < 0 error
- * @since 0.6.42
+ * @since 1.0.0
  */
 int iso_write_opts_set_allow_dir_id_ext(IsoWriteOpts *opts, int allow);
 
@@ -4040,7 +4040,7 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream,
  * @return
  *     ISO_SUCCESS or <0 for error. E.g. ISO_NULL_POINTER, ISO_OUT_OF_MEM.
  *
- * @since 0.6.42
+ * @since 1.0.0
  */
 int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
 
