@@ -1395,15 +1395,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
     }
 
-
-    /* <<< ts B01222 : For testing only */
     if (info->suf_len + 28 > space) {
-        fprintf(stderr,
-                "libisofs_debug: Directory Record overflow. name='%s' , info->suf_len=%d > space=%d - 28\n", 
-                node->iso_name, (int) info->suf_len, (int) space);
+        iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
+         "Directory Record overflow. name='%s' , suf_len=%d > space=%d - 28\n", 
+         node->iso_name, (int) info->suf_len, (int) space);
         return ISO_ASSERT_FAILURE;
     }
-
 
     if (type == 0) {
         size_t sua_free; /* free space in the SUA */
