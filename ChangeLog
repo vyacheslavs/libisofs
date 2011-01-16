@@ -1,6 +1,14 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-0.6.42.tar.gz)
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.0.2.tar.gz)
 ===============================================================================
 - no novelties yet
+
+libisofs-1.0.0.tar.gz Mon Jan 17 2011
+===============================================================================
+* Bug fix: ECMA-119 directory names were truncated to 8 characters if
+           lowercase characters or full ASCII are allowed.
+* New API call iso_write_opts_set_untranslated_name_len()
+* New API call iso_write_opts_set_allow_dir_id_ext()
+* New API call iso_memory_stream_new(). (Was formely a private call.)
 
 libisofs-0.6.40.tar.gz Fri Dec 10 2010
 ===============================================================================
