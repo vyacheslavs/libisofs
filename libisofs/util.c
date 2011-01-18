@@ -1298,9 +1298,7 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
 }
 
 /* >>> ts B10118:  re-enable ifdef after testing period is over */
-/*
-#ifndef HAVE_TIMEGM
-*/
+/* #ifndef HAVE_TIMEGM */
 
 /* putenv is SVr4, POSIX.1-2001, 4.3BSD , setenv is 4.3BSD, POSIX.1-2001.
    So putenv is more widely available.
