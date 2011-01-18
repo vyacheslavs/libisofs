@@ -11,7 +11,14 @@
 #ifndef LIBISO_UTIL_H_
 #define LIBISO_UTIL_H_
 
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#endif
+
 #include <time.h>
 
 #ifndef MAX

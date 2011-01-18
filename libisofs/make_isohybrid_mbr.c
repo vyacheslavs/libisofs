@@ -4,7 +4,15 @@
 #endif
 
 #include <ctype.h>
+
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#endif
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>

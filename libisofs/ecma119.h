@@ -15,7 +15,14 @@
 #include "util.h"
 #include "buffer.h"
 
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#endif
+
 #include <pthread.h>
 
 #define BLOCK_SIZE      2048

@@ -13,7 +13,13 @@
 #include "stream.h"
 #include "ecma119.h"
 
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#endif
 
 struct Iso_File_Src
 {

@@ -28,7 +28,15 @@
 #define LIBISO_LIBISOFS_H_
 
 #include <sys/stat.h>
+
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#else
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#endif
+
 #include <stdlib.h>
 
 struct burn_source;
