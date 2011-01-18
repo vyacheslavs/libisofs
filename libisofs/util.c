@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -1297,12 +1297,44 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
 
 }
 
+/* >>> ts B10118:  re-enable ifdef after testing period is over */
+/*
 #ifndef HAVE_TIMEGM
+*/
+
+/* putenv is SVr4, POSIX.1-2001, 4.3BSD , setenv is 4.3BSD, POSIX.1-2001.
+   So putenv is more widely available.
+   Also, setenv spoils eventual putenv expectation of applications because
+   putenv installs the original string which then may be altered from
+   its owner. setenv installs a copy that may not be altered.
+   Both are slow.
+   Thus first try with a naive implementation that assumes no leap seconds.
+   If it fails a test with gmtime() then use the slow function with mktime().
+*/
+#define Libisofs_use_putenV yes
+
 static
-time_t timegm(struct tm *tm)
+time_t env_timegm(struct tm *tm)
 {
     time_t ret;
     char *tz;
+
+#ifdef Libisofs_use_putenV
+
+    static char unset_name[] = {"TZ"};
+
+    tz = getenv("TZ");
+    putenv("TZ=");
+    tzset();
+    ret = mktime(tm);
+    if (tz != NULL) {
+        /* tz is a pointer to the value part in a string of form "TZ="value */
+        putenv(tz - 3);
+    } else
+        putenv(unset_name); /* not daring to submit constant */
+    tzset();
+
+#else /* Libisofs_use_putenV */
 
     tz = getenv("TZ");
     setenv("TZ", "", 1);
@@ -1313,9 +1345,94 @@ time_t timegm(struct tm *tm)
     else
         unsetenv("TZ");
     tzset();
+
+#endif /* ! Libisofs_use_putenV */
+
     return ret;
 }
-#endif
+
+static
+int ts_is_leapyear(int tm_year) /* years since 1900 */
+{
+  return ((tm_year % 4) == 0 && ((tm_year % 100) != 0 ||
+                                 (tm_year % 400) == 100));
+}
+
+/* Fast implementation without leap seconds.
+   Inspired by but not copied from code by Kungliga Tekniska Hgskolan
+   (Royal Institute of Technology, Stockholm, Sweden),
+   which was modified by Andrew Tridgell for Samba4.
+   I claim own copyright 2011 Thomas Schmitt <scdbackup@gmx.net>.
+*/ 
+static
+time_t ts_timegm(struct tm *tm)
+{
+    time_t ret;
+    static int month_length_normal[12] =
+                {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    static int month_length_leap[12] =
+                {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int *month_length_pt;
+    int years, i;
+
+    ret = 0;
+
+    years = tm->tm_year - 70; /* Years since 1970 */
+    if (years < 0)
+        return ret;
+    for (i = 0; i < years; i++) {
+        ret += 365 * 86400;
+        if (ts_is_leapyear(70 + i))
+            ret += 86400;
+    }
+    if (ts_is_leapyear(tm->tm_year))
+        month_length_pt = month_length_leap;
+    else
+        month_length_pt = month_length_normal;
+    for (i = 0; i < tm->tm_mon; i++)
+        ret += month_length_pt[i] * 86400;
+    ret += (tm->tm_mday - 1) * 86400;
+    ret += tm->tm_hour * 3600;
+    ret += tm->tm_min * 60;
+    ret += tm->tm_sec;
+    return ret;
+}
+
+/* >>> ts B10118:  remove "soft_" after testing period is over */
+static
+time_t soft_timegm(struct tm *tm)
+{
+    time_t raw_t, ret;
+    struct tm *test_tm, input_tm_copy;
+
+    /* Beware of ill effects if tm is result of gmtime() or alike */
+    memcpy(&input_tm_copy, tm, sizeof(struct tm));
+
+    /* Try without leapseconds (which are rarely implemented, as it seems) */
+    raw_t = ts_timegm(tm);
+    if (raw_t == 0)
+        return raw_t;
+
+    /* Check whether this translates back to the input values */
+    test_tm = gmtime(&raw_t);
+    if (input_tm_copy.tm_sec == test_tm->tm_sec &&
+        input_tm_copy.tm_min == test_tm->tm_min &&
+        input_tm_copy.tm_hour == test_tm->tm_hour &&
+        input_tm_copy.tm_mday == test_tm->tm_mday &&
+        input_tm_copy.tm_mon == test_tm->tm_mon &&
+        input_tm_copy.tm_year == test_tm->tm_year) {
+        ret = raw_t;
+    } else {
+        /* Mismatch. Use slow method around mktime() */
+        ret = env_timegm(&input_tm_copy);
+    }
+    return ret;
+}
+
+
+/* >>> ts B10118:  re-enable ifdef after testing period is over */
+/* #endif *//* ! HAVE_TIMEGM */
+
 
 time_t iso_datetime_read_7(const uint8_t *buf)
 {
@@ -1327,7 +1444,9 @@ time_t iso_datetime_read_7(const uint8_t *buf)
     tm.tm_hour = buf[3];
     tm.tm_min = buf[4];
     tm.tm_sec = buf[5];
-    return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
+
+    /* >>> ts B10118:  remove "soft_" after testing period is over */
+    return soft_timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
 
 time_t iso_datetime_read_17(const uint8_t *buf)
@@ -1343,7 +1462,8 @@ time_t iso_datetime_read_17(const uint8_t *buf)
     tm.tm_year -= 1900;
     tm.tm_mon -= 1;
 
-    return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
+    /* >>> ts B10118:  remove "soft_" after testing period is over */
+    return soft_timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
 
 /**
