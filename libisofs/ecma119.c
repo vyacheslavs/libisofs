@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2010 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1135,6 +1135,8 @@ int write_vol_desc_terminator(Ecma119Image *target)
     uint8_t buf[BLOCK_SIZE];
     struct ecma119_vol_desc_terminator *vol;
 
+    memset(buf, 0, BLOCK_SIZE);
+
     vol = (struct ecma119_vol_desc_terminator *) buf;
 
     vol->vol_desc_type[0] = 255;
@@ -1209,7 +1211,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
         return ISO_SUCCESS;
 
     /* Write multi-session padding up to target->partition_offset + 16 */
-    memset(buf, 0, 2048);
+    memset(buf, 0, BLOCK_SIZE);
     for(; *write_count < target->partition_offset + 16; (*write_count)++) {
         res = iso_write(target, buf, BLOCK_SIZE);
         if (res < 0)
