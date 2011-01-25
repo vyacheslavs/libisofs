@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2010 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -317,6 +317,7 @@ typedef struct
 
 typedef struct image_fs_data ImageFileSourceData;
 
+/* IMPORTANT: Any change must be reflected by iso_ifs_source_clone */
 struct image_fs_data
 {
     IsoImageFilesystem *fs; /**< reference to the image it belongs to */
@@ -1986,6 +1987,101 @@ void ifs_fs_free(IsoFilesystem *fs)
     free(data->local_charset);
     free(data);
 }
+
+int iso_ifs_source_clone(IsoFileSource *old_source,
+                         IsoFileSource **new_source, int flag)
+{
+    IsoFileSource *src = NULL;
+    ImageFileSourceData *old_data, *new_data = NULL;
+    char *new_name = NULL;
+    struct iso_file_section *new_sections = NULL;
+    unsigned char *new_aa_string;
+    size_t aa_size;
+    int i, new_aa_length = 0;
+
+    old_data = (ImageFileSourceData *) old_source->data;
+    *new_source = NULL; 
+    src = calloc(1, sizeof(IsoFileSource));
+    if (src == NULL)
+        goto no_mem;
+    new_data = calloc(1, sizeof(ImageFileSourceData));
+    if (new_data == NULL)
+        goto no_mem;
+    new_name = strdup(old_data->name);
+    if (new_name == NULL) {
+        free((char *) src);
+        free((char *) new_data);
+        return ISO_OUT_OF_MEM;
+    }
+    if (old_data->nsections > 0) {
+        new_sections = calloc(old_data->nsections,
+                              sizeof(struct iso_file_section));
+        if (new_sections == NULL)
+            goto no_mem;
+    }
+    if (old_data->aa_string != NULL) {
+        aa_size = aaip_count_bytes(old_data->aa_string, 0);
+        if (aa_size > 0) {
+            new_aa_string = calloc(1, aa_size);
+            if (new_aa_string == NULL)
+                goto no_mem;
+        }    
+    }
+
+    new_data->fs = old_data->fs;
+    iso_filesystem_ref(new_data->fs);
+
+    /* Re-using the directory structure of the original image tree is
+       supposed to not spoil independence of the cloned IsoFileSource because
+       that directory structure does not change as long as the loaded
+       image exists.
+       The .readdir() method of IsoFileSourceIface will not list the clones
+       but rather the originals.
+       It is unclear anyway, how it should work with the root of a cloned
+       IsoNode tree which would need to be implanted fakely into the
+       IsoFilesystem.
+
+       Currently there is the technical problem that a new parent would have
+       to be passed through the IsoStream cloning call, which cannot have
+       knowledge of a newly created IsoSource parent. 
+    */
+    new_data->parent = old_data->parent;
+    iso_file_source_ref(new_data->parent);
+
+    memcpy(&(new_data->info), &(old_data->info), sizeof(struct stat));
+    new_data->name = new_name;
+    new_data->sections = new_sections;
+    new_data->nsections = old_data->nsections;
+    for (i = 0; i < new_data->nsections; i++) 
+        memcpy(new_data->sections + i, old_data->sections + i,
+               sizeof(struct iso_file_section));
+    new_data->opened = old_data->opened;
+#ifdef Libisofs_with_zliB
+    new_data->header_size_div4 = old_data->header_size_div4;
+    new_data->block_size_log2 = old_data->block_size_log2;
+    new_data->uncompressed_size = old_data->uncompressed_size;
+#endif
+    new_data->data.content = NULL;
+    if (new_aa_length > 0)
+        memcpy(new_aa_string, old_data->aa_string, new_aa_length);
+    new_data->aa_string = new_aa_string;
+    
+    *new_source = src;
+    return ISO_SUCCESS;
+no_mem:;
+    if (src != NULL)
+        free((char *) src);
+    if (new_data != NULL)
+        free((char *) new_data);
+    if (new_name != NULL)
+        free(new_name);
+    if (new_sections != NULL)
+        free((char *) new_sections);
+    if (new_aa_string != NULL)
+        free((char *) new_aa_string);
+    return ISO_OUT_OF_MEM;
+}
+
 
 /**
  * Read the SUSP system user entries of the "." entry of the root directory,

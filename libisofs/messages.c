@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -363,6 +364,8 @@ const char *iso_error_to_msg(int errcode)
         return "Displacement offset leads outside 32 bit range";
     case ISO_NAME_NEEDS_TRANSL:
         return "File name cannot be written into ECMA-119 untranslated";
+    case ISO_STREAM_NO_CLONE:
+        return "Data file input stream object offers no cloning method";
     default:
         return "Unknown error";
     }

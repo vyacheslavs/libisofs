@@ -239,6 +239,11 @@ struct iso_write_opts {
     unsigned int replace_uid :2;
     unsigned int replace_gid :2;
 
+    mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
+    mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
+    uid_t uid; /** uid to use when replace_uid == 2. */
+    gid_t gid; /** gid to use when replace_gid == 2. */
+
     /**
      * Extra Caution: This option breaks any assumptions about names that
      *                are supported by ECMA-119 specifications. 
@@ -253,11 +258,6 @@ struct iso_write_opts {
      * The default value 0 disables this feature.
      */
     unsigned int untranslated_name_len;
-
-    mode_t dir_mode; /** Mode to use on dirs when replace_dir_mode == 2. */
-    mode_t file_mode; /** Mode to use on files when replace_file_mode == 2. */
-    uid_t uid; /** uid to use when replace_uid == 2. */
-    gid_t gid; /** gid to use when replace_gid == 2. */
 
     /**
      * 0 to use IsoNode timestamps, 1 to use recording time, 2 to use
@@ -479,13 +479,13 @@ struct ecma119_image
     unsigned int replace_dir_mode :1;
     unsigned int replace_timestamps :1;
 
-    unsigned int untranslated_name_len;
-
     uid_t uid;
     gid_t gid;
     mode_t file_mode;
     mode_t dir_mode;
     time_t timestamp;
+
+    unsigned int untranslated_name_len;
 
     /**
      *  if sort files or not. Sorting is based of the weight of each file

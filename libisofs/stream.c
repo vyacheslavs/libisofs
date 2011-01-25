@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -157,8 +157,60 @@ int fsrc_update_size(IsoStream *stream)
     return ISO_SUCCESS;
 }
 
+IsoStream *fsrc_get_input_stream(IsoStream *stream, int flag)
+{
+    return NULL;
+}
+
+int fsrc_cmp_ino(IsoStream *s1, IsoStream *s2)
+{
+    int ret;
+
+    /* <<< provisory */
+    ret = iso_stream_cmp_ino(s1, s2, 1);
+
+    /* >>> find out whether both streams point to the same image file */;
+
+    return ret;
+}
+
+int fsrc_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
+                      int flag)
+{
+    FSrcStreamData *data, *new_data;
+    IsoStream *stream;
+    int ret;
+
+    *new_stream = NULL;
+    stream = calloc(1, sizeof(IsoStream));
+    if (stream == NULL)
+        return ISO_OUT_OF_MEM;
+    new_data = calloc(1, sizeof(FSrcStreamData));
+    if (new_data == NULL) {
+        free((char *) stream);
+        return ISO_OUT_OF_MEM;
+    }
+    *new_stream = stream;
+    data = (FSrcStreamData*) old_stream->data;
+    stream->class = old_stream->class;
+    stream->refcount = 1;
+    stream->data = new_data;
+    
+    ret = iso_ifs_source_clone(data->src, &(new_data->src), 0);
+    if (ret < 0) {
+        free((char *) stream);
+        free((char *) new_data);
+        return ret;
+    }
+    new_data->dev_id = data->dev_id;
+    new_data->ino_id = data->ino_id;
+    new_data->size = data->size;
+
+    return ISO_SUCCESS;
+}
+
 IsoStreamIface fsrc_stream_class = {
-    1, /* update_size is defined for this stream */
+    4, /* .clone_stream() is defined for this stream */
     "fsrc",
     fsrc_open,
     fsrc_close,
@@ -167,7 +219,10 @@ IsoStreamIface fsrc_stream_class = {
     fsrc_is_repeatable,
     fsrc_get_id,
     fsrc_free,
-    fsrc_update_size
+    fsrc_update_size,
+    fsrc_get_input_stream,
+    fsrc_cmp_ino,
+    fsrc_clone_stream
 };
 
 int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream)
@@ -924,3 +979,42 @@ ex:;
         iso_md5_end(&ctx, md5);
     return res;
 }
+
+/* API */
+int iso_stream_clone(IsoStream *old_stream, IsoStream **new_stream, int flag)
+{
+    int ret;
+
+    if (old_stream->class->version < 4)
+        return ISO_STREAM_NO_CLONE;
+    ret = old_stream->class->clone_stream(old_stream, new_stream, 0);
+    return ret;
+}
+
+int iso_stream_clone_filter_common(IsoStream *old_stream,
+                                   IsoStream **new_stream,
+                                   IsoStream **new_input, int flag)
+{
+    IsoStream *stream, *input_stream;
+    int ret;
+
+    *new_stream = NULL;
+    *new_input = NULL;
+    input_stream = iso_stream_get_input_stream(old_stream, 0);
+    if (input_stream == NULL)
+        return ISO_STREAM_NO_CLONE;
+    stream = calloc(1, sizeof(IsoStream));
+    if (stream == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = iso_stream_clone(input_stream, new_input, 0);
+    if (ret < 0) {
+        free((char *) stream);
+        return ret;
+    }
+    stream->class = old_stream->class;
+    stream->refcount = 1;
+    stream->data = NULL;
+    *new_stream = stream;
+    return ISO_SUCCESS;
+}
+

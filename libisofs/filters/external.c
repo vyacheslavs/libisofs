@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -20,6 +20,7 @@
 #include "../libisofs.h"
 #include "../filter.h"
 #include "../fsource.h"
+#include "../stream.h"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -598,6 +599,33 @@ IsoStream *extf_get_input_stream(IsoStream *stream, int flag)
     return data->orig;
 }
 
+static
+int extf_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
+{
+    int ret;
+    IsoStream *new_input_stream, *stream;
+    ExternalFilterStreamData *stream_data, *old_stream_data;
+    
+    stream_data = calloc(1, sizeof(ExternalFilterStreamData));
+    if (stream_data == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = iso_stream_clone_filter_common(old_stream, &stream,
+                                         &new_input_stream, 0);
+    if (ret < 0) {
+        free((char *) stream_data);
+        return ret;
+    }
+    old_stream_data = (ExternalFilterStreamData *) old_stream->data;
+    stream_data->id = ++extf_ino_id;
+    stream_data->orig = new_input_stream;
+    stream_data->cmd = old_stream_data->cmd;
+    stream_data->cmd->refcount++;
+    stream_data->size = old_stream_data->size;
+    stream_data->running = NULL;
+    stream->data = stream_data;
+    *new_stream = stream;
+    return ISO_SUCCESS;
+}
 
 static
 int extf_cmp_ino(IsoStream *s1, IsoStream *s2);
@@ -605,7 +633,7 @@ int extf_cmp_ino(IsoStream *s1, IsoStream *s2);
 
 
 IsoStreamIface extf_stream_class = {
-    3,
+    4,
     "extf",
     extf_stream_open,
     extf_stream_close,
@@ -616,7 +644,8 @@ IsoStreamIface extf_stream_class = {
     extf_stream_free,
     extf_update_size,
     extf_get_input_stream,
-    extf_cmp_ino
+    extf_cmp_ino,
+    extf_clone_stream
 };
 
 

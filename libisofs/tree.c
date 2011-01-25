@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -993,3 +994,100 @@ char *iso_tree_get_node_path(IsoNode *node)
         return strdup(path);
     }
 }
+
+/* ------------------------- tree cloning ------------------------------ */
+
+static
+int iso_tree_clone_dir(IsoDir *old_dir,
+                       IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                       int flag)
+{
+    IsoDir *new_dir = NULL;
+    IsoNode *sub_node = NULL, *new_sub_node = NULL;
+    IsoDirIter *iter = NULL;
+    int ret;
+
+    *new_node = NULL;
+
+    ret = iso_tree_add_new_dir(new_parent, new_name, &new_dir);
+    if (ret < 0)
+        return ret;
+    *new_node = (IsoNode *) new_dir;
+
+    ret = iso_dir_get_children(old_dir, &iter);
+    if (ret < 0)
+        goto ex;
+    while(1) {
+        ret = iso_dir_iter_next(iter, &sub_node);
+        if (ret == 0)
+    break;
+        ret = iso_tree_clone(sub_node, new_dir, sub_node->name, &new_sub_node,
+                             0);
+        if (ret < 0)
+            goto ex;
+    }
+    ret = ISO_SUCCESS;
+ex:;
+    if (iter != NULL)
+        iso_dir_iter_free(iter);
+    if (ret < 0 && new_dir != NULL) {
+        iso_node_remove_tree((IsoNode *) new_dir, NULL);
+        *new_node = NULL;
+    }
+    return ret;
+}
+
+static
+int iso_tree_clone_file(IsoFile *old_file,
+                        IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                        int flag)
+{
+    IsoStream *new_stream = NULL;
+    IsoFile *new_file = NULL;
+    int ret;
+
+    *new_node = NULL;
+
+    ret = iso_stream_clone(old_file->stream, &new_stream, 0);
+    if (ret < 0)
+        return ret;
+
+    ret = iso_tree_add_new_file(new_parent, new_name, new_stream, &new_file);
+    if (ret < 0)
+        goto ex;
+    new_file->sort_weight = old_file->sort_weight;
+    *new_node = (IsoNode *) new_file;
+    ret = ISO_SUCCESS;
+ex:;
+    if (new_stream != NULL)
+        iso_stream_unref(new_stream);
+    return ret;
+}
+
+/* API */
+int iso_tree_clone(IsoNode *node,
+                   IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                   int flag)
+{
+    int ret = ISO_SUCCESS;
+
+    if (iso_dir_get_node(new_parent, new_name, NULL) == 1)
+        return ISO_NODE_NAME_NOT_UNIQUE;
+
+    /* >>> clone particular node types */;
+    if (node->type == LIBISO_DIR) {
+        ret = iso_tree_clone_dir((IsoDir *) node, new_parent, new_name,
+                                 new_node, 0);
+    } else if (node->type == LIBISO_FILE) {
+        ret = iso_tree_clone_file((IsoFile *) node, new_parent, new_name, 
+                                  new_node, 0);
+    } else if (node->type == LIBISO_SYMLINK) {
+        /* >>> */;
+    } else if (node->type == LIBISO_SPECIAL) {
+        /* >>> */;
+    } else if (node->type == LIBISO_BOOT) {
+       ret = ISO_SUCCESS; /* API says they are silently ignored */
+    }
+    return ret;
+}
+

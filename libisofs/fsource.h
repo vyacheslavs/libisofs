@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -33,9 +33,16 @@
 int iso_local_filesystem_new(IsoFilesystem **fs);
 
 
-/* Rank two IsoFileSource by their eventual old image LBAs.
+/* Rank two IsoFileSource of ifs_class by their eventual old image LBAs.
    Other IsoFileSource classes will be ranked only roughly.
 */
 int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int flag);
+
+
+/* Create an independent copy of an ifs_class IsoFileSource.
+*/
+int iso_ifs_source_clone(IsoFileSource *old_source, IsoFileSource **new_source,
+                         int flag);
+
 
 #endif /*LIBISO_FSOURCE_H_*/

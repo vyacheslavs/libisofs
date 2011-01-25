@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -15,6 +15,7 @@
  */
 #include "fsource.h"
 
+/* IMPORTANT: Any change must be reflected by fsrc_clone_stream */
 typedef struct
 {
     IsoFileSource *src;
@@ -94,5 +95,20 @@ int iso_stream_read_buffer(IsoStream *stream, char *buf, size_t count,
 int iso_stream_make_md5(IsoStream *stream, char md5[16], int flag);
 
 
+/**
+ * Create a clone of the input stream of old_stream and a roughly initialized
+ * clone of old_stream which has the same class and refcount 1. Its data
+ * pointer will be NULL and needs to be filled by an expert which knows how
+ * to clone the data of old_stream.
+ * @param old_stream  The existing stream which is in process of cloning
+ * @param new_stream  Will return the uninitialized memory object which shall
+ *                    later become the clone of old_stream.
+ * @param new_input   The clone of the input stream of old stream.
+ * @param flag        Submit 0 for now.
+ * @return            ISO_SUCCESS or an error code <0 
+ */
+int iso_stream_clone_filter_common(IsoStream *old_stream, 
+                                   IsoStream **new_stream, 
+                                   IsoStream **new_input, int flag);
 
 #endif /*STREAM_H_*/

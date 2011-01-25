@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -121,6 +121,7 @@ struct Iso_Dir
     IsoNode *children; /**< list of children. ptr to first child */
 };
 
+/* IMPORTANT: Any change must be reflected by iso_tree_clone_file. */
 struct Iso_File
 {
     IsoNode node;

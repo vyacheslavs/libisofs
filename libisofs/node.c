@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -683,6 +683,36 @@ int iso_node_remove(IsoNode *node)
     if (ret == ISO_SUCCESS) {
         iso_node_unref(node);
     }
+    return ret;
+}
+
+/* API */
+int iso_node_remove_tree(IsoNode *node, IsoDirIter *boss_iter)
+{
+    IsoDirIter *iter = NULL;
+    IsoNode *sub_node;
+    int ret;
+
+    if (node->type != LIBISO_DIR) {
+        ret = iso_dir_get_children((IsoDir *) node, &iter);
+        if (ret < 0)
+            goto ex;
+        while(1) {
+            ret = iso_dir_iter_next(iter, &sub_node);
+            if (ret == 0)
+        break;
+            ret = iso_node_remove_tree(sub_node, iter);
+            if (ret < 0)
+                goto ex;
+        }
+    }
+    if (boss_iter != NULL)
+        ret = iso_dir_iter_remove(boss_iter);
+    else
+        ret = iso_node_remove(node);
+ex:;
+    if (iter != NULL)
+        iso_dir_iter_free(iter);
     return ret;
 }
 

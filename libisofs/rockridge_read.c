@@ -443,7 +443,7 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
 }
 
 
-/* AA is the field signature of AAIP versions < 2.0
+/* AA is the obsolete field signature of AAIP versions < 2.0
 */
 int read_aaip_AA(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,
@@ -514,7 +514,7 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
 }
 
 
-/* AL is the obsolete field signature of AAIP versions >= 2.0
+/* AL is the field signature of AAIP versions >= 2.0
 */
 int read_aaip_AL(struct susp_sys_user_entry *sue,
                  unsigned char **aa_string, size_t *aa_size, size_t *aa_len,

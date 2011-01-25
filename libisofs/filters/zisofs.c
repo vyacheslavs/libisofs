@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -22,6 +22,7 @@
 #include "../filter.h"
 #include "../fsource.h"
 #include "../util.h"
+#include "../stream.h"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -167,6 +168,7 @@ static int ziso_compression_level = 6;
 
 /*
  * The common data payload of an individual Zisofs Filter IsoStream
+ * IMPORTANT: Any change must be reflected by ziso_clone_stream.
  */
 typedef struct
 {
@@ -183,6 +185,7 @@ typedef struct
 
 /*
  * The data payload of an individual Zisofs Filter Compressor IsoStream
+ * IMPORTANT: Any change must be reflected by ziso_clone_stream.
  */
 typedef struct
 {   
@@ -198,6 +201,7 @@ typedef struct
 
 /*
  * The data payload of an individual Zisofs Filter Uncompressor IsoStream
+ * IMPORTANT: Any change must be reflected by ziso_clone_stream.
  */
 typedef struct
 {
@@ -779,13 +783,60 @@ IsoStream *ziso_get_input_stream(IsoStream *stream, int flag)
     return data->orig;
 }
 
+static
+int ziso_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
+{
+    int ret;
+    IsoStream *new_input_stream = NULL, *stream = NULL;
+    ZisofsFilterStreamData *stream_data, *old_stream_data;
+    ZisofsUncomprStreamData *uncompr, *old_uncompr;
+    ZisofsComprStreamData *compr, *old_compr;
+
+    ret = iso_stream_clone_filter_common(old_stream, &stream,
+                                         &new_input_stream, 0);
+    if (ret < 0)
+        return ret;
+
+    if (old_stream->class->read == &ziso_stream_uncompress) {
+        uncompr = calloc(1, sizeof(ZisofsUncomprStreamData));
+        if (uncompr == NULL)
+            goto no_mem;
+        stream_data = (ZisofsFilterStreamData *) uncompr;
+        old_uncompr = (ZisofsUncomprStreamData *) old_stream->data;
+        uncompr->header_size_div4 = old_uncompr->header_size_div4;
+        uncompr->block_size_log2 = old_uncompr->block_size_log2;
+    } else {
+        compr = calloc(1, sizeof(ZisofsComprStreamData));
+        if (compr == NULL)
+            goto no_mem;
+        stream_data = (ZisofsFilterStreamData *) compr;
+        old_compr = (ZisofsComprStreamData *) old_stream->data;
+        compr->orig_size = old_compr->orig_size;
+        compr->block_pointers = NULL;
+    }
+    old_stream_data = (ZisofsFilterStreamData *) old_stream->data;
+    stream_data->orig = new_input_stream;
+    stream_data->size = old_stream_data->size;
+    stream_data->running = NULL;
+    stream_data->id = ++ziso_ino_id;
+    stream->data = stream_data;
+    *new_stream = stream;
+    return ISO_SUCCESS;
+no_mem:
+    if (new_input_stream != NULL)
+        iso_stream_unref(new_input_stream);
+    if (stream != NULL)
+        iso_stream_unref(stream);
+    return ISO_OUT_OF_MEM;
+}
+
 
 static
 int ziso_cmp_ino(IsoStream *s1, IsoStream *s2);
 
 
 IsoStreamIface ziso_stream_compress_class = {
-    3,
+    4,
     "ziso",
     ziso_stream_open,
     ziso_stream_close,
@@ -796,12 +847,13 @@ IsoStreamIface ziso_stream_compress_class = {
     ziso_stream_free,
     ziso_update_size,
     ziso_get_input_stream,
-    ziso_cmp_ino
+    ziso_cmp_ino,
+    ziso_clone_stream
 };
 
 
 IsoStreamIface ziso_stream_uncompress_class = {
-    3,
+    4,
     "osiz",
     ziso_stream_open,
     ziso_stream_close,
@@ -812,7 +864,8 @@ IsoStreamIface ziso_stream_uncompress_class = {
     ziso_stream_free,
     ziso_update_size,
     ziso_get_input_stream,
-    ziso_cmp_ino
+    ziso_cmp_ino,
+    ziso_clone_stream
 };
 
 

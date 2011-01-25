@@ -807,6 +807,8 @@ struct IsoStream_Iface
      *    get_input_stream() added. A filter stream must have version 2.
      * Version 3 (since 0.6.20)
      *    compare() added. A filter stream should have version 3.
+     * Version 4 (since 1.0.2)
+     *    clone_stream() added.
      */
     int version;
 
@@ -913,7 +915,7 @@ struct IsoStream_Iface
      * @param stream
      *     The eventual filter stream to be inquired.
      * @param flag
-     *     Bitfield for control purposes. Submit 0 for now.
+     *     Bitfield for control purposes. 0 means normal behavior.
      * @return
      *     The input stream, if one exists. Elsewise NULL.
      *     No extra reference to the stream is taken by this call.
@@ -928,32 +930,31 @@ struct IsoStream_Iface
      * produce the same output. If in any doubt, then this comparison should
      * indicate no match. A match might allow hardlinking of IsoFile objects.
      *
-     * This function has to establish an equivalence and order relation: 
+     * If this function cannot accept one of the given stream types, then
+     * the decision must be delegated to
+     *    iso_stream_cmp_ino(s1, s2, 1);
+     * This is also appropriate if one has reason to implement stream.cmp_ino()
+     * without having an own special comparison algorithm.
+     *
+     * With filter streams the decision whether the underlying chains of
+     * streams match should be delegated to
+     *    iso_stream_cmp_ino(iso_stream_get_input_stream(s1, 0),
+     *                       iso_stream_get_input_stream(s2, 0), 0);
+     *
+     * The stream.cmp_ino() function has to establish an equivalence and order
+     * relation: 
      *   cmp_ino(A,A) == 0
      *   cmp_ino(A,B) == -cmp_ino(B,A) 
      *   if cmp_ino(A,B) == 0 && cmp_ino(B,C) == 0 then cmp_ino(A,C) == 0
      *   if cmp_ino(A,B) < 0 && cmp_ino(B,C) < 0 then cmp_ino(A,C) < 0
      *
      * A big hazard to the last constraint are tests which do not apply to some 
-     * types of streams. In this case for any A that is applicable and any B
-     * that is not applicable, cmp_ino(A,B) must have the same non-zero
-     * result. I.e. a pair of applicable and non-applicable streams must
-     * return that non-zero result before the test for a pair of applicable
-     * streams would happen.
+     * types of streams.Thus it is mandatory to let iso_stream_cmp_ino(s1,s2,1)
+     * decide in this case.
      *
      * A function s1.(*cmp_ino)() must only accept stream s2 if function
      * s2.(*cmp_ino)() would accept s1. Best is to accept only the own stream
      * type or to have the same function for a family of similar stream types.
-     *
-     * If the function cannot accept one of the given stream types, then
-     * the decision must be delegated to
-     *    iso_stream_cmp_ino(s1, s2, 1);
-     * This is also appropriate if one has reason to implement stream.cmp_ino()
-     * without special comparison algorithm.
-     * With filter streams the decision whether the underlying chains of
-     * streams match should be delegated to
-     *    iso_stream_cmp_ino(iso_stream_get_input_stream(s1, 0),
-     *                       iso_stream_get_input_stream(s2, 0), 0);
      *
      * @param s1
      *     The first stream to compare. Expect foreign stream types.
@@ -966,6 +967,23 @@ struct IsoStream_Iface
      * Present if .version is 3 or higher.
      */
     int (*cmp_ino)(IsoStream *s1, IsoStream *s2);
+
+    /**
+     * Produce a copy of a stream. It must be possible to operate both stream
+     * objects concurrently.
+     * 
+     * @param old_stream
+     *     The existing stream object to be copied
+     * @param new_stream
+     *     Will return a pointer to the copy
+     * @param flag
+     *     Bitfield for control purposes. 0 means normal behavior.
+     *
+     * @since 1.0.2
+     * Present if .version is 4 or higher.
+     */
+    int (*clone_stream)(IsoStream *old_stream, IsoStream **new_stream,
+                        int flag);
 
 };
 
@@ -3639,22 +3657,38 @@ int iso_dir_iter_take(IsoDirIter *iter);
 
 /**
  * Removes a child from a directory during an iteration and unref() it.
- * It's like iso_node_remove(), but to be used during a directory iteration.
- * The node removed will be the last returned by the iteration.
+ * Like iso_node_remove(), but to be used during a directory iteration.
+ * The node removed will be the one returned by the previous iteration.
  *
- * If you call this function twice without calling iso_dir_iter_next between
- * them is not allowed and you will get an ISO_ERROR in second call.
+ * It is not allowed to call this function twice without calling
+ * iso_dir_iter_next inbetween.
  *
  * @return
  *     1 on succes, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if iter is NULL
- *         ISO_ERROR, on wrong iter usage, for example by call this before
+ *         ISO_ERROR, on wrong iter usage, for example by calling this before
  *         iso_dir_iter_next.
  *
  * @since 0.6.2
  */
 int iso_dir_iter_remove(IsoDirIter *iter);
+
+/**
+ * Removes a node by iso_node_remove() or iso_dir_iter_remove(). If the node
+ * is a directory then the whole tree of nodes underneath is removed too.
+ *
+ * @param node
+ *      The node to be removed.
+ * @param iter
+ *      If not NULL, then the node will be removed by iso_dir_iter_remove(iter)
+ *      else it will be removed by iso_node_remove(node).
+ * @return
+ *      1 is success, <0 indicates error
+ *
+ * @since 1.0.2
+ */
+int iso_node_remove_tree(IsoNode *node, IsoDirIter *boss_iter);
 
 
 /**
@@ -4391,6 +4425,45 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
                                   const char *name, const char *path,
                                   off_t offset, off_t size,
                                   IsoNode **node);
+
+/**
+ * >>> INCOMPLETLY IMPLEMENTED YET. DO NOT USE !
+ *
+ * Create a copy of the given node under a different path. If the node is
+ * actually a directory then clone its whole subtree.
+ * This call may fail because an IsoFile is encountered which gets fed by an
+ * IsoStream which cannot be cloned. See also IsoStream_Iface method
+ * clone_stream().
+ * Surely clonable node types are:
+ *   IsoDir,
+ *   >>> IsoSymlink,
+ *   >>> IsoSpecial,
+ *   IsoFile from a loaded ISO image without filter streams,
+ * >>> IsoFile referring to local filesystem files without filter streams.
+ * Silently ignored are nodes of type IsoBoot.
+ * An IsoFile node with filter streams can be cloned if all those filters
+ * are clonable and the node would be clonable without filter.
+ * Clonable filter streams are created by:
+ *   iso_file_add_zisofs_filter()
+ *   iso_file_add_gzip_filter()
+ *   iso_file_add_external_filter()
+ * 
+ * @param node
+ *      The node to be cloned.
+ * @param new_parent
+ *      The existing directory node where to insert the cloned node.
+ * @param new_name
+ *      The name for the cloned node. It must not yet exist in new_parent.
+ * @param new_node
+ *      Will return a reference to the newly created clone.
+ * @param flag
+ *      Unused yet. Submit 0.
+ *
+ * @since 1.0.2
+ */
+int iso_tree_clone(IsoNode *node,
+                   IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                   int flag);
 
 /**
  * Add the contents of a dir to a given directory of the iso tree.
@@ -5190,6 +5263,30 @@ char *iso_stream_get_source_path(IsoStream *stream, int flag);
  * @since 0.6.20
  */
 int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag);
+
+
+/**
+ * Produce a copy of a stream. It must be possible to operate both stream
+ * objects concurrently. The success of this function depends on the
+ * existence of a IsoStream_Iface.clone_stream() method with the stream
+ * and with its eventual subordinate streams. 
+ * See iso_tree_clone() for a list of surely clonable built-in streams.
+ * 
+ * @param old_stream
+ *     The existing stream object to be copied
+ * @param new_stream
+ *     Will return a pointer to the copy
+ * @param flag
+ *     Bitfield for control purposes. Submit 0 for now.
+ * @return
+ *     >0 means success
+ *     ISO_STREAM_NO_CLONE is issued if no .clone_stream() exists
+ *     other error return values < 0 may occur depending on kind of stream
+ *
+ * @since 1.0.2
+ */
+int iso_stream_clone(IsoStream *old_stream, IsoStream **new_stream, int flag);
+
 
 /* --------------------------------- AAIP --------------------------------- */
 
@@ -6496,6 +6593,9 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
                                                        (FAILURE, HIGH, -373) */
 #define ISO_NAME_NEEDS_TRANSL      0xE830FE8B
 
+/** Data file input stream object offers no cloning method
+                                                       (FAILURE, HIGH, -374) */
+#define ISO_STREAM_NO_CLONE        0xE830FE8A
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

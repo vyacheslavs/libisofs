@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -25,6 +25,7 @@
 #include "../filter.h"
 #include "../fsource.h"
 #include "../util.h"
+#include "../stream.h"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -153,6 +154,7 @@ static int gzip_compression_level = 6;
 /*
  * The data payload of an individual Gzip Filter IsoStream
  */
+/* IMPORTANT: Any change must be reflected by >>> _clone() */
 typedef struct
 {
     IsoStream *orig;
@@ -530,11 +532,37 @@ IsoStream *gzip_get_input_stream(IsoStream *stream, int flag)
 
 
 static
+int gzip_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
+{
+    int ret;
+    IsoStream *new_input_stream, *stream;
+    GzipFilterStreamData *stream_data, *old_stream_data;
+
+    stream_data = calloc(1, sizeof(GzipFilterStreamData));
+    if (stream_data == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = iso_stream_clone_filter_common(old_stream, &stream,
+                                         &new_input_stream, 0);
+    if (ret < 0) {
+        free((char *) stream_data);
+        return ret;
+    }
+    old_stream_data = (GzipFilterStreamData *) old_stream->data;
+    stream_data->orig = new_input_stream;
+    stream_data->size = old_stream_data->size;
+    stream_data->running = NULL;
+    stream_data->id = ++gzip_ino_id;
+    stream->data = stream_data;
+    *new_stream = stream;
+    return ISO_SUCCESS;
+}
+
+static
 int gzip_cmp_ino(IsoStream *s1, IsoStream *s2);
 
 
 IsoStreamIface gzip_stream_compress_class = {
-    3,
+    4,
     "gzip",
     gzip_stream_open,
     gzip_stream_close,
@@ -545,12 +573,13 @@ IsoStreamIface gzip_stream_compress_class = {
     gzip_stream_free,
     gzip_update_size,
     gzip_get_input_stream,
-    gzip_cmp_ino
+    gzip_cmp_ino,
+    gzip_clone_stream
 };
 
 
 IsoStreamIface gzip_stream_uncompress_class = {
-    3,
+    4,
     "pizg",
     gzip_stream_open,
     gzip_stream_close,
@@ -561,7 +590,8 @@ IsoStreamIface gzip_stream_uncompress_class = {
     gzip_stream_free,
     gzip_update_size,
     gzip_get_input_stream,
-    gzip_cmp_ino
+    gzip_cmp_ino,
+    gzip_clone_stream
 };
 
     
