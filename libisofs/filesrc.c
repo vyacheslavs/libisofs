@@ -232,10 +232,10 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t = writer->target;
 
-    /* Eventually reserve a single zeroed block for all files which have
+    /* Normally reserve a single zeroed block for all files which have
        no block address: symbolic links, device files, empty data files.
     */
-    if (t->high_empty_address)
+    if (! t->old_empty)
         t->curblock++;
 
     /* on appendable images, ms files shouldn't be included */
@@ -359,11 +359,11 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
     iso_msg_debug(t->image->id, "Writing Files...");
 
-    /* Eventually write a single zeroed block as block address target for all
+    /* Normally write a single zeroed block as block address target for all
        files which have no block address:
        symbolic links, device files, empty data files.
     */
-    if (t->high_empty_address) {
+    if (! t->old_empty) {
         ret = iso_write(t, buffer, BLOCK_SIZE);
         if (ret < 0)
             goto ex;

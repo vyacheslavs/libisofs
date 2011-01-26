@@ -1371,22 +1371,24 @@ int iso_write_opts_set_hardlinks(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable);
 
 /**
- * Let symbolic links, device files, and empty data files point to a
- * dedicated block of zero bytes after the end of the directory trees, rather
- * than using address 0 for links and device files, resp. the address of the
- * Volume Descriptor Set Terminator for empty data files.
- * (Single-pass reader libarchive sorts by this address and needs to see all
- *  directory info before processing any data files.)
+ * Use this only if you need to reproduce a suboptimal behavior of older
+ * versions of libisofs. They used address 0 for links and device files,
+ * and the address of the Volume Descriptor Set Terminator for empty data
+ * files.
+ * New versions let symbolic links, device files, and empty data files point
+ * to a dedicated block of zero-bytes after the end of the directory trees.
+ * (Single-pass reader libarchive needs to see all directory info before
+ *  processing any data files.)
  *
  * @param opts
  *      The option set to be manipulated.
  * @param enable
- *      1 = use the address of a block after the directory tree.
- *      0 = use the traditional block addresses in the range of 0 to 31.
+ *      1 = use the suboptimal block addresses in the range of 0 to 115.
+ *      0 = use the address of a block after the directory tree. (Default)
  *
  * @since 1.0.2
  */
-int iso_write_opts_set_high_empty_address(IsoWriteOpts *opts, int enable);
+int iso_write_opts_set_old_empty(IsoWriteOpts *opts, int enable);
 
 /**
  * Caution: This option breaks any assumptions about names that

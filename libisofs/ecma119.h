@@ -245,14 +245,9 @@ struct iso_write_opts {
     gid_t gid; /** gid to use when replace_gid == 2. */
 
     /**
-     * Let symbolic links, device files, and empty data files point to
-     * a block address after the end of the directory tree, rather than
-     * using LBA 0 for links and devices, and the address of the Volume
-     * Descriptor Set Terminator for empty data files.
-     * Single-pass reader libarchive sorts by ths address and needs to see all
-     * directory info before processing any data files.
+     * See API call iso_write_opts_set_old_empty().
      */ 
-    unsigned int high_empty_address :1;
+    unsigned int old_empty :1;
 
     /**
      * Extra Caution: This option breaks any assumptions about names that
@@ -495,7 +490,7 @@ struct ecma119_image
     mode_t dir_mode;
     time_t timestamp;
 
-    unsigned int high_empty_address :1;
+    unsigned int old_empty :1;
     unsigned int untranslated_name_len;
 
     /**
