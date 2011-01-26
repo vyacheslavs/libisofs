@@ -380,11 +380,14 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
         multi_extend = (node->info.file->nsections - 1 == extent) ? 0 : 1;
     } else {
         /*
-         * for nodes other than files and dirs, we set both
-         * len and block to 0
+         * for nodes other than files and dirs, we set len to 0, and
+         * the content block address to a dummy value.
          */
         len = 0;
-        block = 0;
+        if (t->high_empty_address)
+            block = t->empty_file_block;
+        else
+            block = 0;
     }
 
     /*
@@ -1577,6 +1580,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
     target->always_gmt = opts->always_gmt;
+    target->high_empty_address = opts->high_empty_address;
     target->untranslated_name_len = opts->untranslated_name_len;
     target->allow_dir_id_ext = opts->allow_dir_id_ext;
     target->omit_version_numbers = opts->omit_version_numbers
@@ -1922,8 +1926,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (i == el_torito_writer_index)
     continue;
 
-        /* Exposing address of data start to IsoWriteOpts */
+        /* Exposing address of data start to IsoWriteOpts iand memorizing
+           this address for for all files which have no block address: 
+           symbolic links, device files, empty data files.
+           filesrc_writer_compute_data_blocks() and filesrc_writer_write_data()
+           will account resp. write this single block. 
+        */
         if (i == file_src_writer_index) {
+            if (target->high_empty_address)
+                target->empty_file_block = target->curblock;
             opts->data_start_lba = target->curblock;
         }
 
@@ -2368,6 +2379,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
     wopts->allow_dir_id_ext = 0;
+    wopts->high_empty_address = 0;
     wopts->untranslated_name_len = 0;
 
     *opts = wopts;
@@ -2454,6 +2466,15 @@ int iso_write_opts_set_aaip(IsoWriteOpts *opts, int enable)
         return ISO_NULL_POINTER;
     }
     opts->aaip = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_high_empty_address(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->high_empty_address = enable ? 1 : 0;
     return ISO_SUCCESS;
 }
 

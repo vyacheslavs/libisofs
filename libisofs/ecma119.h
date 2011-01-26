@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -245,6 +245,16 @@ struct iso_write_opts {
     gid_t gid; /** gid to use when replace_gid == 2. */
 
     /**
+     * Let symbolic links, device files, and empty data files point to
+     * a block address after the end of the directory tree, rather than
+     * using LBA 0 for links and devices, and the address of the Volume
+     * Descriptor Set Terminator for empty data files.
+     * Single-pass reader libarchive sorts by ths address and needs to see all
+     * directory info before processing any data files.
+     */ 
+    unsigned int high_empty_address :1;
+
+    /**
      * Extra Caution: This option breaks any assumptions about names that
      *                are supported by ECMA-119 specifications. 
      * Omit any translation which would make a file name compliant to the
@@ -485,6 +495,7 @@ struct ecma119_image
     mode_t dir_mode;
     time_t timestamp;
 
+    unsigned int high_empty_address :1;
     unsigned int untranslated_name_len;
 
     /**
