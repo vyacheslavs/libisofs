@@ -1081,10 +1081,8 @@ int ifs_clone_src(IsoFileSource *old_source,
         goto no_mem;
 
     new_data->fs = old_data->fs;
-    iso_filesystem_ref(new_data->fs);
 
     new_data->parent = old_data->parent;
-    iso_file_source_ref(new_data->parent);
 
     memcpy(&(new_data->info), &(old_data->info), sizeof(struct stat));
     new_data->name = new_name;
@@ -1106,6 +1104,8 @@ int ifs_clone_src(IsoFileSource *old_source,
     src->refcount = 1;
     src->data = new_data;
     *new_source = src;
+    iso_file_source_ref(new_data->parent);
+    iso_filesystem_ref(new_data->fs);
     return ISO_SUCCESS;
 no_mem:;
     if (src != NULL)

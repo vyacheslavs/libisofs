@@ -561,12 +561,14 @@ int lfs_clone_src(IsoFileSource *old_source,
     new_data->info.fd = -1; /* the value does not matter with (openned == 0) */
     new_data->name = new_name;
     new_data->parent = old_data->parent;
-    iso_file_source_ref(new_data->parent);
 
     src->class = old_source->class;
     src->refcount = 1;
     src->data = new_data;
     *new_source = src;
+
+    iso_file_source_ref(new_data->parent);
+    iso_filesystem_ref(lfs);
     return ISO_SUCCESS;
 no_mem:;
     if (src != NULL)
