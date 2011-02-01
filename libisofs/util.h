@@ -512,11 +512,25 @@ int iso_util_tag_magic(int tag_type, char **tag_magic, int *len, int flag);
  */
 int checksum_cx_xinfo_func(void *data, int flag);
 
+/* The iso_node_xinfo_cloner function which gets associated to 
+ * checksum_cx_xinfo_func by iso_init() resp. iso_init_with_flag() via 
+ * iso_node_xinfo_make_clonable()
+ */
+int checksum_cx_xinfo_cloner(void *old_data, void **new_data, int flag);
+
+
 /* Function to identify and manage md5 sums of unspecified providence stored
  * directly in this xinfo. This is supposed to override any other recorded
  * MD5 of the node unless data get copied and checksummed during that copying.
  */
 int checksum_md5_xinfo_func(void *data, int flag);
+
+/* The iso_node_xinfo_cloner function which gets associated to 
+ * checksum_md5_xinfo_func by iso_init() resp. iso_init_with_flag() via 
+ * iso_node_xinfo_make_clonable()
+ */
+int checksum_md5_xinfo_cloner(void *old_data, void **new_data, int flag);
+
 
 /* ------------------------------------------------------------------------- */
 

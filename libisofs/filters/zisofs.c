@@ -168,7 +168,7 @@ static int ziso_compression_level = 6;
 
 /*
  * The common data payload of an individual Zisofs Filter IsoStream
- * IMPORTANT: Any change must be reflected by ziso_clone_stream.
+ * IMPORTANT: Any change must be reflected by ziso_clone_stream().
  */
 typedef struct
 {
@@ -185,7 +185,7 @@ typedef struct
 
 /*
  * The data payload of an individual Zisofs Filter Compressor IsoStream
- * IMPORTANT: Any change must be reflected by ziso_clone_stream.
+ * IMPORTANT: Any change must be reflected by ziso_clone_stream().
  */
 typedef struct
 {   
@@ -201,7 +201,7 @@ typedef struct
 
 /*
  * The data payload of an individual Zisofs Filter Uncompressor IsoStream
- * IMPORTANT: Any change must be reflected by ziso_clone_stream.
+ * IMPORTANT: Any change must be reflected by ziso_clone_stream().
  */
 typedef struct
 {
@@ -791,6 +791,9 @@ int ziso_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
     ZisofsFilterStreamData *stream_data, *old_stream_data;
     ZisofsUncomprStreamData *uncompr, *old_uncompr;
     ZisofsComprStreamData *compr, *old_compr;
+
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
 
     ret = iso_stream_clone_filter_common(old_stream, &stream,
                                          &new_input_stream, 0);

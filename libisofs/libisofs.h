@@ -1,3 +1,7 @@
+
+#ifndef LIBISO_LIBISOFS_H_
+#define LIBISO_LIBISOFS_H_
+
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
  * Copyright (c) 2009-2011 Thomas Schmitt
@@ -24,8 +28,17 @@
  *
  */
 
-#ifndef LIBISO_LIBISOFS_H_
-#define LIBISO_LIBISOFS_H_
+/*
+ * Normally this API is operated via public functions and opaque object
+ * handles. But it also exposes several C structures which may be used to
+ * provide custom functionality for the objects of the API. The same
+ * structures are used for internal objects of libisofs, too.
+ * You are not supposed to manipulate the entrails of such objects if they
+ * are not your own custom extensions.
+ *
+ * See for an example IsoStream = struct iso_stream below.
+ */
+
 
 #include <sys/stat.h>
 
@@ -502,6 +515,8 @@ struct IsoFileSource_Iface
      * @since 0.6.2
      * Version 1 additionally provides function *(get_aa_string)().
      * @since 0.6.14
+     * Version 2 additionally provides function *(clone_src)().
+     * @since 1.0.2
      */
     int version;
 
@@ -736,6 +751,24 @@ struct IsoFileSource_Iface
     int (*get_aa_string)(IsoFileSource *src,
                                      unsigned char **aa_string, int flag);
 
+    /**
+     * Produce a copy of a source. It must be possible to operate both source
+     * objects concurrently.
+     * 
+     * @param old_src
+     *     The existing source object to be copied
+     * @param new_stream
+     *     Will return a pointer to the copy
+     * @param flag
+     *     Bitfield for control purposes. Submit 0 for now.
+     *     The function shall return ISO_STREAM_NO_CLONE on unknown flag bits.
+     *
+     * @since 1.0.2
+     * Present if .version is 2 or higher.
+     */
+    int (*clone_src)(IsoFileSource *old_src, IsoFileSource **new_src, 
+                     int flag);
+
     /*
      * TODO #00004 Add a get_mime_type() function.
      * This can be useful for GUI apps, to choose the icon of the file
@@ -759,6 +792,31 @@ struct iso_file_source
 
 #endif /* ! Libisofs_h_as_cpluspluS */
 #endif /* ! __cplusplus */
+
+
+/* A class of IsoStream is implemented by a class description
+ *    IsoStreamIface = struct IsoStream_Iface
+ * and a structure of data storage for each instance of IsoStream.
+ * This structure shall be known to the functions of the IsoStreamIface.
+ * To create a custom IsoStream class:
+ * - Define the structure of the custom instance data.
+ * - Implement the methods which are described by the definition of
+ *   struct IsoStream_Iface (see below),
+ * - Create a static instance of IsoStreamIface which lists the methods as
+ *   C function pointers. (Example in libisofs/stream.c : fsrc_stream_class)
+ * To create an instance of that class:
+ * - Allocate sizeof(IsoStream) bytes of memory and initialize it as
+ *   struct iso_stream :
+ *   - Point to the custom IsoStreamIface by member .class .
+ *   - Set member .refcount to 1.
+ *   - Let member .data point to the custom instance data.
+ *
+ * Regrettably the choice of the structure member name "class" makes it
+ * impossible to implement this generic interface in C++ language directly.
+ * If C++ is absolutely necessary then you will have to make own copies
+ * of the public API structures. Use other names but take care to maintain
+ * the same memory layout.
+ */
 
 /**
  * Representation of file contents. It is an stream of bytes, functionally
@@ -795,6 +853,7 @@ extern ino_t serial_id;
  * 
  * @since 0.6.4
  */
+
 struct IsoStream_Iface
 {
     /*
@@ -851,7 +910,7 @@ struct IsoStream_Iface
     off_t (*get_size)(IsoStream *stream);
 
     /**
-     * Attempts to read up to count bytes from the given stream into
+     * Attempt to read up to count bytes from the given stream into
      * the buffer starting at buf. The implementation has to make sure that
      * either the full desired count of bytes is delivered or that the
      * next call to this function will return EOF or error.
@@ -867,12 +926,9 @@ struct IsoStream_Iface
     int (*read)(IsoStream *stream, void *buf, size_t count);
 
     /**
-     * Whether this IsoStream can be read several times, with the same results.
-     * For example, a regular file is repeatable, you can read it as many
-     * times as you want. However, a pipe isn't.
-     *
-     * This function doesn't take into account if the file has been modified
-     * between the two reads.
+     * Tell whether this IsoStream can be read several times, with the same
+     * results. For example, a regular file is repeatable, you can read it
+     * as many times as you want. However, a pipe is not.
      *
      * @return
      *     1 if stream is repeatable, 0 if not,
@@ -893,13 +949,13 @@ struct IsoStream_Iface
     void (*free)(IsoStream *stream);
 
     /**
-     * Updates the size of the IsoStream with the current size of the
-     * underlying source. After calling this, get_size() will return
-     * the new size. This should never be called after
-     * iso_image_create_burn_source() was called and the image was not
-     * completely written. To update the size of all files before written the
-     * image, you may want to call iso_image_update_sizes() just before
-     * iso_image_create_burn_source().
+     * Update the size of the IsoStream with the current size of the underlying
+     * source, if the source is prone to size changes. After calling this,
+     * get_size() shall eventually return the new size.
+     * This will never be called after iso_image_create_burn_source() was
+     * called and before the image was completely written.
+     * (The API call to update the size of all files in the image is
+     *  iso_image_update_sizes()).
      *
      * @return
      *     1 if ok, < 0 on error (has to be a valid libisofs error code)
@@ -910,7 +966,7 @@ struct IsoStream_Iface
     int (*update_size)(IsoStream *stream);
 
     /**
-     * Obtains the eventual input stream of a filter stream.
+     * Retrieve the eventual input stream of a filter stream.
      *
      * @param stream
      *     The eventual filter stream to be inquired.
@@ -918,7 +974,7 @@ struct IsoStream_Iface
      *     Bitfield for control purposes. 0 means normal behavior.
      * @return
      *     The input stream, if one exists. Elsewise NULL.
-     *     No extra reference to the stream is taken by this call.
+     *     No extra reference to the stream shall be taken by this call.
      *
      * @since 0.6.18
      * Present if .version is 2 or higher.
@@ -978,6 +1034,9 @@ struct IsoStream_Iface
      *     Will return a pointer to the copy
      * @param flag
      *     Bitfield for control purposes. 0 means normal behavior.
+     *     The function shall return ISO_STREAM_NO_CLONE on unknown flag bits.
+     * @return
+     *     1 in case of success, or an error code < 0
      *
      * @since 1.0.2
      * Present if .version is 4 or higher.
@@ -3222,9 +3281,9 @@ void iso_node_unref(IsoNode *node);
 enum IsoNodeType iso_node_get_type(IsoNode *node);
 
 /**
- * Function to handle particular extended information. The function
- * pointer acts as an identifier for the type of the information. Structs
- * with same information type must use the same function.
+ * Class of functions to handle particular extended information. A function
+ * instance acts as an identifier for the type of the information. Structs
+ * with same information type must use a pointer to the same function.
  *
  * @param data
  *     Attached data
@@ -3280,6 +3339,20 @@ int iso_node_add_xinfo(IsoNode *node, iso_node_xinfo_func proc, void *data);
 int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc);
 
 /**
+ * Remove all extended information  from the given node.
+ *
+ * @param node
+ *      The node where to remove all extended info
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, < 0 on error
+ *      
+ * @since 1.0.2
+ */
+int iso_node_remove_all_xinfo(IsoNode *node, int flag);
+
+/**
  * Get the given extended info (defined by the proc function) from the
  * given node.
  *
@@ -3297,6 +3370,102 @@ int iso_node_remove_xinfo(IsoNode *node, iso_node_xinfo_func proc);
  * @since 0.6.4
  */
 int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data);
+
+
+/**
+ * Get the next pair of function pointer and data of an iteration of the
+ * list of extended informations. Like:
+ *     iso_node_xinfo_func proc;
+ *     void *handle = NULL, *data; 
+ *     while (iso_node_get_next_xinfo(node, &handle, &proc, &data) == 1) {
+ *         ... make use of proc and data ...
+ *     }
+ * The iteration allocates no memory. So you may end it without any disposal
+ * action.
+ * IMPORTANT: Do not continue iterations after manipulating the extended
+ *            information of a node. Memory corruption hazard !
+ * @param node
+ *      The node to inquire
+ * @param  handle
+ *      The opaque iteration handle. Initialize iteration by submitting
+ *      a pointer to a void pointer with value NULL.
+ *      Do not alter its content until iteration has ended.
+ * @param proc
+ *      The function pointer which serves as key
+ * @param data
+ *      Will be filled with the extended info corresponding to the given proc
+ *      function
+ * @return
+ *      1 on success
+ *      0 if iteration has ended (proc and data are invalid then)
+ *      < 0 on error
+ *
+ * @since 1.0.2
+ */
+int iso_node_get_next_xinfo(IsoNode *node, void **handle,
+                            iso_node_xinfo_func *proc, void **data);
+
+
+/**
+ * Class of functions to clone extended information. A function instance gets
+ * associated to a particular iso_node_xinfo_func instance by function
+ * iso_node_xinfo_make_clonable(). This is a precondition to have IsoNode
+ * objects clonable which carry data for a particular iso_node_xinfo_func.
+ *
+ * @param old_data
+ *     Data item to be cloned
+ * @param new_data
+ *     Shall return the cloned data item
+ * @param flag
+ *     Unused yet, submit 0
+ *     The function shall return ISO_XINFO_NO_CLONE on unknown flag bits.
+ * @return
+ *     > 0 number of allocated bytes
+ *       0 no size info is available
+ *     < 0 error
+ * 
+ * @since 1.0.2
+ */
+typedef int (*iso_node_xinfo_cloner)(void *old_data, void **new_data,int flag);
+
+/**
+ * Associate a iso_node_xinfo_cloner to a particular class of extended
+ * information in order to make it clonable.
+ *
+ * @param proc
+ *     The key and disposal function which identifies the particular
+ *     extended information class.
+ * @param cloner
+ *     The cloner function which shall be associated with proc.
+ * @param flag
+ *     Unused yet, submit 0
+ * @return
+ *     1 success, < 0 error
+ * 
+ * @since 1.0.2
+ */
+int iso_node_xinfo_make_clonable(iso_node_xinfo_func proc,
+                                 iso_node_xinfo_cloner cloner, int flag);
+
+/**
+ * Inquire the registered cloner function for a particular class of
+ * extended information.
+ *
+ * @param proc
+ *     The key and disposal function which identifies the particular
+ *     extended information class.
+ * @param cloner
+ *     Will return the cloner function which is associated with proc, or NULL.
+ * @param flag
+ *     Unused yet, submit 0
+ * @return
+ *     1 success, 0 no cloner registered for proc, < 0 error
+ * 
+ * @since 1.0.2
+ */
+int iso_node_xinfo_get_cloner(iso_node_xinfo_func proc,
+                              iso_node_xinfo_cloner *cloner, int flag);
+
 
 /**
  * Set the name of a node. Note that if the node is already added to a dir
@@ -4456,17 +4625,24 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
  * clone_stream().
  * Surely clonable node types are:
  *   IsoDir,
- *   >>> IsoSymlink,
- *   >>> IsoSpecial,
- *   IsoFile from a loaded ISO image without filter streams,
- * >>> IsoFile referring to local filesystem files without filter streams.
+ *   IsoSymlink,
+ *   IsoSpecial,
+ *   IsoFile from a loaded ISO image,
+ *   IsoFile referring to local filesystem files,
+ *   IsoFile created by iso_tree_add_new_file
+ *           from a stream created by iso_memory_stream_new(),
+ *   IsoFile created by iso_tree_add_new_cut_out_node()
  * Silently ignored are nodes of type IsoBoot.
- * An IsoFile node with filter streams can be cloned if all those filters
+ * An IsoFile node with IsoStream filters can be cloned if all those filters
  * are clonable and the node would be clonable without filter.
- * Clonable filter streams are created by:
+ * Clonable IsoStream filters are created by:
  *   iso_file_add_zisofs_filter()
  *   iso_file_add_gzip_filter()
  *   iso_file_add_external_filter()
+ * An IsoNode with extended information as of iso_node_add_xinfo() can only be
+ * cloned if each of the iso_node_xinfo_func instances is associated to a
+ * clone function. See iso_node_xinfo_make_clonable().
+ * All internally used classes of extended information are clonable.
  * 
  * @param node
  *      The node to be cloned.
@@ -5334,6 +5510,12 @@ int iso_stream_clone(IsoStream *old_stream, IsoStream **new_stream, int flag);
  */
 int aaip_xinfo_func(void *data, int flag);
 
+/**
+ * The iso_node_xinfo_cloner function which gets associated to aaip_xinfo_func
+ * by iso_init() resp. iso_init_with_flag() via iso_node_xinfo_make_clonable().
+ * @since 1.0.2
+ */
+int aaip_xinfo_cloner(void *old_data, void **new_data, int flag);
 
 /**
  * Get the eventual ACLs which are associated with the node.
@@ -6616,6 +6798,11 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Data file input stream object offers no cloning method
                                                        (FAILURE, HIGH, -374) */
 #define ISO_STREAM_NO_CLONE        0xE830FE8A
+
+/** Extended information class offers no cloning method
+                                                       (FAILURE, HIGH, -375) */
+#define ISO_XINFO_NO_CLONE         0xE830FE89
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

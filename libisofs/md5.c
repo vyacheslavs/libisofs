@@ -424,6 +424,22 @@ int checksum_cx_xinfo_func(void *data, int flag)
     return 1;
 }
 
+/* The iso_node_xinfo_cloner function which gets associated to
+ * checksum_cx_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int checksum_cx_xinfo_cloner(void *old_data, void **new_data, int flag)
+{
+    *new_data = NULL;
+    if (flag)
+        return ISO_XINFO_NO_CLONE;
+    if (old_data == NULL)
+        return 0;
+    /* data is an int disguised as pointer. It does not point to memory. */
+    *new_data = old_data;
+    return 0;
+}
+
 
 /* Function to identify and manage md5 sums of unspecified providence stored
  * directly in this xinfo.
@@ -434,6 +450,24 @@ int checksum_md5_xinfo_func(void *data, int flag)
         return 1;
     free(data);
     return 1;
+}
+
+/* The iso_node_xinfo_cloner function which gets associated to
+ * checksum_md5_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int checksum_md5_xinfo_cloner(void *old_data, void **new_data, int flag)
+{
+    *new_data = NULL;
+    if (flag)
+        return ISO_XINFO_NO_CLONE;
+    if (old_data == NULL)
+        return 0;
+    *new_data = calloc(1, 16);
+    if (*new_data == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(*new_data, old_data, 16);
+    return 16;
 }
 
 

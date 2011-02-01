@@ -41,7 +41,7 @@
  * for classical pipe filtering.
  */
 
-
+/* IMPORTANT: Any change must be reflected by extf_clone_stream() */
 /*
  * Individual runtime properties exist only as long as the stream is opened.
  */
@@ -606,6 +606,9 @@ int extf_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
     IsoStream *new_input_stream, *stream;
     ExternalFilterStreamData *stream_data, *old_stream_data;
     
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
+
     stream_data = calloc(1, sizeof(ExternalFilterStreamData));
     if (stream_data == NULL)
         return ISO_OUT_OF_MEM;

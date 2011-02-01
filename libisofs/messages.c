@@ -37,6 +37,7 @@
 #include "messages.h"
 
 #include "util.h"
+#include "node.h"
 
 
 /*
@@ -80,11 +81,69 @@ int abort_threshold = LIBISO_MSGS_SEV_FAILURE;
 struct libiso_msgs *libiso_msgr = NULL;
 
 
+/* ------------- List of xinfo clone functions ----------- */
+
+struct iso_xinfo_cloner_assoc {
+    iso_node_xinfo_func proc;
+    iso_node_xinfo_cloner cloner;
+    struct iso_xinfo_cloner_assoc *next;
+};
+
+struct iso_xinfo_cloner_assoc *iso_xinfo_cloner_list = NULL;
+
+/* API */
+int iso_node_xinfo_make_clonable(iso_node_xinfo_func proc,
+                                 iso_node_xinfo_cloner cloner, int flag)
+{
+    struct iso_xinfo_cloner_assoc *assoc;
+
+    assoc = calloc(1, sizeof(struct iso_xinfo_cloner_assoc));
+    if (assoc == NULL)
+        return ISO_OUT_OF_MEM;
+    assoc->proc = proc;
+    assoc->cloner = cloner;
+    assoc->next = iso_xinfo_cloner_list;
+    iso_xinfo_cloner_list = assoc;
+    return ISO_SUCCESS;
+}
+
+/* API */
+int iso_node_xinfo_get_cloner(iso_node_xinfo_func proc,
+                              iso_node_xinfo_cloner *cloner, int flag)
+{
+    struct iso_xinfo_cloner_assoc *assoc;
+
+    *cloner = NULL;
+    for (assoc = iso_xinfo_cloner_list; assoc != NULL; assoc = assoc->next) {
+        if (assoc->proc != proc)
+    continue;
+        *cloner = assoc->cloner;
+        return 1;
+    }
+    return 0;
+}
+
+static
+int iso_node_xinfo_dispose_cloners(int flag)
+{
+    struct iso_xinfo_cloner_assoc *assoc, *next;
+
+    for (assoc = iso_xinfo_cloner_list; assoc != NULL; assoc = next) {
+        next = assoc->next;
+        free((char *) assoc);
+    }
+    return(1);
+}
+
+/* ------------- End of xinfo clone functions list ----------- */
+
+
 /*
   @param flag  bit0= do not set up locale by LC_* environment variables
 */
 int iso_init_with_flag(int flag)
 {
+    int ret;
 
 #ifdef Libisofs_with_libjtE
 
@@ -120,7 +179,6 @@ LIBJTE_MISCONFIGURATION_ = 0;
 
 #endif /* Libisofs_with_libjtE */
 
-
     if (! (flag & 1)) {
         iso_init_locale(0);
     }
@@ -130,9 +188,28 @@ LIBJTE_MISCONFIGURATION_ = 0;
     }
     libiso_msgs_set_severities(libiso_msgr, LIBISO_MSGS_SEV_NEVER,
                    LIBISO_MSGS_SEV_FATAL, "libisofs: ", 0);
+
+    ret = iso_node_xinfo_make_clonable(aaip_xinfo_func, aaip_xinfo_cloner, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_node_xinfo_make_clonable(checksum_cx_xinfo_func,
+                                       checksum_cx_xinfo_cloner, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_node_xinfo_make_clonable(checksum_md5_xinfo_func,
+                                       checksum_md5_xinfo_cloner, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_node_xinfo_make_clonable(zisofs_zf_xinfo_func,
+                                       zisofs_zf_xinfo_cloner, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_node_xinfo_make_clonable(iso_px_ino_xinfo_func,
+                                       iso_px_ino_xinfo_cloner, 0);
+    if (ret < 0)
+        return ret;
     return 1;
 }
-
 
 int iso_init()
 {
@@ -142,6 +219,7 @@ int iso_init()
 void iso_finish()
 {
     libiso_msgs_destroy(&libiso_msgr, 0);
+    iso_node_xinfo_dispose_cloners(0);
 }
 
 int iso_set_abort_severity(char *severity)
@@ -366,6 +444,8 @@ const char *iso_error_to_msg(int errcode)
         return "File name cannot be written into ECMA-119 untranslated";
     case ISO_STREAM_NO_CLONE:
         return "Data file input stream object offers no cloning method";
+    case ISO_XINFO_NO_CLONE:
+        return "Extended information class offers no cloning method";
     default:
         return "Unknown error";
     }

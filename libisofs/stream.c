@@ -157,20 +157,18 @@ int fsrc_update_size(IsoStream *stream)
     return ISO_SUCCESS;
 }
 
+static 
 IsoStream *fsrc_get_input_stream(IsoStream *stream, int flag)
 {
     return NULL;
 }
 
+static 
 int fsrc_cmp_ino(IsoStream *s1, IsoStream *s2)
 {
     int ret;
 
-    /* <<< provisory */
     ret = iso_stream_cmp_ino(s1, s2, 1);
-
-    /* >>> find out whether both streams point to the same image file */;
-
     return ret;
 }
 
@@ -180,6 +178,13 @@ int fsrc_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
     FSrcStreamData *data, *new_data;
     IsoStream *stream;
     int ret;
+
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
+
+    data = (FSrcStreamData*) old_stream->data;
+    if (data->src->class->version < 2)
+        return ISO_STREAM_NO_CLONE; /* No clone_src() method available */
 
     *new_stream = NULL;
     stream = calloc(1, sizeof(IsoStream));
@@ -191,12 +196,11 @@ int fsrc_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
         return ISO_OUT_OF_MEM;
     }
     *new_stream = stream;
-    data = (FSrcStreamData*) old_stream->data;
     stream->class = old_stream->class;
     stream->refcount = 1;
     stream->data = new_data;
-    
-    ret = iso_ifs_source_clone(data->src, &(new_data->src), 0);
+
+    ret = data->src->class->clone_src(data->src, &(new_data->src), 0);
     if (ret < 0) {
         free((char *) stream);
         free((char *) new_data);
@@ -210,7 +214,7 @@ int fsrc_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
 }
 
 IsoStreamIface fsrc_stream_class = {
-    4, /* .clone_stream() is defined for this stream */
+    4, /* version */
     "fsrc",
     fsrc_open,
     fsrc_close,
@@ -430,11 +434,76 @@ void cut_out_free(IsoStream *stream)
     free(data);
 }
 
+static
+int cut_out_update_size(IsoStream *stream)
+{
+    return ISO_SUCCESS;
+}
+
+static 
+IsoStream* cut_out_get_input_stream(IsoStream *stream, int flag)
+{
+    return NULL;
+}
+
+static
+int cut_out_cmp_ino(IsoStream *s1, IsoStream *s2)
+{
+    int ret;
+
+    ret = iso_stream_cmp_ino(s1, s2, 1);
+    return ret;
+}
+
+static
+int cut_out_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
+                      int flag)
+{
+    struct cut_out_stream *data, *new_data;
+    IsoStream *stream;
+    int ret;
+
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
+
+    data = (struct cut_out_stream *) old_stream->data;
+    if (data->src->class->version < 2)
+        return ISO_STREAM_NO_CLONE; /* No clone_src() method available */
+
+    *new_stream = NULL;
+    stream = calloc(1, sizeof(IsoStream));
+    if (stream == NULL)
+        return ISO_OUT_OF_MEM;
+    stream->refcount = 1;
+    stream->class = old_stream->class;
+    new_data = calloc(1, sizeof(struct cut_out_stream));
+    if (new_data == NULL) {
+        free((char *) stream);
+        return ISO_OUT_OF_MEM;
+    }
+    ret = data->src->class->clone_src(data->src, &(new_data->src), 0);
+    if (ret < 0) {
+        free((char *) stream);
+        free((char *) new_data);
+        return ret;
+    }
+
+    new_data->dev_id = (dev_t) 0;
+    new_data->ino_id = cut_out_serial_id++;
+    new_data->offset = data->offset;
+    new_data->size = data->size;
+    new_data->pos = 0;
+
+    stream->data = new_data;
+    *new_stream = stream;
+    return ISO_SUCCESS;
+}
+
 /*
  * TODO update cut out streams to deal with update_size(). Seems hard.
  */
 IsoStreamIface cut_out_stream_class = {
-    0,
+    4, /* version */
     "cout",
     cut_out_open,
     cut_out_close,
@@ -442,7 +511,12 @@ IsoStreamIface cut_out_stream_class = {
     cut_out_read,
     cut_out_is_repeatable,
     cut_out_get_id,
-    cut_out_free
+    cut_out_free,
+    cut_out_update_size,
+    cut_out_get_input_stream,
+    cut_out_cmp_ino,
+    cut_out_clone_stream
+    
 };
 
 int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
@@ -604,12 +678,77 @@ void mem_free(IsoStream *stream)
 {
     MemStreamData *data;
     data = (MemStreamData*)stream->data;
-    free(data->buf);
+    if (data->buf != NULL)
+        free(data->buf);
     free(data);
 }
 
+static
+int mem_update_size(IsoStream *stream)
+{
+    return ISO_SUCCESS;
+}
+
+static 
+IsoStream* mem_get_input_stream(IsoStream *stream, int flag)
+{
+    return NULL;
+}
+
+static
+int mem_cmp_ino(IsoStream *s1, IsoStream *s2)
+{
+    int ret;
+
+    ret = iso_stream_cmp_ino(s1, s2, 1);
+    return ret;
+}
+
+static
+int mem_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
+                      int flag)
+{
+    MemStreamData *data, *new_data;
+    IsoStream *stream;
+    uint8_t *new_buf = NULL;
+
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
+
+    *new_stream = NULL;
+    stream = calloc(1, sizeof(IsoStream));
+    if (stream == NULL)
+        return ISO_OUT_OF_MEM;
+    stream->refcount = 1;
+    stream->class = old_stream->class;
+    new_data = calloc(1, sizeof(MemStreamData));
+    if (new_data == NULL) {
+        free((char *) stream);
+        return ISO_OUT_OF_MEM;
+    }
+    data = (MemStreamData *) old_stream->data;
+    if (data->size > 0) {
+        new_buf = calloc(1, data->size);
+        if (new_buf == NULL) {
+            free((char *) stream);
+            free((char *) new_data);
+            return ISO_OUT_OF_MEM;
+        }
+        memcpy(new_buf, data->buf, data->size);
+    }
+    new_data->buf = new_buf;
+    new_data->offset = -1;
+    new_data->ino_id = mem_serial_id++;
+    new_data->size = data->size;
+
+    stream->data = new_data;
+    *new_stream = stream;
+    return ISO_SUCCESS;
+}
+
+
 IsoStreamIface mem_stream_class = {
-    0,
+    4, /* version */
     "mem ",
     mem_open,
     mem_close,
@@ -617,7 +756,12 @@ IsoStreamIface mem_stream_class = {
     mem_read,
     mem_is_repeatable,
     mem_get_id,
-    mem_free
+    mem_free,
+    mem_update_size,
+    mem_get_input_stream,
+    mem_cmp_ino,
+    mem_clone_stream
+
 };
 
 /**

@@ -154,7 +154,7 @@ static int gzip_compression_level = 6;
 /*
  * The data payload of an individual Gzip Filter IsoStream
  */
-/* IMPORTANT: Any change must be reflected by >>> _clone() */
+/* IMPORTANT: Any change must be reflected by gzip_clone_stream() */
 typedef struct
 {
     IsoStream *orig;
@@ -537,6 +537,9 @@ int gzip_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
     int ret;
     IsoStream *new_input_stream, *stream;
     GzipFilterStreamData *stream_data, *old_stream_data;
+
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
 
     stream_data = calloc(1, sizeof(GzipFilterStreamData));
     if (stream_data == NULL)

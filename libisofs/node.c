@@ -226,6 +226,77 @@ int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data)
     return 0;
 }
 
+/* API */
+int iso_node_get_next_xinfo(IsoNode *node, void **handle,
+                            iso_node_xinfo_func *proc, void **data)
+{
+    IsoExtendedInfo *xinfo;
+
+    if (node == NULL || handle == NULL || proc == NULL || data == NULL)
+        return ISO_NULL_POINTER;
+    *proc = NULL;
+    *data = NULL;
+    xinfo = (IsoExtendedInfo *) *handle;
+    if (xinfo == NULL)
+        xinfo = node->xinfo;
+    else
+        xinfo = xinfo->next;
+    *handle = xinfo;
+    if (xinfo == NULL)
+        return 0;
+    *proc = xinfo->process;
+    *data = xinfo->data;
+    return ISO_SUCCESS;
+}
+
+int iso_node_remove_all_xinfo(IsoNode *node, int flag)
+{
+    IsoExtendedInfo *pos, *next;
+
+    for (pos = node->xinfo; pos != NULL; pos = next) {
+        next = pos->next;
+        pos->process(pos->data, 1);
+        free((char *) pos);
+    }
+    node->xinfo = NULL;
+    return ISO_SUCCESS;
+}
+
+int iso_node_clone_xinfo(IsoNode *from_node, IsoNode *to_node, int flag)
+{
+    void *handle = NULL, *data, *new_data;
+    iso_node_xinfo_func proc;
+    iso_node_xinfo_cloner cloner;
+    int ret;
+
+    iso_node_remove_all_xinfo(to_node, 0);
+    while (1) {
+        ret = iso_node_get_next_xinfo(from_node, &handle, &proc, &data);
+        if (ret <= 0)
+    break;
+        ret = iso_node_xinfo_get_cloner(proc, &cloner, 0);
+        if (ret == 0)
+            return ISO_XINFO_NO_CLONE;
+        if (ret < 0)
+            return ret;
+        ret = (*cloner)(data, &new_data, 0);
+        if (ret < 0)
+    break;
+        ret = iso_node_add_xinfo(to_node, proc, new_data);
+        if (ret < 0)
+    break;
+    }
+    if (ret < 0) {
+        iso_node_remove_all_xinfo(to_node, 0);
+        return ret;
+    } else {
+
+        /* >>> revert order of xinfo list */;
+
+    }
+    return ISO_SUCCESS;
+}
+
 /**
  * Get the type of an IsoNode.
  */
@@ -651,6 +722,9 @@ int iso_node_take(IsoNode *node)
     if (dir == NULL) {
         return ISO_NODE_NOT_ADDED_TO_DIR;
     }
+
+    /* >>> Do not take root directory ! (dir == node) ? */;
+
     pos = iso_dir_find_node(dir, node);
     if (pos == NULL) {
         /* should never occur */
@@ -694,6 +768,9 @@ int iso_node_remove_tree(IsoNode *node, IsoDirIter *boss_iter)
     int ret;
 
     if (node->type != LIBISO_DIR) {
+
+        /* >>> Do not remove root directory ! (node->parent == node) ? */;
+
         ret = iso_dir_get_children((IsoDir *) node, &iter);
         if (ret < 0)
             goto ex;
@@ -704,6 +781,11 @@ int iso_node_remove_tree(IsoNode *node, IsoDirIter *boss_iter)
             ret = iso_node_remove_tree(sub_node, iter);
             if (ret < 0)
                 goto ex;
+        }
+        if (node->parent == NULL) {
+            /* node is not grafted into a boss directory */
+            iso_node_unref(node);
+            goto ex;
         }
     }
     if (boss_iter != NULL)
@@ -2183,6 +2265,23 @@ int zisofs_zf_xinfo_func(void *data, int flag)
     return 1;
 }
 
+/* The iso_node_xinfo_cloner function which gets associated to
+ * zisofs_zf_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int zisofs_zf_xinfo_cloner(void *old_data, void **new_data, int flag)
+{
+    *new_data = NULL;
+    if (flag)
+        return ISO_XINFO_NO_CLONE;
+    if (old_data == NULL)
+        return 0;
+    *new_data = calloc(1, sizeof(struct zisofs_zf_info));
+    if (*new_data == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(*new_data, old_data, sizeof(struct zisofs_zf_info));
+    return (int) sizeof(struct zisofs_zf_info);
+}
 
 /* Checks whether a file effectively bears a zisofs file header and eventually
  * marks this by a struct zisofs_zf_info as xinfo of the file node.
@@ -2304,6 +2403,21 @@ int iso_px_ino_xinfo_func(void *data, int flag)
     return 1;
 }
 
+/* The iso_node_xinfo_cloner function which gets associated to
+ * iso_px_ino_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int iso_px_ino_xinfo_cloner(void *old_data, void **new_data, int flag)
+{
+    *new_data = NULL;
+    if (flag)
+        return ISO_XINFO_NO_CLONE; 
+    *new_data = calloc(1, sizeof(ino_t));
+    if (*new_data == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(*new_data, old_data, sizeof(ino_t));
+    return (int) sizeof(ino_t);
+}
 
 /*
  * @param flag
@@ -2393,7 +2507,6 @@ int iso_node_set_ino_xinfo(IsoNode *node, ino_t ino, int flag)
     ret = iso_node_add_xinfo(node, iso_px_ino_xinfo_func, xipt);
     return ret;
 }
-
 
 int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
 {

@@ -482,4 +482,35 @@ int iso_root_get_isofsca(IsoNode *node, uint32_t *start_lba, uint32_t *end_lba,
                          int flag);
 
 
+/**
+ * Copy the xinfo list from one node to the another.
+ */
+int iso_node_clone_xinfo(IsoNode *from_node, IsoNode *to_node, int flag);
+
+
+/**
+ * The iso_node_xinfo_func instance which governs the storing of the inode
+ * number from Rock Ridge field PX.
+ */
+int iso_px_ino_xinfo_func(void *data, int flag);
+
+/* The iso_node_xinfo_cloner function which gets associated to
+ * iso_px_ino_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int iso_px_ino_xinfo_cloner(void *old_data, void **new_data, int flag);
+
+
+/* Function to identify and manage ZF parameters of zisofs compression.
+ * data is supposed to be a pointer to struct zisofs_zf_info
+ */
+int zisofs_zf_xinfo_func(void *data, int flag);
+
+/* The iso_node_xinfo_cloner function which gets associated to
+ * zisofs_zf_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int zisofs_zf_xinfo_cloner(void *old_data, void **new_data, int flag);
+
+
 #endif /*LIBISO_NODE_H_*/

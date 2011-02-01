@@ -905,7 +905,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     return 1;
 }
 
-
+/* API */
 int aaip_xinfo_func(void *data, int flag)
 {
     if (flag & 1) {
@@ -914,6 +914,23 @@ int aaip_xinfo_func(void *data, int flag)
     return 1;
 }
 
+/* API */
+int aaip_xinfo_cloner(void *old_data, void **new_data, int flag)
+{
+    size_t aa_size;
+
+    *new_data = NULL;
+    if (old_data == NULL)
+        return 0;
+    aa_size = aaip_count_bytes((unsigned char *) old_data, 0);
+    if (aa_size <= 0)
+        return ISO_AAIP_BAD_AASTRING;
+    *new_data = calloc(1, aa_size);
+    if (*new_data == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(*new_data, old_data, aa_size);
+    return (int) aa_size;
+}
 
 /**
  * Compute SUA length and eventual Continuation Area length of field NM and

@@ -998,6 +998,24 @@ char *iso_tree_get_node_path(IsoNode *node)
 /* ------------------------- tree cloning ------------------------------ */
 
 static
+int iso_tree_copy_node_attr(IsoNode *old_node, IsoNode *new_node, int flag)
+{
+    int ret;
+
+    new_node->mode = old_node->mode;
+    new_node->uid = old_node->uid;
+    new_node->gid = old_node->gid;
+    new_node->atime = old_node->atime;
+    new_node->mtime = old_node->mtime;
+    new_node->ctime = old_node->ctime;
+    new_node->hidden = old_node->hidden;
+    ret = iso_node_clone_xinfo(old_node, new_node, 0);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+static
 int iso_tree_clone_dir(IsoDir *old_dir,
                        IsoDir *new_parent, char *new_name, IsoNode **new_node,
                        int flag)
@@ -1012,7 +1030,10 @@ int iso_tree_clone_dir(IsoDir *old_dir,
     ret = iso_tree_add_new_dir(new_parent, new_name, &new_dir);
     if (ret < 0)
         return ret;
-    *new_node = (IsoNode *) new_dir;
+    /* Avoid early grafting of directory to allow cloning of old_dir to a
+       subordinate of old_dir.
+    */
+    iso_node_take((IsoNode *) new_dir);
 
     ret = iso_dir_get_children(old_dir, &iter);
     if (ret < 0)
@@ -1026,6 +1047,13 @@ int iso_tree_clone_dir(IsoDir *old_dir,
         if (ret < 0)
             goto ex;
     }
+
+    /* Now really graft in the new tree */
+    ret = iso_dir_add_node(new_parent, (IsoNode *) new_dir, 0);
+    if (ret < 0)
+        goto ex;
+
+    *new_node = (IsoNode *) new_dir;
     ret = ISO_SUCCESS;
 ex:;
     if (iter != NULL)
@@ -1055,6 +1083,7 @@ int iso_tree_clone_file(IsoFile *old_file,
     ret = iso_tree_add_new_file(new_parent, new_name, new_stream, &new_file);
     if (ret < 0)
         goto ex;
+    new_stream = NULL; /* now owned by new_file */
     new_file->sort_weight = old_file->sort_weight;
     *new_node = (IsoNode *) new_file;
     ret = ISO_SUCCESS;
@@ -1062,6 +1091,47 @@ ex:;
     if (new_stream != NULL)
         iso_stream_unref(new_stream);
     return ret;
+}
+
+static
+int iso_tree_clone_symlink(IsoSymlink *node,
+                        IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                        int flag)
+{
+    IsoSymlink *new_sym;
+    int ret;
+
+    *new_node = NULL;
+
+    ret = iso_tree_add_new_symlink(new_parent, new_name, node->dest, &new_sym);
+    if (ret < 0)
+        return ret;
+    new_sym->fs_id = node->fs_id;
+    new_sym->st_dev = node->st_dev;
+    new_sym->st_ino = node->st_ino;
+    *new_node = (IsoNode *) new_sym;
+    return ISO_SUCCESS;
+}
+
+static
+int iso_tree_clone_special(IsoSpecial *node,
+                        IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                        int flag)
+{
+    IsoSpecial *new_spec;
+    IsoNode *iso_node;
+    int ret;
+
+    iso_node = (IsoNode *) node;
+    ret = iso_tree_add_new_special(new_parent, new_name, iso_node->mode,
+                                   node->dev, &new_spec);
+    if (ret < 0)
+        return ret;
+    new_spec->fs_id = node->fs_id;
+    new_spec->st_dev = node->st_dev;
+    new_spec->st_ino = node->st_ino;
+    *new_node = (IsoNode *) new_spec;
+    return ISO_SUCCESS;
 }
 
 /* API */
@@ -1074,7 +1144,6 @@ int iso_tree_clone(IsoNode *node,
     if (iso_dir_get_node(new_parent, new_name, NULL) == 1)
         return ISO_NODE_NAME_NOT_UNIQUE;
 
-    /* >>> clone particular node types */;
     if (node->type == LIBISO_DIR) {
         ret = iso_tree_clone_dir((IsoDir *) node, new_parent, new_name,
                                  new_node, 0);
@@ -1082,12 +1151,17 @@ int iso_tree_clone(IsoNode *node,
         ret = iso_tree_clone_file((IsoFile *) node, new_parent, new_name, 
                                   new_node, 0);
     } else if (node->type == LIBISO_SYMLINK) {
-        /* >>> */;
+        ret = iso_tree_clone_symlink((IsoSymlink *) node, new_parent, new_name,
+                                  new_node, 0);
     } else if (node->type == LIBISO_SPECIAL) {
-        /* >>> */;
+        ret = iso_tree_clone_special((IsoSpecial *) node, new_parent, new_name,
+                                    new_node, 0);
     } else if (node->type == LIBISO_BOOT) {
-       ret = ISO_SUCCESS; /* API says they are silently ignored */
+        ret = ISO_SUCCESS; /* API says they are silently ignored */
     }
+    if (ret < 0)
+        return ret;
+    ret = iso_tree_copy_node_attr(node, *new_node, 0);
     return ret;
 }
 

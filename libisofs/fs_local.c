@@ -39,7 +39,7 @@ int iso_file_source_new_lfs(IsoFileSource *parent, const char *name,
  */
 IsoFilesystem *lfs= NULL;
 
-
+/* IMPORTANT: Any change must be reflected by lfs_clone_src() */
 typedef struct
 {
     /** reference to the parent (if root it points to itself) */
@@ -534,10 +534,54 @@ ex:;
     return ret;
 }
 
+static
+int lfs_clone_src(IsoFileSource *old_source,
+                  IsoFileSource **new_source, int flag)
+{
+    IsoFileSource *src = NULL;
+    char *new_name = NULL;
+    _LocalFsFileSource *old_data, *new_data = NULL;
+
+    if (flag)
+        return ISO_STREAM_NO_CLONE; /* unknown option required */
+
+    old_data = (_LocalFsFileSource *) old_source->data;
+    *new_source = NULL;  
+    src = calloc(1, sizeof(IsoFileSource));
+    if (src == NULL)
+        goto no_mem;
+    new_name = strdup(old_data->name);
+    if (new_name == NULL) 
+        goto no_mem;
+
+    new_data = calloc(1, sizeof(_LocalFsFileSource));
+    if (new_data == NULL)
+        goto no_mem;
+    new_data->openned = 0;
+    new_data->info.fd = -1; /* the value does not matter with (openned == 0) */
+    new_data->name = new_name;
+    new_data->parent = old_data->parent;
+    iso_file_source_ref(new_data->parent);
+
+    src->class = old_source->class;
+    src->refcount = 1;
+    src->data = new_data;
+    *new_source = src;
+    return ISO_SUCCESS;
+no_mem:;
+    if (src != NULL)
+        free((char *) src);
+    if (new_data != NULL)
+        free((char *) new_data);
+    if (new_name != NULL)
+        free(new_name);
+    return ISO_OUT_OF_MEM;
+}
+
 
 IsoFileSourceIface lfs_class = { 
 
-    1, /* version */
+    2, /* version */
     lfs_get_path,
     lfs_get_name,
     lfs_lstat,
@@ -551,7 +595,8 @@ IsoFileSourceIface lfs_class = {
     lfs_get_filesystem,
     lfs_free,
     lfs_lseek,
-    lfs_get_aa_string
+    lfs_get_aa_string,
+    lfs_clone_src
 
 };
 

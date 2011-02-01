@@ -1,5 +1,6 @@
 LIBISOFS6 {
 global:
+aaip_xinfo_cloner;
 aaip_xinfo_func;
 el_torito_get_bootable;
 el_torito_get_boot_media_type;
@@ -156,6 +157,7 @@ iso_node_get_hidden;
 iso_node_get_mode;
 iso_node_get_mtime;
 iso_node_get_name;
+iso_node_get_next_xinfo;
 iso_node_get_old_image_lba;
 iso_node_get_parent;
 iso_node_get_permissions;
@@ -166,6 +168,7 @@ iso_node_get_xinfo;
 iso_node_lookup_attr;
 iso_node_ref;
 iso_node_remove;
+iso_node_remove_all_xinfo;
 iso_node_remove_tree;
 iso_node_remove_xinfo;
 iso_node_set_acl_text;
@@ -181,6 +184,8 @@ iso_node_set_sort_weight;
 iso_node_set_uid;
 iso_node_take;
 iso_node_unref;
+iso_node_xinfo_get_cloner;
+iso_node_xinfo_make_clonable;
 iso_node_zf_by_magic;
 iso_obtain_msgs;
 iso_read_image_features_destroy;
