@@ -97,15 +97,20 @@ int iso_node_xinfo_make_clonable(iso_node_xinfo_func proc,
 {
     struct iso_xinfo_cloner_assoc *assoc;
 
-    /* >>> look for existing assoc of proc */;
+    /* Look for existing assoc of proc */
+    for (assoc = iso_xinfo_cloner_list; assoc != NULL; assoc = assoc->next) 
+        if (assoc->proc == proc)
+    break;
 
-    assoc = calloc(1, sizeof(struct iso_xinfo_cloner_assoc));
-    if (assoc == NULL)
-        return ISO_OUT_OF_MEM;
-    assoc->proc = proc;
+    if (assoc == NULL) {
+        assoc = calloc(1, sizeof(struct iso_xinfo_cloner_assoc));
+        if (assoc == NULL)
+            return ISO_OUT_OF_MEM;
+        assoc->proc = proc;
+        assoc->next = iso_xinfo_cloner_list;
+        iso_xinfo_cloner_list = assoc;
+    }
     assoc->cloner = cloner;
-    assoc->next = iso_xinfo_cloner_list;
-    iso_xinfo_cloner_list = assoc;
     return ISO_SUCCESS;
 }
 
