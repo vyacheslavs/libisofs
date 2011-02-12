@@ -22,6 +22,8 @@ Purpose:
       END is also the block address of the start of the checksum recording
       area in the image.
       See also isofs.cx .
+      This attribute shall eventually be attached to the root directory entry
+      and be global for the whole image.
 
 Format of Value:
       START_LEN | START_BYTES | END_LEN | END_BYTES |
@@ -150,7 +152,7 @@ Registered:
 -------------------------------------------------------------------------------
 
 This text is under
-Copyright (c) 2009 - 2010 Thomas Schmitt <scdbackup@gmx.net>
+Copyright (c) 2009 - 2011 Thomas Schmitt <scdbackup@gmx.net>
 It shall only be modified in sync with libisofs and other software which
 makes use of AAIP. Please mail change requests to mailing list
 <libburn-hackers@pykix.org> or to the copyright holder in private.

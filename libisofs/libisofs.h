@@ -4649,11 +4649,18 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
  * @param new_parent
  *      The existing directory node where to insert the cloned node.
  * @param new_name
- *      The name for the cloned node. It must not yet exist in new_parent.
+ *      The name for the cloned node. It must not yet exist in new_parent,
+ *      unless it is a directory and node is a directory and flag bit0 is set.
  * @param new_node
- *      Will return a reference to the newly created clone.
+ *      Will return a pointer (without reference) to the newly created clone.
  * @param flag
- *      Unused yet. Submit 0.
+ *      Bitfield for control purposes. Submit any undefined bits as 0.
+ *      bit0= Merge directories rather than returning ISO_NODE_NAME_NOT_UNIQUE.
+ *            This will not allow to overwrite any existing node.
+ *            Attributes of existing directories will not be overwritten.
+ * @return
+ *      <0 means error, 1 = new node created,
+ *      2 = if flag bit0 is set: new_node is a directory which already existed.
  *
  * @since 1.0.2
  */

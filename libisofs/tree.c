@@ -1015,6 +1015,9 @@ int iso_tree_copy_node_attr(IsoNode *old_node, IsoNode *new_node, int flag)
     return ISO_SUCCESS;
 }
 
+/*
+  @param flag bit0= merge directory with *new_node
+*/
 static
 int iso_tree_clone_dir(IsoDir *old_dir,
                        IsoDir *new_parent, char *new_name, IsoNode **new_node,
@@ -1025,12 +1028,15 @@ int iso_tree_clone_dir(IsoDir *old_dir,
     IsoDirIter *iter = NULL;
     int ret;
 
-    *new_node = NULL;
-
-    ret = iso_tree_add_new_dir(new_parent, new_name, &new_dir);
-    if (ret < 0)
-        return ret;
-    /* Avoid early grafting of directory to allow cloning of old_dir to a
+    if (flag & 1) {
+        new_dir = (IsoDir *) *new_node;
+    } else {
+        *new_node = NULL;
+        ret = iso_tree_add_new_dir(new_parent, new_name, &new_dir);
+        if (ret < 0)
+           return ret;
+    }
+    /* Avoid traversal of target directory to allow cloning of old_dir to a
        subordinate of old_dir.
     */
     iso_node_take((IsoNode *) new_dir);
@@ -1043,24 +1049,30 @@ int iso_tree_clone_dir(IsoDir *old_dir,
         if (ret == 0)
     break;
         ret = iso_tree_clone(sub_node, new_dir, sub_node->name, &new_sub_node,
-                             0);
+                             flag & 1);
         if (ret < 0)
             goto ex;
     }
 
-    /* Now really graft in the new tree */
+    /* Now graft in the new tree resp. graft back the merged tree */
     ret = iso_dir_add_node(new_parent, (IsoNode *) new_dir, 0);
     if (ret < 0)
         goto ex;
 
-    *new_node = (IsoNode *) new_dir;
+    if (!(flag & 1))
+        *new_node = (IsoNode *) new_dir;
     ret = ISO_SUCCESS;
 ex:;
     if (iter != NULL)
         iso_dir_iter_free(iter);
     if (ret < 0 && new_dir != NULL) {
-        iso_node_remove_tree((IsoNode *) new_dir, NULL);
-        *new_node = NULL;
+	if (flag & 1) {
+            /* graft back the merged tree (eventually with half copy) */
+            iso_dir_add_node(new_parent, (IsoNode *) new_dir, 0);
+        } else {
+            iso_node_remove_tree((IsoNode *) new_dir, NULL);
+            *new_node = NULL;
+        }
     }
     return ret;
 }
@@ -1141,12 +1153,18 @@ int iso_tree_clone(IsoNode *node,
 {
     int ret = ISO_SUCCESS;
 
-    if (iso_dir_get_node(new_parent, new_name, NULL) == 1)
-        return ISO_NODE_NAME_NOT_UNIQUE;
+    if (iso_dir_get_node(new_parent, new_name, new_node) == 1) {
+        if (! (node->type == LIBISO_DIR && (*new_node)->type == LIBISO_DIR &&
+               (flag & 1))) {
+            *new_node = NULL;
+            return ISO_NODE_NAME_NOT_UNIQUE;
+        }
+    } else
+        flag &= ~1;
 
     if (node->type == LIBISO_DIR) {
         ret = iso_tree_clone_dir((IsoDir *) node, new_parent, new_name,
-                                 new_node, 0);
+                                 new_node, flag & 1);
     } else if (node->type == LIBISO_FILE) {
         ret = iso_tree_clone_file((IsoFile *) node, new_parent, new_name, 
                                   new_node, 0);
@@ -1161,6 +1179,8 @@ int iso_tree_clone(IsoNode *node,
     }
     if (ret < 0)
         return ret;
+    if (flag & 1)
+        return 2; /* merged two directories, *new_node is not new */
     ret = iso_tree_copy_node_attr(node, *new_node, 0);
     return ret;
 }

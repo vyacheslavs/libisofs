@@ -97,6 +97,8 @@ int iso_node_xinfo_make_clonable(iso_node_xinfo_func proc,
 {
     struct iso_xinfo_cloner_assoc *assoc;
 
+    /* >>> look for existing assoc of proc */;
+
     assoc = calloc(1, sizeof(struct iso_xinfo_cloner_assoc));
     if (assoc == NULL)
         return ISO_OUT_OF_MEM;
