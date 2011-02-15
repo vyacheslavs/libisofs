@@ -4616,8 +4616,6 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
                                   IsoNode **node);
 
 /**
- * >>> INCOMPLETLY IMPLEMENTED YET. DO NOT USE !
- *
  * Create a copy of the given node under a different path. If the node is
  * actually a directory then clone its whole subtree.
  * This call may fail because an IsoFile is encountered which gets fed by an
