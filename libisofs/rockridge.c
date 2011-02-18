@@ -1122,6 +1122,44 @@ unannounced_ca:;
 }
 
 
+/* @param flag bit0= Do not add data but only count sua_free and ce_len
+                     param info may be NULL in this case
+*/
+static
+int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
+                  size_t *sua_free, size_t *ce_len, int flag)
+{
+    int ret;
+    uint8_t *aapt;
+    void *xipt;
+    size_t num_aapt= 0;
+
+    if (!t->aaip)
+        return 1;
+
+    ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
+    if (ret == 1) {
+        num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
+        if (num_aapt > 0) {
+            if (flag & 1) {
+                ret = aaip_add_AL(t, NULL,NULL, num_aapt, sua_free, ce_len, 1);
+            } else {
+                aapt = malloc(num_aapt);
+                if (aapt == NULL)
+                    return ISO_OUT_OF_MEM;
+                memcpy(aapt, xipt, num_aapt);
+                ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
+                                  0);
+            }
+            if (ret < 0) 
+                return ret;
+            /* aapt is NULL now and the memory is owned by t */
+        }
+    }
+    return 1;
+}
+
+
 /**
  * Compute the length needed for write all RR and SUSP entries for a given
  * node.
@@ -1141,6 +1179,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
 {
     size_t su_size, space;
     int ret;
+    size_t aaip_sua_free= 0, aaip_len= 0;
 
     /* Directory record length must be even (ECMA-119, 9.1.13). Maximum is 254.
     */
@@ -1218,9 +1257,15 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
             } else {
                 *ce = 182;
             }
-            if (t->aaip) {
+            if (t->aaip && !t->aaip_susp_1_10) {
                 *ce += 160; /* ER of AAIP */
             }
+            /* Compute length of AAIP string of root node */
+            aaip_sua_free= 0;
+            ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, 1);
+            if (ret < 0)
+               return ret;
+            *ce += aaip_len;
         }
     }
 
@@ -1249,43 +1294,6 @@ void susp_info_free(struct susp_info* susp)
         free(susp->ce_susp_fields[i]);
     }
     free(susp->ce_susp_fields);
-}
-
-
-/* @param flag bit0= Do not add data but only count sua_free and ce_len
-*/
-static
-int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
-                  size_t *sua_free, size_t *ce_len, int flag)
-{
-    int ret;
-    uint8_t *aapt;
-    void *xipt;
-    size_t num_aapt= 0;
-
-    if (!t->aaip)
-        return 1;
-
-    ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
-    if (ret == 1) {
-        num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
-        if (num_aapt > 0) {
-            if (flag & 1) {
-                ret = aaip_add_AL(t, NULL,NULL, num_aapt, sua_free, ce_len, 1);
-            } else {
-                aapt = malloc(num_aapt);
-                if (aapt == NULL)
-                    return ISO_OUT_OF_MEM;
-                memcpy(aapt, xipt, num_aapt);
-                ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
-                                  0);
-            }
-            if (ret < 0) 
-                return ret;
-            /* aapt is NULL now and the memory is owned by t */
-        }
-    }
-    return 1;
 }
 
 
@@ -1705,7 +1713,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
             /* Compute length of AAIP string of root node */
             aaip_sua_free= 0;
-            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, 1);
+            ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, 1);
             if (ret < 0)
                 goto add_susp_cleanup;
 
