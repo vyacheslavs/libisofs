@@ -1074,11 +1074,12 @@ int match_hardlinks(Ecma119Image *img, Ecma119Node *dir, int flag)
     iso_node_get_id(nodes[0]->node, &fs_id, &dev_id, &img_ino, 1);
     family_start = 0;
     for (i = 1; i < node_count; i++) {
-        if (ecma119_node_cmp_hard(nodes + (i - 1), nodes + i) == 0) {
+        if (nodes[i]->type != ECMA119_DIR &&
+            ecma119_node_cmp_hard(nodes + (i - 1), nodes + i) == 0) {
             /* Still in same ino family */
             if (img_ino == 0) { /* Just in case any member knows its img_ino */
                 iso_node_get_id(nodes[0]->node, &fs_id, &dev_id, &img_ino, 1);
-           }
+            }
     continue;
         }
         family_set_ino(img, nodes, family_start, i, img_ino, prev_ino, 0);
