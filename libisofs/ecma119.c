@@ -329,6 +329,9 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
                              image start and not for the partition */;
 
     }
+
+    target->tree_end_block = target->curblock;
+
     return ISO_SUCCESS;
 }
 
@@ -874,6 +877,7 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
 {
     int ret;
     Ecma119Image *t;
+    uint32_t curblock;
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -891,6 +895,20 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
         if (ret < 0) 
             return ret;
     }
+
+    curblock = (t->bytes_written / 2048) + t->ms_block;
+    if (curblock != t->tree_end_block) {
+        char msg[100];
+
+        sprintf(msg,
+                "Calculated and written ECMA-119 tree end differ: %lu <> %lu",
+                (unsigned long) t->tree_end_block,
+                (unsigned long) curblock);
+        iso_msgs_submit(0, msg, 0, "WARNING", 0);
+
+        t->tree_end_block = 1;/* Mark for harsher reaction at end of writing */
+    }
+
     return ISO_SUCCESS;
 }
 
@@ -1405,6 +1423,12 @@ void *write_function(void *arg)
        Eventually free target */
     ecma119_image_free(target);
 
+    if (target->tree_end_block == 1) {
+        iso_msgs_submit(0,
+    "Image is most likely damaged. Calculated/written block address mismatch.",
+                        0, "FATAL", 0);
+    }
+
 #ifdef Libisofs_with_pthread_exiT
     pthread_exit(NULL);
 #else
@@ -1739,6 +1763,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->mipsel_p_filesz = 0;
 
     target->empty_file_block = 0;
+    target->tree_end_block = 0;
 
     target->wthread_is_running = 0;
 
@@ -2281,6 +2306,8 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         /* reader cancelled */
         return ISO_CANCELED;
     }
+    if (ret < 0)
+        return ret;
     if (target->checksum_ctx != NULL) {
         /* Add to image checksum */
         target->checksum_counter += count;
@@ -2292,7 +2319,7 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         return ret;
 
     /* total size is 0 when writing the overwrite buffer */
-    if (ret > 0 && (target->total_size != (off_t) 0)){
+    if (target->total_size != (off_t) 0){
         unsigned int kbw, kbt;
         int percent;
 
@@ -2309,7 +2336,7 @@ int iso_write(Ecma119Image *target, void *buf, size_t count)
         }
     }
 
-    return ret;
+    return ISO_SUCCESS;
 }
 
 int iso_write_opts_new(IsoWriteOpts **opts, int profile)

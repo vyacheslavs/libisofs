@@ -526,6 +526,12 @@ struct ecma119_image
     uint32_t empty_file_block;
 
     /*
+     * The calculated block address after ECMA-119 tree and eventual
+     * tree checksum tag.
+     */
+    uint32_t tree_end_block;
+
+    /*
      * number of dirs in ECMA-119 tree, computed together with dir position,
      * and needed for path table computation in a efficient way
      */
