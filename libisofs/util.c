@@ -1297,8 +1297,7 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
 
 }
 
-/* >>> ts B10118:  re-enable ifdef after testing period is over */
-/* #ifndef HAVE_TIMEGM */
+#ifndef HAVE_TIMEGM
 
 /* putenv is SVr4, POSIX.1-2001, 4.3BSD , setenv is 4.3BSD, POSIX.1-2001.
    So putenv is more widely available.
@@ -1396,9 +1395,8 @@ time_t ts_timegm(struct tm *tm)
     return ret;
 }
 
-/* >>> ts B10118:  remove "soft_" after testing period is over */
 static
-time_t soft_timegm(struct tm *tm)
+time_t timegm(struct tm *tm)
 {
     time_t raw_t, ret;
     struct tm *test_tm, input_tm_copy;
@@ -1428,8 +1426,7 @@ time_t soft_timegm(struct tm *tm)
 }
 
 
-/* >>> ts B10118:  re-enable ifdef after testing period is over */
-/* #endif *//* ! HAVE_TIMEGM */
+#endif /* ! HAVE_TIMEGM */
 
 
 time_t iso_datetime_read_7(const uint8_t *buf)
@@ -1443,8 +1440,7 @@ time_t iso_datetime_read_7(const uint8_t *buf)
     tm.tm_min = buf[4];
     tm.tm_sec = buf[5];
 
-    /* >>> ts B10118:  remove "soft_" after testing period is over */
-    return soft_timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
+    return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
 
 time_t iso_datetime_read_17(const uint8_t *buf)
@@ -1460,8 +1456,7 @@ time_t iso_datetime_read_17(const uint8_t *buf)
     tm.tm_year -= 1900;
     tm.tm_mon -= 1;
 
-    /* >>> ts B10118:  remove "soft_" after testing period is over */
-    return soft_timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
+    return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
 
 /**
