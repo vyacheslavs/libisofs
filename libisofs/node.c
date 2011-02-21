@@ -262,6 +262,21 @@ int iso_node_remove_all_xinfo(IsoNode *node, int flag)
     return ISO_SUCCESS;
 }
 
+static
+int iso_node_revert_xinfo_list(IsoNode *node, int flag)
+{
+
+    IsoExtendedInfo *pos, *next, *prev = NULL;
+
+    for (pos = node->xinfo; pos != NULL; pos = next) {
+        next = pos->next;
+        pos->next = prev;
+        prev = pos;
+    }
+    node->xinfo = prev;
+    return ISO_SUCCESS;
+}
+
 int iso_node_clone_xinfo(IsoNode *from_node, IsoNode *to_node, int flag)
 {
     void *handle = NULL, *data, *new_data;
@@ -288,13 +303,10 @@ int iso_node_clone_xinfo(IsoNode *from_node, IsoNode *to_node, int flag)
     }
     if (ret < 0) {
         iso_node_remove_all_xinfo(to_node, 0);
-        return ret;
     } else {
-
-        /* >>> revert order of xinfo list */;
-
+        ret = iso_node_revert_xinfo_list(to_node, 0);
     }
-    return ISO_SUCCESS;
+    return ret;
 }
 
 /**
