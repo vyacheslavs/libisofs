@@ -2,6 +2,24 @@ bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.0.2.tar.gz)
 ===============================================================================
 - no novelties yet
 
+libisofs-1.0.2.tar.gz Tue Feb 22 2011
+===============================================================================
+* Bug fix: iso_write_opts_set_aaip(opts, 1) could cause fatal miscalculation
+           of the root directory size. This eventually truncated directory
+           tree and spoiled all data file content.
+* Bug fix: Volume Descriptor Set Terminator contained non-zero bytes in
+           the reserved field (ECMA-119 8.3.4). The bytes stem from the
+           previously written Volume Descriptor.
+* New API calls iso_tree_clone(), iso_stream_clone.
+* New IsoFileSourceIface version 2 with method clone_src().
+* New IsoStreamIface version 4 with method clone_stream().
+* New public function prototype iso_node_xinfo_cloner.
+* New API calls iso_node_xinfo_make_clonable(), iso_node_xinfo_get_cloner().
+* New public iso_node_xinfo_cloner instance aaip_xinfo_cloner().
+* New API calls iso_node_get_next_xinfo(), iso_node_remove_all_xinfo().
+* New API call iso_node_remove_tree().
+* New API call iso_write_opts_set_old_empty().
+
 libisofs-1.0.0.tar.gz Mon Jan 17 2011
 ===============================================================================
 * Bug fix: ECMA-119 directory names were truncated to 8 characters if
