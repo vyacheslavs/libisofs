@@ -1426,7 +1426,7 @@ void *write_function(void *arg)
     if (target->tree_end_block == 1) {
         iso_msgs_submit(0,
     "Image is most likely damaged. Calculated/written block address mismatch.",
-                        0, "FATAL", 0);
+                        0, "WARNING", 0);
     }
 
 #ifdef Libisofs_with_pthread_exiT
