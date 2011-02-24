@@ -3234,6 +3234,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     size_t size;
     void *ctx = NULL;
     char md5[16];
+    struct el_torito_boot_catalog *catalog = NULL;
+    ElToritoBootImage *boot_image = NULL;
 
     if (image == NULL || src == NULL || opts == NULL) {
         return ISO_NULL_POINTER;
@@ -3321,8 +3323,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
     /* if old image has el-torito, add a new catalog */
     if (data->eltorito) {
-        struct el_torito_boot_catalog *catalog;
-        ElToritoBootImage *boot_image= NULL;
 
         catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
         if (catalog == NULL) {
@@ -3348,11 +3348,13 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             memcpy(boot_image->selection_crit, data->selection_crits, 20);
 
             catalog->bootimages[catalog->num_bootimages] = boot_image;
+            boot_image = NULL;
             catalog->num_bootimages++;
         }
         for ( ; idx < Libisofs_max_boot_imageS; idx++)
             catalog->bootimages[idx] = NULL;
         image->bootcat = catalog;
+        catalog = NULL; /* So it does not get freed */
     }
 
     /* recursively add image */
@@ -3531,6 +3533,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     image->fs = fsback;
     image->builder = blback;
 
+    if (catalog != NULL)
+        el_torito_boot_catalog_free(catalog);
+    if (boot_image != NULL)
+        free((char *) boot_image);
     iso_file_source_unref(newroot);
     fs->close(fs);
     iso_filesystem_unref(fs);
