@@ -386,21 +386,19 @@ int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
                       int part_offset, int part_number, int fs_type,
                       uint8_t *buf, int flag)
 {
-    uint32_t spc, id, part, nominal_part_size;
+    uint32_t id, part, nominal_part_size;
     off_t hd_img_blocks, hd_boot_lba;
     char *wpt;
     /* For generating a weak random number */
     struct timeval tv;
     struct timezone tz;
 
-    /* Pad image_size to a multiple of sector_count*head_count
-    */
-    spc = head_count * sector_count;
     hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4;
-    if (hd_img_blocks % spc) {
-        hd_img_blocks += spc - (hd_img_blocks % spc);
-        *img_blocks = hd_img_blocks / 4 + !!(hd_img_blocks % 4);
-    }
+
+    /* Padding of image_size to a multiple of sector_count*head_count
+       happens already at compute time and is implemented by
+       an appropriate increase of Ecma119Image->tail_blocks.
+    */
 
     wpt = (char *) buf + 432;
 

@@ -3120,6 +3120,8 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  * Specifies options for ISOLINUX or GRUB boot images. This should only be used
  * if the type of boot image is known.
  *
+ * @param bootimg
+ *      The image to set options on 
  * @param options
  *        bitmask style flag. The following values are defined:
  *
@@ -3147,8 +3149,6 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  *                 For that you need isolinux.bin from SYSLINUX 3.72 or later.
  *                 IMPORTANT: The application has to take care that the image
  *                            on media gets padded up to the next full MB.
- * @param bootimg
- *      The image to set options on 
  * @param flag
  *        Reserved for future usage, set to 0.
  * @return

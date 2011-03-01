@@ -1108,7 +1108,35 @@ int zero_writer_free_data(IsoImageWriter *writer)
 }
 
 static
-int zero_writer_create(Ecma119Image *target, uint32_t num_blocks)
+int tail_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    int ret;
+    Ecma119Image *target;
+    struct iso_zero_writer_data_struct *data;
+
+    target = writer->target;
+    ret = iso_align_isohybrid(target, 0);
+    if (ret < 0)
+        return ret;
+    data = (struct iso_zero_writer_data_struct *) writer->data;
+    if (data->num_blocks != target->tail_blocks) {
+        iso_msg_debug(target->image->id,
+                      "Aligned image size for isohybrid by %d blocks",
+                      target->tail_blocks - data->num_blocks);
+        data->num_blocks = target->tail_blocks;
+    }
+    if (target->tail_blocks <= 0)
+        return ISO_SUCCESS;
+    ret = zero_writer_compute_data_blocks(writer);
+    return ret;
+}
+
+/*
+  @param flag bit0= use tail_writer_compute_data_blocks rather than
+                    zero_writer_compute_data_blocks
+*/
+static
+int zero_writer_create(Ecma119Image *target, uint32_t num_blocks, int flag)
 {
     IsoImageWriter *writer;
     struct iso_zero_writer_data_struct *data;
@@ -1124,7 +1152,11 @@ int zero_writer_create(Ecma119Image *target, uint32_t num_blocks)
     }
     data->num_blocks = num_blocks;
 
-    writer->compute_data_blocks = zero_writer_compute_data_blocks;
+    if (flag & 1) {
+        writer->compute_data_blocks = tail_writer_compute_data_blocks;
+    } else {
+        writer->compute_data_blocks = zero_writer_compute_data_blocks;
+    }
     writer->write_vol_desc = zero_writer_write_vol_desc;
     writer->write_data = zero_writer_write_data;
     writer->free_data = zero_writer_free_data;
@@ -1695,9 +1727,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->partition_secs_per_head = opts->partition_secs_per_head;
     target->partition_heads_per_cyl = opts->partition_heads_per_cyl;
     if (target->partition_secs_per_head == 0)
-        target->partition_secs_per_head = 63;
+        target->partition_secs_per_head = 32;
     if (target->partition_heads_per_cyl == 0)
-        target->partition_heads_per_cyl = 255;
+        target->partition_heads_per_cyl = 64;
     target->eff_partition_offset = 0;
     target->partition_root = NULL;
     target->partition_l_table_pos = 0;
@@ -1893,11 +1925,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 
     /* IMPORTANT: This must be the last writer before the checksum writer */
-    if (target->tail_blocks > 0) {
-        ret = zero_writer_create(target, target->tail_blocks);
-        if (ret < 0)
-            goto target_cleanup;
-    }
+    ret = zero_writer_create(target, target->tail_blocks, 1);
+    if (ret < 0)
+        goto target_cleanup;
 
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         ret = checksum_writer_create(target);
@@ -1951,8 +1981,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (i == el_torito_writer_index)
     continue;
 
-        /* Exposing address of data start to IsoWriteOpts iand memorizing
-           this address for for all files which have no block address: 
+        /* Exposing address of data start to IsoWriteOpts and memorizing
+           this address for all files which have no block address: 
            symbolic links, device files, empty data files.
            filesrc_writer_compute_data_blocks() and filesrc_writer_write_data()
            will account resp. write this single block. 

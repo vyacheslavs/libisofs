@@ -46,6 +46,11 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
  */
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf);
 
+/**
+ * Adjust t->tail_blocks to the eventual alignment needs of isohybrid booting.
+ */
+int iso_align_isohybrid(Ecma119Image *t, int flag);
+
 
 /** 
  * Read the necessary ELF information from the first MIPS boot file.

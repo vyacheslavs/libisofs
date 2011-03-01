@@ -809,3 +809,100 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
     return ISO_SUCCESS;
 }
+
+/* Choose *heads_per_cyl so that
+   - *heads_per_cyl * secs_per_head * 1024 >= imgsize / 512
+   - *heads_per_cyl * secs_per_head is divisible by 4
+   - it is as small as possible (to reduce aligment overhead)
+   - it is <= 255
+   @return 1= success , 0= cannot achieve goals
+*/
+static
+int try_sph(off_t imgsize, int secs_per_head, int *heads_per_cyl, int flag)
+{
+    off_t hd_blocks, hpc;
+
+    hd_blocks= imgsize / 512;
+    hpc = hd_blocks / secs_per_head / 1024;
+    if (hpc * secs_per_head * 1024 < hd_blocks)
+        hpc++;
+    if ((secs_per_head % 4) == 0) {
+        ;
+    } else if ((secs_per_head % 2) == 0) {
+        hpc += (hpc % 2);
+    } else if(hpc % 4) {
+        hpc += 4 - (hpc % 4);
+    }
+    if (hpc > 255)
+        return 0;
+    *heads_per_cyl = hpc;
+    return 1;
+}
+
+int iso_align_isohybrid(Ecma119Image *t, int flag)
+{
+    int sa_type, ret;
+    uint32_t img_blocks;
+    off_t imgsize, cylsize = 0, frac;
+
+    sa_type = (t->system_area_options >> 2) & 0x3f;
+    if (sa_type != 0)
+        return ISO_SUCCESS;
+
+    img_blocks = t->curblock;
+    imgsize = ((off_t) img_blocks) * (off_t) 2048;
+    if ((t->system_area_options & 3)
+        && (off_t) (t->partition_heads_per_cyl * t->partition_secs_per_head
+                    * 1024) * (off_t) 512 < imgsize) {
+        /* Choose small values which can represent the image size */
+        /* First try 32 sectors per head */
+        ret = try_sph(imgsize, 32, &(t->partition_heads_per_cyl), 0);
+        if (ret == 1) {
+            t->partition_secs_per_head = 32;
+        } else {
+            /* Did not work with 32. Try 63 */
+            t->partition_secs_per_head = 63;
+            ret = try_sph(imgsize, 63, &(t->partition_heads_per_cyl), 0);
+            if (ret != 1)
+                t->partition_heads_per_cyl = 255;
+        }
+        cylsize = t->partition_heads_per_cyl * t->partition_secs_per_head *512;
+        frac = imgsize % cylsize;
+        iso_msg_debug(t->image->id,
+                      "Automatically adjusted MBR geometry to %d/%d/%d",
+                      (int) (imgsize / cylsize + !!frac),
+                      t->partition_heads_per_cyl, t->partition_secs_per_head);
+    }
+
+    cylsize = 0;
+    if (sa_type == 0 && t->catalog != NULL &&
+               (t->catalog->bootimages[0]->isolinux_options & 0x0a) == 0x02) {
+        /* Check for isolinux image with magic number of 3.72 and produce
+           an MBR from our built-in template. (Deprecated since 31 Mar 2010)
+        */
+        if (img_blocks >= 0x40000000)
+            return ISO_SUCCESS;
+        cylsize = 64 * 32 * 512;
+    } else if (sa_type == 0 && (t->system_area_options & 2)) {
+        /* Patch externally provided system area as isohybrid MBR */
+        if (t->catalog == NULL || t->system_area_data == NULL) {
+            /* isohybrid makes only sense together with ISOLINUX boot image
+               and externally provided System Area.
+            */
+            return ISO_ISOLINUX_CANT_PATCH;
+        }
+        cylsize = t->partition_heads_per_cyl * t->partition_secs_per_head
+                  * 512;
+    } 
+    if (cylsize == 0)
+        return ISO_SUCCESS;
+
+    frac = imgsize % cylsize;
+    imgsize += (frac > 0 ? cylsize - frac : 0);
+
+    frac = imgsize - ((off_t) img_blocks) * (off_t) 2048;
+    if (frac == 0)
+        return ISO_SUCCESS;
+    t->tail_blocks += frac / 2048 + !!(frac % 2048);
+    return ISO_SUCCESS;
+}
