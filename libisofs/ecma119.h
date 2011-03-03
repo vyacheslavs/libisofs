@@ -575,19 +575,27 @@ struct ecma119_image
      */
     char *system_area_data;
     /*
-     * bit0= Only with PC-BIOS DOS MBR
+     * bit0= Only with DOS MBR
      *       Make bytes 446 - 512 of the system area a partition
      *       table which reserves partition 1 from byte 63*512 to the
      *       end of the ISO image. Assumed are 63 secs/hed, 255 head/cyl.
      *       (GRUB protective msdos label.)
      *       This works with and without system_area_data.
-     * bit1= Only with PC-BIOS DOS MBR
+     * bit1= Only with DOS MBR
      *       Apply isohybrid MBR patching to the system area.
      *       This works only with system_area_data plus ISOLINUX boot image
      *       and only if not bit0 is set.
      * bit2-7= System area type
      *       0= DOS MBR
      *       1= MIPS Big Endian Volume Header
+     *       2= DEC Boot Block for MIPS Little Endian
+     *       3= SUN Disk Label for SUN SPARC
+     * bit8-9= Only with DOS MBR
+     *       Cylinder alignment mode eventually pads the image to make it
+     *       end at a cylinder boundary.
+     *       0 = auto (align if bit1)
+     *       1 = always align to cylinder boundary
+     *       2 = never align to cylinder boundary
      */
     int system_area_options;
 

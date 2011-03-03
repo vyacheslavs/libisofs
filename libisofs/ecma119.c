@@ -1698,7 +1698,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         system_area = src->system_area_data;
         system_area_options = src->system_area_options;
     } else {
-        system_area_options = opts->system_area_options & 0xfc;
+        system_area_options = opts->system_area_options & 0xfffffffc;
     }
     sa_type = (system_area_options >> 2) & 0x3f;
     if (sa_type != 0 && sa_type != 3)
@@ -2910,7 +2910,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         memcpy(opts->system_area_data, data, 32768);
     }
     if (!(flag & 4))
-        opts->system_area_options = options & 0xff;
+        opts->system_area_options = options & 0x3ff;
     return ISO_SUCCESS;
 }
 

@@ -1959,7 +1959,13 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 iso_write_opts_set_partition_img() for partition numbers 2
  *                 to 8.
  *                 This will overwrite the first 512 bytes of the submitted
- *                 data.
+ *        bit8-9= Only with System area type 0 = MBR
+ *                @since 1.0.4
+ *                Cylinder alignment mode eventually pads the image to make it
+ *                end at a cylinder boundary.
+ *                0 = auto (align if bit1)
+ *                1 = always align to cylinder boundary
+ *                2 = never align to cylinder boundary
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.

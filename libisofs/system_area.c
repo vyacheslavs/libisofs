@@ -841,17 +841,20 @@ int try_sph(off_t imgsize, int secs_per_head, int *heads_per_cyl, int flag)
 
 int iso_align_isohybrid(Ecma119Image *t, int flag)
 {
-    int sa_type, ret;
+    int sa_type, ret, always_align;
     uint32_t img_blocks;
     off_t imgsize, cylsize = 0, frac;
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     if (sa_type != 0)
         return ISO_SUCCESS;
+    always_align = (t->system_area_options >> 8) & 3;
+    if (always_align >= 2)
+        return ISO_SUCCESS;
 
     img_blocks = t->curblock;
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
-    if ((t->system_area_options & 3)
+    if (((t->system_area_options & 3) || always_align)
         && (off_t) (t->partition_heads_per_cyl * t->partition_secs_per_head
                     * 1024) * (off_t) 512 < imgsize) {
         /* Choose small values which can represent the image size */
@@ -875,7 +878,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     }
 
     cylsize = 0;
-    if (sa_type == 0 && t->catalog != NULL &&
+    if (t->catalog != NULL &&
                (t->catalog->bootimages[0]->isolinux_options & 0x0a) == 0x02) {
         /* Check for isolinux image with magic number of 3.72 and produce
            an MBR from our built-in template. (Deprecated since 31 Mar 2010)
@@ -883,7 +886,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         if (img_blocks >= 0x40000000)
             return ISO_SUCCESS;
         cylsize = 64 * 32 * 512;
-    } else if (sa_type == 0 && (t->system_area_options & 2)) {
+    } else if ((t->system_area_options & 2) || always_align) {
         /* Patch externally provided system area as isohybrid MBR */
         if (t->catalog == NULL || t->system_area_data == NULL) {
             /* isohybrid makes only sense together with ISOLINUX boot image
