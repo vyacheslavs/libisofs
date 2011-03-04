@@ -1113,6 +1113,7 @@ int tail_writer_compute_data_blocks(IsoImageWriter *writer)
     int ret;
     Ecma119Image *target;
     struct iso_zero_writer_data_struct *data;
+    char msg[160];
 
     target = writer->target;
     ret = iso_align_isohybrid(target, 0);
@@ -1120,9 +1121,9 @@ int tail_writer_compute_data_blocks(IsoImageWriter *writer)
         return ret;
     data = (struct iso_zero_writer_data_struct *) writer->data;
     if (data->num_blocks != target->tail_blocks) {
-        iso_msg_debug(target->image->id,
-                      "Aligned image size for isohybrid by %d blocks",
-                      target->tail_blocks - data->num_blocks);
+        sprintf(msg, "Aligned image size to cylinder size by %d blocks",
+                     target->tail_blocks - data->num_blocks);
+        iso_msgs_submit(0, msg, 0, "NOTE", 0);
         data->num_blocks = target->tail_blocks;
     }
     if (target->tail_blocks <= 0)
