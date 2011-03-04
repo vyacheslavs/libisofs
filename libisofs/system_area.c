@@ -844,13 +844,12 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     int sa_type, ret, always_align;
     uint32_t img_blocks;
     off_t imgsize, cylsize = 0, frac;
+    char msg[160];
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     if (sa_type != 0)
         return ISO_SUCCESS;
     always_align = (t->system_area_options >> 8) & 3;
-    if (always_align >= 2)
-        return ISO_SUCCESS;
 
     img_blocks = t->curblock;
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
@@ -871,11 +870,14 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         }
         cylsize = t->partition_heads_per_cyl * t->partition_secs_per_head *512;
         frac = imgsize % cylsize;
-        iso_msg_debug(t->image->id,
-                      "Automatically adjusted MBR geometry to %d/%d/%d",
+        sprintf(msg, "Automatically adjusted MBR geometry to %d/%d/%d",
                       (int) (imgsize / cylsize + !!frac),
                       t->partition_heads_per_cyl, t->partition_secs_per_head);
+        iso_msgs_submit(0, msg, 0, "NOTE", 0);
     }
+
+    if (always_align >= 2)
+        return ISO_SUCCESS;
 
     cylsize = 0;
     if (t->catalog != NULL &&
@@ -899,6 +901,12 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     } 
     if (cylsize == 0)
         return ISO_SUCCESS;
+    if (((double) imgsize) / (double) cylsize > 1024.0) {
+        iso_msgs_submit(0,
+                  "Image size exceeds 1024 cylinders. Cannot align partition.",
+                  0, "WARNING", 0);
+        return ISO_SUCCESS;
+    }
 
     frac = imgsize % cylsize;
     imgsize += (frac > 0 ? cylsize - frac : 0);
@@ -906,6 +914,13 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     frac = imgsize - ((off_t) img_blocks) * (off_t) 2048;
     if (frac == 0)
         return ISO_SUCCESS;
-    t->tail_blocks += frac / 2048 + !!(frac % 2048);
+    if (frac % 2048) {
+        sprintf(msg,
+             "Cylinder size %d not divisible by 2048. Cannot align partition.",
+             (int) cylsize);
+        iso_msgs_submit(0, msg, 0, "WARNING", 0);
+    } else {
+        t->tail_blocks += frac / 2048;
+    }
     return ISO_SUCCESS;
 }
