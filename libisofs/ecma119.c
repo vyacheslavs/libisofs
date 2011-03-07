@@ -1843,8 +1843,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->iso1999) {
         nwriters++;
     }
-    if (target->tail_blocks > 0) 
-        nwriters++;
+    nwriters++; /* Tail padding writer */
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
         image_checksums_mad = 1; /* from here on the loaded checksums are
