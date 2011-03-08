@@ -453,6 +453,8 @@ const char *iso_error_to_msg(int errcode)
         return "Data file input stream object offers no cloning method";
     case ISO_XINFO_NO_CLONE:
         return "Extended information class offers no cloning method";
+    case ISO_MD5_TAG_COPIED:
+        return "Found copied superblock checksum tag";
     default:
         return "Unknown error";
     }

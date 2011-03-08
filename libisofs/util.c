@@ -1840,10 +1840,24 @@ unexpected_type:;
         iso_msg_submit(-1, ISO_MD5_TAG_UNEXPECTED, 0, NULL);
         ret = 0;
         goto ex;
-    } else if(pos != lba) {
+    } else if (pos != lba) {
+        if (*tag_type == 2) { /* Superblock tag */
+            if (lba < 32) {
+                /* Check whether this is a copied superblock */
+                range_start -= (off_t) pos - (off_t) lba;
+                if (range_start != ctx_start_lba) {
+
+                    /* >>> check for matching MD5 ? */;
+
+                    ret = ISO_MD5_TAG_MISPLACED;
+                } else
+                    ret = ISO_MD5_TAG_COPIED;
+                goto ex;
+            }
+        }
         ret = ISO_MD5_TAG_MISPLACED;
         goto ex;
-    } else if(range_start != ctx_start_lba) {
+    } else if (range_start != ctx_start_lba) {
         ret = ISO_MD5_TAG_MISPLACED;
     }
     ret = iso_md5_clone(ctx, &cloned_ctx);

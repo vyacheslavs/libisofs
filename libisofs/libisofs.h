@@ -2337,8 +2337,10 @@ int iso_read_opts_set_no_aaip(IsoReadOpts *opts, int noaaip);
  * @param opts
  *       The option set to be manipulated
  * @param no_md5
+ *       0 = Read MD5 array if available, refuse on non-matching MD5 tags
  *       1 = Do not read MD5 checksum array
- *       0 = Read Md% array if available
+ *       2 = Read MD5 array, but do not check MD5 tags
+ *           @since 1.0.4
  *       All other values are reserved.
  *
  * @since 0.6.22
@@ -6813,6 +6815,9 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Extended information class offers no cloning method
                                                        (FAILURE, HIGH, -375) */
 #define ISO_XINFO_NO_CLONE         0xE830FE89
+
+/** Found copied superblock checksum tag  (WARNING, HIGH, -376) */
+#define ISO_MD5_TAG_COPIED         0xD030FE88
 
 
 /* Internal developer note: 

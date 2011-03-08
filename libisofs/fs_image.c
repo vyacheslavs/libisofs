@@ -72,7 +72,7 @@ struct iso_read_opts
     unsigned int nojoliet : 1; /*< Do not read Joliet extensions */
     unsigned int noiso1999 : 1; /*< Do not read ISO 9660:1999 enhanced tree */
     unsigned int noaaip : 1; /* Do not read AAIP extension for xattr and ACL */
-    unsigned int nomd5 : 1;  /* Do not read MD5 array */
+    unsigned int nomd5 : 2;  /* Do not read MD5 array */
 
     /**
      * Hand out new inode numbers and overwrite eventually read PX inode
@@ -267,7 +267,7 @@ typedef struct
     int aaip_load;
 
     /** Whether the MD5 array shall be read if available.
-     *  1 = yes , 0 = no
+     *  2 = yes, but do not check tags , 1 = yes , 0 = no
      */
     int md5_load;
 
@@ -2418,6 +2418,10 @@ int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
             ret = iso_util_eval_md5_tag(block, desired, start_lba + i,
                                       ctx, start_lba, &tag_type, &next_tag, 0);
         iso_md5_compute(ctx, block, 2048);
+        if (ret == ISO_MD5_TAG_COPIED) { /* growing without emulated TOC */
+            ret = 2;
+            goto ex;
+        }
         if (ret == ISO_MD5_AREA_CORRUPTED || ret == ISO_MD5_TAG_MISMATCH)
             ret = ISO_SB_TREE_CORRUPTED;
         if (ret < 0)
@@ -2504,7 +2508,12 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->dir_mode = opts->dir_mode & ~S_IFMT;
     data->msgid = msgid;
     data->aaip_load = !opts->noaaip;
-    data->md5_load = !opts->nomd5;
+    if (opts->nomd5 == 0)
+        data->md5_load = 1;
+    else if (opts->nomd5 == 2)
+        data->md5_load = 2;
+    else
+        data->md5_load = 0;
     data->aaip_version = -1;
     data->make_new_ino = opts->make_new_ino;
     data->num_bootimgs = 0;
@@ -2532,7 +2541,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     ifs->free = ifs_fs_free;
 
     /* read Volume Descriptors and ensure it is a valid image */
-    if (data->md5_load) {
+    if (data->md5_load == 1) {
         /* From opts->block on : check for superblock and tree tags */;
         ret = iso_src_check_sb_tree(src, opts->block, 0);
         if (ret < 0) {
@@ -3688,7 +3697,7 @@ int iso_read_opts_set_no_md5(IsoReadOpts *opts, int no_md5)
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    opts->nomd5 = no_md5 ? 1 : 0;
+    opts->nomd5 = no_md5 == 2 ? 2 : no_md5 == 1 ? 1 : 0;
     return ISO_SUCCESS;
 }
 
