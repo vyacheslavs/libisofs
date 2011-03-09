@@ -534,6 +534,9 @@ IsoStream *gzip_get_input_stream(IsoStream *stream, int flag)
 static
 int gzip_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
 {
+
+#ifdef Libisofs_with_zliB
+
     int ret;
     IsoStream *new_input_stream, *stream;
     GzipFilterStreamData *stream_data, *old_stream_data;
@@ -558,6 +561,13 @@ int gzip_clone_stream(IsoStream *old_stream, IsoStream **new_stream, int flag)
     stream->data = stream_data;
     *new_stream = stream;
     return ISO_SUCCESS;
+
+#else /* Libisofs_with_zliB */
+
+    return ISO_STREAM_NO_CLONE;
+
+#endif /* ! Libisofs_with_zliB */
+
 }
 
 static
