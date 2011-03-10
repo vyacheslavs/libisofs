@@ -1,8 +1,15 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.0.2.tar.gz)
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.0.6.tar.gz)
 ===============================================================================
 - no novelties yet
 
-libisofs-1.0.2.tar.gz Tue Wed 23 2011
+libisofs-1.0.4.tar.gz Thu Mar 10 2011
+===============================================================================
+* Bug fix: Compilation failed if --disable-zlib was configured
+* Bug fix: isohybrid image size was not aligned to cylinder boundary.
+* New no_md5 value 2 for API call iso_read_opts_set_no_md5()
+* New option bits 8 and 9 with iso_write_opts_set_system_area()
+
+libisofs-1.0.2.tar.gz Tue Feb 23 2011
 ===============================================================================
 * Bug fix: iso_write_opts_set_aaip(opts, 1) could cause fatal miscalculation
            of the root directory size. This eventually truncated directory
