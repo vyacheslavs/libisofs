@@ -50,6 +50,7 @@ static char helptext[][80] = {
 #include <fcntl.h>
 #include <err.h>
 #include <limits.h>
+#include <errno.h>
 
 
 #ifndef PATH_MAX
@@ -372,7 +373,11 @@ int gesture_iso(int argc, char **argv)
     iso_write_opts_free(opts);
 
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
-        fwrite(buf, 1, 2048, fp);
+        result = fwrite(buf, 1, 2048, fp);
+        if (result < 2048) {
+            printf ("Cannot write block. errno= %d\n", errno);
+            goto ex;
+        }
     }
     fclose(fp);
     burn_src->free_data(burn_src);
@@ -537,7 +542,7 @@ int gesture_iso_read(int argc, char **argv)
 
 int gesture_iso_cat(int argc, char **argv)
 {
-    int res;
+    int res, write_ret;
     IsoFilesystem *fs;
     IsoFileSource *file;
     struct stat info;
@@ -596,7 +601,11 @@ int gesture_iso_cat(int argc, char **argv)
             return 1;
         }
         while ((res = iso_file_source_read(file, buf, 1024)) > 0) {
-            fwrite(buf, 1, res, stdout);
+            write_ret = fwrite(buf, 1, res, stdout);
+            if (write_ret < res) {
+                printf ("Cannot write block to stdout. errno= %d\n", errno);
+                return 1;
+            }
         }
         if (res < 0) {
             fprintf(stderr, "Error reading, err = %d\n", res);
@@ -700,7 +709,11 @@ int gesture_iso_modify(int argc, char **argv)
     iso_write_opts_free(opts);
     
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
-        fwrite(buf, 1, 2048, fp);
+        result = fwrite(buf, 1, 2048, fp);
+        if (result < 2048) {
+            printf ("Cannot write block. errno= %d\n", errno);
+            goto ex;
+        }
     }
     fclose(fp);
     burn_src->free_data(burn_src);
@@ -814,7 +827,11 @@ int gesture_iso_ms(int argc, char **argv)
     iso_write_opts_free(opts);
     
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
-        fwrite(buf, 1, 2048, fp);
+        result = fwrite(buf, 1, 2048, fp);
+        if (result < 2048) {
+            printf ("Cannot write block. errno= %d\n", errno);
+            goto ex;
+        }
     }
     fclose(fp);
     burn_src->free_data(burn_src);
