@@ -153,13 +153,15 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot);
 
 /**
  * Create a Joliet file identifier that consists of name and extension. The 
- * combined name and extension length will not exceed 128 bytes, and the 
- * name and extension will be separated (.). All characters consist of 
- * 2 bytes and the resulting string is NULL-terminated by a 2-byte NULL. 
+ * combined name and extension length will normally not exceed 64 characters
+ * (= 128 bytes). The name and the extension will be separated (.).
+ * All characters consist of 2 bytes and the resulting string is
+ * NULL-terminated by a 2-byte NULL. 
  * 
  * Note that version number and (;1) is not appended.
  * @param flag
  *        bit0= no_force_dots
+ *        bit1= allow 103 characters rather than 64
  * @return 
  *        NULL if the original name and extension both are of length 0.
  */
@@ -171,10 +173,12 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag);
  * and the name and extension will be separated (.). All characters consist of 
  * 2 bytes and the resulting string is NULL-terminated by a 2-byte NULL. 
  * 
+ * @param flag
+ *        bit1= allow 103 characters rather than 64
  * @return 
  *        NULL if the original name and extension both are of length 0.
  */
-uint16_t *iso_j_dir_id(const uint16_t *src);
+uint16_t *iso_j_dir_id(const uint16_t *src, int flag);
 
 /**
  * Like strlen, but for Joliet strings.

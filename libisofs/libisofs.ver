@@ -282,6 +282,7 @@ iso_write_opts_set_hardlinks;
 iso_write_opts_set_iso1999;
 iso_write_opts_set_iso_level;
 iso_write_opts_set_joliet;
+iso_write_opts_set_joliet_long_names;
 iso_write_opts_set_joliet_longer_paths;
 iso_write_opts_set_max_37_char_filenames;
 iso_write_opts_set_ms_block;

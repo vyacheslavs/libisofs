@@ -19,6 +19,7 @@
 #include "filesrc.h"
 #include "eltorito.h"
 #include "libisofs.h"
+#include "util.h"
 
 
 #include <stdlib.h>
@@ -42,12 +43,11 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
         iso_msg_debug(t->image->id, "Can't convert %s", iso->name);
         return ret;
     }
-
-    /* TODO #00022 : support relaxed constraints in joliet filenames */
     if (iso->type == LIBISO_DIR) {
-        jname = iso_j_dir_id(ucs_name);
+        jname = iso_j_dir_id(ucs_name, t->joliet_long_names << 1);
     } else {
-        jname = iso_j_file_id(ucs_name, !!(t->no_force_dots & 2));
+        jname = iso_j_file_id(ucs_name,
+                       (t->joliet_long_names << 1) | !!(t->no_force_dots & 2));
     }
     free(ucs_name);
     if (jname != NULL) {
@@ -303,8 +303,15 @@ int joliet_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
     int ret, pos;
     uint16_t *ucsnumber;
     char fmt[16];
-    char nstr[72]; /* The only caller of this function allocates dest with 66
-                      elements and limits digits to < 8 */
+    char nstr[72];
+              /* was: The only caller of this function allocates dest
+                      with 66 elements and limits digits to < 8
+                 But this does not match the usage of nstr which has to take
+                 the decimal representation of an int.
+              */
+
+    if (digits >= 8)
+        return ISO_ASSERT_FAILURE;
 
     sprintf(fmt, "%%0%dd", digits);
     sprintf(nstr, fmt, number);
@@ -337,13 +344,16 @@ static
 int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
 {
     int ret;
-    int i, nchildren;
+    int i, nchildren, maxchar = 64;
     JolietNode **children;
     IsoHTable *table;
     int need_sort = 0;
 
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
+
+    if (t->joliet_long_names)
+        maxchar = 103;
 
     /* a hash table will temporary hold the names, for fast searching */
     ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
@@ -361,7 +371,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
 
     for (i = 0; i < nchildren; ++i) {
         uint16_t *name, *ext;
-        uint16_t full_name[66];
+        uint16_t full_name[LIBISO_JOLIET_NAME_MAX];
         int max; /* computed max len for name, without extension */
         int j = i;
         int digits = 1; /* characters to change per name */
@@ -380,7 +390,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
          * A max of 7 characters is good enought, it allows handling up to
          * 9,999,999 files with same name.
          */
-         /* Important: joliet_create_mangled_name() relies on digits < 72 */
+         /* Important: joliet_create_mangled_name() relies on digits < 8 */
 
         while (digits < 8) {
             int ok, k;
@@ -403,7 +413,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
                 ext = dot + 1;
 
                 extlen = ucslen(ext);
-                max = 65 - extlen - 1 - digits;
+                max = maxchar + 1 - extlen - 1 - digits;
                 if (max <= 0) {
                     /* this can happen if extension is too long */
                     if (extlen + max > 3) {
@@ -413,7 +423,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
                          */
                         extlen = extlen + max - 1;
                         ext[extlen] = 0;
-                        max = 66 - extlen - 1 - digits;
+                        max = maxchar + 2 - extlen - 1 - digits;
                     } else {
                         /*
                          * error, we don't support extensions < 3
@@ -430,10 +440,10 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
             } else {
                 /* Directory, or file without extension */
                 if (children[i]->type == JOLIET_DIR) {
-                    max = 65 - digits;
+                    max = maxchar + 1 - digits;
                     dot = NULL; /* dots have no meaning in dirs */
                 } else {
-                    max = 65 - digits;
+                    max = maxchar + 1 - digits;
                 }
                 name = full_name;
                 if (max < ucslen(name)) {
@@ -446,7 +456,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
             ok = 1;
             /* change name of each file */
             for (k = i; k <= j; ++k) {
-                uint16_t tmp[66];
+                uint16_t tmp[LIBISO_JOLIET_NAME_MAX];
                 while (1) {
                     ret = joliet_create_mangled_name(tmp, name, digits,
                                                      change, ext);

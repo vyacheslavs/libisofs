@@ -16,6 +16,7 @@
 #include "util.h"
 #include "libisofs.h"
 #include "messages.h"
+#include "joliet.h"
 #include "../version.h"
 
 #include <stdlib.h>
@@ -916,16 +917,20 @@ ex:;
 
 /*
    bit0= no_force_dots
+   bit1= allow 103 characters rather than 64
 */
 uint16_t *iso_j_file_id(const uint16_t *src, int flag)
 {
     uint16_t *dot;
-    size_t lname, lext, lnname, lnext, pos, i;
-    uint16_t dest[66]; /* 66 = 64 (name + ext) + 1 (.) + 1 (\0) */
+    size_t lname, lext, lnname, lnext, pos, i, maxchar = 64;
+    uint16_t dest[LIBISO_JOLIET_NAME_MAX];
+                               /* was: 66 = 64 (name + ext) + 1 (.) + 1 (\0) */
 
     if (src == NULL) {
         return NULL;
     }
+    if (flag & 2)
+        maxchar = 103;
 
     dot = ucsrchr(src, '.');
 
@@ -937,14 +942,15 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
      */
     if (dot == NULL || cmp_ucsbe(dot + 1, '\0') == 0) {
         lname = ucslen(src);
-        lnname = (lname > 64) ? 64 : lname;
+        lnname = (lname > maxchar) ? maxchar : lname;
         lext = lnext = 0;
     } else {
         lext = ucslen(dot + 1);
         lname = ucslen(src) - lext - 1;
-        lnext = (ucslen(src) > 65 && lext > 3) ? (lname < 61 ? 64 - lname : 3)
+        lnext = (ucslen(src) > maxchar + 1 && lext > 3)
+                ? (lname < maxchar - 3 ? maxchar - lname : 3)
                 : lext;
-        lnname = (ucslen(src) > 65) ? 64 - lnext : lname;
+        lnname = (ucslen(src) > maxchar + 1) ? maxchar - lnext : lname;
     }
 
     if (lnname == 0 && lnext == 0) {
@@ -986,18 +992,22 @@ is_done:;
     return ucsdup(dest);
 }
 
-uint16_t *iso_j_dir_id(const uint16_t *src)
+/* @param flag bit1= allow 103 characters rather than 64
+*/
+uint16_t *iso_j_dir_id(const uint16_t *src, int flag)
 {
-    size_t len, i;
-    uint16_t dest[65]; /* 65 = 64 + 1 (\0) */
+    size_t len, i, maxchar = 64;
+    uint16_t dest[LIBISO_JOLIET_NAME_MAX]; /* was: 65 = 64 + 1 (\0) */
 
     if (src == NULL) {
         return NULL;
     }
+    if (flag & 2)
+        maxchar = 103;
 
     len = ucslen(src);
-    if (len > 64) {
-        len = 64;
+    if (len > maxchar) {
+        len = maxchar;
     }
     for (i = 0; i < len; i++) {
         uint16_t c = src[i];

@@ -162,6 +162,11 @@ struct iso_write_opts {
     unsigned int joliet_longer_paths :1;
 
     /**
+     * Allow Joliet names up to 103 characters rather than 64.
+     */
+    unsigned int joliet_long_names :1;
+
+    /**
      * Write Rock Ridge info as of specification RRIP-1.10 rather than
      * RRIP-1.12: signature "RRIP_1991A" rather than "IEEE_1282",
      *            field PX without file serial number
@@ -458,6 +463,9 @@ struct ecma119_image
 
     /** Allow paths on Joliet tree to be larger than 240 bytes */
     unsigned int joliet_longer_paths :1;
+
+    /** Allow Joliet names up to 103 characters rather than 64  */
+    unsigned int joliet_long_names :1;
 
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;

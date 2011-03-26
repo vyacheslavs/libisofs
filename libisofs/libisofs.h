@@ -1586,6 +1586,15 @@ int iso_write_opts_set_relaxed_vol_atts(IsoWriteOpts *opts, int allow);
 int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
 
 /**
+ * Allow leaf names in the Joliet tree to have up to 103 characters.
+ * Normal limit is 64. 
+ * This breaks Joliet specification. Use with caution.
+ *
+ * @since 1.0.6
+ */
+int iso_write_opts_set_joliet_long_names(IsoWriteOpts *opts, int allow);
+
+/**
  * Write Rock Ridge info as of specification RRIP-1.10 rather than RRIP-1.12:
  * signature "RRIP_1991A" rather than "IEEE_1282", field PX without file
  * serial number.

@@ -18,6 +18,10 @@
 #include "libisofs.h"
 #include "ecma119.h"
 
+/* was formerly 66 = 64 + 2. Now 105 = 103 + 2.
+*/
+#define LIBISO_JOLIET_NAME_MAX 105
+
 enum joliet_node_type {
 	JOLIET_FILE,
 	JOLIET_DIR
