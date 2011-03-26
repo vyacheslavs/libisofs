@@ -945,6 +945,7 @@ int aaip_xinfo_cloner(void *old_data, void **new_data, int flag)
  *                     (*su_size and *ce stay unaltered in this case)
  *                 <0= error:
  *                 -1= not enough SUA space for 28 bytes of CE entry
+ *                 -2= out of memory
  */
 static
 int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
@@ -993,6 +994,8 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         int cew = (*ce != 0); /* are we writing to CA ? */
 
         dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
+        if (dest == NULL)
+            return -2;
         prev = dest;
         cur = strchr(prev, '/');
         while (1) {
@@ -1021,8 +1024,10 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                      * TODO this can be handled better, but for now SL
                      * will be completelly moved into the CA
                      */
-                    if (!(flag & 1))
+                    if (!(flag & 1)) {
+                        free(dest);
                         goto unannounced_ca;
+                    }
                     cew = 1;
                 } else {
                     sl_len += clen;
@@ -1236,7 +1241,9 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
         /* Try without CE */
         ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, 0);
         if (ret == 0) /* Retry with CE */
-            susp_calc_nm_sl_al(t, n, space, &su_size, ce, 1);
+            ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, 1);
+        if (ret == -2)
+           return ISO_OUT_OF_MEM;
 
     } else {
 
@@ -1447,9 +1454,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         ce_len_pd = ce_len;
         ret = susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 0);
         if (ret == 0) { /* Have to use CA. 28 bytes of CE are necessary */
-            susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 1);
+            ret = susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 1);
             sua_free -= 28;
             ce_is_predicted = 1;
+        }
+        if (ret == -2) {
+           ret = ISO_OUT_OF_MEM;
+           goto add_susp_cleanup;
         }
 
         /* NM entry */
