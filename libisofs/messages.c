@@ -455,6 +455,10 @@ const char *iso_error_to_msg(int errcode)
         return "Extended information class offers no cloning method";
     case ISO_MD5_TAG_COPIED:
         return "Found copied superblock checksum tag";
+    case ISO_RR_NAME_TOO_LONG:
+        return "Rock Ridge leaf name too long";
+    case ISO_RR_NAME_RESERVED:
+        return "Reserved Rock Ridge leaf name";
     default:
         return "Unknown error";
     }

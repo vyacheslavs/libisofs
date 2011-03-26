@@ -239,6 +239,7 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     IsoBoot *node;
     IsoNode **pos;
     time_t now;
+    int ret;
 
     if (parent == NULL || name == NULL || boot == NULL) {
         return ISO_NULL_POINTER;
@@ -248,9 +249,9 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     }
 
     /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_name(name);
+    if (ret < 0)
+        return ret;
 
     /* find place where to insert */
     pos = &(parent->children);

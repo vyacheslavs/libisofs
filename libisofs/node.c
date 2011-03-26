@@ -325,6 +325,7 @@ enum IsoNodeType iso_node_get_type(IsoNode *node)
 int iso_node_set_name(IsoNode *node, const char *name)
 {
     char *new;
+    int ret;
 
     if ((IsoNode*)node->parent == node) {
         /* you can't change name of the root node */
@@ -332,9 +333,9 @@ int iso_node_set_name(IsoNode *node, const char *name)
     }
 
     /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_name(name);
+    if (ret < 0)
+        return ret;
 
     if (node->parent != NULL) {
         /* check if parent already has a node with same name */
@@ -1005,10 +1006,11 @@ const char *iso_symlink_get_dest(const IsoSymlink *link)
 int iso_symlink_set_dest(IsoSymlink *link, const char *dest)
 {
     char *d;
-    if (!iso_node_is_valid_link_dest(dest)) {
-        /* guard against null or empty dest */
-        return ISO_WRONG_ARG_VALUE;
-    }
+    int ret;
+
+    ret = iso_node_is_valid_link_dest(dest);
+    if (ret < 0)
+        return ret;
     d = strdup(dest);
     if (d == NULL) {
         return ISO_OUT_OF_MEM;
@@ -1159,22 +1161,23 @@ int iso_node_is_valid_name(const char *name)
 {
     /* a name can't be NULL */
     if (name == NULL) {
-        return 0;
+        return ISO_NULL_POINTER;
     }
 
     /* guard against the empty string or big names... */
-    if (name[0] == '\0' || strlen(name) > 255) {
-        return 0;
-    }
+    if (name[0] == '\0')
+        return ISO_RR_NAME_RESERVED;
+    if (strlen(name) > 255)
+        return ISO_RR_NAME_TOO_LONG;
 
     /* ...against "." and ".." names... */
     if (!strcmp(name, ".") || !strcmp(name, "..")) {
-        return 0;
+        return ISO_RR_NAME_RESERVED;
     }
 
     /* ...and against names with '/' */
     if (strchr(name, '/') != NULL) {
-        return 0;
+        return ISO_RR_NAME_RESERVED;
     }
     return 1;
 }
@@ -1192,13 +1195,14 @@ int iso_node_is_valid_link_dest(const char *dest)
 
     /* a dest can't be NULL */
     if (dest == NULL) {
-        return 0;
+        return ISO_NULL_POINTER;
     }
 
     /* guard against the empty string or big dest... */
-    if (dest[0] == '\0' || strlen(dest) > PATH_MAX) {
-        return 0;
-    }
+    if (dest[0] == '\0')
+        return ISO_RR_NAME_RESERVED;
+    if (strlen(dest) > PATH_MAX)
+        return ISO_RR_NAME_TOO_LONG;
 
     /* check that all components are valid */
     if (!strcmp(dest, "/")) {
@@ -1208,7 +1212,7 @@ int iso_node_is_valid_link_dest(const char *dest)
 
     ptr = strdup(dest);
     if (ptr == NULL) {
-        return 0;
+        return ISO_OUT_OF_MEM;
     }
 
     ret = 1;
@@ -1216,7 +1220,7 @@ int iso_node_is_valid_link_dest(const char *dest)
     while (component) {
         if (strcmp(component, ".") && strcmp(component, "..")) {
             ret = iso_node_is_valid_name(component);
-            if (ret == 0) {
+            if (ret < 0) {
                 break;
             }
         }
@@ -1375,15 +1379,16 @@ int iso_node_new_root(IsoDir **root)
 int iso_node_new_dir(char *name, IsoDir **dir)
 {
     IsoDir *new;
+    int ret;
 
     if (dir == NULL || name == NULL) {
         return ISO_NULL_POINTER;
     }
 
     /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_name(name);
+    if (ret < 0)
+        return ret;
 
     new = calloc(1, sizeof(IsoDir));
     if (new == NULL) {
@@ -1400,15 +1405,16 @@ int iso_node_new_dir(char *name, IsoDir **dir)
 int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
 {
     IsoFile *new;
+    int ret;
 
     if (file == NULL || name == NULL || stream == NULL) {
         return ISO_NULL_POINTER;
     }
 
     /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_name(name);
+    if (ret < 0)
+        return ret;
 
     new = calloc(1, sizeof(IsoFile));
     if (new == NULL) {
@@ -1428,21 +1434,21 @@ int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
 int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link)
 {
     IsoSymlink *new;
+    int ret;
 
     if (link == NULL || name == NULL || dest == NULL) {
         return ISO_NULL_POINTER;
     }
 
     /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_name(name);
+    if (ret < 0)
+        return ret;
 
     /* check if destination is valid */
-    if (!iso_node_is_valid_link_dest(dest)) {
-        /* guard against null or empty dest */
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_link_dest(dest);
+    if (ret < 0) 
+        return ret;
 
     new = calloc(1, sizeof(IsoSymlink));
     if (new == NULL) {
@@ -1464,6 +1470,7 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
                          IsoSpecial **special)
 {
     IsoSpecial *new;
+    int ret;
 
     if (special == NULL || name == NULL) {
         return ISO_NULL_POINTER;
@@ -1473,9 +1480,9 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
     }
 
     /* check if the name is valid */
-    if (!iso_node_is_valid_name(name)) {
-        return ISO_WRONG_ARG_VALUE;
-    }
+    ret = iso_node_is_valid_name(name);
+    if (ret < 0)
+        return ret;
 
     new = calloc(1, sizeof(IsoSpecial));
     if (new == NULL) {

@@ -6828,6 +6828,13 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Found copied superblock checksum tag  (WARNING, HIGH, -376) */
 #define ISO_MD5_TAG_COPIED         0xD030FE88
 
+/** Rock Ridge leaf name too long (FAILURE, HIGH, -377) */
+#define ISO_RR_NAME_TOO_LONG       0xE830FE87
+
+/** Reserved Rock Ridge leaf name  (FAILURE, HIGH, -378) */
+#define ISO_RR_NAME_RESERVED       0xE830FE86
+
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

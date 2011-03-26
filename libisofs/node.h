@@ -286,7 +286,7 @@ int iso_node_new_special(char *name, mode_t mode, dev_t dev,
  * Check if a given name is valid for an iso node.
  *
  * @return
- *     1 if yes, 0 if not
+ *     1 if yes, <0 if not. The value is a specific ISO_* error code.
  */
 int iso_node_is_valid_name(const char *name);
 
