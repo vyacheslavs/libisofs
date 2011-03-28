@@ -32,11 +32,6 @@
 #include <fnmatch.h>
 
 
-#ifndef PATH_MAX
-#define PATH_MAX Libisofs_default_path_maX
-#endif
-
-
 /**
  * Add a new directory to the iso tree.
  * 
@@ -980,15 +975,16 @@ char *iso_tree_get_node_path(IsoNode *node)
     if ((IsoNode*)node->parent == node) {
         return strdup("/");
     } else {
-        char path[PATH_MAX];
+        char path[LIBISOFS_NODE_PATH_MAX];
         char *parent_path = iso_tree_get_node_path((IsoNode*)node->parent);
         if (parent_path == NULL) {
             return NULL;
         }
         if (strlen(parent_path) == 1) {
-            snprintf(path, PATH_MAX, "/%s", node->name);
+            snprintf(path, LIBISOFS_NODE_PATH_MAX, "/%s", node->name);
         } else {
-            snprintf(path, PATH_MAX, "%s/%s", parent_path, node->name);
+            snprintf(path, LIBISOFS_NODE_PATH_MAX, "%s/%s",
+                     parent_path, node->name);
         }
         free(parent_path);
         return strdup(path);

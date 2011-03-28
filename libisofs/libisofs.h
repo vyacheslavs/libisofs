@@ -6834,6 +6834,9 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Reserved Rock Ridge leaf name  (FAILURE, HIGH, -378) */
 #define ISO_RR_NAME_RESERVED       0xE830FE86
 
+/** Rock Ridge path too long (FAILURE, HIGH, -379) */
+#define ISO_RR_PATH_TOO_LONG       0xE830FE85
+
 
 
 /* Internal developer note: 

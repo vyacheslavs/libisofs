@@ -459,6 +459,8 @@ const char *iso_error_to_msg(int errcode)
         return "Rock Ridge leaf name too long";
     case ISO_RR_NAME_RESERVED:
         return "Reserved Rock Ridge leaf name";
+    case ISO_RR_PATH_TOO_LONG:
+        return "Rock Ridge path too long";
     default:
         return "Unknown error";
     }

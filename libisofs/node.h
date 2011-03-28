@@ -30,6 +30,29 @@
 #endif
 
 
+/* Maximum length of a leaf name in the libisofs node tree. This is currently
+   restricted by the implemented maximum length of a Rock Ridge name.
+   This might later become larger and may then be limited to smaller values.
+
+   Rock Ridge specs do not impose an explicit limit on name length.
+   But 255 is also specified by
+     http://pubs.opengroup.org/onlinepubs/009695399/basedefs/limits.h.html
+   which says
+     NAME_MAX >= _XOPEN_NAME_MAX = 255 
+*/
+#define LIBISOFS_NODE_NAME_MAX 255
+
+
+/* Maximum length of a path in the libisofs node tree.
+   Rock Ridge specs do not impose an explicit limit on name length.
+
+     http://pubs.opengroup.org/onlinepubs/009695399/basedefs/limits.h.html
+   says
+     PATH_MAX >= _XOPEN_PATH_MAX = 1024
+*/
+#define LIBISOFS_NODE_PATH_MAX 1024
+
+
 /**
  * The extended information is a way to attach additional information to each
  * IsoNode. External applications may want to use this extension system to

@@ -342,6 +342,9 @@ int rrip_add_NM(Ecma119Image *t, struct susp_info *susp, char *name, int size,
         return ISO_OUT_OF_MEM;
     }
 
+    if (size > 250)
+        return ISO_ASSERT_FAILURE;
+
     NM[0] = 'N';
     NM[1] = 'M';
     NM[2] = size + 5;
@@ -973,6 +976,18 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
        *su_size += 28;
     }
 
+/* <<< */
+#ifdef NIX
+{
+  static int min_free = 1000;
+  if (space - *su_size < min_free) {
+    min_free = space - *su_size;
+    fprintf(stderr, "LIBISOFS_DEBUG: minimum free SUA before NM = %d\n",
+            min_free);
+  }
+}
+#endif /* NIX */
+
     /* NM entry */
     if (*su_size + 5 + namelen <= space) {
         /* ok, it fits in System Use Area */
@@ -982,6 +997,9 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         if (!(flag & 1))
             goto unannounced_ca;
         namelen = namelen - (space - *su_size - 5);
+
+        /* >>> Need to handle lengths > 250 */;
+
         *ce = 5 + namelen;
         *su_size = space;
     }
@@ -1659,6 +1677,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             /* 
              * ..and the part that goes to continuation area.
              */
+
+            /* >>> Need a loop to handle lengths > 250 */;
+
             ret = rrip_add_NM(t, info, name + namelen, strlen(name + namelen),
                               0, 1);
             if (ret < 0) {

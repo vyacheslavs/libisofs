@@ -16,6 +16,7 @@
 #include "stream.h"
 #include "fsource.h"
 #include "util.h"
+#include "node.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -868,7 +869,8 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
     if (!strncmp(type, "fsrc", 4)) {
         FSrcStreamData *data = stream->data;
         char *path = iso_file_source_get_path(data->src);
-        strncpy(name, path, PATH_MAX);
+        strncpy(name, path, PATH_MAX + LIBISOFS_NODE_PATH_MAX - 1);
+        name[PATH_MAX + LIBISOFS_NODE_PATH_MAX - 1] = 0;
         free(path);
     } else if (!strncmp(type, "boot", 4)) {
         strcpy(name, "BOOT CATALOG");

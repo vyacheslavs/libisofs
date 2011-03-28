@@ -28,11 +28,6 @@
 #include <stdio.h>
 
 
-#ifndef PATH_MAX
-#define PATH_MAX Libisofs_default_path_maX
-#endif
-
-
 struct dir_iter_data
 {
     /* points to the last visited child, to NULL before start */
@@ -1167,7 +1162,7 @@ int iso_node_is_valid_name(const char *name)
     /* guard against the empty string or big names... */
     if (name[0] == '\0')
         return ISO_RR_NAME_RESERVED;
-    if (strlen(name) > 255)
+    if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
         return ISO_RR_NAME_TOO_LONG;
 
     /* ...against "." and ".." names... */
@@ -1201,8 +1196,8 @@ int iso_node_is_valid_link_dest(const char *dest)
     /* guard against the empty string or big dest... */
     if (dest[0] == '\0')
         return ISO_RR_NAME_RESERVED;
-    if (strlen(dest) > PATH_MAX)
-        return ISO_RR_NAME_TOO_LONG;
+    if (strlen(dest) > LIBISOFS_NODE_PATH_MAX)
+        return ISO_RR_PATH_TOO_LONG;
 
     /* check that all components are valid */
     if (!strcmp(dest, "/")) {

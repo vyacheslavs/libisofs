@@ -2926,10 +2926,11 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFLNK:
         {
             /* source is a symbolic link */
-            char dest[PATH_MAX];
+            char dest[PATH_MAX + LIBISOFS_NODE_PATH_MAX];
             IsoSymlink *link;
 
-            ret = iso_file_source_readlink(src, dest, PATH_MAX);
+            ret = iso_file_source_readlink(src, dest,
+                                           PATH_MAX + LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
                 free(name);
                 return ret;

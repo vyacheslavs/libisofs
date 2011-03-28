@@ -75,6 +75,8 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     iso_file_source_ref(src);
     
     name = iso_file_source_get_name(src);
+    if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
+        name[LIBISOFS_NODE_NAME_MAX] = 0;
     ret = iso_node_new_file(name, stream, &node);
     if (ret < 0) {
         iso_stream_unref(stream);
@@ -122,6 +124,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
     name = iso_file_source_get_name(src);
+    if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
+        name[LIBISOFS_NODE_NAME_MAX] = 0;
     fs = iso_file_source_get_filesystem(src);
     new = NULL;
 
@@ -157,10 +161,11 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFLNK:
         {
             /* source is a symbolic link */
-            char dest[PATH_MAX];
+            char dest[PATH_MAX + LIBISOFS_NODE_PATH_MAX];
             IsoSymlink *link;
 
-            ret = iso_file_source_readlink(src, dest, PATH_MAX);
+            ret = iso_file_source_readlink(src, dest,
+                                           PATH_MAX + LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
                 break;
             }
