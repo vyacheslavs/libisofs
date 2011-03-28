@@ -337,13 +337,15 @@ static
 int rrip_add_NM(Ecma119Image *t, struct susp_info *susp, char *name, int size,
                 int flags, int ce)
 {
-    uint8_t *NM = malloc(size + 5);
-    if (NM == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
+    uint8_t *NM;
 
     if (size > 250)
         return ISO_ASSERT_FAILURE;
+
+    NM = malloc(size + 5);
+    if (NM == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
 
     NM[0] = 'N';
     NM[1] = 'M';
