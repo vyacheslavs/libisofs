@@ -54,6 +54,7 @@ applications which use it. This dependency can be avoided by configure options
     --disable-libacl   avoid use of ACL functions like acl_to_text()
     --disable-xattr    avoid use of xattr functions like listxattr()
     --disable-zlib     avoid use of zlib functions like compress2()
+    --disable-libjte   avoid use of libjte functions
 
 See INSTALL file for general options of ./configure.
 
