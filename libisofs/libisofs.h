@@ -2084,9 +2084,9 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
     tests. It can be prevented by ./configure option --disable-libjte .
     @since 0.6.38
 */
-#define iso_libjte_req_major 0
-#define iso_libjte_req_minor 1
-#define iso_libjte_req_micro 1
+#define iso_libjte_req_major 1
+#define iso_libjte_req_minor 0
+#define iso_libjte_req_micro 0
 
 /** 
  * Associate a libjte environment object to the upcomming write run.
@@ -5181,11 +5181,12 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  * @param src
  *     An IsoFileSource corresponding to a symbolic link.
  * @param buf
- *     allocated buffer of at least bufsiz bytes.
- *     The dest. will be copied there, and it will be NULL-terminated
+ *     Allocated buffer of at least bufsiz bytes.
+ *     The destination string will be copied there, and it will be 0-terminated
+ *     if the return value indicates success or ISO_RR_PATH_TOO_LONG.
  * @param bufsiz
- *     characters to be copied. Destination link will be truncated if
- *     it is larger than given size. This includes the 0x0 character.
+ *     Maximum number of buf characters + 1. The string will be truncated if
+ *     it is larger than bufsiz - 1 and ISO_RR_PATH_TOO_LONG. will be returned.
  * @return
  *     1 on success, < 0 on error
  *      Error codes:
@@ -5196,6 +5197,7 @@ int iso_file_source_readdir(IsoFileSource *src, IsoFileSource **child);
  *         ISO_OUT_OF_MEM
  *         ISO_FILE_BAD_PATH
  *         ISO_FILE_DOESNT_EXIST
+ *         ISO_RR_PATH_TOO_LONG (@since 1.0.6)
  *
  * @since 0.6.2
  */
