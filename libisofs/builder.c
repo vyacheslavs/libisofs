@@ -26,10 +26,6 @@
 #include <limits.h>
 #include <stdio.h>
 
-#ifndef PATH_MAX
-#define PATH_MAX Libisofs_default_path_maX
-#endif
-
 
 
 void iso_node_builder_ref(IsoNodeBuilder *builder)
@@ -161,11 +157,10 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFLNK:
         {
             /* source is a symbolic link */
-            char dest[PATH_MAX + LIBISOFS_NODE_PATH_MAX];
+            char dest[LIBISOFS_NODE_PATH_MAX];
             IsoSymlink *link;
 
-            ret = iso_file_source_readlink(src, dest,
-                                           PATH_MAX + LIBISOFS_NODE_PATH_MAX);
+            ret = iso_file_source_readlink(src, dest, LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
                 break;
             }

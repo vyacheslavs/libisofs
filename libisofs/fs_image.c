@@ -35,11 +35,6 @@
 #include <stdio.h>
 
 
-#ifndef PATH_MAX
-#define PATH_MAX Libisofs_default_path_maX
-#endif
-
-
 /**
  * Options for image reading.
  * There are four kind of options:
@@ -953,6 +948,7 @@ int ifs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 {
     char *dest;
     size_t len;
+    int ret;
     ImageFileSourceData *data;
 
     if (src == NULL || buf == NULL || src->data == NULL) {
@@ -971,14 +967,15 @@ int ifs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 
     dest = (char*)data->data.content;
     len = strlen(dest);
-    if (bufsiz <= len) {
+
+    ret = ISO_SUCCESS;
+    if (len >= bufsiz) {
+        ret = ISO_RR_PATH_TOO_LONG;
         len = bufsiz - 1;
     }
-
     strncpy(buf, dest, len);
     buf[len] = '\0';
-
-    return ISO_SUCCESS;
+    return ret;
 }
 
 static
@@ -2926,11 +2923,10 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFLNK:
         {
             /* source is a symbolic link */
-            char dest[PATH_MAX + LIBISOFS_NODE_PATH_MAX];
+            char dest[LIBISOFS_NODE_PATH_MAX];
             IsoSymlink *link;
 
-            ret = iso_file_source_readlink(src, dest,
-                                           PATH_MAX + LIBISOFS_NODE_PATH_MAX);
+            ret = iso_file_source_readlink(src, dest, LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
                 free(name);
                 return ret;

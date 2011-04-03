@@ -975,19 +975,24 @@ char *iso_tree_get_node_path(IsoNode *node)
     if ((IsoNode*)node->parent == node) {
         return strdup("/");
     } else {
-        char path[LIBISOFS_NODE_PATH_MAX];
-        char *parent_path = iso_tree_get_node_path((IsoNode*)node->parent);
+        char *path = NULL, *parent_path;
+        parent_path = iso_tree_get_node_path((IsoNode*)node->parent);
         if (parent_path == NULL) {
             return NULL;
         }
         if (strlen(parent_path) == 1) {
-            snprintf(path, LIBISOFS_NODE_PATH_MAX, "/%s", node->name);
+            path = calloc(1, strlen(node->name) + 2);
+            if (path == NULL)
+                return NULL;
+            sprintf(path, "/%s", node->name);
         } else {
-            snprintf(path, LIBISOFS_NODE_PATH_MAX, "%s/%s",
-                     parent_path, node->name);
+            path = calloc(1, strlen(parent_path) + strlen(node->name) + 2);
+            if (path == NULL)
+                return NULL;
+            sprintf(path, "%s/%s", parent_path, node->name);
         }
         free(parent_path);
-        return strdup(path);
+        return path;
     }
 }
 

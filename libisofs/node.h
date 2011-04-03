@@ -44,7 +44,7 @@
 
 
 /* Maximum length of a path in the libisofs node tree.
-   Rock Ridge specs do not impose an explicit limit on name length.
+   Rock Ridge specs do not impose an explicit limit on path length.
 
      http://pubs.opengroup.org/onlinepubs/009695399/basedefs/limits.h.html
    says

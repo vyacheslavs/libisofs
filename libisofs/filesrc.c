@@ -338,7 +338,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     Ecma119Image *t;
     IsoFileSrc *file;
     IsoFileSrc **filelist;
-    char name[PATH_MAX + LIBISOFS_NODE_PATH_MAX];
+    char name[PATH_MAX];
     char buffer[BLOCK_SIZE];
     off_t file_size;
     uint32_t nblocks;

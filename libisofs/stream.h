@@ -29,7 +29,8 @@ typedef struct
 /**
  * Get an identifier for the file of the source, for debug purposes
  * @param name
- *      Should provide at least PATH_MAX bytes
+ *      Must provide at least PATH_MAX bytes. If no PATH_MAX is defined
+ *      then assume PATH_MAX = Libisofs_default_path_maX from libisofs.h
  */
 void iso_stream_get_file_name(IsoStream *stream, char *name);
 

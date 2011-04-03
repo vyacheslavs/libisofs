@@ -412,7 +412,7 @@ int lfs_readdir(IsoFileSource *src, IsoFileSource **child)
 static
 int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 {
-    int size;
+    int size, ret;
     _LocalFsFileSource *data;
     char *path;
 
@@ -431,7 +431,7 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
      * invoke readlink, with bufsiz -1 to reserve an space for
      * the NULL character
      */
-    size = readlink(path, buf, bufsiz - 1);
+    size = readlink(path, buf, bufsiz);
     free(path);
     if (size < 0) {
         /* error */
@@ -455,8 +455,13 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
     }
 
     /* NULL-terminate the buf */
+    ret = ISO_SUCCESS;
+    if (size >= bufsiz) {
+        ret = ISO_RR_PATH_TOO_LONG;
+        size = bufsiz - 1;
+    }
     buf[size] = '\0';
-    return ISO_SUCCESS;
+    return ret;
 }
 
 static
