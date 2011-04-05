@@ -770,7 +770,7 @@ IsoStreamIface mem_stream_class = {
  * When the Stream refcount reach 0, the buffer is free(3).
  *
  * @return
- *      1 sucess, < 0 error
+ *      1 success, < 0 error
  */
 int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream)
 {

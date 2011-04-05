@@ -32,7 +32,7 @@
  * @param image
  *     Location where the image pointer will be stored.
  * @return
- *     1 sucess, < 0 error
+ *     1 success, < 0 error
  */
 int iso_image_new(const char *name, IsoImage **image)
 {
