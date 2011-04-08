@@ -1,6 +1,8 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.0.6.tar.gz)
+
+libisofs-1.0.6.tar.gz Sat Apr 09 2011
 ===============================================================================
-- no novelties yet
+* New API call iso_write_opts_set_joliet_long_names()
+* New error codes for oversized file addresses
 
 libisofs-1.0.4.tar.gz Thu Mar 10 2011
 ===============================================================================
