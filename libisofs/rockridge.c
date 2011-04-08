@@ -978,18 +978,6 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
        *su_size += 28;
     }
 
-/* <<< */
-#ifdef NIX
-{
-  static int min_free = 1000;
-  if (space - *su_size < min_free) {
-    min_free = space - *su_size;
-    fprintf(stderr, "LIBISOFS_DEBUG: minimum free SUA before NM = %d\n",
-            min_free);
-  }
-}
-#endif /* NIX */
-
     /* NM entry */
     if (*su_size + 5 + namelen <= space) {
         /* ok, it fits in System Use Area */
