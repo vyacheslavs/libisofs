@@ -142,6 +142,8 @@ void iso_image_unref(IsoImage *image)
         free(image->biblio_file_id);
         if (image->used_inodes != NULL)
             free(image->used_inodes);
+        if (image->system_area_data != NULL)
+            free(image->system_area_data);
         iso_image_free_checksums(image, 0);
         free(image);
     }
