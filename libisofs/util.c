@@ -1536,16 +1536,17 @@ char *iso_util_strcopy(const char *buf, size_t len)
     return str;
 }
 
-char *iso_util_strcopy_untail(const char *buf, size_t len)
+char *iso_util_strcopy_untail(const char *buf, size_t len_in)
 {
     char *str;
+    int len;
     
-    str = iso_util_strcopy(buf, len);
+    str = iso_util_strcopy(buf, len_in);
     if (str == NULL) {
         return NULL;
     }
     /* remove trailing spaces */
-    for (len = len-1; len >= 0; --len) {
+    for (len = len_in - 1; len >= 0; --len) {
         if (str[len] != ' ')
     break;
         str[len] = 0; 
