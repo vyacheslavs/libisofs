@@ -968,32 +968,33 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
 
 char *iso_tree_get_node_path(IsoNode *node)
 {
-    if (node == NULL || node->parent == NULL) {
+    char *path = NULL, *parent_path = NULL;
+
+    if (node == NULL || node->parent == NULL)
         return NULL;
-    }
     
     if ((IsoNode*)node->parent == node) {
         return strdup("/");
     } else {
-        char *path = NULL, *parent_path;
         parent_path = iso_tree_get_node_path((IsoNode*)node->parent);
-        if (parent_path == NULL) {
-            return NULL;
-        }
+        if (parent_path == NULL)
+            goto ex;
         if (strlen(parent_path) == 1) {
             path = calloc(1, strlen(node->name) + 2);
             if (path == NULL)
-                return NULL;
+                goto ex;
             sprintf(path, "/%s", node->name);
         } else {
             path = calloc(1, strlen(parent_path) + strlen(node->name) + 2);
             if (path == NULL)
-                return NULL;
+                goto ex;
             sprintf(path, "%s/%s", parent_path, node->name);
         }
-        free(parent_path);
-        return path;
     }
+ex:;
+    if (parent_path != NULL)
+        free(parent_path);
+    return path;
 }
 
 /* ------------------------- tree cloning ------------------------------ */
