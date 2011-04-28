@@ -574,18 +574,17 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
         *node = NULL;
     }
 
-    fs = image->fs;
-    result = fs->get_by_path(fs, path, &file);
-    if (result < 0) {
-        return result;
-    }
-
     /* find place where to insert */
     result = iso_dir_exists(parent, name, &pos);
     if (result) {
         /* a node with same name already exists */
-        iso_file_source_unref(file);
         return ISO_NODE_NAME_NOT_UNIQUE;
+    }
+
+    fs = image->fs;
+    result = fs->get_by_path(fs, path, &file);
+    if (result < 0) {
+        return result;
     }
 
     result = image->builder->create_node(image->builder, image, file, &new);
