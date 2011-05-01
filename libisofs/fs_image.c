@@ -1599,9 +1599,9 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     sprintf(msg,
                            "Character set name recorded in ISO image: '%.80s'",
                            cs_value);
+                    free(cs_value);
                 }
                 iso_msgs_submit(0, msg, 0, "NOTE", 0);
-                free(cs_value);
                 cs_value = NULL;
             }
         }
