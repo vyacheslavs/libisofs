@@ -1621,7 +1621,7 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
         *value_length = value_lengths[i];
         *value = calloc(*value_length + 1, 1);
         if (*value == NULL) {
-            ret = ISO_OUT_OF_MEM;
+            found = ISO_OUT_OF_MEM;
     break;
         }
         if (*value_length > 0)
