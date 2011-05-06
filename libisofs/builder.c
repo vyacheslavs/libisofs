@@ -246,6 +246,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
 static
 void default_free(IsoNodeBuilder *builder)
 {
+    /* The .free() method of IsoNodeBuilder shall free private data but not
+       the builder itself. The latter is done in iso_node_builder_unref().
+    */
     return;
 }
 

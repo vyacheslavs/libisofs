@@ -440,7 +440,10 @@ struct iso_filesystem
 
     /**
      * Retrieve a file from its absolute path inside the filesystem.
-     *
+     * @param file
+     *     Returns a pointer to a IsoFileSource object representing the
+     *     file. It has to be disposed by iso_file_source_unref() when
+     *     no longer needed.
      * @return
      *     1 success, < 0 error (has to be a valid libisofs error code)
      *      Error codes:
