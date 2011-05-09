@@ -1398,7 +1398,7 @@ static
 void *write_function(void *arg)
 {
     int res, first_partition = 1, last_partition = 0, sa_type;
-    size_t i;
+    int i;
     IsoImageWriter *writer;
 
     Ecma119Image *target = (Ecma119Image*)arg;
