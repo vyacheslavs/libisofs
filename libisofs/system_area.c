@@ -305,9 +305,9 @@ static int boot_nodes_from_iso_path(Ecma119Image *t, char *path,
     int ret;
 
     ret = iso_tree_path_to_node(t->image, path, iso_node);
-    if (ret < 0) {
+    if (ret <= 0) {
         iso_msg_submit(t->image->id, ISO_BOOT_FILE_MISSING, 0,
-                       "Cannot find %s '%s'", purpose, path);
+                       "Cannot find in ISO image: %s '%s'", purpose, path);
         return ISO_BOOT_FILE_MISSING;
     }
     if ((*iso_node)->type != LIBISO_FILE) {
