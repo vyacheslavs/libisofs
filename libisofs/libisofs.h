@@ -1210,7 +1210,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  */
 #define iso_lib_header_version_major  1
 #define iso_lib_header_version_minor  0
-#define iso_lib_header_version_micro  7
+#define iso_lib_header_version_micro  8
 
 /**
  * Usage discussion:
