@@ -1,6 +1,13 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.0.8.tar.gz)
+libisofs-1.0.8.tar.gz Thu May 12 2011
 ===============================================================================
-- no novelties yet
+* Bug fix: iso_write_opts_set_system_area() with system area types
+           1=MIPS Big Endian and 2=MIPS Little Endian caused SIGSEGV.
+* Bug fix: SIGSEGV if the path given by iso_image_add_mips_boot_file()
+           does not exist in the image at image production time.
+* Bug fix: While loading an ISO image: Several reads to malloc
+           memory occured with byte index -1. (Found by Valgrind after
+           years of operation without visible problems.)
+* Bug fix: Closed a memory leak of 32 kB per loaded ISO image.
 
 libisofs-1.0.6.tar.gz Sat Apr 09 2011
 ===============================================================================
