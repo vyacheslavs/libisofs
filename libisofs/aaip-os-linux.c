@@ -401,7 +401,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  size_t i, consumed, acl_text_fill, acl_idx= 0, h_consumed;
  char *acl_text= NULL, *list= NULL;
 #ifdef Libisofs_with_aaip_xattR
- size_t list_size= 0;
+ ssize_t list_size= 0;
 #endif
 
 #ifdef Libisofs_with_aaip_xattR
