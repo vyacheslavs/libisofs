@@ -18,15 +18,32 @@
 
 /* 
  *
- * Applications must use 64 bit off_t, e.g. on 32-bit GNU/Linux by defining
+ * Applications must use 64 bit off_t.
+ * E.g. on 32-bit GNU/Linux by defining
  *   #define _LARGEFILE_SOURCE
  *   #define _FILE_OFFSET_BITS 64
- * or take special precautions to interface with the library by 64 bit integers
- * where this .h files prescribe off_t. Not to use 64 bit file i/o will keep
- * the application from producing and processing ISO images of more than 2 GB
- * size.
- *
+ * The minimum requirement is to interface with the library by 64 bit signed
+ * integers where libisofs.h or libisoburn.h prescribe off_t.
+ * Failure to do so may result in surprising malfunction or memory faults.
+ * 
+ * Application files which include libisofs/libisofs.h must provide
+ * definitions for uint32_t and uint8_t.
+ * This can be achieved either:
+ * - by using autotools which will define HAVE_STDINT_H or HAVE_INTTYPES_H
+ *   according to its ./configure tests,
+ * - or by defining the macros HAVE_STDINT_H resp. HAVE_INTTYPES_H according
+ *   to the local situation,
+ * - or by appropriately defining uint32_t and uint8_t by other means,
+ *   e.g. by including inttypes.h before including libisofs.h
  */
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#else
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+#endif
+
 
 /*
  * Normally this API is operated via public functions and opaque object
@@ -41,14 +58,6 @@
 
 
 #include <sys/stat.h>
-
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#else
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-#endif
 
 #include <stdlib.h>
 
@@ -157,6 +166,15 @@ struct iso_file_section
     uint32_t block;
     uint32_t size;
 };
+
+/* If you get here because of a compilation error like
+
+       /usr/include/libisofs/libisofs.h:166: error:
+       expected specifier-qualifier-list before 'uint32_t'
+
+   then see the paragraph above about the definition of uint32_t.
+*/
+
 
 /**
  * Context for iterate on directory children.
