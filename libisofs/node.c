@@ -1573,7 +1573,7 @@ int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
          goto ex;
     }
 
-    if (rpt - aa_string != len) {
+    if ((size_t) (rpt - aa_string) != len) {
          /* aaip_decode_attrs() returns 2 but still bytes are left */
          ret = ISO_AAIP_BAD_AASTRING;
          goto ex;
@@ -1615,7 +1615,7 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
 
     ret = iso_aa_get_attrs(aa_string, &num_attrs, &names,
                            &value_lengths, &values, 0);
-    for (i = 0; i < num_attrs; i++) {
+    for (i = 0; i < (int) num_attrs; i++) {
         if (strcmp(names[i], name))
     continue;
         *value_length = value_lengths[i];
@@ -2850,7 +2850,7 @@ int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
         ret = 0;
         goto ex;
     }
-    for (i = 0; i < value_len; i++)
+    for (i = 0; i < (int) value_len; i++)
         idx = (idx << 8) | ((unsigned char *) value)[i];
     if (idx == 0 || idx > image->checksum_idx_count - 1) {
                                        /* (last index is not MD5 of a file) */
