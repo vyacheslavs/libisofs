@@ -299,7 +299,7 @@ void ecma119_node_free(Ecma119Node *node)
         return;
     }
     if (node->type == ECMA119_DIR) {
-        int i;
+        size_t i;
         for (i = 0; i < node->info.dir->nchildren; i++) {
             ecma119_node_free(node->info.dir->children[i]);
         }
@@ -643,7 +643,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                     max = max_file_len - digits;
                 }
                 name = full_name;
-                if (max < strlen(name)) {
+                if ((size_t) max < strlen(name)) {
                     name[max] = '\0';
                 }
                 /* let ext be an empty string */
