@@ -164,7 +164,7 @@ int iso_rbtree_insert(IsoRBTree *tree, void *data, void **item)
         new = data;
         added = 1;
     } else {
-        struct iso_rbnode head = { 0 }; /* False tree root */
+        struct iso_rbnode head = { 0, {NULL, NULL}, 0 }; /* False tree root */
 
         struct iso_rbnode *g, *t; /* Grandparent & parent */
         struct iso_rbnode *p, *q; /* Iterator & parent */
