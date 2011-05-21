@@ -456,7 +456,7 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 
     /* NULL-terminate the buf */
     ret = ISO_SUCCESS;
-    if (size >= bufsiz) {
+    if ((size_t) size >= bufsiz) {
         ret = ISO_RR_PATH_TOO_LONG;
         size = bufsiz - 1;
     }
