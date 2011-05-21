@@ -387,7 +387,7 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
     /*  84 -  87 | boot_bytes | File length in bytes */
     /*  88 - 311 |          0 | Volume Directory Entries 2 to 15 */
 
-    for (idx = 0; idx < t->image->num_mips_boot_files; idx++) {
+    for (idx = 0; (int) idx < t->image->num_mips_boot_files; idx++) {
         ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[idx], 
                                        &node, &ecma_node, "MIPS boot file", 0);
         if (ret < 0)
@@ -504,7 +504,7 @@ cannot_read:;
             count = todo;
         todo -= count;
         ret = iso_stream_read(stream, elf_buf, count);
-        if (ret != count)
+        if (ret != (int) count)
             goto cannot_read;
     }
     ret = iso_stream_read(stream, elf_buf, 20);
