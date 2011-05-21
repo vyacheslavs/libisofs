@@ -398,7 +398,7 @@ static
 int cut_out_read(IsoStream *stream, void *buf, size_t count)
 {
     struct cut_out_stream *data = stream->data;
-    count = (size_t)MIN(data->size - data->pos, count);
+    count = (size_t) MIN((size_t) (data->size - data->pos), count);
     if (count == 0) {
         return 0;
     }
@@ -647,7 +647,7 @@ int mem_read(IsoStream *stream, void *buf, size_t count)
         return ISO_FILE_NOT_OPENED;
     }
 
-    if (data->offset >= data->size) {
+    if (data->offset >= (ssize_t) data->size) {
         return 0; /* EOF */
     }
 
