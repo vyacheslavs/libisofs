@@ -1229,7 +1229,7 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
 
     /* write volume descriptors, one per writer */
     iso_msg_debug(target->image->id, "Write volume descriptors");
-    for (i = 0; i < target->nwriters; ++i) {
+    for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         res = writer->write_vol_desc(writer);
         if (res < 0) 
@@ -1266,7 +1266,8 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
 
     /* Write multi-session padding up to target->partition_offset + 16 */
     memset(buf, 0, BLOCK_SIZE);
-    for(; *write_count < target->partition_offset + 16; (*write_count)++) {
+    for(; *write_count < (int) target->partition_offset + 16;
+        (*write_count)++) {
         res = iso_write(target, buf, BLOCK_SIZE);
         if (res < 0)
             goto write_error;
@@ -1276,7 +1277,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
       target->partiton_offset from any LBA pointer.
     */
     target->eff_partition_offset = target->partition_offset;
-    for (i = 0; i < target->nwriters; ++i) {
+    for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         /* Not all writers have an entry in the partion volume descriptor set.
            It must be guaranteed that they write exactly one block.
@@ -1412,7 +1413,7 @@ void *write_function(void *arg)
         goto write_error;
 
     /* write data for each writer */
-    for (i = 0; i < target->nwriters; ++i) {
+    for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         res = writer->write_data(writer);
         if (res < 0) {
@@ -1469,10 +1470,10 @@ void *write_function(void *arg)
 #endif
 
     write_error: ;
-    if (res != ISO_LIBJTE_END_FAILED)
+    if (res != (int) ISO_LIBJTE_END_FAILED)
         finish_libjte(target);
     target->eff_partition_offset = 0;
-    if (res == ISO_CANCELED) {
+    if (res == (int) ISO_CANCELED) {
         /* canceled */
         if (!target->will_cancel)
             iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED,
@@ -1949,7 +1950,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         target->curblock = target->ms_block + target->partition_offset + 16;
 
         /* Account for partition tree volume descriptors */
-        for (i = 0; i < target->nwriters; ++i) {
+        for (i = 0; i < (int) target->nwriters; ++i) {
             /* Not all writers have an entry in the partition
                volume descriptor set.
             */
@@ -1975,7 +1976,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
      * That function computes the size needed by its structures and
      * increments image current block propertly.
      */
-    for (i = 0; i < target->nwriters; ++i) {
+    for (i = 0; i < (int) target->nwriters; ++i) {
         IsoImageWriter *writer = target->writers[i];
 
         /* Delaying boot image patching until new LBA is known */
