@@ -450,8 +450,8 @@ static
 int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
                 size_t n, int ce)
 {
-    int ret, i, j;
-
+    int ret;
+    size_t i, j;
     int total_comp_len = 0;
     size_t pos, written = 0;
 
@@ -1054,8 +1054,8 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                          * First, we check how many bytes fit in current
                          * SL field 
                          */
-                        int fit = 255 - sl_len - 2;
-                        if (clen - 250 <= fit) {
+                        ssize_t fit = 255 - sl_len - 2;
+                        if ((ssize_t) (clen - 250) <= fit) {
                             /* 
                              * the component can be divided between this
                              * and another SL entry
@@ -1342,7 +1342,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
     size_t aaip_sua_free= 0, aaip_len= 0;
-    size_t space;
+    int space;
 
     if (t == NULL || n == NULL || info == NULL) {
         return ISO_NULL_POINTER;
@@ -1354,7 +1354,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     if (type < 0 || type > 2 || space < ISO_ROCKRIDGE_IN_DIR_REC) {
         iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
           "Unknown node type %d or short RR space %d < %d in directory record",
-          type, (int) space, ISO_ROCKRIDGE_IN_DIR_REC);
+          type, space, ISO_ROCKRIDGE_IN_DIR_REC);
         return ISO_ASSERT_FAILURE;
     }
 
@@ -1438,7 +1438,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     if (info->suf_len + 28 > space) {
         iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
          "Directory Record overflow. name='%s' , suf_len=%d > space=%d - 28\n", 
-         node->iso_name, (int) info->suf_len, (int) space);
+         node->iso_name, (int) info->suf_len, space);
         return ISO_ASSERT_FAILURE;
     }
 
@@ -1460,9 +1460,11 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         /* Try whether NM, SL, AL will fit into SUA */
         su_size_pd = info->suf_len;
         ce_len_pd = ce_len;
-        ret = susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 0);
+        ret = susp_calc_nm_sl_al(t, n, (size_t) space,
+                                 &su_size_pd, &ce_len_pd, 0);
         if (ret == 0) { /* Have to use CA. 28 bytes of CE are necessary */
-            ret = susp_calc_nm_sl_al(t, n, space, &su_size_pd, &ce_len_pd, 1);
+            ret = susp_calc_nm_sl_al(t, n, (size_t) space,
+                                     &su_size_pd, &ce_len_pd, 1);
             sua_free -= 28;
             ce_is_predicted = 1;
         }
@@ -1554,8 +1556,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                              * First, we check how many bytes fit in current
                              * SL field 
                              */
-                            int fit = 255 - sl_len - 2;
-                            if (clen - 250 <= fit) {
+                            ssize_t fit = 255 - sl_len - 2;
+                            if ((ssize_t) (clen - 250) <= fit) {
                                 /* 
                                  * the component can be divided between this
                                  * and another SL entry
