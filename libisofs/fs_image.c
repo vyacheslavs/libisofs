@@ -2416,11 +2416,12 @@ int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
             ret = iso_util_eval_md5_tag(block, desired, start_lba + i,
                                       ctx, start_lba, &tag_type, &next_tag, 0);
         iso_md5_compute(ctx, block, 2048);
-        if (ret == ISO_MD5_TAG_COPIED) { /* growing without emulated TOC */
+        if (ret == (int) ISO_MD5_TAG_COPIED) {/* growing without emulated TOC */
             ret = 2;
             goto ex;
         }
-        if (ret == ISO_MD5_AREA_CORRUPTED || ret == ISO_MD5_TAG_MISMATCH)
+        if (ret == (int) ISO_MD5_AREA_CORRUPTED ||
+            ret == (int) ISO_MD5_TAG_MISMATCH)
             ret = ISO_SB_TREE_CORRUPTED;
         if (ret < 0)
             goto ex;
@@ -2454,7 +2455,8 @@ int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
     }
     ret = iso_util_eval_md5_tag(block, (1 << 3), start_lba + i - 1,
                                 ctx, start_lba, &tag_type, &next_tag, 0);
-    if (ret == ISO_MD5_AREA_CORRUPTED || ret == ISO_MD5_TAG_MISMATCH)
+    if (ret == (int) ISO_MD5_AREA_CORRUPTED ||
+        ret == (int) ISO_MD5_TAG_MISMATCH)
         ret = ISO_SB_TREE_CORRUPTED;
     if (ret < 0)
         goto ex;
@@ -2590,8 +2592,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                 } else {
                     data->catblock = iso_read_lsb(vol->boot_catalog, 4);
                     ret = read_el_torito_boot_catalog(data, data->catblock);
-                    if (ret < 0 && ret != ISO_UNSUPPORTED_EL_TORITO &&
-                        ret != ISO_WRONG_EL_TORITO) {
+                    if (ret < 0 && ret != (int) ISO_UNSUPPORTED_EL_TORITO &&
+                        ret != (int) ISO_WRONG_EL_TORITO) {
                         goto fs_cleanup;
                     }
                 }
@@ -3175,7 +3177,7 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
           ret = iso_stream_read(stream, boot_image_buf + (img_size - todo),
                                 chunk);
           if (ret != chunk) {
-            ret = (ret < 0) ? ret : ISO_FILE_READ_ERROR;
+            ret = (ret < 0) ? ret : (int) ISO_FILE_READ_ERROR;
             goto ex;
           }
           todo -= chunk;
@@ -3484,7 +3486,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             }
 
             /* Load from image->checksum_end_lba */;
-            for (i = 0; i < size; i++) {
+            for (i = 0; i < (int) size; i++) {
                 rpt = (uint8_t *) (image->checksum_array + i * 2048);
                 ret = src->read_block(src, image->checksum_end_lba + i, rpt);
                 if (ret <= 0)
@@ -3497,7 +3499,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 ret = ISO_OUT_OF_MEM;
                 goto import_revert;
             }
-            for (i = 0; i < image->checksum_idx_count - 1; i++)
+            for (i = 0; i < (int) image->checksum_idx_count - 1; i++)
                 iso_md5_compute(ctx, image->checksum_array + i * 16, 16);
             iso_md5_end(&ctx, md5);
             for (i = 0; i < 16; i++)
