@@ -478,12 +478,12 @@ int iso_tree_remove_exclude(IsoImage *image, const char *path)
         return ISO_NULL_POINTER;
     }
 
-    for (i = 0; i < image->nexcludes; ++i) {
+    for (i = 0; (int) i < image->nexcludes; ++i) {
         if (strcmp(image->excludes[i], path) == 0) {
             /* exclude found */
             free(image->excludes[i]);
             --image->nexcludes;
-            for (j = i; j < image->nexcludes; ++j) {
+            for (j = i; (int) j < image->nexcludes; ++j) {
                 image->excludes[j] = image->excludes[j+1]; 
             }
             image->excludes = realloc(image->excludes, image->nexcludes * 
@@ -847,7 +847,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         ret = iso_dir_insert(parent, new, pos, replace);
         if (ret < 0) {
             iso_node_unref(new);
-            if (ret != ISO_NODE_NAME_NOT_UNIQUE) {
+            if (ret != (int) ISO_NODE_NAME_NOT_UNIQUE) {
                 /* error */
                 goto dir_rec_continue;
             } else {
