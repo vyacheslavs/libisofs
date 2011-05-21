@@ -187,7 +187,7 @@ static int aaip_encode_comp(unsigned char *result, size_t *result_fill,
    aaip_encode_byte(result, result_fill, 0);
    return(1);
  }
- for(rpt= data; rpt - data < l;) {
+ for(rpt= data; rpt - data < (ssize_t) l;) {
    todo= l - (rpt - data) + (prefix > 0);
    aaip_encode_byte(result, result_fill, (todo > 255));
    if(todo > 255)
@@ -198,7 +198,7 @@ static int aaip_encode_comp(unsigned char *result, size_t *result_fill,
      todo--;
      prefix= 0;
    }
-   for(comp_start= rpt; rpt - comp_start < todo; rpt++)
+   for(comp_start= rpt; rpt - comp_start < (ssize_t) todo; rpt++)
      aaip_encode_byte(result, result_fill, *((unsigned char *) rpt));
  }
  return(1);
@@ -292,7 +292,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  *result_len= bytes;
  bytes= aaip_encode_acl_text(acl_text, st_mode, *result_len, *result,
                              (flag & (2 | 4 | 8)));
- if(bytes != *result_len) {
+ if((size_t) bytes != *result_len) {
    *result_len= 0;
    return(0);
  }
@@ -359,7 +359,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
  if(flag & 4) {
    /* set SWITCH_MARK to indicate a default ACL */;
    if(!(flag & 1)) {
-     if(count >= result_size)
+     if((size_t) count >= result_size)
        return(-1);
      result[count]= (Aaip_SWITCH_MARK << 4) | Aaip_EXEC;
    }
@@ -386,7 +386,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
        type= Aaip_ACL_USER_OBJ;
        has_u++;
      } else {
-       if(cpt - (rpt + 5) >= sizeof(name))
+       if(cpt - (rpt + 5) >= (int) sizeof(name))
  continue;
        is_trivial= 0;
        strncpy(name, rpt + 5, cpt - (rpt + 5)); 
@@ -419,7 +419,7 @@ user_by_name:;
        type= Aaip_ACL_GROUP_OBJ;
        has_g++;
      } else {
-       if(cpt - (rpt + 6) >= sizeof(name))
+       if(cpt - (rpt + 6) >= (int) sizeof(name))
  continue;
        is_trivial= 0;
        strncpy(name, rpt + 6, cpt - (rpt + 6)); 
@@ -461,7 +461,7 @@ group_by_name:;
    perms= aaip_make_aaip_perms(cpt[1] == 'r', cpt[2] == 'w', cpt[3] == 'x');
 
    if(!(flag & 1)) {
-     if(count >= result_size)
+     if((size_t) count >= result_size)
        return(-1);
      result[count]= perms | ((!!qualifier) << 3) | (type << 4);
    }
@@ -470,7 +470,7 @@ group_by_name:;
    if(qualifier) {
      num_recs= (qualifier_len / 127) + !!(qualifier_len % 127);
      if(!(flag & 1)) {
-       if(count + 1 > result_size)
+       if((size_t) (count + 1) > result_size)
          return(-1);
        for(i= 0; i < num_recs; i++) {
          if(i < num_recs - 1)
@@ -480,7 +480,7 @@ group_by_name:;
            if(result[count - 1] == 0)
              result[count - 1]= 127;
          }
-         if(count + (result[count - 1] & 127) > result_size)
+         if((size_t) (count + (result[count - 1] & 127)) > result_size)
            return(-1);
          memcpy(result + count, name + i * 127, result[count - 1] & 127);
          count+= result[count - 1] & 127;
@@ -495,7 +495,7 @@ group_by_name:;
    if(flag & 1)
      count+= needed;
    else {
-     if(count + needed > result_size)
+     if((size_t) (count + needed) > result_size)
        return(-1);
    }
  }
@@ -1120,9 +1120,9 @@ static int aaip_consume_rec_head(struct aaip_state *aaip,
  size_t todo;
 
  todo= *num_data;
- if(todo > aaip->aa_missing)
+ if(todo > (size_t) aaip->aa_missing)
    todo= aaip->aa_missing;
- if(todo >= aaip->rec_head_missing)
+ if(todo >= (size_t) aaip->rec_head_missing)
    todo= aaip->rec_head_missing;
  if(!aaip->recs_invalid)
    aaip_push_to_recs(aaip, *data, todo, 0);
@@ -1144,9 +1144,9 @@ static int aaip_consume_rec_data(struct aaip_state *aaip,
  size_t todo;
  
  todo= *num_data;
- if(todo > aaip->aa_missing)
+ if(todo > (size_t) aaip->aa_missing)
    todo= aaip->aa_missing;
- if(todo > aaip->rec_missing)
+ if(todo > (size_t) aaip->rec_missing)
    todo= aaip->rec_missing;
  if(!aaip->recs_invalid)
    aaip_push_to_recs(aaip, *data, todo, 1);
@@ -1178,7 +1178,7 @@ static int aaip_consume_aa_head(struct aaip_state *aaip,
  unsigned char aa_head[5];
 
  todo= *num_data;
- if(todo >= aaip->aa_head_missing)
+ if(todo >= (size_t) aaip->aa_head_missing)
    todo= aaip->aa_head_missing;
  aaip_push_to_recs(aaip, *data, todo, 0);
  aaip->aa_head_missing-= todo;
@@ -1225,7 +1225,7 @@ static int aaip_consume_aa_data(struct aaip_state *aaip,
          aaip_push_to_recs(aaip, zero_char, 1, 0);
        } else {
          /* fill in missing btes */
-         for(i= 0; i < aaip->rec_missing; i++)
+         for(i= 0; (int) i < aaip->rec_missing; i++)
            aaip_push_to_recs(aaip, zero_char, 1, 1);
        }
        aaip->rec_head_missing= 2;
@@ -1968,14 +1968,16 @@ static int aaip_read_qualifier(unsigned char *data, size_t num_data,
                                char *name, size_t name_size, size_t *name_fill,
                                int flag)
 {
- int is_done= 0, rec_len= 0;
+ int is_done= 0;
+ size_t rec_len= 0;
  unsigned char *rpt;
 
  *name_fill= 0;
  for(rpt= data; !is_done; rpt+= rec_len) {
    rec_len= (*rpt) & 127;
    is_done= !((*rpt) & 128);
-   if(*name_fill + rec_len >= name_size || rpt + 1 + rec_len - data > num_data)
+   if(*name_fill + rec_len >= name_size ||
+      (size_t) (rpt + 1 + rec_len - data) > num_data)
      return(-1);
    memcpy(name + *name_fill, rpt + 1, rec_len);
    rpt+= 1 + rec_len;
@@ -2014,8 +2016,8 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
 {
  unsigned char *rpt;
  char perm_text[4], *wpt, name[1024];
- int type, qualifier= 0, perm, ret, i, cnt;
- size_t w_size, name_fill= 0;
+ int type, qualifier= 0, perm, ret, cnt;
+ size_t w_size, name_fill= 0, i;
  uid_t uid;
  gid_t gid;
  struct passwd *pwd;
@@ -2026,7 +2028,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
  wpt= acl_text;
  w_size= acl_text_size;
  *acl_text_fill= 0;
- for(rpt= data; rpt - data < num_data; ) {
+ for(rpt= data; (size_t) (rpt - data) < num_data; ) {
    perm= *rpt;
    strcpy(perm_text, "---");
    if(perm & Aaip_READ)
