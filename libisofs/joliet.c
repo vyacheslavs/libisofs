@@ -69,7 +69,7 @@ void joliet_node_free(JolietNode *node)
         return;
     }
     if (node->type == JOLIET_DIR) {
-        int i;
+        size_t i;
         for (i = 0; i < node->info.dir->nchildren; i++) {
             joliet_node_free(node->info.dir->children[i]);
         }
@@ -446,7 +446,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
                     max = maxchar + 1 - digits;
                 }
                 name = full_name;
-                if (max < ucslen(name)) {
+                if ((size_t) max < ucslen(name)) {
                     name[max] = 0;
                 }
                 /* let ext be an empty string */
