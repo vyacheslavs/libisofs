@@ -229,10 +229,10 @@ static int md5_init(libisofs_md5_ctx *ctx, int flag)
 static int md5_update(libisofs_md5_ctx *ctx, unsigned char *data,
                       int datalen, int flag)
 {
- unsigned int i, index, partlen;
+ int i, index, partlen;
 
  /* Compute number of bytes mod 64 */
- index = (unsigned int)((ctx->count[0] >> 3) & 0x3F);
+ index = ((ctx->count[0] >> 3) & 0x3F);
  /* Update number of bits */
  if ((ctx->count[0] += ((uint32_t) datalen << 3)) < 
      ((uint32_t) datalen << 3))
