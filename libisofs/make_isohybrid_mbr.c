@@ -424,7 +424,7 @@ int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
     /* # Offset 446
     */
     for (part = 1 ; part <= 4; part++) {
-        if (part != part_number) {
+        if ((int) part != part_number) {
             /* if this_partition != partition_number: write 16 zero bytes */
             memset(wpt, 0, 16);
             wpt+= 16;
