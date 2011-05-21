@@ -576,7 +576,8 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
                  rng->block_pointers[i] =
                       iso_read_lsb((uint8_t *) (rng->block_pointers + i), 4);
                  if (i > 0)
-                     if (rng->block_pointers[i] - rng->block_pointers[i - 1]
+                     if ((int) (rng->block_pointers[i] -
+                                rng->block_pointers[i - 1])
                          > block_max)
                          block_max = rng->block_pointers[i]
                                      - rng->block_pointers[i - 1];
@@ -619,7 +620,7 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
                     if (ret != Z_OK)
                         return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
                     rng->buffer_fill = buf_len;
-                    if (buf_len < rng->block_size &&
+                    if ((int) buf_len < rng->block_size &&
                         i != rng->block_pointer_fill - 1)
                         return (rng->error_ret = ISO_ZISOFS_WRONG_INPUT);
                 } else if(ret == 0) {
