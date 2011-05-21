@@ -219,7 +219,7 @@ int strconv(const char *str, const char *icharset, const char *ocharset,
     src = (char *)str;
     ret = (char *)out;
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-    if (n == -1) {
+    if (n == (size_t) -1) {
         /* error */
         iso_iconv_close(&conv, 0);
         retval = ISO_CHARSET_CONV_ERROR;
@@ -269,7 +269,7 @@ int strnconv(const char *str, const char *icharset, const char *ocharset,
     src = (char *)str;
     ret = (char *)out;
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-    if (n == -1) {
+    if (n == (size_t) -1) {
         /* error */
         iso_iconv_close(&conv, 0);
         retval = ISO_CHARSET_CONV_ERROR;
@@ -336,7 +336,7 @@ int str2wchar(const char *icharset, const char *input, wchar_t **output)
     src = (char *)input;
 
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-    while (n == -1) {
+    while (n == (size_t) -1) {
 
         if (errno == E2BIG) {
             /* error, should never occur */
@@ -435,7 +435,7 @@ int str2ascii(const char *icharset, const char *input, char **output)
     }
 
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-    while (n == -1) {
+    while (n == (size_t) -1) {
         /* The destination buffer is too small. Stops here. */
         if (errno == E2BIG)
             break;
@@ -566,7 +566,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     }
 
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
-    while (n == -1) {
+    while (n == (size_t) -1) {
         /* The destination buffer is too small. Stops here. */
         if (errno == E2BIG)
             break;
@@ -636,7 +636,7 @@ char *iso_dirid(const char *src, int size)
     char name[32];
 
     len = strlen(src);
-    if (len > size) {
+    if ((int) len > size) {
         len = size;
     }
     for (i = 0; i < len; i++) {
@@ -770,7 +770,7 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
     char *dest;
 
     len = strlen(src);
-    if (len > size) {
+    if ((int) len > size) {
         len = size;
     }
     dest = malloc(len + 1);
@@ -838,15 +838,15 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
      */
     if (dot == NULL || *(dot + 1) == '\0') {
         lname = strlen(src);
-        lnname = (lname > len) ? len : lname;
+        lnname = (lname > (int) len) ? (int) len : lname;
         lext = lnext = 0;
     } else {
         lext = strlen(dot + 1);
         lname = strlen(src) - lext - 1;
         lnext = (strlen(src) > len + 1 && lext > 3) ? 
-                (lname < len - 3 ? len - lname : 3)
+                (lname < (int) len - 3 ? (int) len - lname : 3)
                 : lext;
-        lnname = (strlen(src) > len + 1) ? len - lnext : lname;
+        lnname = (strlen(src) > len + 1) ? (int) len - lnext : lname;
     }
 
     if (lnname == 0 && lnext == 0) {
@@ -1601,7 +1601,7 @@ char *ucs2str(const char *buf, size_t len)
 
     n = iso_iconv(&conv, &src, &inbytes, &str, &outbytes, 0);
     iso_iconv_close(&conv, 0);
-    if (n == -1) {
+    if (n == (size_t) -1) {
         /* error */
         goto ex;
     }
@@ -1838,12 +1838,12 @@ int iso_util_eval_md5_tag(char *block, int desired, uint32_t lba,
     *tag_type = 0;
     decode_ret = iso_util_decode_md5_tag(block, tag_type, &pos,
                                   &range_start, &range_size, next_tag, md5, 0);
-    if (decode_ret != 1 && decode_ret != ISO_MD5_AREA_CORRUPTED)
+    if (decode_ret != 1 && decode_ret != (int) ISO_MD5_AREA_CORRUPTED)
         return 0;
     if (*tag_type > 30)
         goto unexpected_type;
 
-    if (decode_ret == ISO_MD5_AREA_CORRUPTED) {
+    if (decode_ret == (int) ISO_MD5_AREA_CORRUPTED) {
         ret = decode_ret; 
         goto ex;
     } else if (!((1 << *tag_type) & desired)) {
