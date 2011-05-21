@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -73,7 +74,7 @@ void iso1999_node_free(Iso1999Node *node)
         return;
     }
     if (node->type == ISO1999_DIR) {
-        int i;
+        size_t i;
         for (i = 0; i < node->info.dir->nchildren; i++) {
             iso1999_node_free(node->info.dir->children[i]);
         }
@@ -398,7 +399,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
                 }
                 max = 207 - digits;
                 name = full_name;
-                if (max < strlen(name)) {
+                if ((size_t) max < strlen(name)) {
                     name[max] = '\0';
                 }
                 /* let ext be an empty string */
