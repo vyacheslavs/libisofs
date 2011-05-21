@@ -480,7 +480,7 @@ int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
     va_list ap;
 
     /* when called with ISO_CANCELED, we don't need to submit any message */
-    if (errcode == ISO_CANCELED && fmt == NULL) {
+    if (errcode == (int) ISO_CANCELED && fmt == NULL) {
         return ISO_CANCELED;
     }
 
