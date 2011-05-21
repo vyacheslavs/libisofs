@@ -384,14 +384,14 @@ int create_image(IsoImage *image, const char *image_path,
         if (ret != sizeof(mbr)) {
             iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
                           "Can't read MBR from image file.");
-            return ret < 0 ? ret : ISO_FILE_READ_ERROR;
+            return ret < 0 ? ret : (int) ISO_FILE_READ_ERROR;
         }
 
         /* check valid MBR signature */
         if ( mbr.sign1 != 0x55 || mbr.sign2 != 0xAA ) {
             iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
                           "Invalid MBR. Wrong signature.");
-            return ISO_BOOT_IMAGE_NOT_VALID;
+            return (int) ISO_BOOT_IMAGE_NOT_VALID;
         }
 
         /* ensure single partition */
@@ -487,7 +487,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
          "Cannot find directory for El Torito boot catalog in ISO image: '%s'",
                                catdir);
                 free(catdir);
-                return ret < 0 ? ret : ISO_NODE_DOESNT_EXIST;
+                return ret < 0 ? ret : (int) ISO_NODE_DOESNT_EXIST;
             }
             if (p->type != LIBISO_DIR) {
                 free(catdir);
@@ -837,10 +837,10 @@ int catalog_open(IsoStream *stream)
         for (j = i + 1; j < cat->num_bootimages; j++) {
              if (boots[i]->platform_id != boots[j]->platform_id)
         break;
-             for (k = 0; k < sizeof(boots[i]->id_string); k++)
+             for (k = 0; k < (int) sizeof(boots[i]->id_string); k++)
                  if (boots[i]->id_string[k] != boots[j]->id_string[k])
              break;
-             if (k < sizeof(boots[i]->id_string))
+             if (k < (int) sizeof(boots[i]->id_string))
         break;
         }
         num_entries = j - i;
@@ -896,7 +896,7 @@ int catalog_read(IsoStream *stream, void *buf, size_t count)
         return ISO_FILE_NOT_OPENED;
     }
 
-    len = MIN(count, BLOCK_SIZE - data->offset);
+    len = MIN(count, (size_t) (BLOCK_SIZE - data->offset));
     memcpy(buf, data->buffer + data->offset, len);
     return len;
 }
@@ -936,7 +936,11 @@ IsoStreamIface catalog_stream_class = {
     catalog_read,
     catalog_is_repeatable,
     catalog_get_id,
-    catalog_free
+    catalog_free,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };
 
 /**
@@ -1127,8 +1131,8 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
         }
         ret = iso_stream_read(original, buf, size);
         iso_stream_close(original);
-        if (ret != size) {
-            return (ret < 0) ? ret : ISO_FILE_READ_ERROR;
+        if (ret != (int) size) {
+            return (ret < 0) ? ret : (int) ISO_FILE_READ_ERROR;
         }
 
         /* ok, patch the read buffer */
