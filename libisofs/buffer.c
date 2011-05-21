@@ -150,7 +150,7 @@ void iso_ring_buffer_free(IsoRingBuffer *buf)
 int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
 {
     size_t len;
-    int bytes_write = 0;
+    size_t bytes_write = 0;
 
     if (buf == NULL || data == NULL) {
         return ISO_NULL_POINTER;
@@ -206,7 +206,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
 int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count)
 {
     size_t len;
-    int bytes_read = 0;
+    size_t bytes_read = 0;
 
     if (buf == NULL || dest == NULL) {
         return ISO_NULL_POINTER;
