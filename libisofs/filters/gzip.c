@@ -394,7 +394,7 @@ int gzip_stream_convert(IsoStream *stream, void *buf, size_t desired, int flag)
             if (cnv_ret == Z_STREAM_ERROR || cnv_ret == Z_BUF_ERROR) {
                 return (rng->error_ret = ISO_ZLIB_COMPR_ERR);
             }
-            if (strm->avail_out < rng->out_buffer_size)
+            if ((int) strm->avail_out < rng->out_buffer_size)
         break; /* output is available */
             if (strm->avail_in == 0) /* all pending input consumed */
         break;
