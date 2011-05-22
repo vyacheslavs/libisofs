@@ -103,6 +103,8 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
     }
     data = src->data;
     path = lfs_get_path(src);
+    if (path == NULL)
+        return ISO_OUT_OF_MEM;
 
     if (lstat(path, info) != 0) {
         int err;
@@ -128,6 +130,7 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
             err = ISO_FILE_ERROR;
             break;
         }
+        free(path);
         return err;
     }
     free(path);
@@ -145,6 +148,8 @@ int lfs_stat(IsoFileSource *src, struct stat *info)
     }
     data = src->data;
     path = lfs_get_path(src);
+    if (path == NULL)
+        return ISO_OUT_OF_MEM;
 
     if (stat(path, info) != 0) {
         int err;
@@ -170,6 +175,7 @@ int lfs_stat(IsoFileSource *src, struct stat *info)
             err = ISO_FILE_ERROR;
             break;
         }
+        free(path);
         return err;
     }
     free(path);
