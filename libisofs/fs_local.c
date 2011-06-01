@@ -517,6 +517,10 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
        to AAIP ACL representation. Clean out st_mode ACL entries.
     */ 
     path = iso_file_source_get_path(src);
+    if (path == NULL) {
+        ret = ISO_NULL_POINTER;
+        goto ex;
+    }
     ret = aaip_get_attr_list(path, &num_attrs, &names,
                              &value_lengths, &values,
                              (!(flag & 2)) | 2 | (flag & 4) | 16);

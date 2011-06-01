@@ -392,6 +392,8 @@ char* ifs_get_path(IsoFileSource *src)
         char *path, *new_path;
         int pathlen;
 
+        if (data->name == NULL)
+            return NULL;
         path = ifs_get_path(data->parent);
         if (path == NULL)
             return NULL;

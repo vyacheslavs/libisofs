@@ -761,11 +761,16 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 
     ret = iso_file_source_open(dir);
     if (ret < 0) {
-        char *path = iso_file_source_get_path(dir);
+        path = iso_file_source_get_path(dir);
         /* instead of the probable error, we throw a sorry event */
-        ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret, 
-                             "Can't open dir %s", path);
-        free(path);
+	if (path != NULL) {
+            ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret, 
+                                 "Can't open dir %s", path);
+            free(path);
+        } else {
+            ret = iso_msg_submit(image->id, ISO_NULL_POINTER, ret,
+                           "Can't open dir. NULL pointer caught as dir name");
+        }
         return ret;
     }
 
@@ -785,6 +790,11 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
         }
 
         path = iso_file_source_get_path(file);
+        if (path == NULL) {
+            ret = iso_msg_submit(image->id, ISO_NULL_POINTER, ret, 
+                                 "NULL pointer caught as file path");
+            return ret;
+        }
         name = strrchr(path, '/') + 1;
 
         if (image->follow_symlinks) {

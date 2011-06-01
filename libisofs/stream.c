@@ -869,6 +869,10 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
     if (!strncmp(type, "fsrc", 4)) {
         FSrcStreamData *data = stream->data;
         char *path = iso_file_source_get_path(data->src);
+        if (path == NULL) {
+            name[0] = 0;
+            return;
+        }
         strncpy(name, path, PATH_MAX - 1);
         name[PATH_MAX - 1] = 0;
         free(path);
