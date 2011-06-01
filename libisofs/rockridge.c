@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -1257,7 +1257,8 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
 
         /* "." or ".." entry */
 
-        su_size += 5; /* NM field */
+        if (!t->rrip_version_1_10)
+            su_size += 5; /* NM field */
 
         if (type == 1 && n->parent == NULL) {
             /* 
@@ -1713,9 +1714,36 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         /* "." or ".." entry */
 
         /* write the NM entry */
-        ret = rrip_add_NM(t, info, NULL, 0, 1 << type, 0);
-        if (ret < 0) {
-            goto add_susp_cleanup;
+        if (t->rrip_version_1_10) {
+            /* RRIP-1.10:
+               "NM" System Use Fields recorded for the ISO 9660 directory
+                records with names (00) and (01), used to designate the
+                current and parent directories, respectively, should be
+                ignored. Instead, the receiving system should convert these
+                names to the appropriate receiving system-dependent
+                designations for the current and parent directories.
+            */
+            /* mkisofs obviously writes no NM for '.' and '..' .
+               Program isoinfo shows empty names with records as of RRIP-1.12
+            */
+            /* no op */;
+        } else {
+            /* RRIP-1.12:
+               If the ISO 9660 Directory Record File Identifier is (00), then
+               the CURRENT bit of the "NM" Flags field [...], if present, shall
+               be set to ONE. If the ISO 9660 Directory Record File Identifier
+               is (01), then the PARENT bit of the "NM" Flags field [...],
+               if present, shall be set to ONE.
+               [...]
+               "BP 3 - Length (LEN_NM)" shall specify as an 8-bit number the
+               length in bytes [...]. If bit position 1, 2, or 5 of the "NM"
+               Flags is set to ONE, the value of this field shall be 5 and no
+               Name Content shall be recorded.
+               [The CURRENT bit has position 1. The PARENT bit has position 2.]
+            */
+            ret = rrip_add_NM(t, info, NULL, 0, 1 << type, 0);
+            if (ret < 0)
+                goto add_susp_cleanup;
         }
 
         if (type == 1 && n->parent == NULL) {
