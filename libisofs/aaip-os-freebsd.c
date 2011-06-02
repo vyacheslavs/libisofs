@@ -229,7 +229,7 @@ ex:;
 
  if(ret <= 0 || (flag & (1 << 15))) {
    if(*names != NULL) {
-     for(i= 0; i < *num_attrs; i++)
+     for(i= 0; i < (ssize_t) *num_attrs; i++)
        free((*names)[i]);
      free(*names);
    }
@@ -238,7 +238,7 @@ ex:;
      free(*value_lengths);
    *value_lengths= NULL;
    if(*values != NULL) {
-     for(i= 0; i < *num_attrs; i++)
+     for(i= 0; i < (ssize_t) *num_attrs; i++)
        free((*values)[i]);
      free(*values);
    }
