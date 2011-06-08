@@ -6,6 +6,7 @@ pkgconfigdir=$(LIBBURNIA_PKGCONFDIR)
 libincludedir=$(includedir)/libisofs
 
 lib_LTLIBRARIES = libisofs/libisofs.la
+ACLOCAL_AMFLAGS = -I ./
 
 ## ========================================================================= ##
 
