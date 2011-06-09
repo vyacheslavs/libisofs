@@ -4,10 +4,10 @@
  Arbitrary Attribute Interchange Protocol , AAIP versions 0.2 , 1.0 , 2.0.
  Implementation of encoding and decoding xattr and ACL.
 
- See test/aaip_0_2.h
+ See libisofs/aaip_0_2.h
      http://libburnia-project.org/wiki/AAIP
 
- Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2011 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 

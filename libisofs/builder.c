@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -20,6 +20,7 @@
 #include "fsource.h"
 #include "image.h"
 #include "aaip_0_2.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -104,9 +105,11 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     char *name;
     unsigned char *aa_string = NULL;
     char *a_text = NULL, *d_text = NULL;
+    char *dest = NULL;
+    IsoSymlink *link;
 
     if (builder == NULL || src == NULL || node == NULL) {
-        return ISO_NULL_POINTER;
+        {ret = ISO_NULL_POINTER; goto ex;}
     }
 
     /* get info about source */
@@ -116,7 +119,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         ret = iso_file_source_lstat(src, &info);
     }
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     name = iso_file_source_get_name(src);
@@ -157,9 +160,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFLNK:
         {
             /* source is a symbolic link */
-            char dest[LIBISOFS_NODE_PATH_MAX];
-            IsoSymlink *link;
-
+            LIBISO_ALLOC_MEM(dest, char, LIBISOFS_NODE_PATH_MAX);
             ret = iso_file_source_readlink(src, dest, LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
                 break;
@@ -198,7 +199,7 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     
     if (ret < 0) {
         free(name);
-        return ret;
+        goto ex;
     }
 
     /* fill fields */
@@ -233,14 +234,17 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     if (ret == 1 && aa_string != NULL) {
         ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
         if (ret < 0)
-            return ret;
+            goto ex;
     } else if(aa_string != NULL) {
         free(aa_string);
     }
 
     *node = new;
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(dest);
+    return ret;
 }
 
 static
