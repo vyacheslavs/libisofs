@@ -1886,4 +1886,14 @@ ex:;
     return ret;
 }
 
+
+void *iso_alloc_mem(size_t size, size_t count, int flag)
+{
+    void *pt;
+
+    pt = calloc(size, count);
+    if(pt == NULL)
+	iso_msg_submit(-1, ISO_OUT_OF_MEM, 0, "Out of virtual memory");
+    return pt;
+}
  
