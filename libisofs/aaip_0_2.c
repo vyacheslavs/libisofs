@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 
 #include "libisofs.h"
+#include "util.h"
 
 /*
 #define Aaip_encode_debuG 1
@@ -346,21 +347,23 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                            size_t result_size, unsigned char *result, int flag)
 {
  char *rpt, *npt, *cpt;
- int qualifier= 0, perms, type, i, qualifier_len= 0, num_recs, needed= 0;
+ int qualifier= 0, perms, type, i, qualifier_len= 0, num_recs, needed= 0, ret;
  unsigned int has_u= 0, has_g= 0, has_o= 0, has_m= 0, is_trivial= 1;
  uid_t uid, huid;
  gid_t gid, hgid;
  ssize_t count= 0;
  struct passwd *pwd;
  struct group *grp;
- char name[1024];
+ char *name = NULL;
+ int name_size= 1024;
  double num;
 
+ LIBISO_ALLOC_MEM(name, char, name_size);
  if(flag & 4) {
    /* set SWITCH_MARK to indicate a default ACL */;
    if(!(flag & 1)) {
      if((size_t) count >= result_size)
-       return(-1);
+       {ret= -1; goto ex;}
      result[count]= (Aaip_SWITCH_MARK << 4) | Aaip_EXEC;
    }
    count++;
@@ -386,7 +389,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
        type= Aaip_ACL_USER_OBJ;
        has_u++;
      } else {
-       if(cpt - (rpt + 5) >= (int) sizeof(name))
+       if(cpt - (rpt + 5) >= name_size)
  continue;
        is_trivial= 0;
        strncpy(name, rpt + 5, cpt - (rpt + 5)); 
@@ -419,7 +422,7 @@ user_by_name:;
        type= Aaip_ACL_GROUP_OBJ;
        has_g++;
      } else {
-       if(cpt - (rpt + 6) >= (int) sizeof(name))
+       if(cpt - (rpt + 6) >= name_size)
  continue;
        is_trivial= 0;
        strncpy(name, rpt + 6, cpt - (rpt + 6)); 
@@ -462,7 +465,7 @@ group_by_name:;
 
    if(!(flag & 1)) {
      if((size_t) count >= result_size)
-       return(-1);
+       {ret= -1; goto ex;}
      result[count]= perms | ((!!qualifier) << 3) | (type << 4);
    }
    count++;
@@ -471,7 +474,7 @@ group_by_name:;
      num_recs= (qualifier_len / 127) + !!(qualifier_len % 127);
      if(!(flag & 1)) {
        if((size_t) (count + 1) > result_size)
-         return(-1);
+         {ret= -1; goto ex;}
        for(i= 0; i < num_recs; i++) {
          if(i < num_recs - 1)
            result[count++]= 255;
@@ -481,7 +484,7 @@ group_by_name:;
              result[count - 1]= 127;
          }
          if((size_t) (count + (result[count - 1] & 127)) > result_size)
-           return(-1);
+           {ret= -1; goto ex;}
          memcpy(result + count, name + i * 127, result[count - 1] & 127);
          count+= result[count - 1] & 127;
        }
@@ -496,7 +499,7 @@ group_by_name:;
      count+= needed;
    else {
      if((size_t) (count + needed) > result_size)
-       return(-1);
+       {ret= -1; goto ex;}
    }
  }
  if ((flag & 8) && needed > 0 && !(flag & 1)) {
@@ -521,7 +524,10 @@ group_by_name:;
      result[count++]= perms | (Aaip_ACL_MASK << 4);
    }
  }
- return(count);
+ ret= count;
+ex:;
+ LIBISO_FREE_MEM(name);
+ return(ret);
 }
 
 
@@ -2015,14 +2021,15 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
                     size_t *acl_text_fill, int flag)
 {
  unsigned char *rpt;
- char perm_text[4], *wpt, name[1024];
- int type, qualifier= 0, perm, ret, cnt;
+ char perm_text[4], *wpt, *name= NULL;
+ int type, qualifier= 0, perm, ret, cnt, name_size= 1024;
  size_t w_size, name_fill= 0, i;
  uid_t uid;
  gid_t gid;
  struct passwd *pwd;
  struct group *grp;
 
+ LIBISO_ALLOC_MEM(name, char, name_size);
  cnt= flag & 1;
  *consumed= 0;
  wpt= acl_text;
@@ -2040,14 +2047,14 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
      
    type= (*rpt) >> 4;
    if(type == Aaip_FUTURE_VERSION) /* indicate to caller: version mismatch */
-     return(-3);
+     {ret = -3; goto ex;}
 
    qualifier= !!((*rpt) & 8);
    if(qualifier) {
      ret= aaip_read_qualifier(rpt + 1, num_data - (rpt + 1 - data),
-                              name, sizeof(name), &name_fill, 0);
+                              name, name_size, &name_fill, 0);
      if(ret <= 0)
-       return(-1);
+       {ret = -1; goto ex;}
    }
 
    /* Advance read pointer */
@@ -2088,7 +2095,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
      pwd= getpwuid(uid);
      if(pwd == NULL)
        sprintf(name, "%.f", (double) uid);
-     else if(strlen(pwd->pw_name) >= sizeof(name))
+     else if(strlen(pwd->pw_name) >= (size_t) name_size)
        sprintf(name, "%.f", (double) uid);
      else
        strcpy(name, pwd->pw_name);
@@ -2102,7 +2109,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
      grp= getgrgid(gid);
      if(grp == NULL)
        sprintf(name, "%.f", (double) gid);
-     else if(strlen(grp->gr_name) >= sizeof(name))
+     else if(strlen(grp->gr_name) >= (size_t) name_size)
        sprintf(name, "%.f", (double) gid);
      else
        strcpy(name, grp->gr_name);
@@ -2110,15 +2117,16 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
      ret= aaip_write_acl_line(&wpt, &w_size, "group", name, perm_text, cnt);
    } else {
      /* indicate to caller: unknown type */
-     return(-4);
+     {ret = -4; goto ex;}
    }
    if(ret <= 0)
-     return(-2);
+     {ret = -2; goto ex;}
  }
  ret= 1;
 ex:;
  if(flag & 1)
    *acl_text_fill= w_size + 1;
+ LIBISO_FREE_MEM(name);
  return(ret);
 }
 
