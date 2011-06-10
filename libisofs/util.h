@@ -544,7 +544,7 @@ void *iso_alloc_mem(size_t size, size_t count, int flag);
 #define LIBISO_ALLOC_MEM(pt, typ, count) { \
         pt= (typ *) iso_alloc_mem(sizeof(typ), (size_t) (count), 0); \
         if(pt == NULL) { \
-                ret= -1; goto ex; \
+                ret= ISO_OUT_OF_MEM; goto ex; \
         } }
 
 #define LIBISO_FREE_MEM(pt) { \
