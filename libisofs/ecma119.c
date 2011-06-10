@@ -576,16 +576,16 @@ static
 int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
 {
     int ret;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
     size_t i;
     size_t fi_len, len;
     struct susp_info info;
 
     /* buf will point to current write position on buffer */
-    uint8_t *buf = buffer;
+    uint8_t *buf;
 
-    /* initialize buffer with 0s */
-    memset(buffer, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
+    buf = buffer;
 
     /*
      * set susp_info to 0's, this way code for both plain ECMA-119 and
@@ -602,7 +602,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
     if (t->rockridge) {
         ret = rrip_get_susp_fields(t, dir, 1, 34, &info);
         if (ret < 0) {
-            return ret;
+            goto ex;
         }
     }
     len = 34 + info.suf_len;
@@ -612,7 +612,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
     if (t->rockridge) {
         ret = rrip_get_susp_fields(t, dir, 2, 34, &info);
         if (ret < 0) {
-            return ret;
+            goto ex;
         }
     }
     len = 34 + info.suf_len;
@@ -638,7 +638,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
             if (t->rockridge) {
                 ret = rrip_get_susp_fields(t, child, 0, len, &info);
                 if (ret < 0) {
-                    return ret;
+                    goto ex;
                 }
                 len += info.suf_len;
             }
@@ -647,7 +647,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
                 /* dir doesn't fit in current block */
                 ret = iso_write(t, buffer, BLOCK_SIZE);
                 if (ret < 0) {
-                    return ret;
+                    goto ex;
                 }
                 memset(buffer, 0, BLOCK_SIZE);
                 buf = buffer;
@@ -661,7 +661,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
     /* write the last block */
     ret = iso_write(t, buffer, BLOCK_SIZE);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     /* write the Continuation Area if needed */
@@ -669,6 +669,8 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
         ret = rrip_write_ce_fields(t, &info);
     }
 
+ex:;
+    LIBISO_FREE_MEM(buffer);
     return ret;
 }
 
@@ -708,6 +710,7 @@ int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
     uint32_t path_table_size;
     int parent = 0;
     int ret= ISO_SUCCESS;
+    uint8_t *zeros = NULL;
 
     path_table_size = 0;
     write_int = l_type ? iso_lsb : iso_msb;
@@ -735,7 +738,7 @@ int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
         ret = iso_write(t, buf, len);
         if (ret < 0) {
             /* error */
-            return ret;
+            goto ex;
         }
         path_table_size += len;
     }
@@ -743,11 +746,12 @@ int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
     /* we need to fill the last block with zeros */
     path_table_size %= BLOCK_SIZE;
     if (path_table_size) {
-        uint8_t zeros[BLOCK_SIZE];
         len = BLOCK_SIZE - path_table_size;
-        memset(zeros, 0, len);
+        LIBISO_ALLOC_MEM(zeros, uint8_t, len);
         ret = iso_write(t, zeros, len);
     }
+ex:;
+    LIBISO_FREE_MEM(zeros);
     return ret;
 }
 
@@ -878,28 +882,28 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
     int ret;
     Ecma119Image *t;
     uint32_t curblock;
+    char *msg = NULL;
 
-    if (writer == NULL) {
-        return ISO_ASSERT_FAILURE;
-    }
+    if (writer == NULL)
+        {ret = ISO_ASSERT_FAILURE; goto ex;}
+
     t = writer->target;
 
     ret = ecma119_writer_write_dirs(writer);
     if (ret < 0)
-        return ret;
+        goto ex;
 
     if (t->partition_offset > 0) {
         t->eff_partition_offset = t->partition_offset;
         ret = ecma119_writer_write_dirs(writer);
         t->eff_partition_offset = 0;
         if (ret < 0) 
-            return ret;
+            goto ex;
     }
 
     curblock = (t->bytes_written / 2048) + t->ms_block;
     if (curblock != t->tree_end_block) {
-        char msg[100];
-
+        LIBISO_ALLOC_MEM(msg, char, 100);
         sprintf(msg,
                 "Calculated and written ECMA-119 tree end differ: %lu <> %lu",
                 (unsigned long) t->tree_end_block,
@@ -908,8 +912,10 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
 
         t->tree_end_block = 1;/* Mark for harsher reaction at end of writing */
     }
-
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(msg);
+    return ret;
 }
 
 static
@@ -990,27 +996,30 @@ int mspad_writer_write_data(IsoImageWriter *writer)
 {
     int ret;
     Ecma119Image *t;
-    uint8_t pad[BLOCK_SIZE];
+    uint8_t *pad = NULL;
     size_t i;
 
     if (writer == NULL) {
-        return ISO_ASSERT_FAILURE;
+        {ret = ISO_ASSERT_FAILURE; goto ex;}
     }
     t = writer->target;
 
     if (t->mspad_blocks == 0) {
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     }
 
-    memset(pad, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(pad, uint8_t, BLOCK_SIZE);
     for (i = 0; i < t->mspad_blocks; ++i) {
         ret = iso_write(t, pad, BLOCK_SIZE);
         if (ret < 0) {
-            return ret;
+            goto ex;
         }
     }
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(pad);
+    return ret;
 }
 
 static
@@ -1076,23 +1085,26 @@ int zero_writer_write_data(IsoImageWriter *writer)
     int ret;
     Ecma119Image *t;
     struct iso_zero_writer_data_struct *data;
-    uint8_t pad[BLOCK_SIZE];
+    uint8_t *pad = NULL;
     size_t i;
 
     if (writer == NULL)
-        return ISO_ASSERT_FAILURE;
+        {ret = ISO_ASSERT_FAILURE; goto ex;}
     t = writer->target;
     data = (struct iso_zero_writer_data_struct *) writer->data;
 
     if (data->num_blocks == 0) 
-        return ISO_SUCCESS;
-    memset(pad, 0, BLOCK_SIZE);
+        {ret = ISO_SUCCESS; goto ex;}
+    LIBISO_ALLOC_MEM(pad, uint8_t, BLOCK_SIZE);
     for (i = 0; i < data->num_blocks; ++i) {
         ret = iso_write(t, pad, BLOCK_SIZE);
         if (ret < 0) 
-            return ret;
+            goto ex;
     }
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(pad);
+    return ret;
 }
 
 static
@@ -1113,7 +1125,7 @@ int tail_writer_compute_data_blocks(IsoImageWriter *writer)
     int ret;
     Ecma119Image *target;
     struct iso_zero_writer_data_struct *data;
-    char msg[160];
+    char msg[80];
 
     target = writer->target;
     ret = iso_align_isohybrid(target, 0);
@@ -1185,11 +1197,11 @@ int transplant_checksum_buffer(Ecma119Image *target, int flag)
 static
 int write_vol_desc_terminator(Ecma119Image *target)
 {
-    int res;
-    uint8_t buf[BLOCK_SIZE];
+    int ret;
+    uint8_t *buf = NULL;
     struct ecma119_vol_desc_terminator *vol;
 
-    memset(buf, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(buf, uint8_t, BLOCK_SIZE);
 
     vol = (struct ecma119_vol_desc_terminator *) buf;
 
@@ -1197,8 +1209,10 @@ int write_vol_desc_terminator(Ecma119Image *target)
     memcpy(vol->std_identifier, "CD001", 5);
     vol->vol_desc_version[0] = 1;
 
-    res = iso_write(target, buf, BLOCK_SIZE);
-    return res;
+    ret = iso_write(target, buf, BLOCK_SIZE);
+ex:
+    LIBISO_FREE_MEM(buf);
+    return ret;
 }
 
 
@@ -1257,20 +1271,20 @@ write_error:;
 static
 int write_head_part2(Ecma119Image *target, int *write_count, int flag)
 {
-    int res, i;
-    uint8_t buf[BLOCK_SIZE];
+    int ret, i;
+    uint8_t *buf = NULL;
     IsoImageWriter *writer;
 
     if (target->partition_offset <= 0)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
 
     /* Write multi-session padding up to target->partition_offset + 16 */
-    memset(buf, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(buf, uint8_t, BLOCK_SIZE);
     for(; *write_count < (int) target->partition_offset + 16;
         (*write_count)++) {
-        res = iso_write(target, buf, BLOCK_SIZE);
-        if (res < 0)
-            goto write_error;
+        ret = iso_write(target, buf, BLOCK_SIZE);
+        if (ret < 0)
+            goto ex;
     }
 
     /* Write volume descriptors subtracting
@@ -1288,23 +1302,23 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
         if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
            writer->write_vol_desc != joliet_writer_write_vol_desc)
     continue;
-        res = writer->write_vol_desc(writer);
-        if (res < 0)
-            goto write_error;
+        ret = writer->write_vol_desc(writer);
+        if (ret < 0)
+            goto ex;
         (*write_count)++;
     }
-    res = write_vol_desc_terminator(target);
-    if (res < 0)
-        goto write_error;
+    ret = write_vol_desc_terminator(target);
+    if (ret < 0)
+        goto ex;
     (*write_count)++;
     target->eff_partition_offset = 0;
 
     /* >>> TWINTREE: Postponed for now:
                      Write second superblock checksum tag */;
 
-    return ISO_SUCCESS;
-write_error:;
-    return res;
+    ret = ISO_SUCCESS;
+ex:;
+    return ret;
 }
 
 static
@@ -1360,19 +1374,19 @@ static int write_mbr_partition_file(Ecma119Image *target, char *path,
 {
     FILE *fp = NULL;
     uint32_t i;
-    uint8_t buf[BLOCK_SIZE];
+    uint8_t *buf = NULL;
     int ret;
 
-    memset(buf, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(buf, uint8_t, BLOCK_SIZE);
     for (i = 0; i < prepad; i++) {
         ret = iso_write(target, buf, BLOCK_SIZE);
         if (ret < 0)
-            return ret;
+            goto ex;
     }
 
     fp = fopen(path, "rb");
     if (fp == NULL)
-        return ISO_BAD_PARTITION_FILE;
+        {ret = ISO_BAD_PARTITION_FILE; goto ex;}
 
     for (i = 0; i < blocks; i++) {
         memset(buf, 0, BLOCK_SIZE);
@@ -1386,12 +1400,15 @@ static int write_mbr_partition_file(Ecma119Image *target, char *path,
         ret = iso_write(target, buf, BLOCK_SIZE);
         if (ret < 0) {
             fclose(fp);
-            return ret;
+            goto ex;
         }
     }
     if (fp != NULL) 
         fclose(fp);
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(buf);
+    return ret;
 }
 
 
