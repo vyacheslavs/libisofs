@@ -18,6 +18,7 @@
 #include "image.h"
 #include "filesrc.h"
 #include "eltorito.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -308,7 +309,10 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
     Iso1999Node **children;
     IsoHTable *table;
     int need_sort = 0;
+    char *full_name = NULL, *tmp = NULL;
 
+    LIBISO_ALLOC_MEM(full_name, char, 208);
+    LIBISO_ALLOC_MEM(tmp, char, 208);
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
 
@@ -316,19 +320,18 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
     ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
                             (compare_function_t)strcmp, &table);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
     for (i = 0; i < nchildren; ++i) {
         char *name = children[i]->name;
         ret = iso_htable_add(table, name, name);
         if (ret < 0) {
-            goto mangle_cleanup;
+            goto ex;
         }
     }
 
     for (i = 0; i < nchildren; ++i) {
         char *name, *ext;
-        char full_name[208];
         int max; /* computed max len for name, without extension */
         int j = i;
         int digits = 1; /* characters to change per name */
@@ -385,7 +388,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
                          * This can't happen with current limit of digits.
                          */
                         ret = ISO_ERROR;
-                        goto mangle_cleanup;
+                        goto ex;
                     }
                 }
                 /* ok, reduce name by digits */
@@ -409,7 +412,6 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
             ok = 1;
             /* change name of each file */
             for (k = i; k <= j; ++k) {
-                char tmp[208];
                 char fmt[16];
                 if (dot != NULL) {
                     sprintf(fmt, "%%s%%0%dd.%%s", digits);
@@ -432,7 +434,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
                     char *new = strdup(tmp);
                     if (new == NULL) {
                         ret = ISO_OUT_OF_MEM;
-                        goto mangle_cleanup;
+                        goto ex;
                     }
                     iso_msg_debug(img->image->id, "\"%s\" renamed to \"%s\"",
                                   children[k]->name, new);
@@ -460,7 +462,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
         }
         if (digits == 8) {
             ret = ISO_MANGLE_TOO_MUCH_FILES;
-            goto mangle_cleanup;
+            goto ex;
         }
         i = j;
     }
@@ -474,8 +476,10 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
 
     ret = ISO_SUCCESS;
 
-mangle_cleanup : ;
+ex:;
     iso_htable_destroy(table, NULL);
+    LIBISO_FREE_MEM(tmp);
+    LIBISO_FREE_MEM(full_name);
     return ret;
 }
 
@@ -811,15 +815,15 @@ static
 int write_one_dir(Ecma119Image *t, Iso1999Node *dir)
 {
     int ret;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
     size_t i;
     size_t fi_len, len;
 
     /* buf will point to current write position on buffer */
-    uint8_t *buf = buffer;
+    uint8_t *buf;
 
-    /* initialize buffer with 0s */
-    memset(buffer, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
+    buf = buffer;
 
     /* write the "." and ".." entries first */
     write_one_dir_record(t, dir, 0, buf, 1, 0);
@@ -841,7 +845,7 @@ int write_one_dir(Ecma119Image *t, Iso1999Node *dir)
                 /* dir doesn't fit in current block */
                 ret = iso_write(t, buffer, BLOCK_SIZE);
                 if (ret < 0) {
-                    return ret;
+                    goto ex;
                 }
                 memset(buffer, 0, BLOCK_SIZE);
                 buf = buffer;
@@ -854,6 +858,8 @@ int write_one_dir(Ecma119Image *t, Iso1999Node *dir)
 
     /* write the last block */
     ret = iso_write(t, buffer, BLOCK_SIZE);
+ex:;
+    LIBISO_FREE_MEM(buffer);
     return ret;
 }
 
@@ -886,13 +892,17 @@ static
 int write_path_table(Ecma119Image *t, Iso1999Node **pathlist, int l_type)
 {
     size_t i, len;
-    uint8_t buf[256]; /* 256 is just a convenient size larger enought */
+    uint8_t *buf = NULL;
     struct ecma119_path_table_record *rec;
     void (*write_int)(uint8_t*, uint32_t, int);
     Iso1999Node *dir;
     uint32_t path_table_size;
     int parent = 0;
     int ret= ISO_SUCCESS;
+    uint8_t *zeros = NULL;
+
+    /* 256 is just a convenient size large enought */
+    LIBISO_ALLOC_MEM(buf, uint8_t, 256);
 
     path_table_size = 0;
     write_int = l_type ? iso_lsb : iso_msb;
@@ -919,7 +929,7 @@ int write_path_table(Ecma119Image *t, Iso1999Node **pathlist, int l_type)
         ret = iso_write(t, buf, len);
         if (ret < 0) {
             /* error */
-            return ret;
+            goto ex;
         }
         path_table_size += len;
     }
@@ -927,11 +937,14 @@ int write_path_table(Ecma119Image *t, Iso1999Node **pathlist, int l_type)
     /* we need to fill the last block with zeros */
     path_table_size %= BLOCK_SIZE;
     if (path_table_size) {
-        uint8_t zeros[BLOCK_SIZE];
+        LIBISO_ALLOC_MEM(zeros, uint8_t, BLOCK_SIZE);
         len = BLOCK_SIZE - path_table_size;
         memset(zeros, 0, len);
         ret = iso_write(t, zeros, len);
     }
+ex:;
+    LIBISO_FREE_MEM(zeros);
+    LIBISO_FREE_MEM(buf);
     return ret;
 }
 
