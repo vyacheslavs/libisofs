@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
+ * Copyright (c) 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -348,7 +349,11 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     JolietNode **children;
     IsoHTable *table;
     int need_sort = 0;
+    uint16_t *full_name = NULL;
+    uint16_t *tmp = NULL;
 
+    LIBISO_ALLOC_MEM(full_name, uint16_t, LIBISO_JOLIET_NAME_MAX);
+    LIBISO_ALLOC_MEM(tmp, uint16_t, LIBISO_JOLIET_NAME_MAX);
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
 
@@ -359,7 +364,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
                             (compare_function_t)ucscmp, &table);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
     for (i = 0; i < nchildren; ++i) {
         uint16_t *name = children[i]->name;
@@ -371,7 +376,6 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
 
     for (i = 0; i < nchildren; ++i) {
         uint16_t *name, *ext;
-        uint16_t full_name[LIBISO_JOLIET_NAME_MAX];
         int max; /* computed max len for name, without extension */
         int j = i;
         int digits = 1; /* characters to change per name */
@@ -456,7 +460,6 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
             ok = 1;
             /* change name of each file */
             for (k = i; k <= j; ++k) {
-                uint16_t tmp[LIBISO_JOLIET_NAME_MAX];
                 while (1) {
                     ret = joliet_create_mangled_name(tmp, name, digits,
                                                      change, ext);
@@ -518,7 +521,10 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     ret = ISO_SUCCESS;
 
 mangle_cleanup : ;
+ex:;
     iso_htable_destroy(table, NULL);
+    LIBISO_FREE_MEM(tmp);
+    LIBISO_FREE_MEM(full_name);
     return ret;
 }
 
@@ -919,15 +925,16 @@ static
 int write_one_dir(Ecma119Image *t, JolietNode *dir)
 {
     int ret;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
     size_t i;
     size_t fi_len, len;
 
     /* buf will point to current write position on buffer */
-    uint8_t *buf = buffer;
+    uint8_t *buf;
 
     /* initialize buffer with 0s */
-    memset(buffer, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
+    buf = buffer;
 
     /* write the "." and ".." entries first */
     write_one_dir_record(t, dir, 0, buf, 1, 0);
@@ -954,7 +961,7 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
                 /* dir doesn't fit in current block */
                 ret = iso_write(t, buffer, BLOCK_SIZE);
                 if (ret < 0) {
-                    return ret;
+                    goto ex;
                 }
                 memset(buffer, 0, BLOCK_SIZE);
                 buf = buffer;
@@ -967,6 +974,8 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
 
     /* write the last block */
     ret = iso_write(t, buffer, BLOCK_SIZE);
+ex:;
+    LIBISO_FREE_MEM(buffer);
     return ret;
 }
 
@@ -999,14 +1008,18 @@ static
 int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
 {
     size_t i, len;
-    uint8_t buf[256]; /* 256 is just a convenient size larger enought */
+    uint8_t *buf = NULL;
     struct ecma119_path_table_record *rec;
     void (*write_int)(uint8_t*, uint32_t, int);
     JolietNode *dir;
     uint32_t path_table_size;
     int parent = 0;
     int ret= ISO_SUCCESS;
+    uint8_t *zeros = NULL;
 
+    /* 256 is just a convenient size large enought */
+    LIBISO_ALLOC_MEM(buf, uint8_t, 256);
+    LIBISO_ALLOC_MEM(zeros, uint8_t, BLOCK_SIZE);
     path_table_size = 0;
     write_int = l_type ? iso_lsb : iso_msb;
 
@@ -1033,7 +1046,7 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
         ret = iso_write(t, buf, len);
         if (ret < 0) {
             /* error */
-            return ret;
+            goto ex;
         }
         path_table_size += len;
     }
@@ -1041,11 +1054,13 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
     /* we need to fill the last block with zeros */
     path_table_size %= BLOCK_SIZE;
     if (path_table_size) {
-        uint8_t zeros[BLOCK_SIZE];
         len = BLOCK_SIZE - path_table_size;
         memset(zeros, 0, len);
         ret = iso_write(t, zeros, len);
     }
+ex:;
+    LIBISO_FREE_MEM(zeros);
+    LIBISO_FREE_MEM(buf);
     return ret;
 }
 
