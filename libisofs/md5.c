@@ -621,11 +621,6 @@ int checksum_writer_write_data(IsoImageWriter *writer)
     void *ctx = NULL;
     char md5[16];
 
-#ifdef NIX
-    char tag_block[2048];
-    int l;
-#endif
-
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
     }
@@ -724,15 +719,16 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
 {
     void *ctx = NULL;
     off_t pos = 0, line_start;
-    int record_len, block_len, res, i;
-    char postext[40], md5[16], record[160];
+    int record_len, block_len, ret, i;
+    char postext[40], md5[16], *record = NULL;
 
+    LIBISO_ALLOC_MEM(record, char, 160);
     line_start = strlen(tag_block);
     iso_md5_compute(t->checksum_ctx, tag_block, line_start);
-    res = iso_md5_clone(t->checksum_ctx, &ctx);
-    if (res < 0)
+    ret = iso_md5_clone(t->checksum_ctx, &ctx);
+    if (ret < 0)
         goto ex;
-    res = iso_md5_end(&ctx, md5);
+    ret = iso_md5_end(&ctx, md5);
 
     pos = (off_t) t->checksum_tag_pos * (off_t) 2048 + line_start;
     if(pos >= 1000000000)
@@ -747,8 +743,8 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
                  "%2.2x", ((unsigned char *) md5)[i]);
     record_len += 32;
 
-    res = iso_md5_start(&ctx);
-    if (res < 0)
+    ret = iso_md5_start(&ctx);
+    if (ret < 0)
         goto ex;
     iso_md5_compute(ctx, record, record_len);
     iso_md5_end(&ctx, md5);
@@ -765,11 +761,12 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
     if (t->scdbackup_tag_written != NULL)
     	strncpy(t->scdbackup_tag_written, tag_block + line_start,
                 block_len - line_start);
-    res = ISO_SUCCESS;
+    ret = ISO_SUCCESS;
 ex:;
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
-    return res;
+    LIBISO_FREE_MEM(record);
+    return ret;
 }
 
 
@@ -783,20 +780,20 @@ ex:;
  */
 int iso_md5_write_tag(Ecma119Image *t, int flag)
 {
-    int res, mode, l, i, wres, tag_id_len;
+    int ret, mode, l, i, wres, tag_id_len;
     void *ctx = NULL;
-    char md5[16], tag_block[2048], *tag_id;
+    char md5[16], *tag_block = NULL, *tag_id;
     uint32_t size = 0, pos = 0, start;
 
+    LIBISO_ALLOC_MEM(tag_block, char, 2048);
     start = t->checksum_range_start;
-    memset(tag_block, 0, 2048);
     mode = flag & 255;
     if (mode < 1 || mode > 4)
-        return ISO_WRONG_ARG_VALUE;
-    res = iso_md5_clone(t->checksum_ctx, &ctx);
-    if (res < 0)
-        return res;
-    res = iso_md5_end(&ctx, md5);
+        {ret = ISO_WRONG_ARG_VALUE; goto ex;}
+    ret = iso_md5_clone(t->checksum_ctx, &ctx);
+    if (ret < 0)
+        goto ex;
+    ret = iso_md5_end(&ctx, md5);
     if (mode == 1) {
         size = t->checksum_range_size;
         pos = t->checksum_tag_pos;
@@ -811,7 +808,7 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
         }
         size = pos - start;
     }
-    if (res < 0)
+    if (ret < 0)
         goto ex;
 
     iso_util_tag_magic(mode, &tag_id, &tag_id_len, 0);
@@ -833,8 +830,8 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
                 ((unsigned char *) md5)[i]);
     l+= 32;
         
-    res = iso_md5_start(&ctx);
-    if (res > 0) {
+    ret = iso_md5_start(&ctx);
+    if (ret > 0) {
         iso_md5_compute(ctx, tag_block, l);
         iso_md5_end(&ctx, md5);
         strcpy(tag_block + l, " self=");
@@ -849,8 +846,8 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
         if (t->ms_block > 0) {
             iso_msg_submit(t->image->id, ISO_SCDBACKUP_TAG_NOT_0, 0, NULL);
         } else {
-            res = iso_md5_write_scdbackup_tag(t, tag_block, 0);
-            if (res < 0)
+            ret = iso_md5_write_scdbackup_tag(t, tag_block, 0);
+            if (ret < 0)
                 goto ex;
         }
     }
@@ -861,16 +858,17 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
     } else {
         wres = iso_write(t, tag_block, 2048);
         if (wres < 0) {
-            res = wres;
+            ret = wres;
             goto ex;
         }
     }
 
-    res = ISO_SUCCESS;
+    ret = ISO_SUCCESS;
 ex:;
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
-    return res;
+    LIBISO_FREE_MEM(tag_block);
+    return ret;
 }
 
 
