@@ -472,15 +472,16 @@ int read_dir(ImageFileSourceData *data)
     IsoImageFilesystem *fs;
     _ImageFsData *fsdata;
     struct ecma119_dir_record *record;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
     IsoFileSource *child = NULL;
     uint32_t pos = 0;
     uint32_t tlen = 0;
 
     if (data == NULL) {
-        return ISO_NULL_POINTER;
+        ret = ISO_NULL_POINTER; goto ex;
     }
 
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
     fs = data->fs;
     fsdata = fs->data;
 
@@ -488,7 +489,7 @@ int read_dir(ImageFileSourceData *data)
     block = data->sections[0].block;
     ret = fsdata->src->read_block(fsdata->src, block, buffer);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     /* "." entry, get size of the dir and skip */
@@ -512,7 +513,7 @@ int read_dir(ImageFileSourceData *data)
              */
             ret = fsdata->src->read_block(fsdata->src, ++block, buffer);
             if (ret < 0) {
-                return ret;
+                goto ex;
             }
             tlen += 2048 - pos;
             pos = 0;
@@ -557,7 +558,7 @@ int read_dir(ImageFileSourceData *data)
                 free(ifsdata);
                 free(child);
             }
-            return ret;
+            goto ex;
         }
 
         /* add to the child list */
@@ -566,7 +567,7 @@ int read_dir(ImageFileSourceData *data)
             node = malloc(sizeof(struct child_list));
             if (node == NULL) {
                 iso_file_source_unref(child);
-                return ISO_OUT_OF_MEM;
+                {ret = ISO_OUT_OF_MEM; goto ex;}
             }
             /*
              * Note that we insert in reverse order. This leads to faster
@@ -583,7 +584,10 @@ int read_dir(ImageFileSourceData *data)
         pos += record->len_dr[0];
     }
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(buffer);
+    return ret;
 }
 
 static
@@ -1247,7 +1251,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     int aa_done = 0;
     char *cs_value = NULL;
     size_t cs_value_length = 0;
-    char msg[160];
+    char *msg = NULL;
+    uint8_t *buffer = NULL;
 
     int has_px = 0;
 
@@ -1257,7 +1262,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 #endif
 
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
-        return ISO_NULL_POINTER;
+        ret = ISO_NULL_POINTER; goto ex;
     }
 
     fsdata = (_ImageFsData*)fs->data;
@@ -1276,7 +1281,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
               "in interleaved mode. We do not support this mode, as we think "
               "it is not used. If you are reading this, then we are wrong :) "
               "Please contact libisofs developers, so we can fix this.");
-        return ISO_UNSUPPORTED_ECMA119;
+        {ret = ISO_UNSUPPORTED_ECMA119; goto ex;}
     }
 
     /*
@@ -1287,7 +1292,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
               "Unsupported image. This image has at least one file with "
               "ECMA-119 Extended Attributes, that are not supported");
-        return ISO_UNSUPPORTED_ECMA119;
+        {ret = ISO_UNSUPPORTED_ECMA119; goto ex;}
     }
 
     /* TODO #00013 : check for unsupported flags when reading a dir record */
@@ -1302,13 +1307,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         if (new_name == NULL) {
             iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                           "Cannot retrieve file name");
-            return ISO_WRONG_ECMA119;
+            {ret = ISO_WRONG_ECMA119; goto ex;}
         }
         if (strcmp(new_name, data->name)) {
             iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                           "Multi-extent file lacks last entry.");
             free(new_name);
-            return ISO_WRONG_ECMA119;
+            {ret = ISO_WRONG_ECMA119; goto ex;}
         }
         free(new_name);
     }
@@ -1323,7 +1328,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         if (record->flags[0] & 0x02) {
             iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                           "Directories with more than one section are not allowed.");
-            return ISO_WRONG_ECMA119;
+            {ret = ISO_WRONG_ECMA119; goto ex;}
         }
 
         if (*src == NULL) {
@@ -1364,7 +1369,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
         ifsdata->info.st_size += (off_t) ifsdata->sections[ifsdata->nsections].size;
         ifsdata->nsections++;
-        return 2;
+        {ret = 2; goto ex;}
     }
 
     /*
@@ -1382,7 +1387,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         iter = susp_iter_new(fsdata->src, record, fsdata->len_skp,
                              fsdata->msgid);
         if (iter == NULL) {
-            return ISO_OUT_OF_MEM;
+            {ret = ISO_OUT_OF_MEM; goto ex;}
         }
 
         while ((ret = susp_iter_next(iter, &sue)) > 0) {
@@ -1451,7 +1456,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                  */
                 susp_iter_free(iter);
                 free(name);
-                return 0; /* it's not an error */
+                {ret = 0; goto ex;} /* it's not an error */
             } else if (SUSP_SIG(sue, 'C', 'L')) {
                 /*
                  * This entry is a placeholder for a relocated dir.
@@ -1583,13 +1588,14 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
         if (ret < 0) {
             free(name);
-            return ret;
+            goto ex;
         }
 
         if ((flag & 1)  && aa_string != NULL) {
             ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
                                      &cs_value_length, &cs_value, 0);
             if (ret == 1) {
+                LIBISO_ALLOC_MEM(msg, char, 160);
                 if (fsdata->auto_input_charset & 1) {
                     if (fsdata->input_charset != NULL)
                         free(fsdata->input_charset);
@@ -1623,7 +1629,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 free(newname);
                 if (ret < 0) {
                     free(name);
-                    return ret;
+                    goto ex;
                 }
             } else {
                 free(name);
@@ -1645,7 +1651,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 free(newlinkdest);
                 if (ret < 0) {
                     free(name);
-                    return ret;
+                    goto ex;
                 }
             } else {
                 free(linkdest);
@@ -1678,15 +1684,17 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         if (record->len_fi[0] == 1 && record->file_id[0] == 0) {
             /* "." entry, we can call this for root node, so... */
             if (!(atts.st_mode & S_IFDIR)) {
-                return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
+                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                               "Wrong ISO file name. \".\" not dir");
+                goto ex;
             }
         } else {
 
             name = get_name(fsdata, (char*)record->file_id, record->len_fi[0]);
             if (name == NULL) {
-                return iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
+                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                               "Cannot retrieve file name");
+                goto ex;
             }
 
             /* remove trailing version number */
@@ -1712,24 +1720,24 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
          * Thus, we need to read attributes for this directory from the "."
          * entry of the relocated dir.
          */
-        uint8_t buffer[BLOCK_SIZE];
 
+        LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
         ret = fsdata->src->read_block(fsdata->src, relocated_dir, buffer);
         if (ret < 0) {
-            return ret;
+            goto ex;
         }
 
         ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
                                       buffer, src, 0);
         if (ret <= 0) {
-            return ret;
+            goto ex;
         }
 
         /* but the real name is the name of the placeholder */
         ifsdata = (ImageFileSourceData*) (*src)->data;
         ifsdata->name = name;
 
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     }
 
     /* Production of missing inode numbers is delayed until the image is
@@ -1765,7 +1773,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
                              "Link without destination.");
         free(name);
-        return ret;
+        goto ex;
     }
 
     /* ok, we can now create the file source */
@@ -1833,13 +1841,17 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     ifsrc->refcount = 1;
 
     *src = ifsrc;
-    return ISO_SUCCESS;
+    {ret = ISO_SUCCESS; goto ex;}
 
 ifs_cleanup: ;
     free(name);
     free(linkdest);
     free(ifsdata);
     free(ifsrc);
+
+ex:;
+    LIBISO_FREE_MEM(msg);
+    LIBISO_FREE_MEM(buffer);
     return ret;
 }
 
@@ -1848,25 +1860,26 @@ int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
 {
     int ret;
     _ImageFsData *data;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
 
     if (fs == NULL || fs->data == NULL || root == NULL) {
-        return ISO_NULL_POINTER;
+        ret = ISO_NULL_POINTER; goto ex;
     }
 
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
     data = (_ImageFsData*)fs->data;
 
     /* open the filesystem */
     ret = ifs_fs_open((IsoImageFilesystem*)fs);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     /* read extend for root record */
     ret = data->src->read_block(data->src, data->iso_root_block, buffer);
     if (ret < 0) {
         ifs_fs_close((IsoImageFilesystem*)fs);
-        return ret;
+        goto ex;
     }
 
     /* get root attributes from "." entry */
@@ -1875,6 +1888,8 @@ int ifs_get_root(IsoFilesystem *fs, IsoFileSource **root)
                                  (struct ecma119_dir_record*) buffer, root, 1);
 
     ifs_fs_close((IsoImageFilesystem*)fs);
+ex:;
+    LIBISO_FREE_MEM(buffer);
     return ret;
 }
 
@@ -2077,14 +2092,15 @@ static
 int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 {
     int ret;
-    unsigned char buffer[2048];
+    unsigned char *buffer = NULL;
     struct ecma119_dir_record *record;
     struct susp_sys_user_entry *sue;
     SuspIterator *iter;
 
+    LIBISO_ALLOC_MEM(buffer, unsigned char, 2048);
     ret = data->src->read_block(data->src, block, buffer);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     /* record will be the "." directory entry for the root record */
@@ -2099,7 +2115,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
     iter = susp_iter_new(data->src, record, data->len_skp, data->msgid);
     if (iter == NULL) {
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM; goto ex;
     }
 
     /* first entry must be an SP system use entry */
@@ -2107,11 +2123,11 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
     if (ret < 0) {
         /* error */
         susp_iter_free(iter);
-        return ret;
+        goto ex;
     } else if (ret == 0 || !SUSP_SIG(sue, 'S', 'P') ) {
         iso_msg_debug(data->msgid, "SUSP/RR is not being used.");
         susp_iter_free(iter);
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     }
 
     /* it is a SP system use entry */
@@ -2119,9 +2135,10 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
         || sue->data.SP.ef[0] != 0xEF) {
 
         susp_iter_free(iter);
-        return iso_msg_submit(data->msgid, ISO_UNSUPPORTED_SUSP, 0,
+        ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_SUSP, 0,
                               "SUSP SP system use entry seems to be wrong. "
                               "Ignoring Rock Ridge Extensions.");
+        goto ex;
     }
 
     iso_msg_debug(data->msgid, "SUSP/RR is being used.");
@@ -2206,10 +2223,13 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
     susp_iter_free(iter);
 
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:
+    LIBISO_FREE_MEM(buffer);
+    return ret;
 }
 
 static
@@ -2242,11 +2262,12 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     int ret;
     struct ecma119_pri_vol_desc *pvm;
     struct ecma119_dir_record *rootdr;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
 
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
     ret = read_pvd_block(data->src, block, buffer, NULL);
     if (ret < 0)
-        return ret;
+        goto ex;
     /* ok, it is a valid PVD */
     pvm = (struct ecma119_pri_vol_desc *)buffer;
 
@@ -2294,7 +2315,10 @@ int read_pvm(_ImageFsData *data, uint32_t block)
      * example.
      */
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(buffer);
+    return ret;
 }
 
 /**
@@ -2308,12 +2332,13 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     struct el_torito_validation_entry *ve;
     struct el_torito_section_header *sh;
     struct el_torito_section_entry *entry; /* also usable as default_entry */
-    unsigned char buffer[BLOCK_SIZE];
+    unsigned char *buffer = NULL;
 
+    LIBISO_ALLOC_MEM(buffer, unsigned char, BLOCK_SIZE);
     data->num_bootimgs = 0;
     ret = data->src->read_block(data->src, block, buffer);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     ve = (struct el_torito_validation_entry*)buffer;
@@ -2324,7 +2349,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         iso_msg_submit(data->msgid, ISO_WRONG_EL_TORITO, 0,
                       "Wrong or damaged El-Torito Catalog. El-Torito info "
                       "will be ignored.");
-        return ISO_WRONG_EL_TORITO;
+        {ret = ISO_WRONG_EL_TORITO; goto ex;}
     }
 
     /* check for a valid platform */
@@ -2332,7 +2357,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 0,
                      "Unsupported El-Torito platform. Only 80x86 and EFI are "
                      "supported. El-Torito info will be ignored.");
-        return ISO_UNSUPPORTED_EL_TORITO;
+        {ret = ISO_UNSUPPORTED_EL_TORITO; goto ex;}
     }
 
     /* ok, once we are here we assume it is a valid catalog */
@@ -2385,7 +2410,10 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         }
     }
 after_bootblocks:;
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(buffer);
+    return ret;
 }
 
 
@@ -2399,11 +2427,12 @@ static
 int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
 {
     int tag_type, ret;
-    char block[2048], md5[16];
+    char *block = NULL, md5[16];
     int desired = (1 << 2);
     void *ctx = NULL;
     uint32_t next_tag = 0, i;
-    
+
+    LIBISO_ALLOC_MEM(block, char, 2048);    
     ret = iso_md5_start(&ctx);
     if (ret < 0)
         goto ex;
@@ -2467,6 +2496,7 @@ int iso_src_check_sb_tree(IsoDataSource *src, uint32_t start_lba, int flag)
 ex:
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
+    LIBISO_FREE_MEM(block);
     return ret;
 }
 
@@ -2478,21 +2508,22 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     uint32_t block;
     IsoImageFilesystem *ifs;
     _ImageFsData *data;
-    uint8_t buffer[BLOCK_SIZE];
+    uint8_t *buffer = NULL;
 
     if (src == NULL || opts == NULL || fs == NULL) {
-        return ISO_NULL_POINTER;
+        ret = ISO_NULL_POINTER; goto ex;
     }
 
+    LIBISO_ALLOC_MEM(buffer, uint8_t, BLOCK_SIZE);
     data = calloc(1, sizeof(_ImageFsData));
     if (data == NULL) {
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM; goto ex;
     }
 
     ifs = calloc(1, sizeof(IsoImageFilesystem));
     if (ifs == NULL) {
         free(data);
-        return ISO_OUT_OF_MEM;
+        {ret = ISO_OUT_OF_MEM; goto ex;}
     }
 
     /* get our ref to IsoDataSource */
@@ -2716,11 +2747,14 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     /* and finally return. Note that we keep the DataSource opened */
 
     *fs = ifs;
-    return ISO_SUCCESS;
+    {ret = ISO_SUCCESS; goto ex;}
 
-    fs_cleanup: ;
+fs_cleanup: ;
     ifs_fs_free(ifs);
     free(ifs);
+
+ex:;
+    LIBISO_FREE_MEM(buffer);
     return ret;
 }
 
@@ -2772,6 +2806,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     struct stat info;
     IsoNode *new;
     char *name;
+    char *dest = NULL;
     ImageFileSourceData *data;
     _ImageFsData *fsdata;
 
@@ -2784,7 +2819,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
 
     if (builder == NULL || src == NULL || node == NULL || src->data == NULL) {
-        return ISO_NULL_POINTER;
+        ret = ISO_NULL_POINTER; goto ex;
     }
 
     data = (ImageFileSourceData*)src->data;
@@ -2795,7 +2830,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* get info about source */
     ret = iso_file_source_lstat(src, &info);
     if (ret < 0) {
-        return ret;
+        goto ex;
     }
 
     new = NULL;
@@ -2813,7 +2848,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                                  "We can continue, but that could lead to "
                                  "problems");
                     if (ret < 0) {
-                        return ret;
+                        goto ex;
                     }
                     iso_node_unref((IsoNode*)image->bootcat->node);
                 }
@@ -2824,7 +2859,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 if (new == NULL) {
                     ret = ISO_OUT_OF_MEM;
                     free(name);
-                    return ret;
+                    goto ex;
                 }
 
                 /* and set the image node */
@@ -2838,7 +2873,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 ret = iso_file_source_stream_new(src, &stream);
                 if (ret < 0) {
                     free(name);
-                    return ret;
+                    goto ex;
                 }
                 /* take a ref to the src, as stream has taken our ref */
                 iso_file_source_ref(src);
@@ -2847,7 +2882,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 if (file == NULL) {
                     free(name);
                     iso_stream_unref(stream);
-                    return ISO_OUT_OF_MEM;
+                    {ret = ISO_OUT_OF_MEM; goto ex;}
                 }
 
                 /* mark file as from old session */
@@ -2871,7 +2906,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                     if (ret < 0) {
                         free(name);
                         iso_stream_unref(stream);
-                        return ret;
+                        goto ex;
                     }
                 }
 
@@ -2902,7 +2937,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                         if (ret < 0) {
                             free(name);
                             iso_stream_unref(stream);
-                            return ret;
+                            goto ex;
                         }
                     } else {
                         /* and set the image node */
@@ -2919,7 +2954,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             new = calloc(1, sizeof(IsoDir));
             if (new == NULL) {
                 free(name);
-                return ISO_OUT_OF_MEM;
+                {ret = ISO_OUT_OF_MEM; goto ex;}
             }
             new->type = LIBISO_DIR;
             new->refcount = 0;
@@ -2928,18 +2963,19 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     case S_IFLNK:
         {
             /* source is a symbolic link */
-            char dest[LIBISOFS_NODE_PATH_MAX];
             IsoSymlink *link;
+
+            LIBISO_ALLOC_MEM(dest, char, LIBISOFS_NODE_PATH_MAX);
 
             ret = iso_file_source_readlink(src, dest, LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
                 free(name);
-                return ret;
+                goto ex;
             }
             link = calloc(1, sizeof(IsoSymlink));
             if (link == NULL) {
                 free(name);
-                return ISO_OUT_OF_MEM;
+                {ret = ISO_OUT_OF_MEM; goto ex;}
             }
             link->dest = strdup(dest);
             link->node.type = LIBISO_SYMLINK;
@@ -2960,7 +2996,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             special = calloc(1, sizeof(IsoSpecial));
             if (special == NULL) {
                 free(name);
-                return ISO_OUT_OF_MEM;
+                {ret = ISO_OUT_OF_MEM; goto ex;}
             }
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
@@ -3002,13 +3038,15 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     }
 
     *node = new;
-    return ISO_SUCCESS;
+    {ret = ISO_SUCCESS; goto ex;}
 
 failure:;
     /* todo: stuff any possible memory leak here */
     if (name != NULL)
         free(name);
     free(new);
+ex:;
+    LIBISO_FREE_MEM(dest);
     return ret;
 }
 
@@ -3134,12 +3172,13 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
     uint32_t img_lba, img_size, boot_pvd_found, image_pvd, alleged_size;
     struct iso_file_section *sections = NULL;
     struct el_torito_boot_image *boot;
-    uint8_t *boot_image_buf = NULL, boot_info_found[16], buf[BLOCK_SIZE];
+    uint8_t *boot_image_buf = NULL, boot_info_found[16], *buf = NULL;
     IsoStream *stream = NULL;
     IsoFile *boot_file;
 
     if (image->bootcat == NULL)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
+    LIBISO_ALLOC_MEM(buf, uint8_t, BLOCK_SIZE);
     for (i = 0; i < image->bootcat->num_bootimages; i++) {
         boot = image->bootcat->bootimages[i];
         boot_file = boot->image;
@@ -3218,6 +3257,7 @@ ex:;
         free(boot_image_buf);
     if (stream != NULL)
         iso_stream_close(stream);
+    LIBISO_FREE_MEM(buf);
     return ret;
 }
 
