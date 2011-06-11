@@ -245,15 +245,19 @@ int iso_set_abort_severity(char *severity)
 
 void iso_msg_debug(int imgid, const char *fmt, ...)
 {
-    char msg[MAX_MSG_LEN];
+    char *msg = NULL;
     va_list ap;
+    int ret;
 
+    LIBISO_ALLOC_MEM(msg, char, MAX_MSG_LEN);
     va_start(ap, fmt);
     vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
     va_end(ap);
 
     libiso_msgs_submit(libiso_msgr, imgid, 0x00000002, LIBISO_MSGS_SEV_DEBUG,
                        LIBISO_MSGS_PRIO_ZERO, msg, 0, 0);
+ex:;
+    LIBISO_FREE_MEM(msg);
 }
 
 const char *iso_error_to_msg(int errcode)
