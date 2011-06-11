@@ -335,11 +335,11 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 {
     int res, ret, was_error;
     size_t i, b;
-    Ecma119Image *t;
+    Ecma119Image *t = NULL;
     IsoFileSrc *file;
     IsoFileSrc **filelist;
-    char name[PATH_MAX];
-    char buffer[BLOCK_SIZE];
+    char *name = NULL;
+    char *buffer = NULL;
     off_t file_size;
     uint32_t nblocks;
     void *ctx= NULL;
@@ -350,10 +350,11 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 #endif
 
     if (writer == NULL) {
-        return ISO_ASSERT_FAILURE;
+        ret = ISO_ASSERT_FAILURE; goto ex;
     }
 
-    memset(buffer, 0, BLOCK_SIZE);
+    LIBISO_ALLOC_MEM(name, char, PATH_MAX);
+    LIBISO_ALLOC_MEM(buffer, char, BLOCK_SIZE);
     t = writer->target;
     filelist = writer->data;
 
@@ -562,13 +563,15 @@ ex:;
         iso_md5_end(&ctx, md5);
 
 #ifdef Libisofs_with_libjtE
-    if (jte_begun) {
+    if (jte_begun && t != NULL) {
         libjte_end_data_file(t->libjte_handle);
         iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
                                 ISO_LIBJTE_END_FAILED, 0);
     }
 #endif /* Libisofs_with_libjtE */
 
+    LIBISO_FREE_MEM(buffer);
+    LIBISO_FREE_MEM(name);
     return ret;
 }
 
