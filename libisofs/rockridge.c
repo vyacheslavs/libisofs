@@ -1851,12 +1851,13 @@ void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
 int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
 {
     size_t i;
-    uint8_t padding[BLOCK_SIZE];
+    uint8_t *padding = NULL;
     int ret= ISO_SUCCESS;
 
     if (info->n_ce_susp_fields == 0) {
-        return ret;
+        goto ex;
     }
+    LIBISO_ALLOC_MEM(padding, uint8_t, BLOCK_SIZE);
 
     for (i = 0; i < info->n_ce_susp_fields; i++) {
         ret = iso_write(t, info->ce_susp_fields[i], 
@@ -1882,6 +1883,8 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
     info->ce_susp_fields = NULL;
     info->n_ce_susp_fields = 0;
     info->ce_len = 0;
+ex:;
+    LIBISO_FREE_MEM(padding);
     return ret;
 }
 
