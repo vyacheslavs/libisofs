@@ -921,13 +921,16 @@ ex:;
 */
 uint16_t *iso_j_file_id(const uint16_t *src, int flag)
 {
-    uint16_t *dot;
+    uint16_t *dot, *retval = NULL;
     size_t lname, lext, lnname, lnext, pos, i, maxchar = 64;
-    uint16_t dest[LIBISO_JOLIET_NAME_MAX];
+    uint16_t *dest = NULL;
+    int ret;
+
+    LIBISO_ALLOC_MEM(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
                                /* was: 66 = 64 (name + ext) + 1 (.) + 1 (\0) */
 
     if (src == NULL) {
-        return NULL;
+        goto ex;
     }
     if (flag & 2)
         maxchar = 103;
@@ -954,7 +957,7 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
     }
 
     if (lnname == 0 && lnext == 0) {
-        return NULL;
+        goto ex;
     }
 
     pos = 0;
@@ -989,7 +992,10 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
 
 is_done:;
     set_ucsbe(dest + pos, '\0');
-    return ucsdup(dest);
+    retval = ucsdup(dest);
+ex:;
+    LIBISO_FREE_MEM(dest);
+    return retval;
 }
 
 /* @param flag bit1= allow 103 characters rather than 64
@@ -997,10 +1003,13 @@ is_done:;
 uint16_t *iso_j_dir_id(const uint16_t *src, int flag)
 {
     size_t len, i, maxchar = 64;
-    uint16_t dest[LIBISO_JOLIET_NAME_MAX]; /* was: 65 = 64 + 1 (\0) */
+    uint16_t *dest = NULL, *retval = NULL;
+    int ret;
+                                                    /* was: 65 = 64 + 1 (\0) */
+    LIBISO_ALLOC_MEM(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
 
     if (src == NULL) {
-        return NULL;
+        goto ex;
     }
     if (flag & 2)
         maxchar = 103;
@@ -1018,7 +1027,10 @@ uint16_t *iso_j_dir_id(const uint16_t *src, int flag)
         }
     }
     set_ucsbe(dest + len, '\0');
-    return ucsdup(dest);
+    retval = ucsdup(dest);
+ex:
+    LIBISO_FREE_MEM(dest);
+    return retval;
 }
 
 size_t ucslen(const uint16_t *str)
