@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 Thomas Schmitt
+ * Copyright (c) 2010 - 2011 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -457,18 +457,19 @@ int iso_read_mipsel_elf(Ecma119Image *t, int flag)
 {
     uint32_t phdr_adr, todo, count;
     int ret;
-    uint8_t elf_buf[2048];
+    uint8_t *elf_buf = NULL;
     IsoNode *iso_node;
     Ecma119Node *ecma_node;
     IsoStream *stream;
     
     if (t->image->num_mips_boot_files <= 0)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
 
+    LIBISO_ALLOC_MEM(elf_buf, uint8_t, 2048);
     ret = boot_nodes_from_iso_path(t, t->image->mips_boot_file_paths[0],
                                    &iso_node, &ecma_node, "MIPS boot file", 0);
     if (ret < 0)
-        return ret;
+        goto ex;
     stream = iso_file_get_stream((IsoFile *) iso_node);
 
     ret = iso_stream_open(stream);
@@ -476,7 +477,7 @@ int iso_read_mipsel_elf(Ecma119Image *t, int flag)
         iso_msg_submit(t->image->id, ret, 0,
                        "Cannot open designated MIPS boot file '%s'",
                        t->image->mips_boot_file_paths[0]);
-        return ret;
+        goto ex;
     }
     ret = iso_stream_read(stream, elf_buf, 32);
     if (ret != 32) {
@@ -485,7 +486,7 @@ cannot_read:;
         iso_msg_submit(t->image->id, ret, 0,
                        "Cannot read from designated MIPS boot file '%s'",
                        t->image->mips_boot_file_paths[0]);
-        return ret;
+        goto ex;
     }
 
 
@@ -521,7 +522,10 @@ cannot_read:;
     t->mipsel_p_filesz = iso_read_lsb(elf_buf + 16, 4);
 
     iso_stream_close(stream);
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(elf_buf);
+    return ret;
 }
 
 
@@ -844,11 +848,12 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     int sa_type, ret, always_align;
     uint32_t img_blocks;
     off_t imgsize, cylsize = 0, frac;
-    char msg[160];
+    char *msg = NULL;
 
+    LIBISO_ALLOC_MEM(msg, char, 160);
     sa_type = (t->system_area_options >> 2) & 0x3f;
     if (sa_type != 0)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     always_align = (t->system_area_options >> 8) & 3;
 
     img_blocks = t->curblock;
@@ -877,7 +882,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     }
 
     if (always_align >= 2)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
 
     cylsize = 0;
     if (t->catalog != NULL &&
@@ -886,7 +891,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
            an MBR from our built-in template. (Deprecated since 31 Mar 2010)
         */
         if (img_blocks >= 0x40000000)
-            return ISO_SUCCESS;
+            {ret = ISO_SUCCESS; goto ex;}
         cylsize = 64 * 32 * 512;
     } else if ((t->system_area_options & 2) || always_align) {
         /* Patch externally provided system area as isohybrid MBR */
@@ -894,18 +899,18 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
             /* isohybrid makes only sense together with ISOLINUX boot image
                and externally provided System Area.
             */
-            return ISO_ISOLINUX_CANT_PATCH;
+            {ret = ISO_ISOLINUX_CANT_PATCH; goto ex;}
         }
         cylsize = t->partition_heads_per_cyl * t->partition_secs_per_head
                   * 512;
     } 
     if (cylsize == 0)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     if (((double) imgsize) / (double) cylsize > 1024.0) {
         iso_msgs_submit(0,
                   "Image size exceeds 1024 cylinders. Cannot align partition.",
                   0, "WARNING", 0);
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     }
 
     frac = imgsize % cylsize;
@@ -913,7 +918,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
 
     frac = imgsize - ((off_t) img_blocks) * (off_t) 2048;
     if (frac == 0)
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     if (frac % 2048) {
         sprintf(msg,
              "Cylinder size %d not divisible by 2048. Cannot align partition.",
@@ -922,5 +927,8 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     } else {
         t->tail_blocks += frac / 2048;
     }
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(msg);
+    return ret;
 }
