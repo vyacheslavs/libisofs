@@ -1080,14 +1080,15 @@ int iso_stream_read_buffer(IsoStream *stream, char *buf, size_t count,
 */  
 int iso_stream_make_md5(IsoStream *stream, char md5[16], int flag)
 {
-    int res, is_open = 0;
-    char buffer[2048];
+    int ret, is_open = 0;
+    char * buffer = NULL;
     void *ctx= NULL;
     off_t file_size;
     uint32_t b, nblocks;
     size_t got_bytes;
     IsoStream *input_stream;
 
+    LIBISO_ALLOC_MEM(buffer, char, 2048);
     if (flag & 1) {
         while(1) {
            input_stream = iso_stream_get_input_stream(stream, 0);
@@ -1098,36 +1099,37 @@ int iso_stream_make_md5(IsoStream *stream, char md5[16], int flag)
     }
 
     if (! iso_stream_is_repeatable(stream))
-        return 0;
-    res = iso_md5_start(&ctx);
-    if (res < 0)
-        return res;
-    res = iso_stream_open(stream);
-    if (res < 0)
-        return 0;
+        {ret = 0; goto ex;}
+    ret = iso_md5_start(&ctx);
+    if (ret < 0)
+        goto ex;
+    ret = iso_stream_open(stream);
+    if (ret < 0)
+        goto ex;
     is_open = 1;
     file_size = iso_stream_get_size(stream);
     nblocks = DIV_UP(file_size, 2048);
     for (b = 0; b < nblocks; ++b) {
-        res = iso_stream_read_buffer(stream, buffer, 2048, &got_bytes);
-        if (res < 0) {
-            res = 0;
+        ret = iso_stream_read_buffer(stream, buffer, 2048, &got_bytes);
+        if (ret < 0) {
+            ret = 0;
             goto ex;
         }
         /* Do not use got_bytes to stay closer to IsoFileSrc processing */
         if (file_size - b * 2048 > 2048)
-            res = 2048;
+            ret = 2048;
         else
-            res = file_size - b * 2048;
-        iso_md5_compute(ctx, buffer, res);
+            ret = file_size - b * 2048;
+        iso_md5_compute(ctx, buffer, ret);
     }
-    res = 1;
+    ret = 1;
 ex:;
     if (is_open)
         iso_stream_close(stream);
     if (ctx != NULL)
         iso_md5_end(&ctx, md5);
-    return res;
+    LIBISO_FREE_MEM(buffer);
+    return ret;
 }
 
 /* API */
