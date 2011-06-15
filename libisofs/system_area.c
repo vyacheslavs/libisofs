@@ -856,7 +856,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         {ret = ISO_SUCCESS; goto ex;}
     always_align = (t->system_area_options >> 8) & 3;
 
-    img_blocks = t->curblock;
+    img_blocks = t->curblock + t->tail_blocks;
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
     if (((t->system_area_options & 3) || always_align)
         && (off_t) (t->partition_heads_per_cyl * t->partition_secs_per_head
