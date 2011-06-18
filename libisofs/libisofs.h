@@ -1227,8 +1227,8 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  * @since 0.6.2
  */
 #define iso_lib_header_version_major  1
-#define iso_lib_header_version_minor  0
-#define iso_lib_header_version_micro  9
+#define iso_lib_header_version_minor  1
+#define iso_lib_header_version_micro  0
 
 /**
  * Usage discussion:
