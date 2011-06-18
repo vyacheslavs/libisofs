@@ -1,7 +1,9 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.1.0.tar.gz)
-===============================================================================
-- no novelties yet
 
+libisofs-1.1.0.tar.gz Sat Jun 18 2011
+===============================================================================
+* Bug fix: Padding as of iso_write_opts_set_tail_blocks() was added only
+           after cylinder alignment as of iso_write_opts_set_system_area()
+           and thus spoiled this alignment.
 
 libisofs-1.0.8.tar.gz Thu May 12 2011
 ===============================================================================
