@@ -293,6 +293,8 @@ typedef struct
     uint32_t bootblocks[Libisofs_max_boot_imageS];
 
     uint32_t catblock; /**< Block for El-Torito catalog */
+    off_t catsize; /* Size of boot catalog in bytes */
+    char *catcontent;
 
     /* Whether inode numbers from PX entries shall be discarded */
     unsigned int make_new_ino : 1 ;
@@ -2078,6 +2080,10 @@ void ifs_fs_free(IsoFilesystem *fs)
     free(data->biblio_file_id);
     free(data->input_charset);
     free(data->local_charset);
+
+    if(data->catcontent != NULL)
+        free(data->catcontent);
+
     free(data);
 }
 
@@ -2328,14 +2334,15 @@ ex:;
 static
 int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
 {
-    int ret, i, rx, last_done, idx;
+    int ret, i, rx, last_done, idx, bufsize;
     struct el_torito_validation_entry *ve;
     struct el_torito_section_header *sh;
     struct el_torito_section_entry *entry; /* also usable as default_entry */
-    unsigned char *buffer = NULL;
+    unsigned char *buffer = NULL, *rpt;
 
     LIBISO_ALLOC_MEM(buffer, unsigned char, BLOCK_SIZE);
     data->num_bootimgs = 0;
+    data->catsize = 0;
     ret = data->src->read_block(data->src, block, buffer);
     if (ret < 0) {
         goto ex;
@@ -2367,6 +2374,7 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
 
     data->eltorito = 1;
     /* The Default Entry is declared mandatory */
+    data->catsize = 64;
     data->num_bootimgs = 1;
     data->platform_ids[0] = ve->platform_id[0];
     memcpy(data->id_strings[0], ve->id_string, 24);
@@ -2385,10 +2393,21 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
     for (rx = 64; (buffer[rx] & 0xfe) == 0x90 && !last_done; rx += 32) {
         last_done = buffer[rx] & 1;
         /* Read Section Header */
+
+        /* >>> ts B10703 : load a new buffer if needed */;
+
         sh = (struct el_torito_section_header *) (buffer + rx);
+        data->catsize += 32;
         for (i = 0; i < sh->num_entries[0]; i++) {
             rx += 32;
+            data->catsize += 32;
+
+            /* >>> ts B10703 : load a new buffer if needed */;
+
             if (data->num_bootimgs >= Libisofs_max_boot_imageS) {
+
+                /* >>> ts B10703 : need to continue rather than abort */;
+
                 ret = iso_msg_submit(data->msgid, ISO_EL_TORITO_WARN, 0,
                                 "Too many boot images found. List truncated.");
                 goto after_bootblocks;
@@ -2410,6 +2429,27 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         }
     }
 after_bootblocks:;
+    if(data->catsize > 0) {
+      if(data->catcontent != NULL)
+          free(data->catcontent);
+      if(data->catsize > 10 * BLOCK_SIZE)
+          data->catsize = 10 * BLOCK_SIZE;
+      bufsize = data->catsize;
+      if (bufsize % BLOCK_SIZE)
+          bufsize += BLOCK_SIZE - (bufsize % BLOCK_SIZE);
+      data->catcontent = calloc(bufsize , 1);
+      if(data->catcontent == NULL) {
+         data->catsize = 0;
+         ret = ISO_OUT_OF_MEM;
+         goto ex; 
+      }
+      for(rx = 0; rx < bufsize; rx += BLOCK_SIZE) {
+        rpt = (unsigned char *) (data->catcontent + rx);
+        ret = data->src->read_block(data->src, block + rx / BLOCK_SIZE, rpt);
+        if (ret < 0)
+           goto ex;
+      }
+    }
     ret = ISO_SUCCESS;
 ex:;
     LIBISO_FREE_MEM(buffer);
@@ -2530,6 +2570,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->src = src;
     iso_data_source_ref(src);
     data->open_count = 0;
+
+    data->catcontent = NULL;
 
     /* get an id for the filesystem */
     data->id = ++fs_dev_id;
@@ -2802,9 +2844,10 @@ static
 int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                               IsoFileSource *src, IsoNode **node)
 {
-    int ret, idx;
+    int ret, idx, to_copy;
     struct stat info;
     IsoNode *new;
+    IsoBoot *bootcat;
     char *name;
     char *dest = NULL;
     ImageFileSourceData *data;
@@ -2861,9 +2904,28 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                     free(name);
                     goto ex;
                 }
+                bootcat = (IsoBoot *) new;
+                bootcat->lba = data->sections[0].block;
+                bootcat->size = info.st_size;
+                if (bootcat->size > 10 * BLOCK_SIZE)
+                    bootcat->size = 10 * BLOCK_SIZE;
+                bootcat->content = NULL;
+                if (bootcat->size > 0) {
+                    bootcat->content = calloc(1, bootcat->size);
+                    if (bootcat->content == NULL) {
+                        ret = ISO_OUT_OF_MEM;
+                        free(name);
+                        free(new);
+                        goto ex;
+                    }
+                    to_copy = bootcat->size;
+                    if (bootcat->size > fsdata->catsize)
+                        to_copy = fsdata->catsize;
+                    memcpy(bootcat->content, fsdata->catcontent, to_copy);
+                }
 
                 /* and set the image node */
-                image->bootcat->node = (IsoBoot*)new;
+                image->bootcat->node = bootcat;
                 new->type = LIBISO_BOOT;
                 new->refcount = 1;
             } else {
@@ -3463,10 +3525,24 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                            "patching may lead to bad results.");
         }
         if (image->bootcat->node == NULL) {
-            IsoNode *node = calloc(1, sizeof(IsoBoot));
+            IsoNode *node;
+            IsoBoot *bootcat;
+            node = calloc(1, sizeof(IsoBoot));
             if (node == NULL) {
                 ret = ISO_OUT_OF_MEM;
                 goto import_revert;
+            }
+            bootcat = (IsoBoot *) node;
+            bootcat->lba = data->catblock;
+            bootcat->size = data->catsize;
+            bootcat->content = NULL; 
+            if (bootcat->size > 0) {
+                bootcat->content = calloc(1, bootcat->size);
+                if (bootcat->content == NULL) {
+                    ret = ISO_OUT_OF_MEM;
+                    goto import_revert;
+                }
+                memcpy(bootcat->content, data->catcontent, bootcat->size);
             }
             node->type = LIBISO_BOOT;
             node->mode = S_IFREG;

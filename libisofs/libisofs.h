@@ -2877,6 +2877,35 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
                              IsoFile **imgnode, IsoBoot **catnode);
 
 /**
+ * Get detailed information about the boot catalog that was loaded from
+ * an ISO image.
+ * The boot catalog links the El Torito boot record at LBA 17 with the 
+ * boot images which are IsoFile objects in the image. The boot catalog
+ * itself is not a regular file and thus will not deliver an IsoStream.
+ * Its content is usually quite short and can be obtained by this call.
+ *
+ * @param image
+ *      The image to inquire.
+ * @param catnode
+ *      Will return the boot catalog tree node. No extra ref is taken.
+ * @param lba
+ *      Will return the block address of the boot catalog in the image.
+ * @param content
+ *      Will return either NULL or an allocated memory buffer with the
+ *      content bytes of the boot catalog.
+ *      Dispose it by free() when no longer needed.
+ * @param size
+ *      Will return the number of bytes in content.
+ * @return
+ *      1 if reply is valid, 0 if not boot catalog was loaded, < 0 on error.
+ *
+ * @since 1.1.2
+ */
+int iso_image_get_bootcat(IsoImage *image, IsoBoot **catnode, uint32_t *lba,
+                          char **content, off_t *size);
+
+
+/**
  * Get all El-Torito boot images of an ISO image.
  *
  * The first of these boot images is the same as returned by

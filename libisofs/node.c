@@ -19,6 +19,7 @@
 #include "aaip_0_2.h"
 #include "messages.h"
 #include "util.h"
+#include "eltorito.h"
 
 
 #include <stdlib.h>
@@ -78,6 +79,14 @@ void iso_node_unref(IsoNode *node)
                 IsoSymlink *link = (IsoSymlink*) node;
                 free(link->dest);
             }
+            break;
+        case LIBISO_BOOT:
+            {
+                IsoBoot *bootcat = (IsoBoot *) node;
+                if (bootcat->content != NULL)
+                    free(bootcat->content);
+            }
+            break;
         default:
             /* other kind of nodes does not need to delete anything here */
             break;

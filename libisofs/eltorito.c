@@ -275,6 +275,9 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
         free(node);
         return ISO_OUT_OF_MEM;
     }
+    node->lba = 0;
+    node->size = 0;
+    node->content = NULL;
 
     /* atributes from parent */
     node->node.mode = S_IFREG | (parent->node.mode & 0444);
@@ -596,6 +599,30 @@ int iso_image_get_boot_image(IsoImage *image, ElToritoBootImage **boot,
         *catnode = image->bootcat->node;
     }
     return ISO_SUCCESS;
+}
+
+int iso_image_get_bootcat(IsoImage *image, IsoBoot **catnode, uint32_t *lba,
+                          char **content, off_t *size)
+{
+    IsoBoot *bootcat;
+
+    *catnode = NULL;
+    *lba = 0;
+    *content = NULL;
+    *size = 0;
+    bootcat = image->bootcat->node;
+    if (bootcat == NULL)
+        return 0;
+    *catnode = bootcat;
+    *lba = bootcat->lba;
+    *size = bootcat->size;
+    if (bootcat->size > 0 && bootcat->content != NULL) {
+        *content = calloc(1, bootcat->size);
+        if (*content == NULL) 
+            return ISO_OUT_OF_MEM;
+        memcpy(*content, bootcat->content, bootcat->size);
+    }
+    return 1;
 }
 
 int iso_image_get_all_boot_imgs(IsoImage *image, int *num_boots,

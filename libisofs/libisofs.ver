@@ -88,6 +88,7 @@ iso_image_get_all_boot_imgs;
 iso_image_get_application_id;
 iso_image_get_attached_data;
 iso_image_get_biblio_file_id;
+iso_image_get_bootcat;
 iso_image_get_boot_image;
 iso_image_get_copyright_file_id;
 iso_image_get_data_preparer_id;
