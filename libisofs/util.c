@@ -924,9 +924,8 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
     uint16_t *dot, *retval = NULL;
     size_t lname, lext, lnname, lnext, pos, i, maxchar = 64;
     uint16_t *dest = NULL;
-    int ret;
 
-    LIBISO_ALLOC_MEM(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
+    LIBISO_ALLOC_MEM_VOID(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
                                /* was: 66 = 64 (name + ext) + 1 (.) + 1 (\0) */
 
     if (src == NULL) {
@@ -1004,9 +1003,8 @@ uint16_t *iso_j_dir_id(const uint16_t *src, int flag)
 {
     size_t len, i, maxchar = 64;
     uint16_t *dest = NULL, *retval = NULL;
-    int ret;
                                                     /* was: 65 = 64 + 1 (\0) */
-    LIBISO_ALLOC_MEM(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
+    LIBISO_ALLOC_MEM_VOID(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
 
     if (src == NULL) {
         goto ex;
