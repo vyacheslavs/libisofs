@@ -95,13 +95,11 @@ char* lfs_get_name(IsoFileSource *src)
 static
 int lfs_lstat(IsoFileSource *src, struct stat *info)
 {
-    _LocalFsFileSource *data;
     char *path;
 
     if (src == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
-    data = src->data;
     path = lfs_get_path(src);
     if (path == NULL)
         return ISO_OUT_OF_MEM;
@@ -140,13 +138,11 @@ int lfs_lstat(IsoFileSource *src, struct stat *info)
 static
 int lfs_stat(IsoFileSource *src, struct stat *info)
 {
-    _LocalFsFileSource *data;
     char *path;
 
     if (src == NULL || info == NULL) {
         return ISO_NULL_POINTER;
     }
-    data = src->data;
     path = lfs_get_path(src);
     if (path == NULL)
         return ISO_OUT_OF_MEM;
@@ -186,13 +182,11 @@ static
 int lfs_access(IsoFileSource *src)
 {
     int ret;
-    _LocalFsFileSource *data;
     char *path;
 
     if (src == NULL) {
         return ISO_NULL_POINTER;
     }
-    data = src->data;
     path = lfs_get_path(src);
 
     ret = iso_eaccess(path);
@@ -419,7 +413,6 @@ static
 int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
 {
     int size, ret;
-    _LocalFsFileSource *data;
     char *path;
 
     if (src == NULL || buf == NULL) {
@@ -430,7 +423,6 @@ int lfs_readlink(IsoFileSource *src, char *buf, size_t bufsiz)
         return ISO_WRONG_ARG_VALUE;
     }
 
-    data = src->data;
     path = lfs_get_path(src);
 
     /*
