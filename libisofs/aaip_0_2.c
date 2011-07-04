@@ -96,7 +96,7 @@ size_t aaip_encode(size_t num_attrs, char **names,
                    size_t *result_len, unsigned char **result, int flag)
 {
  size_t mem_size= 0, comp_size;
- unsigned int number_of_fields, i, num_recs, total_recs= 0, ret;
+ unsigned int number_of_fields, i, num_recs, ret;
 
  /* Predict memory needs, number of SUSP fields and component records */
  *result_len= 0;
@@ -106,7 +106,6 @@ size_t aaip_encode(size_t num_attrs, char **names,
    if(ret <= 0)
      return(ret);
    mem_size+= comp_size;
-   total_recs= num_recs;
  }
  number_of_fields= mem_size / 250 + !!(mem_size % 250);
  mem_size+= number_of_fields * 5;
@@ -1702,7 +1701,7 @@ int aaip_decode_attrs(struct aaip_state **handle,
                       unsigned char *data, size_t num_data, size_t *consumed, 
                       int flag)
 {
- int ret, was_non_aa= 0;
+ int ret;
  struct aaip_state *aaip;
  size_t h_num, *h_lengths, i, new_mem, pair_consumed= 0;
  char **h_names, **h_values, *hpt;
@@ -1791,7 +1790,6 @@ int aaip_decode_attrs(struct aaip_state **handle,
        return(ret);
 
    } else if(ret == -1) { /* non-AAIP field detected */
-     was_non_aa= 1;
      if(pair_consumed <= 0)
        return(-4); /* interpretation did not advance */
 
