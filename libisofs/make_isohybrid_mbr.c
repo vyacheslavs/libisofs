@@ -135,7 +135,7 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
 
     static int h = 64, s = 32;
 
-    int i, warn_size = 0, id;
+    int i, id;
     char *wpt;
     off_t imgsize, cylsize, frac, padding, c, cc;
 
@@ -164,7 +164,6 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
     *img_blocks = imgsize / (off_t) 2048;
     c = imgsize / cylsize;
     if (c > 1024) {
-        warn_size = 1;
         cc = 1024;
     } else
         cc = c;
