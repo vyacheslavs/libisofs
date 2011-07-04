@@ -1932,7 +1932,6 @@ static
 int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 {
     int ret;
-    _ImageFsData *data;
     IsoFileSource *src;
     char *ptr, *brk_info, *component;
 
@@ -1944,8 +1943,6 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
         /* only absolute paths supported */
         return ISO_FILE_BAD_PATH;
     }
-
-    data = (_ImageFsData*)fs->data;
 
     /* open the filesystem */
     ret = ifs_fs_open((IsoImageFilesystem*)fs);
@@ -2054,10 +2051,8 @@ int ifs_fs_close(IsoImageFilesystem *fs)
 static
 void ifs_fs_free(IsoFilesystem *fs)
 {
-    IsoImageFilesystem *ifs;
     _ImageFsData *data;
 
-    ifs = (IsoImageFilesystem*)fs;
     data = (_ImageFsData*) fs->data;
 
     /* close data source if already openned */
@@ -3338,9 +3333,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     uint8_t *rpt;
     IsoFileSource *boot_src;
     IsoNode *node;
-    uint32_t old_checksum_start_lba;
-    uint32_t old_checksum_end_lba;
-    uint32_t old_checksum_idx_count;
     char *old_checksum_array = NULL;
     char checksum_type[81];
     uint32_t checksum_size;
@@ -3390,9 +3382,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     oldroot = image->root;
     oldbootcat = image->bootcat; /* could be NULL */
     image->bootcat = NULL;
-    old_checksum_start_lba = image->checksum_start_lba;
-    old_checksum_end_lba = image->checksum_end_lba;
-    old_checksum_idx_count = image->checksum_idx_count;
     old_checksum_array = image->checksum_array;
     image->checksum_array = NULL;
 
@@ -3648,9 +3637,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     el_torito_boot_catalog_free(image->bootcat);
     image->root = oldroot;
     image->bootcat = oldbootcat;
-    old_checksum_start_lba = image->checksum_start_lba;
-    old_checksum_end_lba = image->checksum_end_lba;
-    old_checksum_idx_count = image->checksum_idx_count;
     image->checksum_array = old_checksum_array;
     old_checksum_array = NULL;
 
