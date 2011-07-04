@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2011 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -503,9 +503,6 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
     size_t num_attrs = 0, *value_lengths = NULL, result_len, sret;
     char *path = NULL, **names = NULL, **values = NULL;
     unsigned char *result = NULL;
-    _LocalFsFileSource *data;
-
-    data = src->data;
 
     *aa_string = NULL;
 
