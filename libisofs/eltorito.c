@@ -787,7 +787,6 @@ write_validation_entry(uint8_t *buf, uint8_t platform_id,
 static void
 write_section_header(uint8_t *buf, Ecma119Image *t, int idx, int num_entries)
 {
-    int pi;
     char *id_string;
 
     struct el_torito_section_header *e =
@@ -795,7 +794,7 @@ write_section_header(uint8_t *buf, Ecma119Image *t, int idx, int num_entries)
 
     /* 0x90 = more section headers follow , 0x91 = final section */
     e->header_indicator[0] = 0x90 + (idx == t->catalog->num_bootimages - 1);
-    pi= e->platform_id[0] = t->catalog->bootimages[idx]->platform_id;
+    e->platform_id[0] = t->catalog->bootimages[idx]->platform_id;
     e->num_entries[0] = num_entries & 0xff;
     e->num_entries[1] = (num_entries >> 8) & 0xff;;
     id_string = (char *) e->id_string;
@@ -1187,7 +1186,6 @@ static
 int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
 {
     Ecma119Image *t;
-    struct el_torito_boot_catalog *cat;
     struct ecma119_boot_rec_vol_desc vol;
 
     if (writer == NULL) {
@@ -1195,7 +1193,6 @@ int eltorito_writer_write_vol_desc(IsoImageWriter *writer)
     }
 
     t = writer->target;
-    cat = t->catalog;
     iso_msg_debug(t->image->id, "Write El-Torito boot record");
 
     memset(&vol, 0, sizeof(struct ecma119_boot_rec_vol_desc));
