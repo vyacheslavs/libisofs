@@ -683,7 +683,8 @@ static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
     ret = write_sun_partition_entry(1, t->appended_partitions,
                   t->appended_part_start, t->appended_part_size,
                   ISO_SUN_CYL_SIZE, buf, 0);
- 
+    if (ret < 0)
+        return ret;
     return ISO_SUCCESS;
 }
 
