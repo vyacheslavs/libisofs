@@ -1624,6 +1624,8 @@ int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
 
     ret = iso_aa_get_attrs(aa_string, &num_attrs, &names,
                            &value_lengths, &values, 0);
+    if (ret < 0)
+        return ret;
     for (i = 0; i < (int) num_attrs; i++) {
         if (strcmp(names[i], name))
     continue;
