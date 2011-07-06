@@ -1574,12 +1574,12 @@ void strncpy_pad(char *dest, const char *src, size_t max)
     
     if (src != NULL) {
         len = MIN(strlen(src), max);
+        for (i = 0; i < len; ++i)
+            dest[i] = src[i];
     } else {
         len = 0;
     }
     
-    for (i = 0; i < len; ++i)
-        dest[i] = src[i];
     for (i = len; i < max; ++i) 
         dest[i] = ' ';
 }
