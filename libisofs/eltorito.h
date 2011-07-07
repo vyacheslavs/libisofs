@@ -27,9 +27,9 @@ struct Iso_Boot
 {
     IsoNode node;
 
-    /* >>> ts B10703: want to get content of loaded boot catalog */
-    /* Vreixo took care not to make it an IsoFile at load time.
-       So i implement this independently of IsoStream.
+    /* Want to get content of loaded boot catalog.
+       Vreixo took care not to make it an IsoFile at load time.
+       So this is implemented independently of IsoStream.
      */
     uint32_t lba;
     off_t size;
