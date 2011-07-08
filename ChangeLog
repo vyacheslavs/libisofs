@@ -1,7 +1,6 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.1.2.tar.gz)
+libisofs-1.1.2.tar.gz Fri Jul 08 2011
 ===============================================================================
-- no novelties yet
-
+* New API call iso_image_get_bootcat()
 
 libisofs-1.1.0.tar.gz Sat Jun 18 2011
 ===============================================================================
