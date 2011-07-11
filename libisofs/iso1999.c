@@ -689,7 +689,7 @@ void write_one_dir_record(Ecma119Image *t, Iso1999Node *node, int file_id,
 
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
 
-    len_dr = 33 + len_fi + (len_fi % 2 ? 0 : 1);
+    len_dr = 33 + len_fi + ((len_fi % 2) ? 0 : 1);
 
     memcpy(rec->file_id, name, len_fi);
 
@@ -837,7 +837,7 @@ int write_one_dir(Ecma119Image *t, Iso1999Node *dir)
 
         /* compute len of directory entry */
         fi_len = strlen(child->name);
-        len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
+        len = fi_len + 33 + ((fi_len % 2) ? 0 : 1);
 
         nsections = (child->type == ISO1999_FILE) ? child->info.file->nsections : 1;
         for (section = 0; section < nsections; ++section) {
