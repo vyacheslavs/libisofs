@@ -363,7 +363,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
     IsoNode *iso;
 
-    len_dr = 33 + len_fi + (len_fi % 2 ? 0 : 1);
+    len_dr = 33 + len_fi + ((len_fi % 2) ? 0 : 1);
 
     memcpy(rec->file_id, name, len_fi);
 
@@ -629,7 +629,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
         for (section = 0; section < nsections; ++section) {
 
             /* compute len of directory entry */
-            len = fi_len + 33 + (fi_len % 2 ? 0 : 1);
+            len = fi_len + 33 + ((fi_len % 2) ? 0 : 1);
             if (need_version_number(t, child)) {
                 len += 2;
             }
