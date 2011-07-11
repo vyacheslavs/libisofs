@@ -759,7 +759,7 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
 
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
 
-    len_dr = 33 + len_fi + (len_fi % 2 ? 0 : 1);
+    len_dr = 33 + len_fi + ((len_fi % 2) ? 0 : 1);
 
     memcpy(rec->file_id, name, len_fi);
 
