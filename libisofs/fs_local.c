@@ -862,6 +862,8 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
             return ISO_OUT_OF_MEM;
         if (ret == -2)
             return ISO_AAIP_BAD_AASTRING;
+        if (ret == -6 || ret == -7)
+            return ISO_AAIP_NOT_ENABLED;
         return ISO_AAIP_NO_SET_LOCAL;
     }
     return 1;

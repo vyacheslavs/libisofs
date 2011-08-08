@@ -447,9 +447,25 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  continue;
    }
    /* Extended Attribute */
+
+#ifdef Libisofs_aaip_linux_set_attr_list_neW
+/* >>> Enable this after release 1.1.4. */
+
+   if(flag & 4)
+ continue;
+   if(!(flag & 8))
+     if(strncmp(names[i], "user.", 5))
+ continue;
+
+#else /* Libisofs_aaip_linux_set_attr_list_neW */
+/* <<< This worked well, but obviously only because bit0 is always set */
+
    if((flag & 1) && !(flag & 8))
      if(strncmp(names[i], "user.", 5))
  continue;
+
+#endif /* ! Libisofs_aaip_linux_set_attr_list_neW */
+
 
 #ifdef Libisofs_with_aaip_xattR
 

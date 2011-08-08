@@ -89,8 +89,12 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  continue;
    }
    /* Extended Attribute */
-   if(!(flag & 4))
-     return(-6);
+   if(flag & 4)
+ continue;
+   if(!(flag & 8))
+     if(strncmp(names[i], "user.", 5))
+ continue;
+   return(-6);
  }
  if(flag & 2)
    return(-6);
