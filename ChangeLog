@@ -1,7 +1,7 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.1.4.tar.gz)
+libisofs-1.1.2.tar.gz Fri Jul 08 2011
 ===============================================================================
-- no novelties yet
-
+* Bug fix: The function for restoring ACLs and xattr returned error on systems
+           other than Linux and FreeBSD, even if nothing was to be restored.
 
 libisofs-1.1.2.tar.gz Fri Jul 08 2011
 ===============================================================================
