@@ -317,6 +317,9 @@ ex:
                         bit0= decode and set ACLs
                       ( bit1= first clear all existing attributes of the file )
                       ( bit2= do not set attributes other than ACLs )
+                      ( bit3= do not ignore eventual non-user attributes.
+                              I.e. those with a name which does not begin
+                              by "user." )
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
@@ -379,8 +382,14 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
        if(ret <= 0)
          {ret= -3; goto ex;}
      }
-   } else
+   } else {
+     if(flag & 4)
+ continue;
+     if(!(flag & 8))
+       if(strncmp(names[i], "user.", 5))
+ continue;
      was_xattr= 1;
+   }
  }
  ret= 1;
  if(was_xattr)
