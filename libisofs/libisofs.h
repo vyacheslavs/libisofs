@@ -878,15 +878,17 @@ extern ino_t serial_id;
 struct IsoStream_Iface
 {
     /*
-     * Current version of the interface, set to 1 or 2.
+     * Current version of the interface.
      * Version 0 (since 0.6.4)
      *    deprecated but still valid.
      * Version 1 (since 0.6.8) 
      *    update_size() added.
      * Version 2 (since 0.6.18)
-     *    get_input_stream() added. A filter stream must have version 2.
+     *    get_input_stream() added.
+     *    A filter stream must have version 2 at least.
      * Version 3 (since 0.6.20)
-     *    compare() added. A filter stream should have version 3.
+     *    compare() added.
+     *    A filter stream should have version 3 at least.
      * Version 4 (since 1.0.2)
      *    clone_stream() added.
      */

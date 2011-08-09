@@ -214,6 +214,7 @@ int fsrc_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
     return ISO_SUCCESS;
 }
 
+static
 IsoStreamIface fsrc_stream_class = {
     4, /* version */
     "fsrc",
@@ -503,6 +504,7 @@ int cut_out_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
 /*
  * TODO update cut out streams to deal with update_size(). Seems hard.
  */
+static
 IsoStreamIface cut_out_stream_class = {
     4, /* version */
     "cout",
@@ -748,6 +750,7 @@ int mem_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
 }
 
 
+static
 IsoStreamIface mem_stream_class = {
     4, /* version */
     "mem ",
