@@ -382,12 +382,13 @@ conv_error:;
 int str2ascii(const char *icharset, const char *input, char **output)
 {
     int result;
-    wchar_t *wsrc_;
+    wchar_t *wsrc_ = NULL;
     char *ret;
-    char *ret_;
+    char *ret_ = NULL;
     char *src;
     struct iso_iconv_handle conv;
     int conv_ret;
+    int direct_conv = 0;
 
     /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
@@ -405,33 +406,54 @@ int str2ascii(const char *icharset, const char *input, char **output)
         return ISO_NULL_POINTER;
     }
 
+    /* First try the traditional way via intermediate character set WCHAR_T.
+     * Up to August 2011 this was the only way. But it will not work if
+     * there is no character set "WCHAR_T". E.g. on Solaris.
+     */
     /* convert the string to a wide character string. Note: outbytes
      * is in fact the number of characters in the string and doesn't
      * include the last NULL character.
      */
+    conv_ret = 0;
     result = str2wchar(icharset, input, &wsrc_);
-    if (result < 0) {
-        goto fallback;
-    }
-    src = (char *)wsrc_;
-    numchars = wcslen(wsrc_);
+    if (result == (int) ISO_SUCCESS) {
+        src = (char *)wsrc_;
+        numchars = wcslen(wsrc_);
 
-    inbytes = numchars * sizeof(wchar_t);
-    loop_limit = inbytes + 3;
+        inbytes = numchars * sizeof(wchar_t);
+        loop_limit = inbytes + 3;
 
-    ret_ = malloc(numchars + 1);
-    if (ret_ == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
-    outbytes = numchars;
-    ret = ret_;
+        ret_ = malloc(numchars + 1);
+        if (ret_ == NULL) {
+            return ISO_OUT_OF_MEM;
+        }
+        outbytes = numchars;
+        ret = ret_;
 
-    /* initialize iconv */
-    conv_ret = iso_iconv_open(&conv, "ASCII", "WCHAR_T", 0);
+        /* initialize iconv */
+        conv_ret = iso_iconv_open(&conv, "ASCII", "WCHAR_T", 0);
+        if (conv_ret <= 0) {
+            free(wsrc_);
+            free(ret_);
+        }
+    } else if (result != (int) ISO_CHARSET_CONV_ERROR)
+        return result;
+
+    /* If this did not succeed : Try the untraditional direct conversion.
+    */
     if (conv_ret <= 0) {
-        free(wsrc_);
-        free(ret_);
-        goto fallback;
+        conv_ret = iso_iconv_open(&conv, "ASCII", (char *) icharset, 0);
+        if (conv_ret <= 0)
+            goto fallback;
+        direct_conv = 1;
+        src = (char *) input;
+        inbytes = strlen(input);
+        loop_limit = inbytes + 3;
+        outbytes = (inbytes + 1) * sizeof(uint16_t);
+        ret_ = malloc(outbytes);
+        if (ret == NULL)
+            return ISO_OUT_OF_MEM;
+        ret = ret_;
     }
 
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
@@ -458,8 +480,13 @@ int str2ascii(const char *icharset, const char *input, char **output)
         /* There was an error with one character but some other remain
          * to be converted. That's probably a multibyte character.
          * See above comment. */
-        src += sizeof(wchar_t);
-        inbytes -= sizeof(wchar_t);
+        if (direct_conv) {
+            src++;
+            inbytes--;
+        } else {
+            src += sizeof(wchar_t);
+            inbytes -= sizeof(wchar_t);
+        }
 
         if (!inbytes)
             break;
@@ -471,8 +498,9 @@ int str2ascii(const char *icharset, const char *input, char **output)
         n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
     }
     iso_iconv_close(&conv, 0);
-    *ret='\0';
-    free(wsrc_);
+    *ret = 0;
+    if (wsrc_ != NULL)
+        free(wsrc_);
 
     *output = ret_;
     return ISO_SUCCESS;
@@ -517,12 +545,13 @@ int cmp_ucsbe(const uint16_t *ucs, char c)
 int str2ucs(const char *icharset, const char *input, uint16_t **output)
 {
     int result;
-    wchar_t *wsrc_;
+    wchar_t *wsrc_ = NULL;
     char *src;
     char *ret;
-    char *ret_;
+    char *ret_ = NULL;
     struct iso_iconv_handle conv;
-    int conv_ret;
+    int conv_ret = 0;
+    int direct_conv = 0;
     
     /* That while loop smells like a potential show stopper */
     size_t loop_counter = 0, loop_limit = 3;
@@ -540,29 +569,50 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
      * is in fact the number of characters in the string and doesn't
      * include the last NULL character.
      */
+    /* First try the traditional way via intermediate character set WCHAR_T.
+     * Up to August 2011 this was the only way. But it will not work if
+     * there is no character set "WCHAR_T". E.g. on Solaris.
+     */
+    conv_ret = 0;
     result = str2wchar(icharset, input, &wsrc_);
-    if (result < 0) {
+    if (result == (int) ISO_SUCCESS) {
+        src = (char *)wsrc_;
+        numchars = wcslen(wsrc_);
+
+        inbytes = numchars * sizeof(wchar_t);
+        loop_limit = inbytes + 3;
+
+        ret_ = malloc((numchars+1) * sizeof(uint16_t));
+        if (ret_ == NULL)
+            return ISO_OUT_OF_MEM;
+        outbytes = numchars * sizeof(uint16_t);
+        ret = ret_;
+
+        /* initialize iconv */
+        conv_ret = iso_iconv_open(&conv, "UCS-2BE", "WCHAR_T", 0);
+        if (conv_ret <= 0) {
+            free(wsrc_);
+            free(ret_);
+        }
+    } else if (result != (int) ISO_CHARSET_CONV_ERROR)
         return result;
-    }
-    src = (char *)wsrc_;
-    numchars = wcslen(wsrc_);
 
-    inbytes = numchars * sizeof(wchar_t);
-    loop_limit = inbytes + 3;
-
-    ret_ = malloc((numchars+1) * sizeof(uint16_t));
-    if (ret_ == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
-    outbytes = numchars * sizeof(uint16_t);
-    ret = ret_;
-
-    /* initialize iconv */
-    conv_ret = iso_iconv_open(&conv, "UCS-2BE", "WCHAR_T", 0);
+    /* If this did not succeed : Try the untraditional direct conversion.
+    */
     if (conv_ret <= 0) {
-        free(wsrc_);
-        free(ret_);
-        return ISO_CHARSET_CONV_ERROR;
+        conv_ret = iso_iconv_open(&conv, "UCS-2BE", (char *) icharset, 0);
+        if (conv_ret <= 0) {
+            return ISO_CHARSET_CONV_ERROR;
+        }            
+        direct_conv = 1;
+        src = (char *) input;
+        inbytes = strlen(input);
+        loop_limit = inbytes + 3;
+        outbytes = (inbytes + 1) * sizeof(uint16_t);
+        ret_ = malloc(outbytes);
+        if (ret == NULL)
+            return ISO_OUT_OF_MEM;
+        ret = ret_;
     }
 
     n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
@@ -589,8 +639,13 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
         /* There was an error with one character but some other remain
          * to be converted. That's probably a multibyte character.
          * See above comment. */
-        src += sizeof(wchar_t);
-        inbytes -= sizeof(wchar_t);
+        if (direct_conv) {
+            src++;
+            inbytes--;
+        } else {
+            src += sizeof(wchar_t);
+            inbytes -= sizeof(wchar_t);
+        }
 
         if (!inbytes)
             break;
@@ -605,7 +660,8 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
 
     /* close the ucs string */
     set_ucsbe((uint16_t*) ret, '\0');
-    free(wsrc_);
+    if (wsrc_ != NULL)
+        free(wsrc_);
 
     *output = (uint16_t*)ret_;
     return ISO_SUCCESS;
