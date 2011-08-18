@@ -268,7 +268,10 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
    @return              >0 means ok
-                        0 means error 
+                        <=0 means error 
+                        -1= out of memory
+                        -2= program error with prediction of result size
+                        -3= error with conversion of name to uid or gid 
 */
 int aaip_encode_acl(char *acl_text, mode_t st_mode,
                     size_t *result_len, unsigned char **result, int flag)
@@ -280,7 +283,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  bytes= aaip_encode_acl_text(acl_text, st_mode,
                              (size_t) 0, NULL, 1 | (flag & (2 | 4 | 8)));
  if(bytes < 0)
-   return(0);
+   return((int) bytes - 1);
  if(flag & 1) {
    *result_len= bytes;
    return(1);
@@ -292,9 +295,11 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  *result_len= bytes;
  bytes= aaip_encode_acl_text(acl_text, st_mode, *result_len, *result,
                              (flag & (2 | 4 | 8)));
+ if(bytes < 0)
+   return((int) bytes - 1);
  if((size_t) bytes != *result_len) {
    *result_len= 0;
-   return(0);
+   return(-2);
  }
  return(1);
 }
@@ -341,6 +346,8 @@ static int aaip_make_aaip_perms(int r, int w, int x)
                               fill up with entries deduced from st_mode
    @return              >=0 number of bytes produced resp. counted
                         <0 means error 
+                        -1: result size overflow
+                        -2: conversion errror with user name or group name
 */
 static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                            size_t result_size, unsigned char *result, int flag)
@@ -398,8 +405,10 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
          pwd= getpwnam(name);
          if(pwd == NULL) {
            num= aaip_numeric_id(name, 0);
-           if(num <= 0)
-             goto user_by_name;
+           if(num <= 0) {
+             /* ACL_USER is not part of AAIP 2.0 */
+             {ret= -2; goto ex;}
+           }
            uid= huid= num;
          } else
            uid= huid= pwd->pw_uid;
@@ -407,12 +416,15 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
          for(i= 0; huid != 0; i++)
            huid= huid >> 8;
          qualifier_len= i;
+         if(qualifier_len <= 0)
+           qualifier_len= 1;
          for(i= 0; i < qualifier_len ; i++)
            name[i]= uid >> (8 * (qualifier_len - i - 1));
        } else {
-user_by_name:;
          type= Aaip_ACL_USER;
          qualifier_len= strlen(name);
+         if(qualifier_len <= 0)
+           qualifier_len= 1;
        }
        qualifier= 1;
      }
@@ -425,13 +437,16 @@ user_by_name:;
  continue;
        is_trivial= 0;
        strncpy(name, rpt + 6, cpt - (rpt + 6)); 
+       name[cpt - (rpt + 6)]= 0;
        if(flag & 2) {
          type= Aaip_ACL_GROUP_N;
          grp= getgrnam(name);
          if(grp == NULL) {
            num= aaip_numeric_id(name, 0);
-           if(num <= 0)
-             goto group_by_name;
+           if(num <= 0) {
+             /* ACL_GROUP is not part of AAIP 2.0 */
+             {ret= -2; goto ex;}
+           }
            gid= hgid= num;
          } else
            gid= hgid= grp->gr_gid;
@@ -439,13 +454,15 @@ user_by_name:;
          for(i= 0; hgid != 0; i++)
            hgid= hgid >> 8;
          qualifier_len= i;
+         if(qualifier_len <= 0)
+           qualifier_len= 1;
          for(i= 0; i < qualifier_len ; i++)
            name[i]= gid >> (8 * (qualifier_len - i - 1));
-
        } else {
-group_by_name:;
          type= Aaip_ACL_GROUP;
          qualifier_len= strlen(name);
+         if(qualifier_len <= 0)
+           qualifier_len= 1;
        }
        qualifier= 1;
      }

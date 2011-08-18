@@ -514,7 +514,10 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
                              &value_lengths, &values,
                              (!(flag & 2)) | 2 | (flag & 4) | 16);
     if (ret <= 0) {
-        ret = ISO_FILE_ERROR;
+        if (ret == -2)
+            ret = ISO_AAIP_NO_GET_LOCAL;
+        else
+            ret = ISO_FILE_ERROR;
         goto ex;
     }
     if (num_attrs == 0)
