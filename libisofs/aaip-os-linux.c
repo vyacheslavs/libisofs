@@ -144,6 +144,9 @@ int aaip_get_acl_text(char *path, char **text, int flag)
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
                         <=0 error
+                        -1= out of memory
+                        -2= program error with prediction of result size
+                        -3= error with conversion of name to uid or gid
 */
 int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
@@ -447,25 +450,11 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  continue;
    }
    /* Extended Attribute */
-
-#ifdef Libisofs_aaip_linux_set_attr_list_neW
-/* >>> Enable this after release 1.1.4. */
-
    if(flag & 4)
  continue;
    if(!(flag & 8))
      if(strncmp(names[i], "user.", 5))
  continue;
-
-#else /* Libisofs_aaip_linux_set_attr_list_neW */
-/* <<< This worked well, but obviously only because bit0 is always set */
-
-   if((flag & 1) && !(flag & 8))
-     if(strncmp(names[i], "user.", 5))
- continue;
-
-#endif /* ! Libisofs_aaip_linux_set_attr_list_neW */
-
 
 #ifdef Libisofs_with_aaip_xattR
 
