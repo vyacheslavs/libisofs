@@ -157,14 +157,17 @@ int aaip_get_acl_text(char *path, char **text, int flag)
                         bit15= free memory of names, value_lengths, values
    @return              >0  ok
                         <=0 error
+                        -1= out of memory
+                        -2= program error with prediction of result size
+                        -3= error with conversion of name to uid or gid
 */
 int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
 {
  int ret;
  ssize_t i, num_names;
- size_t a_acl_len= 0, acl_len= 0;
- unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
+ size_t a_acl_len= 0;
+ unsigned char *a_acl= NULL;
  char *acl_text= NULL;
 
  if(flag & (1 << 15)) { /* Free memory */
@@ -211,8 +214,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    (*names)[*num_attrs]= strdup("");
    if((*names)[*num_attrs] == NULL)
      {ret= -1; goto ex;}
-   (*values)[*num_attrs]= (char *) acl;
-   (*value_lengths)[*num_attrs]= acl_len;
+   (*values)[*num_attrs]= (char *) a_acl;
+   (*value_lengths)[*num_attrs]= a_acl_len;
    (*num_attrs)++;
  }
 
@@ -222,8 +225,6 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 ex:;
  if(a_acl != NULL)
    free(a_acl);
- if(d_acl != NULL)
-   free(d_acl);
  if(acl_text != NULL)
    aaip_get_acl_text("", &acl_text, 1 << 15); /* free */
 
@@ -242,8 +243,6 @@ ex:;
        free((*values)[i]);
      free(*values);
    }
-   if(acl != NULL)
-     free(acl);
    *values= NULL;
    *num_attrs= 0;
  }
@@ -341,6 +340,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  continue;
    if(names[i][0] == 0) { /* Decode ACLs */
      /* access ACL */
+     if(!(flag & 1))
+ continue;
      ret= aaip_decode_acl((unsigned char *) values[i], value_lengths[i],
                           &consumed, NULL, 0, &acl_text_fill, 1);
      if(ret <= 0)
