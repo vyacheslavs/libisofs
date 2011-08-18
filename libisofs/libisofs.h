@@ -1015,8 +1015,8 @@ struct IsoStream_Iface
      * This is also appropriate if one has reason to implement stream.cmp_ino()
      * without having an own special comparison algorithm.
      *
-     * With filter streams the decision whether the underlying chains of
-     * streams match should be delegated to
+     * With filter streams, the decision whether the underlying chains of
+     * streams match, should be delegated to
      *    iso_stream_cmp_ino(iso_stream_get_input_stream(s1, 0),
      *                       iso_stream_get_input_stream(s2, 0), 0);
      *
