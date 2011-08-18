@@ -125,6 +125,7 @@ iso_init;
 iso_init_with_flag;
 iso_lib_is_compatible;
 iso_lib_version;
+iso_local_attr_support;
 iso_local_get_acl_text;
 iso_local_get_attrs;
 iso_local_get_perms_wo_acl;

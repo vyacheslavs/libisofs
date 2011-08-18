@@ -11,7 +11,7 @@
 
  To be included by aaip_0_2.c
 
- Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2011 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -26,6 +26,29 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+
+
+/* ------------------------------ Inquiry --------------------------------- */
+
+/* See also API iso_local_attr_support().
+   @param flag
+        Bitfield for control purposes
+             bit0= inquire availability of ACL
+             bit1= inquire availability of xattr
+             bit2 - bit7= Reserved for future types.
+                          It is permissibile to set them to 1 already now.
+             bit8 and higher: reserved, submit 0
+   @return
+        Bitfield corresponding to flag. If bits are set, th
+             bit0= ACL adapter is enabled
+             bit1= xattr adapter is enabled
+             bit2 - bit7= Reserved for future types.
+             bit8 and higher: reserved, do not interpret these
+*/
+int aaip_local_attr_support(int flag)
+{
+ return(0);
+}
 
 
 /* ------------------------------ Getters --------------------------------- */

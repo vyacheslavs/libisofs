@@ -819,6 +819,15 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
 }
 
 
+int iso_local_attr_support(int flag)
+{
+    int ret;
+
+    ret= aaip_local_attr_support(flag & 255);
+    return ret;
+}
+
+
 int iso_local_get_acl_text(char *disk_path, char **text, int flag)
 {
     int ret;
