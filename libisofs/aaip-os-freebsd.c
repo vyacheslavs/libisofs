@@ -63,7 +63,7 @@ int aaip_local_attr_support(int flag)
  return(ret);
 }
 
-,
+
 /* ------------------------------ Getters --------------------------------- */
 
 /* Obtain the ACL of the given file in long text form.
