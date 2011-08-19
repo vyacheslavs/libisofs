@@ -383,7 +383,7 @@ int str2ascii(const char *icharset, const char *input, char **output)
 {
     int result;
     wchar_t *wsrc_ = NULL;
-    char *ret;
+    char *ret = NULL;
     char *ret_ = NULL;
     char *src;
     struct iso_iconv_handle conv;
@@ -451,7 +451,7 @@ int str2ascii(const char *icharset, const char *input, char **output)
         loop_limit = inbytes + 3;
         outbytes = (inbytes + 1) * sizeof(uint16_t);
         ret_ = malloc(outbytes);
-        if (ret == NULL)
+        if (ret_ == NULL)
             return ISO_OUT_OF_MEM;
         ret = ret_;
     }
@@ -547,7 +547,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     int result;
     wchar_t *wsrc_ = NULL;
     char *src;
-    char *ret;
+    char *ret = NULL;
     char *ret_ = NULL;
     struct iso_iconv_handle conv;
     int conv_ret = 0;
@@ -610,7 +610,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
         loop_limit = inbytes + 3;
         outbytes = (inbytes + 1) * sizeof(uint16_t);
         ret_ = malloc(outbytes);
-        if (ret == NULL)
+        if (ret_ == NULL)
             return ISO_OUT_OF_MEM;
         ret = ret_;
     }
