@@ -186,16 +186,16 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
 {
  int ret;
- char *list= NULL;
- ssize_t list_size= 0, i, num_names= 0;
- unsigned char *acl= NULL;
- char *a_acl_text= NULL, *d_acl_text= NULL;
+ ssize_t i, num_names= 0;
 
 #ifdef Libisofs_with_aaip_acL
+ unsigned char *acl= NULL;
+ char *a_acl_text= NULL, *d_acl_text= NULL;
  size_t acl_len= 0;
 #endif
 #ifdef Libisofs_with_aaip_xattR
- ssize_t value_ret, retry= 0;
+ char *list= NULL;
+ ssize_t value_ret, retry= 0, list_size= 0;
 #endif
 
  if(flag & (1 << 15)) { /* Free memory */
@@ -208,39 +208,38 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  *values= NULL;
 
  /* Set up arrays */
- if(!(flag & 4)) { /* Get xattr names */
 
 #ifdef Libisofs_with_aaip_xattR
 
+ if(!(flag & 4)) { /* Get xattr names */
     if(flag & 32)
       list_size= listxattr(path, list, 0);
     else
       list_size= llistxattr(path, list, 0);
     if(list_size == -1)
       {ret= -1; goto ex;}
-    list= calloc(list_size, 1);
-    if(list == NULL)
-      {ret= -1; goto ex;}
-    if(flag & 32)
-      list_size= listxattr(path, list, list_size);
-    else
-      list_size= llistxattr(path, list, list_size);
-    if(list_size == -1)
-      {ret= -1; goto ex;}
-
-#else /* Libisofs_with_aaip_xattR */
-
-    list= strdup("");
-
-#endif /* ! Libisofs_with_aaip_xattR */
-
+    if(list_size > 0) {
+      list= calloc(list_size, 1);
+      if(list == NULL)
+        {ret= -1; goto ex;}
+      if(flag & 32)
+        list_size= listxattr(path, list, list_size);
+      else
+        list_size= llistxattr(path, list, list_size);
+      if(list_size == -1)
+        {ret= -1; goto ex;}
+    }
     for(i= 0; i < list_size; i+= strlen(list + i) + 1)
       num_names++;
  }
 
+#endif /* ! Libisofs_with_aaip_xattR */
+
 #ifdef Libisofs_with_aaip_acL
+
  if(flag & 1)
    num_names++;
+
 #endif
 
  if(num_names == 0)
@@ -256,7 +255,10 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    (*values)[i]= NULL;
    (*value_lengths)[i]= 0;
  }
- if(!(flag & 4)) {
+
+#ifdef Libisofs_with_aaip_xattR
+
+ if(!(flag & 4)) { /* Get xattr values */
    for(i= 0; i < list_size && (size_t) num_names > *num_attrs;
        i+= strlen(list + i) + 1) {
      if(!(flag & 8))
@@ -266,11 +268,6 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
      if((*names)[(*num_attrs) - 1] == NULL)
        {ret= -1; goto ex;}
    }
- }
-
-#ifdef Libisofs_with_aaip_xattR
-
- if(!(flag & 4)) { /* Get xattr values */
    for(i= 0; (size_t) i < *num_attrs; i++) {
      if(!(flag & 8))
        if(strncmp((*names)[i], "user.", 5))
@@ -328,12 +325,19 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
  ret= 1;
 ex:;
+#ifdef Libisofs_with_aaip_acL
  if(a_acl_text != NULL)
    aaip_get_acl_text("", &a_acl_text, 1 << 15); /* free */
  if(d_acl_text != NULL)
    aaip_get_acl_text("", &d_acl_text, 1 << 15); /* free */
+ if(acl != NULL)
+   free(acl);
+#endif
+#ifdef Libisofs_with_aaip_xattR
  if(list != NULL)
    free(list);
+#endif
+
  if(ret <= 0 || (flag & (1 << 15))) {
    if(*names != NULL) {
      for(i= 0; (size_t) i < *num_attrs; i++)
@@ -349,8 +353,6 @@ ex:;
        free((*values)[i]);
      free(*values);
    }
-   if(acl != NULL)
-     free(acl);
    *values= NULL;
    *num_attrs= 0;
  }
