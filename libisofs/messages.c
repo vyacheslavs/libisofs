@@ -464,6 +464,8 @@ const char *iso_error_to_msg(int errcode)
         return "Reserved Rock Ridge leaf name";
     case ISO_RR_PATH_TOO_LONG:
         return "Rock Ridge path too long";
+    case ISO_AAIP_BAD_ATTR_NAME:
+        return "Attribute name cannot be represented";
     default:
         return "Unknown error";
     }

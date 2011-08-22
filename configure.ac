@@ -160,14 +160,19 @@ LIBBURNIA_SET_PKGCONFIG
 dnl Add compiler-specific flags
 
 AC_ARG_ENABLE(libacl,
-[  --enable-libacl         Enable use of libacl by libisofs, default=yes],
+[  --enable-libacl         Enable use of ACL functions by libisofs, default=yes],
                , enable_libacl=yes)
 if test "x$enable_libacl" = xyes; then
 dnl Check whether there is libacl-devel and libacl-runtime.
 dnl If not, erase this macro which would enable use of acl_to_text and others
     LIBACL_DEF="-DLibisofs_with_aaip_acL"
 dnl The empty yes case obviously causes -lacl to be linked
-    AC_CHECK_HEADER(sys/acl.h, AC_CHECK_LIB(acl, acl_to_text, , LIBACL_DEF= ), LIBACL_DEF= )
+    has_acl_h_but_no_func=0
+    AC_CHECK_HEADER(sys/acl.h, AC_CHECK_LIB(acl, acl_to_text, , has_acl_h_but_no_libacl=1 ), LIBACL_DEF= )
+    if test "$has_acl_h_but_no_libacl" = 1
+    then
+       AC_CHECK_LIB(c, acl_to_text, X= , LIBACL_DEF= )
+     fi
 else
     LIBACL_DEF=
 fi
@@ -183,6 +188,11 @@ dnl Check whether there is the header for Linux xattr.
 dnl If not, erase this macro which would enable use of listxattr and others
     XATTR_DEF="-DLibisofs_with_aaip_xattR"
     AC_CHECK_HEADER(attr/xattr.h, AC_CHECK_LIB(c, listxattr, X= , XATTR_DEF= ), XATTR_DEF= )
+    if test "x$XATTR_DEF" = x
+    then
+       XATTR_DEF="-DLibisofs_with_freebsd_extattR"
+       AC_CHECK_HEADER(sys/extattr.h, AC_CHECK_LIB(c, extattr_list_file, X=, XATTR_DEF= ), XATTR_DEF= )
+    fi
 else
     XATTR_DEF=
 fi

@@ -876,6 +876,8 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
             return ISO_AAIP_BAD_AASTRING;
         if (ret == -6 || ret == -7)
             return ISO_AAIP_NOT_ENABLED;
+        if (ret == -8)
+            return ISO_AAIP_BAD_ATTR_NAME;
         return ISO_AAIP_NO_SET_LOCAL;
     }
     return 1;
