@@ -432,6 +432,7 @@ ex:
                        -5 error with deleting attributes
                        -6 support of xattr not enabled at compile time
                        -7 support of ACL not enabled at compile time
+                     ( -8 unsupported xattr namespace )
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
@@ -487,6 +488,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    }
    /* Extended Attribute */
    if(flag & 4)
+ continue;
+   if(strncmp(names[i], "isofs.", 6) == 0)
  continue;
    if(!(flag & 8))
      if(strncmp(names[i], "user.", 5))
