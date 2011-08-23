@@ -423,7 +423,9 @@ ex:
                         bit3= do not ignore eventual non-user attributes.
                               I.e. those with a name which does not begin
                               by "user."
-                        bit5=  in case of symbolic link: manipulate link target
+                        bit5= in case of symbolic link: manipulate link target
+                        bit6= tolerate inappropriate presence or absense of
+                              directory default ACL
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
@@ -557,6 +559,14 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    ret= aaip_set_acl_text(path, acl_text, 1 | (flag & 32));
    if(ret <= 0)
      {ret= -3; goto ex;}
+ } else {
+   if(!(flag & 64)) {
+
+     /* >>> ??? take offense from missing default ACL ?
+       ??? does Linux demand a default ACL for directories with access ACL ?
+      */;
+
+   }
  }
  ret= 1;
 ex:;

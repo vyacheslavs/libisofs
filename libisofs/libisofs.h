@@ -5858,7 +5858,7 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag);
  *           bit5=  in case of symbolic link: manipulate link target
  * @return
  *      > 0 ok
- *        0 no ACL manipulation adapter available
+ *        0 no ACL manipulation adapter available for desired ACL type
  *       -1 failure of system ACL service (see errno)
  *       -2 attempt to manipulate ACL of a symbolic link without bit5
  *          resp. with no suitable link target
@@ -5947,6 +5947,9 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
  *      bit3=  do not ignore eventual non-user attributes.
  *             I.e. those with a name which does not begin by "user."
  *      bit5=  in case of symbolic link: manipulate link target
+ *      bit6=  @since 1.1.6
+               tolerate inappropriate presence or absence of
+ *             directory "default" ACL
  * @return
  *      1 = ok 
  *    < 0 = error

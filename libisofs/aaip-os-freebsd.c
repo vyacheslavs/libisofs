@@ -648,9 +648,13 @@ ex:;
    @param flag          Bitfield for control purposes
                         bit0=  set default ACL rather than access ACL
                         bit5=  in case of symbolic link: manipulate link target
+                        bit6= tolerate inappropriate presence or absence of
+                              directory default ACL
    @return              > 0 ok
+                         0 no suitable ACL manipulation adapter available
                         -1  failure of system ACL service (see errno)
-                        -2  ACL support not enabled at compile time
+                        -2 attempt to manipulate ACL of a symbolic link
+                           without bit5 resp. with no suitable link target
 */
 int aaip_set_acl_text(char *path, char *text, int flag)
 {
@@ -691,7 +695,7 @@ ex:
 
 #else /* Libisofs_with_aaip_acL */
 
- return(-2);
+ return(0);
 
 #endif /* ! Libisofs_with_aaip_acL */
 
@@ -739,7 +743,9 @@ static int aaip_extattr_delete_names(char *path, int attrnamespace,
                         bit3= do not ignore eventual non-user attributes.
                               I.e. those with a name which does not begin
                               by "user."
-                        bit5=  in case of symbolic link: manipulate link target
+                        bit5= in case of symbolic link: manipulate link target
+                        bit6= tolerate inappropriate presence or absence of
+                              directory default ACL
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
@@ -852,19 +858,15 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  has_default_acl= (ret == 2);
 
 #ifdef Libisofs_with_aaip_acL
- ret= aaip_set_acl_text(path, acl_text, flag & 32);
+ ret= aaip_set_acl_text(path, acl_text, flag & (32 | 64));
  if(ret <= 0)
    {ret= -3; goto ex;}
 #else
  {ret= -7; goto ex;}
 #endif
 
- if(has_default_acl) {
-
-   /* >>> EXTATTR : Give opportunity to ignore default ACLs */;
-
+ if(has_default_acl && !(flag & 64))
    {ret= -3; goto ex;}
- }
 
  ret= 1;
 ex:;

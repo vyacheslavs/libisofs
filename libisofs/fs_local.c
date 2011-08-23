@@ -868,7 +868,7 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
     int ret;
 
     ret = aaip_set_attr_list(disk_path, num_attrs, names, value_lengths,
-                             values, (flag & (8 | 32)) | !(flag & 1));
+                             values, (flag & (8 | 32 | 64)) | !(flag & 1));
     if (ret <= 0) {
         if (ret == -1)
             return ISO_OUT_OF_MEM;
