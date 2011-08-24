@@ -56,7 +56,11 @@ size_t aaip_encode(size_t num_attrs, char **names,
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
    @return              >0 means ok
-                        0 means error
+                        <=0 means error
+                        -1= out of memory
+                        -2= program error with prediction of result size
+                        -3= error with conversion of name to uid or gid
+     ISO_AAIP_ACL_MULT_OBJ= multiple entries of user::, group::, other::
 */
 int aaip_encode_acl(char *acl_text, mode_t st_mode,
                     size_t *result_len, unsigned char **result, int flag);
@@ -80,7 +84,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
    @return              >0 means ok
-                        0 means error
+                        <=0 means error, see aaip_encode_acl
 */
 int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
                          size_t *result_len, unsigned char **result, int flag);
@@ -496,6 +500,8 @@ int aaip_set_acl_text(char *path, char *text, int flag);
                        -5 error with deleting attributes
                        -6 support of xattr not enabled at compile time
                        -7 support of ACL not enabled at compile time
+                       -8 unsupported xattr namespace
+    ISO_AAIP_ACL_MULT_OBJ multiple entries of user::, group::, other::
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag);

@@ -2149,10 +2149,12 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
                 ret = aaip_encode_both_acl(access_text, default_text, st_mode,
                                            &acl_len, &acl, 2 | 8);
         }
-        if (ret <= 0) {
+        if (ret == -1)
             ret = ISO_OUT_OF_MEM;
+        else if (ret <= 0 && ret >= -3)
+            ret = ISO_AAIP_BAD_ACL_TEXT;
+        if (ret <= 0)
             goto ex;
-        }
 
         if(acl == NULL) { /* Delete whole ACL attribute */
             /* Update S_IRWXG by eventual "group::" ACL entry.
@@ -2205,6 +2207,8 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
     }
     ret = aaip_encode_both_acl(access_text, default_text,
                                st_mode, &acl_len, &acl, 2 | 8);
+    if (ret < -3)
+        goto ex;
     if (ret <= 0) {
         ret = ISO_AAIP_BAD_ACL_TEXT;
         goto ex;

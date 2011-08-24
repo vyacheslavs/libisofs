@@ -272,6 +272,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                         -1= out of memory
                         -2= program error with prediction of result size
                         -3= error with conversion of name to uid or gid 
+     ISO_AAIP_ACL_MULT_OBJ= multiple entries of user::, group::, other::
 */
 int aaip_encode_acl(char *acl_text, mode_t st_mode,
                     size_t *result_len, unsigned char **result, int flag)
@@ -282,6 +283,8 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  *result_len= 0;
  bytes= aaip_encode_acl_text(acl_text, st_mode,
                              (size_t) 0, NULL, 1 | (flag & (2 | 4 | 8)));
+ if(bytes < -2)
+   return(bytes);
  if(bytes < 0)
    return((int) bytes - 1);
  if(flag & 1) {
@@ -295,6 +298,8 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  *result_len= bytes;
  bytes= aaip_encode_acl_text(acl_text, st_mode, *result_len, *result,
                              (flag & (2 | 4 | 8)));
+ if(bytes < -2)
+   return(bytes);
  if(bytes < 0)
    return((int) bytes - 1);
  if((size_t) bytes != *result_len) {
@@ -348,6 +353,7 @@ static int aaip_make_aaip_perms(int r, int w, int x)
                         <0 means error 
                         -1: result size overflow
                         -2: conversion errror with user name or group name
+     ISO_AAIP_ACL_MULT_OBJ: multiple entries of user::, group::, other::
 */
 static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                            size_t result_size, unsigned char *result, int flag)
@@ -393,6 +399,13 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
    if(strncmp(rpt, "user:", 5) == 0) {
      if(cpt - rpt == 5) {
        type= Aaip_ACL_USER_OBJ;
+       if (has_u) {
+
+         /* >>> Duplicate u:: entry. */;
+         /* >>> ??? If it matches the previous one: ignore */
+
+         return((int) ISO_AAIP_ACL_MULT_OBJ);
+       }
        has_u++;
      } else {
        if(cpt - (rpt + 5) >= name_size)
@@ -431,6 +444,13 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
    } else if(strncmp(rpt, "group:", 6) == 0) {
      if(cpt - rpt == 6) {
        type= Aaip_ACL_GROUP_OBJ;
+       if (has_g) {
+
+         /* >>> Duplicate g:: entry. */;
+         /* >>> ??? If it matches the previous one: ignore */
+
+         return((int) ISO_AAIP_ACL_MULT_OBJ);
+       }
        has_g++;
      } else {
        if(cpt - (rpt + 6) >= name_size)
@@ -468,6 +488,13 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
      }
    } else if(strncmp(rpt, "other:", 6) == 0) {
      type= Aaip_ACL_OTHER;
+     if (has_o) {
+
+       /* >>> Duplicate o:: entry. */;
+       /* >>> ??? If it matches the previous one: ignore */
+
+       return((int) ISO_AAIP_ACL_MULT_OBJ);
+     }
      has_o++;
    } else if(strncmp(rpt, "mask:", 5) == 0) {
      type= Aaip_ACL_MASK;
@@ -2139,8 +2166,9 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
  }
  ret= 1;
 ex:;
+ *acl_text_fill= w_size;
  if(flag & 1)
-   *acl_text_fill= w_size + 1;
+   (*acl_text_fill)++;
  LIBISO_FREE_MEM(name);
  return(ret);
 }

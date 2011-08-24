@@ -6921,6 +6921,11 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
 /** Attribute name cannot be represented  (FAILURE, HIGH, -380) */
 #define ISO_AAIP_BAD_ATTR_NAME      0xE830FE84
 
+/** ACL text contains multiple entries of user::, group::, other::
+                                                     (FAILURE, HIGH, -379)  */
+#define ISO_AAIP_ACL_MULT_OBJ       0xE830FE83
+
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

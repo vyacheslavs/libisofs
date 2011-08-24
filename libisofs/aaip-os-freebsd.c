@@ -755,6 +755,7 @@ static int aaip_extattr_delete_names(char *path, int attrnamespace,
                        -6 support of xattr not enabled at compile time
                        -7 support of ACL not enabled at compile time
                        -8 unsupported xattr namespace
+    ISO_AAIP_ACL_MULT_OBJ multiple entries of user::, group::, other::
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
@@ -846,6 +847,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
 
  ret= aaip_decode_acl((unsigned char *) values[i], value_lengths[i],
                       &consumed, NULL, 0, &acl_text_fill, 1);
+ if(ret < -3)
+   goto ex;
  if(ret <= 0)
    {ret= -2; goto ex;}
  acl_text= calloc(acl_text_fill, 1);
@@ -853,6 +856,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    {ret= -1; goto ex;}
  ret= aaip_decode_acl((unsigned char *) values[i], value_lengths[i],
                       &consumed, acl_text, acl_text_fill, &acl_text_fill, 0);
+ if(ret < -3)
+   goto ex;
  if(ret <= 0)
    {ret= -2; goto ex;} 
  has_default_acl= (ret == 2);

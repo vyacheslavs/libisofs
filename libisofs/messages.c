@@ -466,6 +466,8 @@ const char *iso_error_to_msg(int errcode)
         return "Rock Ridge path too long";
     case ISO_AAIP_BAD_ATTR_NAME:
         return "Attribute name cannot be represented";
+    case ISO_AAIP_ACL_MULT_OBJ:
+        return "ACL text contains multiple entries of user::, group::, other::";
     default:
         return "Unknown error";
     }
