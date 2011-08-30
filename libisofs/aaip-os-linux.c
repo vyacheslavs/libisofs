@@ -216,8 +216,12 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
       list_size= listxattr(path, list, 0);
     else
       list_size= llistxattr(path, list, 0);
-    if(list_size == -1)
-      {ret= -1; goto ex;}
+    if(list_size == -1) {
+      if(errno == ENOSYS) /* Function not implemented */
+        list_size= 0;     /* Handle as if xattr was disabled at compile time */
+      else
+        {ret= -1; goto ex;}
+    }
     if(list_size > 0) {
       list= calloc(list_size, 1);
       if(list == NULL)

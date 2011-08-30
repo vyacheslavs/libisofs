@@ -2186,6 +2186,13 @@ ex:;
 
 #include "aaip-os-linux.c"
 
+/* August 2011: aaip-os-linux.c would also work for GNU/Hurd : ifdef __GNU__
+   Libraries and headers are present on Debian GNU/Hurd but there is no
+   ACL or xattr support in the filesystems yet.
+   Further, llistxattr() produces ENOSYS "Function not implemented".
+   So it makes few sense to enable it here.
+*/
+
 #else
 
 #include "aaip-os-dummy.c"
