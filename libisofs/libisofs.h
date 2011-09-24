@@ -61,6 +61,88 @@
 
 #include <stdlib.h>
 
+
+/**
+ * The following two functions and three macros are utilities to help ensuring
+ * version match of application, compile time header, and runtime library.
+ */
+/**
+ * These three release version numbers tell the revision of this header file
+ * and of the API it describes. They are memorized by applications at
+ * compile time.
+ * They must show the same values as these symbols in ./configure.ac
+ *     LIBISOFS_MAJOR_VERSION=...
+ *     LIBISOFS_MINOR_VERSION=...
+ *     LIBISOFS_MICRO_VERSION=...
+ * Note to anybody who does own work inside libisofs:
+ * Any change of configure.ac or libisofs.h has to keep up this equality !
+ *
+ * Before usage of these macros on your code, please read the usage discussion
+ * below.
+ *
+ * @since 0.6.2
+ */
+#define iso_lib_header_version_major  1
+#define iso_lib_header_version_minor  1
+#define iso_lib_header_version_micro  5
+
+/**
+ * Get version of the libisofs library at runtime.
+ * NOTE: This function may be called before iso_init().
+ *
+ * @since 0.6.2
+ */
+void iso_lib_version(int *major, int *minor, int *micro);
+
+/**
+ * Check at runtime if the library is ABI compatible with the given version.
+ * NOTE: This function may be called before iso_init().
+ *
+ * @return
+ *      1 lib is compatible, 0 is not.
+ *
+ * @since 0.6.2
+ */
+int iso_lib_is_compatible(int major, int minor, int micro);
+
+/**
+ * Usage discussion:
+ *
+ * Some developers of the libburnia project have differing opinions how to
+ * ensure the compatibility of libaries and applications.
+ *
+ * It is about whether to use at compile time and at runtime the version
+ * numbers provided here. Thomas Schmitt advises to use them. Vreixo Formoso
+ * advises to use other means.
+ *
+ * At compile time:
+ *
+ * Vreixo Formoso advises to leave proper version matching to properly
+ * programmed checks in the the application's build system, which will
+ * eventually refuse compilation.
+ *
+ * Thomas Schmitt advises to use the macros defined here for comparison with
+ * the application's requirements of library revisions and to eventually
+ * break compilation.
+ *
+ * Both advises are combinable. I.e. be master of your build system and have
+ * #if checks in the source code of your application, nevertheless.
+ *
+ * At runtime (via iso_lib_is_compatible()):
+ *
+ * Vreixo Formoso advises to compare the application's requirements of
+ * library revisions with the runtime library. This is to allow runtime
+ * libraries which are young enough for the application but too old for
+ * the lib*.h files seen at compile time.
+ *
+ * Thomas Schmitt advises to compare the header revisions defined here with
+ * the runtime library. This is to enforce a strictly monotonous chain of
+ * revisions from app to header to library, at the cost of excluding some older
+ * libraries.
+ *
+ * These two advises are mutually exclusive.
+ */
+
 struct burn_source;
 
 /**
@@ -1186,89 +1268,6 @@ int iso_image_new(const char *name, IsoImage **image);
  * @since 0.6.14
  */
 void iso_image_set_ignore_aclea(IsoImage *image, int what);
-
-
-/**
- * The following two functions three macros are utilities to help ensuring
- * version match of application, compile time header, and runtime library.
- */
-/**
- * Get version of the libisofs library at runtime.
- * NOTE: This function may be called before iso_init().
- *
- * @since 0.6.2
- */
-void iso_lib_version(int *major, int *minor, int *micro);
-
-/**
- * Check at runtime if the library is ABI compatible with the given version.
- * NOTE: This function may be called before iso_init().
- *
- * @return
- *      1 lib is compatible, 0 is not.
- *
- * @since 0.6.2
- */
-int iso_lib_is_compatible(int major, int minor, int micro);
-
-
-/**
- * These three release version numbers tell the revision of this header file
- * and of the API it describes. They are memorized by applications at
- * compile time.
- * They must show the same values as these symbols in ./configure.ac
- *     LIBISOFS_MAJOR_VERSION=...
- *     LIBISOFS_MINOR_VERSION=...
- *     LIBISOFS_MICRO_VERSION=...
- * Note to anybody who does own work inside libisofs:
- * Any change of configure.ac or libisofs.h has to keep up this equality !
- *
- * Before usage of these macros on your code, please read the usage discussion
- * below.
- *
- * @since 0.6.2
- */
-#define iso_lib_header_version_major  1
-#define iso_lib_header_version_minor  1
-#define iso_lib_header_version_micro  5
-
-/**
- * Usage discussion:
- *
- * Some developers of the libburnia project have differing opinions how to
- * ensure the compatibility of libaries and applications.
- *
- * It is about whether to use at compile time and at runtime the version
- * numbers provided here. Thomas Schmitt advises to use them. Vreixo Formoso
- * advises to use other means.
- *
- * At compile time:
- *
- * Vreixo Formoso advises to leave proper version matching to properly
- * programmed checks in the the application's build system, which will
- * eventually refuse compilation.
- *
- * Thomas Schmitt advises to use the macros defined here for comparison with
- * the application's requirements of library revisions and to eventually
- * break compilation.
- *
- * Both advises are combinable. I.e. be master of your build system and have
- * #if checks in the source code of your application, nevertheless.
- *
- * At runtime (via iso_lib_is_compatible()):
- *
- * Vreixo Formoso advises to compare the application's requirements of
- * library revisions with the runtime library. This is to allow runtime
- * libraries which are young enough for the application but too old for
- * the lib*.h files seen at compile time.
- *
- * Thomas Schmitt advises to compare the header revisions defined here with
- * the runtime library. This is to enforce a strictly monotonous chain of
- * revisions from app to header to library, at the cost of excluding some older
- * libraries.
- *
- * These two advises are mutually exclusive.
- */
 
 
 /**
