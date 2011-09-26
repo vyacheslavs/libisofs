@@ -1,7 +1,13 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.1.6.tar.gz)
+libisofs-1.1.6.tar.gz Tue Sep 27 2011
 ===============================================================================
-- no novelties yet
-
+* Bug fix: On Solaris: False out-of-memory errors when writing images.
+* Bug fix: On FreeBSD: No ACLs were recorded.
+* Bug fix: ACL entries of groups and of user id 0 were not properly recorded
+           and cannot be restored.
+* Bug fix: On FreeBSD: The function for restoring ACLs and xattr returned
+           error, even if no xattr were to be restored.
+* New API call iso_local_attr_support()
+* Enabled recording and restoring of extattr on FreeBSD.
 
 libisofs-1.1.4.tar.gz Mon Aug 08 2011
 ===============================================================================
