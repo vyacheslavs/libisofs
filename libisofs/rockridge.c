@@ -988,7 +988,10 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
             goto unannounced_ca;
         namelen = namelen - (space - *su_size - 5);
 
-        /* >>> Need to handle lengths > 250 */;
+        /* >>> SUPER_LONG_RR: Need to handle CA part lengths > 250 
+               (This cannot happen with name lengths <= 256, as a part
+                of the name will always fit into the directory entry.)
+        */;
 
         *ce = 5 + namelen;
         *su_size = space;
@@ -1671,7 +1674,10 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * ..and the part that goes to continuation area.
              */
 
-            /* >>> Need a loop to handle lengths > 250 */;
+            /* >>> SUPER_LONG_RR : Need a loop to handle CA lengths > 250
+                   (This cannot happen with name lengths <= 256, as a part
+                    of the name will always fit into the directory entry.)
+             */;
 
             ret = rrip_add_NM(t, info, name + namelen, strlen(name + namelen),
                               0, 1);
