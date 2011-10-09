@@ -1,3 +1,8 @@
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.1.8.tar.gz)
+===============================================================================
+- no novelties yet
+
+
 libisofs-1.1.6.tar.gz Tue Sep 27 2011
 ===============================================================================
 * Bug fix: On Solaris: False out-of-memory errors when writing images.

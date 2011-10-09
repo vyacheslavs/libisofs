@@ -95,8 +95,8 @@ size_t aaip_encode(size_t num_attrs, char **names,
                    size_t *value_lengths, char **values, 
                    size_t *result_len, unsigned char **result, int flag)
 {
- size_t mem_size= 0, comp_size;
- unsigned int number_of_fields, i, num_recs, ret;
+ size_t mem_size= 0, comp_size, ret;
+ unsigned int number_of_fields, i, num_recs;
 
  /* Predict memory needs, number of SUSP fields and component records */
  *result_len= 0;
@@ -158,9 +158,9 @@ size_t aaip_encode(size_t num_attrs, char **names,
  ret= 0;
  for(i= 0; i < *result_len; i+= ((unsigned char *) (*result))[i + 2])
    ret++;
- if(ret != number_of_fields) {
+ if(ret != (int) number_of_fields) {
    fprintf(stderr, "aaip_encode(): WRONG NUMBER OF FIELDS %d <> %d\n",
-           number_of_fields, ret);
+           (int) number_of_fields, ret);
  }
 #endif /* Aaip_encode_debuG */
 
