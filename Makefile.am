@@ -256,6 +256,7 @@ nodist_pkgconfig_DATA = \
 # ts A80114 : added aaip-os*
 
 EXTRA_DIST = \
+	bootstrap \
 	libisofs-1.pc.in \
 	version.h.in \
 	doc/doxygen.conf.in \
