@@ -220,6 +220,12 @@ demo_demo_SOURCES = demo/demo.c
 # 	test/mocked_fsrc.h \
 # 	test/mocked_fsrc.c
 
+# "make clean" shall remove a few stubborn .libs directories
+# which George Danchev reported Dec 03 2011.
+# Learned from: http://www.gnu.org/software/automake/manual/automake.html#Clean
+clean-local:
+	-rm -rf demo/.libs
+
 ## ========================================================================= ##
 
 ## Build documentation (You need Doxygen for this to work)
