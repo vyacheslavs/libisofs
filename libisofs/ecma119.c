@@ -402,7 +402,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
     iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
-    if (t->dir_rec_mtime) {
+    if (t->dir_rec_mtime & 1) {
         iso= node->node;
         iso_datetime_7(rec->recording_time,
                        t->replace_timestamps ? t->timestamp : iso->mtime,
@@ -2701,7 +2701,13 @@ int iso_write_opts_set_dir_rec_mtime(IsoWriteOpts *opts, int allow)
     if (opts == NULL) {
         return ISO_NULL_POINTER;
     }
-    opts->dir_rec_mtime = allow ? 1 : 0;
+    if (allow < 0)
+        allow = 1;
+    else if (allow & (1 << 14))
+        allow &= ~1;
+    else if (allow & 6)
+        allow |= 1;
+    opts->dir_rec_mtime = allow & 7;
     return ISO_SUCCESS;
 }
 

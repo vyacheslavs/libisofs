@@ -202,8 +202,9 @@ struct iso_write_opts {
      * to expect that we do have a creation timestamp with the source.
      * mkisofs writes mtimes and the result seems more suitable if mounted
      * without Rock Ridge support.)
+     * bit0= ECMA-119, bit1= Joliet, bit2= ISO 9660:1999
      */
-    unsigned int dir_rec_mtime :1;
+    unsigned int dir_rec_mtime :3;
 
     /**
      * Compute MD5 checksum for the whole session and record it as index 0 of
@@ -476,8 +477,10 @@ struct ecma119_image
     /* Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12. */
     unsigned int aaip_susp_1_10 :1;
 
-    /* Store in ECMA-119 timestamp mtime of source */
-    unsigned int dir_rec_mtime :1;
+    /* Store in ECMA-119, Joliet, ISO 9660:1999 timestamp the mtime of source
+       bit0= ECMA-119, bit1= Joliet, bit2= ISO 9660:1999.
+    */
+    unsigned int dir_rec_mtime :3;
 
     unsigned int md5_session_checksum :1;
     unsigned int md5_file_checksums :2;

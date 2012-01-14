@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2011 Thomas Schmitt
+ * Copyright (c) 2009-2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1653,9 +1653,35 @@ int iso_write_opts_set_rrip_1_10_px_ino(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_aaip_susp_1_10(IsoWriteOpts *opts, int oldvers);
 
 /**
- * Store as ECMA-119 Directory Record timestamp the mtime of the source
+ * Store as ECMA-119 Directory Record timestamp the mtime of the source node
  * rather than the image creation time.
+ * If storing of mtime is enabled, then the settings of
+ * iso_write_opts_set_replace_timestamps() apply. (replace==1 will revoke,
+ * replace==2 will override mtime by iso_write_opts_set_default_timestamp().
  *
+ * Since version 1.2.0 this may apply also to Joliet and ISO 9660:1999. To
+ * reduce the probability of unwanted behavior changes between pre-1.2.0 and
+ * post-1.2.0, the bits for Joliet and ISO 9660:1999 also enable ECMA-119.
+ * The hopefully unlikely bit14 may then be used to disable mtime for ECMA-119.
+ *
+ * To enable mtime for all three directory trees, submit 7.
+ * To disable this feature completely, submit 0.
+ *
+ * @param opts    
+ *      The option set to be manipulated.
+ * @param allow
+ *      If this parameter is negative, then mtime is enabled only for ECMA-119.
+ *      With positive numbers, the parameter is interpreted as bit field :
+ *          bit0= enable mtime for ECMA-119 
+ *          bit1= enable mtime for Joliet and ECMA-119
+ *          bit2= enable mtime for ISO 9660:1999 and ECMA-119
+ *          bit14= disable mtime for ECMA-119 although some of the other bits
+ *                 would enable it
+ *          @since 1.2.0
+ *      Before version 1.2.0 this applied only to ECMA-119 :
+ *          0 stored image creation time in ECMA-119 tree.
+ *          Any other value caused storing of mtime.
+ *          Joliet and ISO 9660:1999 always stored the image creation time.
  * @since 0.6.12
  */
 int iso_write_opts_set_dir_rec_mtime(IsoWriteOpts *opts, int allow);
@@ -1783,8 +1809,10 @@ int iso_write_opts_set_default_gid(IsoWriteOpts *opts, gid_t gid);
 
 /**
  * 0 to use IsoNode timestamps, 1 to use recording time, 2 to use
- * values from timestamp field. This has only meaning if RR extensions
- * are enabled.
+ * values from timestamp field. This applies to the timestamps of Rock Ridge
+ * and if the use of mtime is enabled by iso_write_opts_set_dir_rec_mtime().
+ * In the latter case, value 1 will revoke the recording of mtime, value
+ * 2 will override mtime by iso_write_opts_set_default_timestamp().
  *
  * @see iso_write_opts_set_default_timestamp
  * @since 0.6.2

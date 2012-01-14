@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2011 Thomas Schmitt
+ * Copyright (c) 2011-2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -758,6 +758,7 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
             : (uint8_t*)node->name;
 
     struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
+    IsoNode *iso;
 
     len_dr = 33 + len_fi + ((len_fi % 2) ? 0 : 1);
 
@@ -797,7 +798,15 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
     rec->len_dr[0] = len_dr;
     iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
-    iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+
+    /* was: iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+    */
+    iso= node->node;
+    iso_datetime_7(rec->recording_time, 
+                   (t->dir_rec_mtime & 2) ? ( t->replace_timestamps ?
+                                              t->timestamp : iso->mtime )
+                                          : t->now, t->always_gmt);
+
     rec->flags[0] = ((node->type == JOLIET_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, (uint32_t) 1, 2);
     rec->len_fi[0] = len_fi;
