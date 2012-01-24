@@ -157,9 +157,10 @@ types. "system." is file system dependent and often restricted in the
 choice of names. "user." is portable and allows to choose about any name.
 
 Namespace "isofs." is defined for internal use of AAIP enhanced ISO 9660
-file systems. Names in this namespace should be registered at libburnia.org.
+file systems. Names in this namespace should be registered at
+libburnia-project.org.
 
-Further namespaces may be registered at libburnia.org.
+Further namespaces may be registered at libburnia-project.org.
 
 The reserved start bytes of names have the following meaning
     0x01   escape reserved character at start of name
