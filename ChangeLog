@@ -1,6 +1,7 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.1.8.tar.gz)
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.2.0.tar.gz)
 ===============================================================================
-- no novelties yet
+* Extended influence of iso_write_opts_set_dir_rec_mtime() to Joliet and
+  ISO 9660:1999.
 
 
 libisofs-1.1.6.tar.gz Tue Sep 27 2011
