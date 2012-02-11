@@ -26,6 +26,8 @@
 #include <string.h>
 #include <limits.h>
 
+/* <<< */
+#include <stdio.h>
 
 #ifdef Xorriso_standalonE
 
@@ -345,6 +347,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
     void *ctx= NULL;
     char md5[16], pre_md5[16];
     int pre_md5_valid = 0;
+    IsoStream *stream, *inp;
 #ifdef Libisofs_with_libjtE
     int jte_begun = 0;
 #endif
@@ -381,7 +384,14 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
             pre_md5_valid = filesrc_make_md5(t, file, pre_md5, 0);
         }
         res = filesrc_open(file);
-        iso_stream_get_file_name(file->stream, name);
+
+        /* Get file name from end of filter chain */
+        for (stream = file->stream; ; stream = inp) {
+            inp = iso_stream_get_input_stream(stream, 0);
+            if (inp == NULL)
+        break;
+        }
+        iso_stream_get_file_name(stream, name);
         if (res < 0) {
             /*
              * UPS, very ugly error, the best we can do is just to write
