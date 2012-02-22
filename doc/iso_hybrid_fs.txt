@@ -153,6 +153,6 @@ This text is under
 Copyright (c) 2012 Thomas Schmitt <scdbackup@gmx.net>
 It shall only be modified in sync with libisofs. Please mail change requests to
 mailing list <libburn-hackers@pykix.org> or to the copyright holder in private.
-f you make use of the license to derive modified versions of libisofs then
+If you make use of the license to derive modified versions of libisofs then
 you are entitled to modify this text under that same license.
 
