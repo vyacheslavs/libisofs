@@ -522,18 +522,30 @@ int read_dir(ImageFileSourceData *data)
             continue;
         }
 
-        /*
+        /* (Vreixo:)
          * What about ignoring files with existence flag?
          * if (record->flags[0] & 0x01)
          *	continue;
+         * ts B20306 : >>> One should rather record that flag and write it
+         *             >>> to the new image.
          */
 
-        /*
+#ifdef Libisofs_wrongly_skip_rr_moveD
+        /* ts B20306 :
+           This skipping by name is wrong resp. redundant:
+           If no rr reading is enabled, then it is the only access point for
+           the content of relocated directories. So one should not ignore it.
+           If rr reading is enabled, then the RE entry of mkisofs' RR_MOVED
+           will cause it to be skipped.
+	*/
+
+        /* (Vreixo:)
          * For a extrange reason, mkisofs relocates directories under
          * a RR_MOVED dir. It seems that it is only used for that purposes,
          * and thus it should be removed from the iso tree before
          * generating a new image with libisofs, that don't uses it.
          */
+
         if (data->parent == NULL && record->len_fi[0] == 8
             && !strncmp((char*)record->file_id, "RR_MOVED", 8)) {
 
@@ -543,6 +555,8 @@ int read_dir(ImageFileSourceData *data)
             pos += record->len_dr[0];
             continue;
         }
+
+#endif /* Libisofs_wrongly_skip_rr_moveD */
 
         /*
          * We pass a NULL parent instead of dir, to prevent the circular
