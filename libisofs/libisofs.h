@@ -1582,7 +1582,7 @@ int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no);
 int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
 
 /**
- * Allow all ASCII characters to be appear on an ISO-9660 filename. Note
+ * Allow all 8-bit characters to appear on an ISO-9660 filename. Note
  * that "/" and 0x0 characters are never allowed, even in RR names.
  * This breaks ECMA-119 specification. Use with caution.
  *
