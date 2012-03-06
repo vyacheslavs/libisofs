@@ -66,7 +66,8 @@ What libisofs needs to get implemented for a new add-on filesystem:
 
 The emerging overall image is represented by an Ecma119Image object.
 This is an instance of quite fat struct ecma119_image which, among many
-others, holds some Joliet specific parameters. Defined in libisofs/ecma119.h.
+others, holds some parameters which are specific to the implemented add-on
+filesystems. It is defined in libisofs/ecma119.h.
 It gets programmed by applications via API calls for IsoWriteOpts which is
 defined as struct iso_write_opts in libisofs/ecma119.h.
 
