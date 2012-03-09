@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -406,12 +406,15 @@ int rrip_SL_append_comp(size_t *n, uint8_t ***comps, char *s, int size, char fl)
 #ifdef Libisofs_with_rrip_rR
 
 /**
- * Add to the given tree node a RR System Use Entry. This is an obsolete 
- * entry from before RRIP-1.10. Nevertheless mkisofs produces it and there
- * is the suspicion that Solaris takes it as indication for Rock Ridge.
+ * Add a RR System Use Entry to the given tree node. This is an obsolete 
+ * entry from before RRIP-1.10. Nevertheless mkisofs produces it. There
+ * is the suspicion that some operating systems could take it as indication
+ * for Rock Ridge.
  *
- * I once saw a copy of a RRIP spec which mentioned RR. Here i just use
- * the same constant 5 bytes as produced by mkisofs.
+ * The meaning of the payload byte is documented e.g. in
+ *  /usr/src/linux/fs/isofs/rock.h 
+ * It announces the presence of entries PX, PN, SL, NM, CL, PL, RE, TF
+ * by payload byte bits 0 to 7.
  */
 static
 int rrip_add_RR(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
@@ -426,7 +429,14 @@ int rrip_add_RR(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     RR[1] = 'R';
     RR[2] = 5;
     RR[3] = 1;
-    RR[4] = 0201;
+
+    /* <<< ts B20307 : Not all directories have NM, many files have more entries */
+    RR[4] = 0x89; /* TF, NM , PX */
+
+    /* >>> ts B20307 : find out whether n carries 
+           PX, PN, SL, NM, CL, PL, RE, TF and mark by bit0 to bit7 in RR[4]
+    */
+
     return susp_append(t, susp, RR);
 }
 
@@ -1422,6 +1432,18 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                     goto add_susp_cleanup;
                 }
             }
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+        } else if(t->rr_reloc_node == n && n != t->root &&
+                  (t->rr_reloc_flags & 3) == 3) {
+            /* The dedicated relocation directory shall be marked by RE */
+            ret = rrip_add_RE(t, node, info);
+            if (ret < 0)
+                goto add_susp_cleanup;
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
         }
     } else if (n->type == ECMA119_SPECIAL) {
         if (S_ISBLK(n->node->mode) || S_ISCHR(n->node->mode)) {

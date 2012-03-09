@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -89,6 +89,14 @@ void ecma119_image_free(Ecma119Image *t)
         writer->free_data(writer);
         free(writer);
     }
+
+#ifdef Libisofs_with_rr_reloc_diR 
+
+    if (t->rr_reloc_dir != NULL)
+        free(t->rr_reloc_dir);
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
     if (t->input_charset != NULL)
         free(t->input_charset);
     if (t->output_charset != NULL)
@@ -1673,6 +1681,22 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rrip_1_10_px_ino = opts->rrip_1_10_px_ino;
     target->aaip_susp_1_10 = opts->aaip_susp_1_10;
     target->dir_rec_mtime = opts->dir_rec_mtime;
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+    target->rr_reloc_dir = NULL;
+    if (opts->rr_reloc_dir != NULL) {
+        target->rr_reloc_dir = strdup(opts->rr_reloc_dir);
+        if (target->rr_reloc_dir == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto target_cleanup;
+        }
+    }
+    target->rr_reloc_flags = opts->rr_reloc_flags;
+    target->rr_reloc_node = NULL;
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
     target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
@@ -2310,6 +2334,69 @@ int bs_set_size(struct burn_source *bs, off_t size)
     return 1;
 }
 
+#ifdef Libisofs_with_rr_reloc_diR
+
+static
+int dive_to_depth_8(IsoDir *dir, int depth)
+{
+    int ret;
+    IsoNode *pos;
+
+    if (depth >= 8)
+        return 1;
+    pos = dir->children;
+    for (pos = dir->children; pos != NULL; pos = pos->next) {
+        if (pos->type != LIBISO_DIR)
+    continue;
+        ret = dive_to_depth_8((IsoDir *) pos, depth + 1);
+        if (ret != 0)
+            return ret;
+    }
+    return 0;
+}
+
+static
+int make_reloc_dir_if_needed(IsoImage *img, IsoWriteOpts *opts, int flag)
+{
+    int ret;
+    IsoDir *dir;
+
+    /* Two forms to express the root directory */
+    if (opts->rr_reloc_dir == NULL)
+        return 1;
+    if (opts->rr_reloc_dir[0] == 0)
+        return 1;
+
+    if (strchr(opts->rr_reloc_dir, '/') != NULL)
+        return 0;
+
+    /* Check existence of opts->rr_reloc_dir */
+    ret = iso_dir_get_node(img->root, opts->rr_reloc_dir, NULL);
+    if (ret > 0)
+        return 1;
+    if (ret < 0)
+        return ret;
+
+    /* Check whether there is a directory of depth 8 (root is depth 1) */
+    ret = dive_to_depth_8(img->root, 1);
+    if (ret < 0)
+        return ret;
+    if (ret == 0)
+        return 1;
+
+    /* Make IsoDir with same permissions as root directory */
+    ret = iso_tree_add_new_dir(img->root, opts->rr_reloc_dir, &dir);
+    if (ret < 0)
+        return ret;
+
+    opts->rr_reloc_flags |= 2; /* Auto-created relocation directory */
+
+    return 1;
+}
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
+
 int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src)
 {
@@ -2325,6 +2412,16 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
     if (source == NULL) {
         return ISO_OUT_OF_MEM;
     }
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+    if (!opts->allow_deep_paths) { 
+        ret = make_reloc_dir_if_needed(image, opts, 0);
+        if (ret < 0)
+            return ret;
+    }
+
+#endif /* Libisofs_with_rr_reloc_diR */
 
     ret = ecma119_image_new(image, opts, &target);
     if (ret < 0) {
@@ -2434,6 +2531,13 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->fifo_size = 1024; /* 2 MB buffer */
     wopts->sort_files = 1; /* file sorting is always good */
 
+#ifdef Libisofs_with_rr_reloc_diR 
+
+    wopts->rr_reloc_dir = NULL;
+    wopts->rr_reloc_flags = 0;
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
     wopts->system_area_data = NULL;
     wopts->system_area_options = 0;
     wopts->vol_creation_time = 0;
@@ -2470,6 +2574,14 @@ void iso_write_opts_free(IsoWriteOpts *opts)
         return;
     }
     free(opts->output_charset);
+
+#ifdef Libisofs_with_rr_reloc_diR 
+
+    if (opts->rr_reloc_dir != NULL)
+        free(opts->rr_reloc_dir);
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
     if (opts->system_area_data != NULL)
         free(opts->system_area_data);
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
@@ -2708,6 +2820,22 @@ int iso_write_opts_set_dir_rec_mtime(IsoWriteOpts *opts, int allow)
     else if (allow & 6)
         allow |= 1;
     opts->dir_rec_mtime = allow & 7;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_rr_reloc(IsoWriteOpts *opts, char *name, int flags)
+{
+    if (opts->rr_reloc_dir != name) {
+        if (opts->rr_reloc_dir != NULL)
+            free(opts->rr_reloc_dir);
+        opts->rr_reloc_dir = NULL;
+        if (name != NULL) {
+            opts->rr_reloc_dir = strdup(name);
+            if (opts->rr_reloc_dir == NULL)
+                return ISO_OUT_OF_MEM;
+        }
+    }
+    opts->rr_reloc_flags = flags & 1;
     return ISO_SUCCESS;
 }
 

@@ -1537,6 +1537,45 @@ int iso_write_opts_set_omit_version_numbers(IsoWriteOpts *opts, int omit);
 int iso_write_opts_set_allow_deep_paths(IsoWriteOpts *opts, int allow);
 
 /**
+ * This call describes the directory where to store Rock Ridge relocated
+ * directories.
+ * If not iso_write_opts_set_allow_deep_paths(,1) is in effect, then it is
+ * necessary to relocate directories so that no ECMA-119 file path
+ * has more than 8 components. These directories are grafted into either
+ * the root directory of the ISO image or into a dedicated relocation
+ * directory.
+ * For Rock Ridge, the relocated directories are linked forth and back to
+ * placeholders at their original positions in path level 8. Directories
+ * marked by Rock Ridge entry RE are to be considered artefacts of relocation
+ * and shall not be read into a Rock Ridge tree. Instead they are to be read
+ * via their placeholders and their links.
+ * For plain ECMA-119, the relocation directory and the relocated directories
+ * are just normal directories which contain normal files and directories.
+ * @param opts
+ *      The option set to be manipulated.
+ * @param name
+ *      The name of the relocation directory in the root directory. Do not
+ *      prepend "/". An empty name or NULL will direct relocated directories
+ *      into the root directory. This is the default.
+ *      If the given name does not exist in the root directory when
+ *      iso_image_create_burn_source() is called, and if there are directories
+ *      at path level 8, then directory /name will be created automatically.
+ *      The name given by this call will be compared with iso_node_get_name()
+ *      of the directories in the root directory, not with the final ECMA-119
+ *      names of those directories.
+ * @parm flags
+ *      Bitfield for control purposes.
+ *      bit0= Mark the relocation directory by a Rock Ridge RE entry, if it
+ *            gets created during iso_image_create_burn_source(). This will
+ *            make it invisible for most Rock Ridge readers.
+ *      bit1= not settable via API (used internally)
+ * @return
+ *      1 success, < 0 error
+ * @since 1.2.2
+*/
+int iso_write_opts_set_rr_reloc(IsoWriteOpts *opts, char *name, int flags);
+
+/**
  * Allow path in the ISO-9660 tree to have more than 255 characters.
  * This breaks ECMA-119 specification. Use with caution.
  *
@@ -7168,6 +7207,11 @@ struct burn_source {
 /* ---------------------------- Improvements --------------------------- */
 
 /* currently none being tested */
+
+
+/* Perform the operations promised by iso_write_opts_set_rr_reloc() */
+#define Libisofs_with_rr_reloc_diR yes
+
 
 
 /* ---------------------------- Experiments ---------------------------- */

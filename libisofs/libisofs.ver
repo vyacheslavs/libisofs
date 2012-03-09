@@ -301,6 +301,7 @@ iso_write_opts_set_relaxed_vol_atts;
 iso_write_opts_set_replace_mode;
 iso_write_opts_set_replace_timestamps;
 iso_write_opts_set_rockridge;
+iso_write_opts_set_rr_reloc;
 iso_write_opts_set_rrip_1_10_px_ino;
 iso_write_opts_set_rrip_version_1_10;
 iso_write_opts_set_scdbackup_tag;

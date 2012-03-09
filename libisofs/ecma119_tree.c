@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -434,6 +434,20 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                 if (ret < 0) {
                     goto ex;
                 }
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+                if (depth == 1) { /* root is default */
+                    image->rr_reloc_node = node;
+                } else if (depth == 2) { /* directories in root may be used */
+                    if (image->rr_reloc_dir != NULL)
+                        if (strcmp(iso->name, image->rr_reloc_dir) == 0)
+                            image->rr_reloc_node = node;
+                }
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
+
             }
             ret = ISO_SUCCESS;
             pos = dir->children;
@@ -750,7 +764,7 @@ int mangle_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
 }
 
 static
-int mangle_tree(Ecma119Image *img, int recurse)
+int mangle_tree(Ecma119Image *img, Ecma119Node *dir, int recurse)
 {
     int max_file, max_dir;
     Ecma119Node *root;
@@ -765,7 +779,9 @@ int mangle_tree(Ecma119Image *img, int recurse)
     } else {
         max_file = max_dir = 31;
     }
-    if (img->eff_partition_offset > 0) {
+    if (dir != NULL) {
+        root = dir;
+    } else if (img->eff_partition_offset > 0) {
         root = img->partition_root;
     } else {
         root = img->root;
@@ -891,17 +907,34 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
 {
     int ret;
     size_t max_path;
-    Ecma119Node *root;
+    Ecma119Node *reloc;
 
     max_path = pathlen + 1 + max_child_name_len(dir);
 
     if (level > 8 || max_path > 255) {
-        if (img->eff_partition_offset > 0) {
-            root = img->partition_root;
-        } else {
-            root = img->root;
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+        reloc = img->rr_reloc_node;
+        if (reloc == NULL) {
+            if (img->eff_partition_offset > 0) {
+                reloc = img->partition_root;
+            } else {
+                reloc = img->root;
+            }
         }
-        ret = reparent(dir, root);
+
+#else
+
+        if (img->eff_partition_offset > 0) {
+            reloc = img->partition_root;
+        } else {
+            reloc = img->root;
+        }
+
+#endif /* ! Libisofs_with_rr_reloc_diR */
+
+        ret = reparent(dir, reloc);
         if (ret < 0) {
             return ret;
         }
@@ -1115,6 +1148,8 @@ int ecma119_tree_create(Ecma119Image *img)
         img->root = root;
     }
 
+    /* >>> ts B20307 : Shouldn't relocation be done here ? */
+
     iso_msg_debug(img->image->id, "Matching hardlinks...");
     ret = match_hardlinks(img, root, 0);
     if (ret < 0) {
@@ -1125,14 +1160,14 @@ int ecma119_tree_create(Ecma119Image *img)
     sort_tree(root);
 
     iso_msg_debug(img->image->id, "Mangling names...");
-    ret = mangle_tree(img, 1);
+    ret = mangle_tree(img, NULL, 1);
     if (ret < 0) {
         return ret;
     }
 
     if (img->rockridge && !img->allow_deep_paths) {
 
-        /* reorder the tree, acording to RRIP, 4.1.5 */
+        /* Relocate deep directories, acording to RRIP, 4.1.5 */
         ret = reorder_tree(img, root, 1, 0);
         if (ret < 0) {
             return ret;
@@ -1143,7 +1178,15 @@ int ecma119_tree_create(Ecma119Image *img)
          * above could insert new directories into the root.
          * Note that recurse = 0, as we don't need to recurse.
          */
-        ret = mangle_tree(img, 0);
+
+        /* >>> ts B20307 : Shouldn't one mangle _after_ relocating ? */
+
+#ifdef Libisofs_with_rr_reloc_diR
+        ret = mangle_tree(img, img->rr_reloc_node, 0);
+#else
+        ret = mangle_tree(img, NULL, 0);
+#endif
+
         if (ret < 0) {
             return ret;
         }

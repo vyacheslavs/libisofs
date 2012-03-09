@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -205,6 +205,24 @@ struct iso_write_opts {
      * bit0= ECMA-119, bit1= Joliet, bit2= ISO 9660:1999
      */
     unsigned int dir_rec_mtime :3;
+
+    /**
+     * This describes the directory where to store Rock Ridge relocated
+     * directories.
+     * If not relaxation "allow_deep_paths" is in effect, it is necessary to
+     * relocate directories so that no ECMA-119 file path has more than
+     * 8 components. For Rock Ridge the relocated directories are linked forth
+     * and back to a placeholder at their original position in path level 8
+     * (entries CL and PL). Directories marked by entry RE are to be considered
+     * artefacts of relocation and shall not be read into a Rock Ridge tree.
+     * For plain ECMA-119, the relocation directory is just a normal directory
+     * which contains normal files and directories.
+     */
+    char *rr_reloc_dir;          /* IsoNode name in root directory */
+    int rr_reloc_flags;          /* bit0= mark auto-created rr_reloc_dir by RE
+                                    bit1= directory was auto-created
+                                          (cannot be set via API)
+                                 */
 
     /**
      * Compute MD5 checksum for the whole session and record it as index 0 of
@@ -481,6 +499,12 @@ struct ecma119_image
        bit0= ECMA-119, bit1= Joliet, bit2= ISO 9660:1999.
     */
     unsigned int dir_rec_mtime :3;
+
+    /* The ECMA-119 directory where to store Rock Ridge relocated directories.
+    */
+    char *rr_reloc_dir;          /* IsoNode name in root directory */
+    int rr_reloc_flags; 
+    Ecma119Node *rr_reloc_node;  /* Directory node in ecma119_image */
 
     unsigned int md5_session_checksum :1;
     unsigned int md5_file_checksums :2;
