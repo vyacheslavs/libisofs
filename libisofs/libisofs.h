@@ -1539,8 +1539,8 @@ int iso_write_opts_set_allow_deep_paths(IsoWriteOpts *opts, int allow);
 /**
  * This call describes the directory where to store Rock Ridge relocated
  * directories.
- * If not iso_write_opts_set_allow_deep_paths(,1) is in effect, then it is
- * necessary to relocate directories so that no ECMA-119 file path
+ * If not iso_write_opts_set_allow_deep_paths(,1) is in effect, then it may
+ * become necessary to relocate directories so that no ECMA-119 file path
  * has more than 8 components. These directories are grafted into either
  * the root directory of the ISO image or into a dedicated relocation
  * directory.

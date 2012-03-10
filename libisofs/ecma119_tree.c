@@ -439,9 +439,11 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
 
                 if (depth == 1) { /* root is default */
                     image->rr_reloc_node = node;
-                } else if (depth == 2) { /* directories in root may be used */
+                } else if (depth == 2) {
+                    /* Directories in root may be used as relocation dir */
                     if (image->rr_reloc_dir != NULL)
-                        if (strcmp(iso->name, image->rr_reloc_dir) == 0)
+                        if (image->rr_reloc_dir[0] != 0 &&
+                            strcmp(iso->name, image->rr_reloc_dir) == 0)
                             image->rr_reloc_node = node;
                 }
 
