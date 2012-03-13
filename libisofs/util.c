@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -714,7 +714,7 @@ char *iso_2_dirid(const char *src)
     return iso_dirid(src, 31);
 }
 
-char *iso_1_fileid(const char *src)
+char *iso_1_fileid(const char *src, int force_dots)
 {
     char *dot; /* Position of the last dot in the filename, will be used 
                 * to calculate lname and lext. */
@@ -725,7 +725,8 @@ char *iso_1_fileid(const char *src)
         return NULL;
     }
     dot = strrchr(src, '.');
-
+    if (dot == src && strlen(src) > 4)
+        dot = NULL;      /* Use the long extension instead of the empty name */
     lext = dot ? strlen(dot + 1) : 0;
     lname = strlen(src) - lext - (dot ? 1 : 0);
 
@@ -744,7 +745,8 @@ char *iso_1_fileid(const char *src)
     }
 
     /* This dot is mandatory, even if there is no extension. */
-    dest[pos++] = '.';
+    if (force_dots || lext > 0)
+        dest[pos++] = '.';
 
     /* Convert up to 3 characters of the extension, if any. */
     for (i = 0; i < lext && i < 3; i++) {
