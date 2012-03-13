@@ -94,7 +94,7 @@ needs_transl:;
         } else if (img->max_37_char_filenames) {
             isoname = iso_r_fileid(ascii_name, 36, relaxed, force_dots);
         } else if (img->iso_level == 1) {
-            if (relaxed || !force_dots) {
+            if (relaxed) {
                 if (strchr(ascii_name, '.') == NULL)
                     max_len = 8;
                 else
@@ -102,7 +102,7 @@ needs_transl:;
                 isoname = iso_r_fileid(ascii_name, max_len, relaxed,
                                        force_dots);
             } else {
-                isoname = iso_1_fileid(ascii_name);
+                isoname = iso_1_fileid(ascii_name, force_dots);
             }
         } else {
             if (relaxed || !force_dots) {

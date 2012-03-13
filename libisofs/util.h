@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -124,8 +124,10 @@ char *iso_r_dirid(const char *src, int size, int relaxed);
  * 
  * @param src
  *      The identifier, in ASCII encoding.
+ * @param force_dots
+ *      If 1 then prepend empty extension by SEPARATOR1 = '.'
  */
-char *iso_1_fileid(const char *src);
+char *iso_1_fileid(const char *src, int force_dots);
 
 /**
  * Create a level 2 file identifier.
