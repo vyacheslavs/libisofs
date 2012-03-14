@@ -32,7 +32,7 @@
 static
 int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
-    int ret, relaxed, free_ascii_name= 0, force_dots = 0, max_len;
+    int ret, relaxed, free_ascii_name= 0, force_dots = 0;
     char *ascii_name;
     char *isoname= NULL;
 
@@ -73,11 +73,22 @@ needs_transl:;
         } else if (img->max_37_char_filenames) {
             isoname = iso_r_dirid(ascii_name, 37, relaxed);
         } else if (img->iso_level == 1) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
             if (relaxed) {
                 isoname = iso_r_dirid(ascii_name, 8, relaxed);
             } else {
-                isoname = iso_1_dirid(ascii_name);
+                isoname = iso_1_dirid(ascii_name, 0);
             }
+
+#else /* Libisofs_old_ecma119_nameS */
+
+            isoname = iso_1_dirid(ascii_name, relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
+
         } else {
             if (relaxed) {
                 isoname = iso_r_dirid(ascii_name, 31, relaxed);
@@ -94,6 +105,11 @@ needs_transl:;
         } else if (img->max_37_char_filenames) {
             isoname = iso_r_fileid(ascii_name, 36, relaxed, force_dots);
         } else if (img->iso_level == 1) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
+            int max_len;
+
             if (relaxed) {
                 if (strchr(ascii_name, '.') == NULL)
                     max_len = 8;
@@ -102,8 +118,15 @@ needs_transl:;
                 isoname = iso_r_fileid(ascii_name, max_len, relaxed,
                                        force_dots);
             } else {
-                isoname = iso_1_fileid(ascii_name, force_dots);
+                isoname = iso_1_fileid(ascii_name, 0, force_dots);
             }
+
+#else /* Libisofs_old_ecma119_nameS */
+
+            isoname = iso_1_fileid(ascii_name, relaxed, force_dots);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
         } else {
             if (relaxed || !force_dots) {
                 isoname = iso_r_fileid(ascii_name, 30, relaxed, force_dots);

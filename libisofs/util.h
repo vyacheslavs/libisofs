@@ -93,8 +93,11 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output);
  * 
  * @param src
  *      The identifier, in ASCII encoding.
+ * @param relaxed
+ *     0 only allow d-characters, 1 allow also lowe case chars, 
+ *     2 allow all characters 
  */
-char *iso_1_dirid(const char *src);
+char *iso_1_dirid(const char *src, int relaxed);
 
 /**
  * Create a level 2 directory identifier.
@@ -124,10 +127,13 @@ char *iso_r_dirid(const char *src, int size, int relaxed);
  * 
  * @param src
  *      The identifier, in ASCII encoding.
+ * @param relaxed
+ *     0 only allow d-characters, 1 allow also lowe case chars, 
+ *     2 allow all characters 
  * @param force_dots
  *      If 1 then prepend empty extension by SEPARATOR1 = '.'
  */
-char *iso_1_fileid(const char *src, int force_dots);
+char *iso_1_fileid(const char *src, int relaxed, int force_dots);
 
 /**
  * Create a level 2 file identifier.

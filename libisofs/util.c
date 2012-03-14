@@ -685,8 +685,27 @@ static int valid_j_char(uint16_t c)
         && cmp_ucsbe(&c, '\\');
 }
 
+static char map_fileid_char(char c, int relaxed)
+{
+    char upper;
+
+    if (relaxed == 2) /* all chars are allowed */
+        return c;
+    if (valid_d_char(c))
+        return c;
+    upper= toupper(c);
+    if (valid_d_char(upper)) {
+        if (relaxed) {
+            /* lower chars are allowed */
+            return c;
+        }
+        return upper;
+    }
+    return '_';
+}
+
 static
-char *iso_dirid(const char *src, int size)
+char *iso_dirid(const char *src, int size, int relaxed)
 {
     size_t len, i;
     char name[32];
@@ -696,25 +715,35 @@ char *iso_dirid(const char *src, int size)
         len = size;
     }
     for (i = 0; i < len; i++) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
         char c= toupper(src[i]);
         name[i] = valid_d_char(c) ? c : '_';
+
+#else /* Libisofs_old_ecma119_nameS */
+
+        name[i] = map_fileid_char(src[i], relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
     }
 
     name[len] = '\0';
     return strdup(name);
 }
 
-char *iso_1_dirid(const char *src)
+char *iso_1_dirid(const char *src, int relaxed)
 {
-    return iso_dirid(src, 8);
+    return iso_dirid(src, 8, relaxed);
 }
 
 char *iso_2_dirid(const char *src)
 {
-    return iso_dirid(src, 31);
+    return iso_dirid(src, 31, 0);
 }
 
-char *iso_1_fileid(const char *src, int force_dots)
+char *iso_1_fileid(const char *src, int relaxed, int force_dots)
 {
     char *dot; /* Position of the last dot in the filename, will be used 
                 * to calculate lname and lext. */
@@ -739,9 +768,22 @@ char *iso_1_fileid(const char *src, int force_dots)
 
     /* Convert up to 8 characters of the filename. */
     for (i = 0; i < lname && i < 8; i++) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
         char c= toupper(src[i]);
 
         dest[pos++] = valid_d_char(c) ? c : '_';
+
+#else /* Libisofs_old_ecma119_nameS */
+
+        if (dot == NULL && src[i] == '.')
+            dest[pos++] = '_'; /* make sure that ignored dots do not appear */
+        else
+            dest[pos++] = map_fileid_char(src[i], relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
     }
 
     /* This dot is mandatory, even if there is no extension. */
@@ -750,9 +792,19 @@ char *iso_1_fileid(const char *src, int force_dots)
 
     /* Convert up to 3 characters of the extension, if any. */
     for (i = 0; i < lext && i < 3; i++) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
         char c= toupper(src[lname + 1 + i]);
 
         dest[pos++] = valid_d_char(c) ? c : '_';
+
+#else /* Libisofs_old_ecma119_nameS */
+
+        dest[pos++] = map_fileid_char(src[lname + 1 + i], relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
     }
 
     dest[pos] = '\0';
@@ -835,6 +887,9 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
     if (dest == NULL)
         return NULL;
     for (i = 0; i < len; i++) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
         char c= src[i];
         if (relaxed == 2) {
             /* all chars are allowed */
@@ -855,6 +910,13 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
                 dest[i] = '_';
             }
         }
+
+#else /* Libisofs_old_ecma119_nameS */
+
+        dest[i] = map_fileid_char(src[i], relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
     }
 
     dest[len] = '\0';
@@ -862,7 +924,8 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
 }
 
 /**
- * Create a file name suitable for an ISO image with relaxed constraints.
+ * Create a file name suitable for an ISO image with level > 1 and
+ * with relaxed constraints.
  * 
  * @param len
  *     Max len for the name, without taken the "." into account.
@@ -915,6 +978,9 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
 
     /* Convert up to lnname characters of the filename. */
     for (i = 0; i < lnname; i++) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
         char c= src[i];
         if (relaxed == 2) {
             /* all chars are allowed */
@@ -935,6 +1001,13 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
                 dest[pos++] = '_';
             }
         }
+
+#else /* Libisofs_old_ecma119_nameS */
+
+        dest[pos++] = map_fileid_char(src[i], relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
     }
     if (lnext > 0 || forcedot) {
         dest[pos++] = '.';
@@ -942,6 +1015,9 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
 
     /* Convert up to lnext characters of the extension, if any. */
     for (i = lname + 1; i < lname + 1 + lnext; i++) {
+
+#ifdef Libisofs_old_ecma119_nameS
+
         char c= src[i];
         if (relaxed == 2) {
             /* all chars are allowed */
@@ -962,6 +1038,13 @@ char *iso_r_fileid(const char *src, size_t len, int relaxed, int forcedot)
                 dest[pos++] = '_';
             }
         }
+
+#else /* Libisofs_old_ecma119_nameS */
+
+        dest[pos++] = map_fileid_char(src[i], relaxed);
+
+#endif /* ! Libisofs_old_ecma119_nameS */
+
     }
     dest[pos] = '\0';
 

@@ -1584,7 +1584,7 @@ int iso_write_opts_set_rr_reloc(IsoWriteOpts *opts, char *name, int flags);
 int iso_write_opts_set_allow_longer_paths(IsoWriteOpts *opts, int allow);
 
 /**
- * Allow a single file or directory hierarchy to have up to 37 characters.
+ * Allow a single file or directory identifier to have up to 37 characters.
  * This is larger than the 31 characters allowed by ISO level 2, and the
  * extra space is taken from the version number, so this also forces
  * omit_version_numbers.
