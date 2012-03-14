@@ -149,6 +149,21 @@ needs_transl:;
     }
 }
 
+int ecma119_is_dedicated_reloc_dir(Ecma119Image *img, Ecma119Node *node)
+{
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+    if (img->rr_reloc_node == node &&
+        node != img->root && node != img->partition_root &&
+        (img->rr_reloc_flags & 2))
+        return 1;
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
+    return 0;
+}
+
 static
 int create_ecma119_node(Ecma119Image *img, IsoNode *iso, Ecma119Node **node)
 {
@@ -928,11 +943,16 @@ int reparent(Ecma119Node *child, Ecma119Node *parent)
  *      1 success, < 0 error
  */
 static
-int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
+int reorder_tree(Ecma119Image *img, Ecma119Node *dir,
+                 int dir_level, int dir_pathlen)
 {
-    int ret;
-    size_t max_path;
-    Ecma119Node *reloc;
+    int ret, level, pathlen, newpathlen;
+    size_t max_path, i;
+    Ecma119Node *reloc, *child;
+
+    /* might change by relocation */
+    level = dir_level;
+    pathlen = dir_pathlen;
 
     max_path = pathlen + 1 + max_child_name_len(dir);
 
@@ -964,22 +984,34 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir, int level, int pathlen)
             return ret;
         }
 
-        /*
-         * we are appended to the root's children now, so there is no
-         * need to recurse (the root will hit us again)
-         */
-    } else {
-        size_t i;
+        if (reloc == img->root || reloc == img->partition_root) {
+            /*
+             * we are appended to the root's children now, so there is no
+             * need to recurse (the root will hit us again)
+             */
+            return ISO_SUCCESS;
+        }
 
-        for (i = 0; i < dir->info.dir->nchildren; i++) {
-            Ecma119Node *child = dir->info.dir->children[i];
-            if (child->type == ECMA119_DIR) {
-                int newpathlen = pathlen + 1 + strlen(child->iso_name);
-                ret = reorder_tree(img, child, level + 1, newpathlen);
-                if (ret < 0) {
-                    return ret;
-                }
-            }
+        /* dir is now the relocated Ecma119Node */
+        pathlen = 37 + 1; /* The dir name might get longer by mangling */
+        level = 2;
+        if (img->rr_reloc_dir != NULL) {
+            pathlen += strlen(img->rr_reloc_node->iso_name) + 1;
+            if(img->rr_reloc_dir[0] != 0)
+              level = 3;
+        }
+    }
+
+    if (ecma119_is_dedicated_reloc_dir(img, (Ecma119Node *) dir))
+        return ISO_SUCCESS;
+
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        child = dir->info.dir->children[i];
+        if (child->type == ECMA119_DIR) {
+            newpathlen = pathlen + 1 + strlen(child->iso_name);
+            ret = reorder_tree(img, child, level + 1, newpathlen);
+            if (ret < 0)
+                return ret;
         }
     }
     return ISO_SUCCESS;
@@ -1173,7 +1205,9 @@ int ecma119_tree_create(Ecma119Image *img)
         img->root = root;
     }
 
-    /* >>> ts B20307 : Shouldn't relocation be done here ? */
+    /* >>> ts B20307 : Shouldn't relocation be done here ?
+       <<< relocation needs mangled names
+     */
 
     iso_msg_debug(img->image->id, "Matching hardlinks...");
     ret = match_hardlinks(img, root, 0);
@@ -1204,7 +1238,9 @@ int ecma119_tree_create(Ecma119Image *img)
          * Note that recurse = 0, as we don't need to recurse.
          */
 
-        /* >>> ts B20307 : Shouldn't one mangle _after_ relocating ? */
+        /* >>> ts B20307 : Shouldn't one mangle _after_ relocating ?
+           <<< relocation needs mangled names for path length calculation
+         */
 
 #ifdef Libisofs_with_rr_reloc_diR
         ret = mangle_tree(img, img->rr_reloc_node, 0);

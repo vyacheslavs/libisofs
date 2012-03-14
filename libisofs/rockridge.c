@@ -1246,7 +1246,17 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
                 /* we need to add a RE entry */
                 su_size += 4;
             }
+
+#ifdef Libisofs_with_rr_reloc_diR
+
+        } else if(ecma119_is_dedicated_reloc_dir(t, n) &&
+                  (t->rr_reloc_flags & 1)) {
+            /* The dedicated relocation directory shall be marked by RE */
+            su_size += 4;
         }
+
+#endif /* Libisofs_with_rr_reloc_diR */
+
     } else if (n->type == ECMA119_SPECIAL) {
         if (S_ISBLK(n->node->mode) || S_ISCHR(n->node->mode)) {
             /* block or char device, we need a PN entry */
@@ -1435,8 +1445,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
 #ifdef Libisofs_with_rr_reloc_diR
 
-        } else if(t->rr_reloc_node == n && n != t->root &&
-                  (t->rr_reloc_flags & 3) == 3) {
+        } else if(ecma119_is_dedicated_reloc_dir(t, n) &&
+                  (t->rr_reloc_flags & 1)) {
             /* The dedicated relocation directory shall be marked by RE */
             ret = rrip_add_RE(t, node, info);
             if (ret < 0)

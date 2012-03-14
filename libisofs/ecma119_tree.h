@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ *               2012 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -95,6 +96,12 @@ void ecma119_node_free(Ecma119Node *node);
  * or NULL.
  */
 Ecma119Node *ecma119_search_iso_node(Ecma119Image *img, IsoNode *node);
+
+/**
+ * Tell whether node is a dedicated relocation directory which only contains
+ * relocated directories.
+ */
+int ecma119_is_dedicated_reloc_dir(Ecma119Image *img, Ecma119Node *node);
 
 
 #endif /*LIBISO_ECMA119_TREE_H_*/
