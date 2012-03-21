@@ -2417,8 +2417,10 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
 
     if (!opts->allow_deep_paths) { 
         ret = make_reloc_dir_if_needed(image, opts, 0);
-        if (ret < 0)
+        if (ret < 0) {
+            free(source);
             return ret;
+        }
     }
 
 #endif /* Libisofs_with_rr_reloc_diR */

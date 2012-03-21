@@ -141,11 +141,12 @@ void update_next(IsoDirIter *iter)
 static
 int find_iter_next(IsoDirIter *iter, IsoNode **node)
 {
-    struct find_iter_data *data = iter->data;
+    struct find_iter_data *data;
     
     if (iter == NULL || node == NULL) {
         return ISO_NULL_POINTER;
     }
+    data = iter->data;
     
     if (data->err < 0) {
         return data->err;
