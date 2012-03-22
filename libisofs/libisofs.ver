@@ -265,6 +265,7 @@ iso_write_opts_get_data_start;
 iso_write_opts_new;
 iso_write_opts_set_aaip;
 iso_write_opts_set_aaip_susp_1_10;
+iso_write_opts_set_allow_7bit_ascii;
 iso_write_opts_set_allow_deep_paths;
 iso_write_opts_set_allow_dir_id_ext;
 iso_write_opts_set_allow_full_ascii;

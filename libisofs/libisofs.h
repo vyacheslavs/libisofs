@@ -1615,6 +1615,8 @@ int iso_write_opts_set_no_force_dots(IsoWriteOpts *opts, int no);
  * Allow lowercase characters in ISO-9660 filenames. By default, only
  * uppercase characters, numbers and a few other characters are allowed.
  * This breaks ECMA-119 specification. Use with caution.
+ * If lowercase is not allowed then those letters get mapped to uppercase
+ * letters.
  *
  * @since 0.6.2
  */
@@ -1628,6 +1630,20 @@ int iso_write_opts_set_allow_lowercase(IsoWriteOpts *opts, int allow);
  * @since 0.6.2
  */
 int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow);
+
+/**
+ * If not iso_write_opts_set_allow_full_ascii() is set to 1:
+ * Allow all 7-bit characters that would be allowed by allow_full_ascii, but
+ * map lowercase to uppercase if iso_write_opts_set_allow_lowercase()
+ * is not set to 1.
+ * @param opts    
+ *      The option set to be manipulated.
+ * @param allow
+ *      If not zero, then allow what is described above.
+ *
+ * @since 1.2.2
+ */
+int iso_write_opts_set_allow_7bit_ascii(IsoWriteOpts *opts, int allow);
 
 /**
  * Allow all characters to be part of Volume and Volset identifiers on

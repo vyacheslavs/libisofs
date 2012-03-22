@@ -1674,6 +1674,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->no_force_dots = opts->no_force_dots;
     target->allow_lowercase = opts->allow_lowercase;
     target->allow_full_ascii = opts->allow_full_ascii;
+    target->allow_7bit_ascii = opts->allow_7bit_ascii;
     target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->joliet_long_names = opts->joliet_long_names;
@@ -2755,6 +2756,16 @@ int iso_write_opts_set_allow_full_ascii(IsoWriteOpts *opts, int allow)
     opts->allow_full_ascii = allow ? 1 : 0;
     return ISO_SUCCESS;
 }
+
+int iso_write_opts_set_allow_7bit_ascii(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->allow_7bit_ascii = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
 
 int iso_write_opts_set_relaxed_vol_atts(IsoWriteOpts *opts, int allow)
 {

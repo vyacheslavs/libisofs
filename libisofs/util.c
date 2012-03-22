@@ -685,17 +685,27 @@ static int valid_j_char(uint16_t c)
         && cmp_ucsbe(&c, '\\');
 }
 
+/* @param relaxed bit0+1  0= strict ECMA-119
+                          1= additionally allow lowercase (else map to upper)
+                          2= allow all 8-bit characters
+                  bit2    allow all 7-bit characters (but map to upper if
+                          not bit0+1 == 2)
+*/
 static char map_fileid_char(char c, int relaxed)
 {
     char upper;
 
-    if (relaxed == 2) /* all chars are allowed */
+    if (c == '/')  /* Allowing slashes would cause lots of confusion */
+        return '_';
+    if ((relaxed & 3) == 2)
         return c;
     if (valid_d_char(c))
         return c;
+    if ((relaxed & 4) && (c & 0x7f) == c && (c < 'a' || c > 'z'))
+        return c; 
     upper= toupper(c);
     if (valid_d_char(upper)) {
-        if (relaxed) {
+        if (relaxed & 3) {
             /* lower chars are allowed */
             return c;
         }
@@ -871,8 +881,11 @@ char *iso_2_fileid(const char *src)
  * @param size
  *     Max len for the name
  * @param relaxed
- *     0 only allow d-characters, 1 allow also lowe case chars, 
- *     2 allow all characters 
+ *     bit0+1: 0 only allow d-characters,
+ *             1 allow also lowe case chars, 
+ *             2 allow all 8-bit characters,
+ *     bit2:   allow 7-bit characters (but map lowercase to uppercase if
+ *             not bit0+1 == 2)
  */
 char *iso_r_dirid(const char *src, int size, int relaxed)
 {
@@ -930,8 +943,11 @@ char *iso_r_dirid(const char *src, int size, int relaxed)
  * @param len
  *     Max len for the name, without taken the "." into account.
  * @param relaxed
- *     0 only allow d-characters, 1 allow also lowe case chars, 
- *     2 allow all characters 
+ *     bit0+1: 0 only allow d-characters,
+ *             1 allow also lowe case chars, 
+ *             2 allow all 8-bit characters,
+ *     bit2:   allow 7-bit characters (but map lowercase to uppercase if
+ *             not bit0+1 == 2)
  * @param forcedot
  *     Whether to ensure that "." is added
  */

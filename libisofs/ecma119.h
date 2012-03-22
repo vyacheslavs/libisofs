@@ -150,6 +150,13 @@ struct iso_write_opts {
     unsigned int allow_full_ascii :1;
 
     /**
+     * If not allow_full_ascii is set: allow all 7 bit characters that would
+     * be allowed by allow_full_ascii. But still map lowercase to uppercase if
+     * not allow_lowercase is set to 1.
+     */
+    unsigned int allow_7bit_ascii :1;
+
+    /**
      * Allow all characters to be part of Volume and Volset identifiers on
      * the Primary Volume Descriptor. This breaks ISO-9660 contraints, but
      * should work on modern systems.
@@ -477,6 +484,7 @@ struct ecma119_image
     unsigned int no_force_dots :2;
     unsigned int allow_lowercase :1;
     unsigned int allow_full_ascii :1;
+    unsigned int allow_7bit_ascii :1;
 
     unsigned int relaxed_vol_atts : 1;
 

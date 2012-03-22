@@ -59,6 +59,8 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
     } else {
         relaxed = (int)img->allow_lowercase;
     }
+    if (img->allow_7bit_ascii)
+        relaxed |= 4;
     if (iso->type == LIBISO_DIR && !(img->allow_dir_id_ext)) {
         if (img->untranslated_name_len > 0) {
             if (strlen(ascii_name) > img->untranslated_name_len) {
@@ -1234,7 +1236,7 @@ int ecma119_tree_create(Ecma119Image *img)
 
         /*
          * and we need to remangle the root directory, as the function
-         * above could insert new directories into the root.
+         * above could insert new directories into the relocation directory.
          * Note that recurse = 0, as we don't need to recurse.
          */
 
