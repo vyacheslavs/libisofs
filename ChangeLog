@@ -1,6 +1,12 @@
 bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.2.2.tar.gz)
 ===============================================================================
-- no novelties yet -
+* New API call iso_write_opts_set_rr_reloc()
+* Bug fix: Directory name mapping to ISO level 1 was too liberal if
+  iso_write_opts_set_allow_dir_id_ext() was enabled
+* New API call iso_write_opts_set_allow_7bit_ascii()
+* Improved standards compliance for ISO level 1 names with partly relaxed
+  constraints.
+
 
 libisofs-1.2.0.tar.gz Sat Jan 28 2012
 ===============================================================================
