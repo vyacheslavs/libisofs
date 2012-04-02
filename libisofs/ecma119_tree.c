@@ -1207,10 +1207,6 @@ int ecma119_tree_create(Ecma119Image *img)
         img->root = root;
     }
 
-    /* >>> ts B20307 : Shouldn't relocation be done here ?
-       <<< relocation needs mangled names
-     */
-
     iso_msg_debug(img->image->id, "Matching hardlinks...");
     ret = match_hardlinks(img, root, 0);
     if (ret < 0) {
@@ -1238,10 +1234,6 @@ int ecma119_tree_create(Ecma119Image *img)
          * and we need to remangle the root directory, as the function
          * above could insert new directories into the relocation directory.
          * Note that recurse = 0, as we don't need to recurse.
-         */
-
-        /* >>> ts B20307 : Shouldn't one mangle _after_ relocating ?
-           <<< relocation needs mangled names for path length calculation
          */
 
 #ifdef Libisofs_with_rr_reloc_diR
