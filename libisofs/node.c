@@ -55,6 +55,8 @@ void iso_node_ref(IsoNode *node)
  */
 void iso_node_unref(IsoNode *node)
 {
+    if (node == NULL)
+        return;
     if (--node->refcount == 0) {
         switch (node->type) {
         case LIBISO_DIR:

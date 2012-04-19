@@ -3556,12 +3556,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
     iso_node_builder_unref(image->builder);
 
-    /* free old root */
-    iso_node_unref((IsoNode*)oldroot);
-
-    /* free old boot catalog */
-    el_torito_boot_catalog_free(oldbootcat);
-
     /* set volume attributes */
     iso_image_set_volset_id(image, data->volset_id);
     iso_image_set_volume_id(image, data->volume_id);
@@ -3650,7 +3644,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_node_unref((IsoNode*)image->root);
     el_torito_boot_catalog_free(image->bootcat);
     image->root = oldroot;
+    oldroot = NULL;
     image->bootcat = oldbootcat;
+    oldbootcat = NULL;
     image->checksum_array = old_checksum_array;
     old_checksum_array = NULL;
 
@@ -3659,6 +3655,14 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     /* recover backed fs and builder */
     image->fs = fsback;
     image->builder = blback;
+
+    /* free old root */
+    if (oldroot != NULL)
+        iso_node_unref((IsoNode*)oldroot);
+
+    /* free old boot catalog */
+    if (oldbootcat != NULL)
+        el_torito_boot_catalog_free(oldbootcat);
 
     if (catalog != NULL)
         el_torito_boot_catalog_free(catalog);
