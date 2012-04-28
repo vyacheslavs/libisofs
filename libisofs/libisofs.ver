@@ -65,6 +65,7 @@ iso_file_source_unref;
 iso_filesystem_ref;
 iso_filesystem_unref;
 iso_finish;
+iso_fs_global_id;
 iso_get_local_charset;
 iso_get_messenger;
 iso_gzip_get_refcounts;
