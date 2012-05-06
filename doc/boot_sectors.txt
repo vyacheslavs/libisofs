@@ -102,7 +102,7 @@ Defined by El Torito are:
     0 = "80x86" which is used for standard PCs with Intel x86 or compatible CPU
     1 = "PowerPC" (possibly for IBM machines with PowerPC CPU)
     2 = "Mac" (possibly for Apple computers with MC68000 or PowerPC CPU)
-Further in use by GRUB2 is:
+Further in use by GRUB2 and ISOLINUX is:
  0xef = EFI, a competitor resp. successor to PC-BIOS, possibly in use with
              Intel ia64 Itanium and possibly with newer Apple machines.
 
@@ -407,6 +407,38 @@ Sources:
   syslinux-4.05/utils/isohybrid.c
 
 >>> Motivation: What systems will use the additional data ? amd64 UEFI ?
+
+This is a very condensed format which exposes as many entry points for boot
+firmware as possible.
+
+  Byte Range   | Value      | Meaning (all numbers are stored big endian)
+-------------- | ---------- | -------------------------------------------------
+     0 -   511 | mbr        | Isohybrid MBR pointing to x86 boot image file,
+               |            | with three entries in its partition map.
+               |            | It shares its first 32 bytes with apm_head.
+     0 -    31 | apm_head   | Mock-up of the start of the first block of
+               |            | an Apple Partition Map (APM).
+   446  -  461 | mbr_entry1 | Partition table entry 1 describing ISO image size
+   462  -  477 | mbr_entry2 | Entry 2 describing the UEFI VFAT boot image.
+   478  -  493 | mbr_entry3 | Entry 3 describing the HFS+ boot image.
+               |            |
+   512 -  1023 | gpt_head   | GPT header describing the GPT partition array.
+  1024 -  2047 | unused     |
+  2048 -  4095 | apm_entry1 | APM entry 1 describing ISO image size.
+  4096 -  6143 | apm_entry2 | APM entry 2 describing the UEFI VFAT boot image.
+  6144 -  8195 | apm_entry3 | APM entry 2 describing the HFS+ boot image.
+  8192 -  8319 | gpt_entry1 | GPT partition entry 1 for the ISO image size.
+  8320 -  8447 | gpt_entry2 | GPT partition entry 2 for UEFI VFAT boot image,
+  8448 -  8575 | gpt_entry3 | GPT partition entry 3 for the HFS+ boot image.
+  8576 - 24575 | gtp_empty  | Empty GPT partition entries 4 to 128.
+ 24576 - 32767 | unused     |
+ 32768 - 34815 | iso_pvd    | ISO 9660 superblock
+ 34815 - 36863 | el_torito  | EL Torito boot block pointing to a boot catalog
+               |            | with entries for the MBR boot image (platform
+               |            | 0x00), and for the two other boot images
+               |            | (platform id 0xef)
+-------------- | ---------- | -------------------------------------------------
+
 
 Newer SYSLINUX MBR templates begin by 32 bytes of machine code which are
 intentionally non-essential:
