@@ -426,15 +426,15 @@ firmware as possible.
   1024 -  2047 | unused     |
   2048 -  4095 | apm_entry1 | APM entry 1 describing ISO image size.
   4096 -  6143 | apm_entry2 | APM entry 2 describing the UEFI VFAT boot image.
-  6144 -  8195 | apm_entry3 | APM entry 2 describing the HFS+ boot image.
+  6144 -  8195 | apm_entry3 | APM entry 3 describing the HFS+ boot image.
   8192 -  8319 | gpt_entry1 | GPT partition entry 1 for the ISO image size.
   8320 -  8447 | gpt_entry2 | GPT partition entry 2 for UEFI VFAT boot image,
   8448 -  8575 | gpt_entry3 | GPT partition entry 3 for the HFS+ boot image.
   8576 - 24575 | gtp_empty  | Empty GPT partition entries 4 to 128.
  24576 - 32767 | unused     |
  32768 - 34815 | iso_pvd    | ISO 9660 superblock
- 34815 - 36863 | el_torito  | EL Torito boot block pointing to a boot catalog
-               |            | with entries for the MBR boot image (platform
+ 34816 - 36863 | el_torito  | EL Torito boot block pointing to a boot catalog
+               |            | with entries for the MBR boot image (platform id
                |            | 0x00), and for the two other boot images
                |            | (platform id 0xef)
 -------------- | ---------- | -------------------------------------------------
@@ -518,18 +518,22 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
   92 - 511 | reserved   | Must be 0
 ---------- | ---------- | ----------------------------------------------------
 
->>> CRC-32: Generating polynomial 0x104c11db7, mirrored bit order in and out,
->>>         seed 0xffffffff, result gets exored by 0xffffffff.
->>> ??? This works as byte shifter with a bitwise mirrored table
->>> ??? but not as simple bit shifter.
->>> ??? Both do match if seed == 0. But not with other seeds.
->>> ??? An algebraic miracle ?
+The CRC-32 algorithm can be characterized as follows:
+The generating polynomial has the bit representation 0x104c11db7.
+The seed value for a bit shifting division algorithm is 0x46af6449. It is
+chosen so that the CRC of 0 bytes of input is 0xffffffff.
+The least significant bits of input bytes get processed first. I.e. bit0 of
+the last input byte gets mapped to x exp (7 + 32), bit7 of this byte gets
+mapped to x exp (0 + 32).
+The resulting division residue gets bit mirrored. E.g. bit0 becomes bit31,
+bit1 becomes bit30, and so on. Further it gets exored with 0xffffffff.
+
 
 The ISO image has a size of 332362 blocks of 2K = 1329448 blocks of 512.
 
 
 Because the block size was announced as 2048, the first Apple partition map
-entry is located at byte 0x800.
+entry is located at byte 0x800 = 2048.
 It describes the partition map itself:
    50  4d  00  00  00  00  00  03  00  00  00  01  00  00  00  10
     P   M
@@ -569,7 +573,7 @@ Byte Range | Value      | Meaning (all numbers are stored big endian)
  136 - 511 | reserved   |
 ---------- | ---------- | ----------------------------------------------------
 
-The next Apple partition map entry is at byte 0x1000:
+The next Apple partition map entry is at byte 0x1000 = 4096:
 
    50  4d  00  00  00  00  00  03  00  00  00  29  00  00  04  70
    45  46  49  00  00  00  00  00  00  00  00  00  00  00  00  00
@@ -588,7 +592,7 @@ flags = 0x33 : valid, allocated, readable, writable.
 This points to file /isolinux/efiboot.img in the ISO image,
 >>> but misrepresents its size of 284 blocks of 2048.
 
-At byte 0x1800, there is map entry 3:
+At byte 0x1800 = 6144, there is map entry 3:
 
    50  4d  00  00  00  00  00  03  00  00  01  51  00  00  08  c0
    45  46  49  00  00  00  00  00  00  00  00  00  00  00  00  00
@@ -608,7 +612,8 @@ flags = 0x33 : valid, allocated, readable, writable.
 
 
 >>> GPT partitions marking ISO image, VFAT image within, HFS+ image within 
-At byte 0x2000 begins the GPT partition array. It ends at byte 0x4000.
+At byte 0x2000 = 8192 begins the GPT partition array.
+It ends at byte 0x4000 = 16384.
 
    a2  a0  d0  eb  e5  b9  33  44  87  c0  68  b6  b7  26  99  c7
    a1  87  a1  ba  4d  2c  27  45  ae  05  cf  ab  a6  fa  87  c1
@@ -641,7 +646,7 @@ Byte Range | Value      | Meaning (numbers are stored little endian)
            |            | >>> of faulty memory operation on a text constant.
 ---------- | ---------- | ----------------------------------------------------
 
-Next entry:
+Next entry is at 0x2800 = 10240:
 
    a2  a0  d0  eb  e5  b9  33  44  87  c0  68  b6  b7  26  99  c7
    c8  de  c8  1f  fb  f0  51  40  8c  8a  d2  f6  b1  46  16  dc
@@ -658,7 +663,7 @@ Start at block 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
 Last block is 0x0513 = 1299 = 164 + 1135. This end is correct.
 >>> The name is an unintentional patchwork in an 8 bit character set.
 
-Next entry:
+Next entry at byte 0x02100 = 8448:
 
    00  53  46  48  00  00  aa  11  aa  11  00  30  65  43  ec  ac
    c8  de  c8  1f  fb  f0  51  40  8c  8a  d2  f6  b1  46  16  dc
