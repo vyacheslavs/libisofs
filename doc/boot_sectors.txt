@@ -521,7 +521,7 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
 The CRC-32 algorithm can be characterized as follows:
 The generating polynomial has the bit representation 0x104c11db7.
 The seed value for a bit shifting division algorithm is 0x46af6449. It is
-chosen so that the CRC of 0 bytes of input is 0xffffffff.
+chosen so that the CRC of 0 bytes of input is 0x00000000.
 The least significant bits of input bytes get processed first. I.e. bit0 of
 the last input byte gets mapped to x exp (7 + 32), bit7 of this byte gets
 mapped to x exp (0 + 32).
