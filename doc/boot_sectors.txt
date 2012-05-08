@@ -375,13 +375,15 @@ Byte Range | Value      | Meaning
  446 - 509 | ========== | Partition table
            |            |
  446 - 461 | part_entry | Partition table entry 1 describing ISO image size
-           |            | starting at LBA 0. I.e. contrary to tradition.
+           |            | rounded up to the next full MiB. The partition starts
+           |            | at LBA 0. (I.e. contrary to tradition.)
            |            | See above for partition table entry format.
            |            |
  462 - 509 |          0 | Unused partition entries 2 to 4
  510 - 511 |     0xaa55 | MBR signature
 ---------- | ---------- | ----------------------------------------------------
 
+The ISO image file gets padded up to the next full MiB.
 
 hpa about MBR templates and partition table filesystem types:
 
@@ -404,6 +406,7 @@ Sources:
   http://opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116/IOApplePartitionScheme.h (typedef struct Block0)
   http://www.informit.com/articles/article.aspx?p=376123&seqNum=3
   http://en.wikipedia.org/wiki/GUID_Partition_Table
+  http://en.wikipedia.org/wiki/GUID
   syslinux-4.05/utils/isohybrid.c
 
 >>> Motivation: What systems will use the additional data ? amd64 UEFI ?
@@ -450,6 +453,8 @@ The following 32 bytes from block 0 of an Apple Partiton Map (APM) are such
 harmless code. They stem from Fedora-LiveCD.iso by Matthew Garret:
    45  52  08  00  00  00  90  90  00  00  00  00  00  00  00  00
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+It is a constant that does not depend on any properties of the ISO image or
+the information that is described in the following text.
 
 The layout of a Block0 of an APM is:
 
@@ -470,6 +475,7 @@ Byte Range | Value      | Meaning (all numbers are stored big endian)
 (The block_count of 0x9090 is pure fantasy. It shall only mark the disc as
  not empty.)
 
+
 For the purpose of booting, there may be two EFI boot image files in the
 ISO image. A VFAT image and a HFS+ image. The content of both is not in the
 scope of this document.
@@ -480,6 +486,30 @@ The data block ranges of the two EFI boot images get described by MBR
 partition entries 2 and 3, which thus claim blocks inside of partition 1.
 This partition nesting is acceptable to some EFI implementations only if the
 type of partition 1 is 0x00.
+
+The MBR partition entry number 1 is
+   80  00  01  00  00  3f  a0  89  00  00  00  00  00  50  14  00
+It marks the partition as bootable, starting at block 0, with a size that
+is the smallest full MiB not smaller than the ISO image size + 18 KiB.
+(The 18 KiB are needed for the GPT backup.)
+The ISO image has a size of 332362 blocks of 2K = 1329448 * 512 = 649.14 MiB.
+The partition size is 0x145000 = 1331200 * 512 = 650 MiB.
+Start C/H/S = 0/0/1, type is 0x0 ("Empty"), end C/H/S is 649/63/32.
+
+Partition 2:
+   00  fe  ff  ff  ef  fe  ff  ff  a4  00  00  00  70  04  00  00
+Start block is 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
+Partition size is 0x0470 = 1136 * 512. The size of that file.
+Start C/H/S = 1023/254/63, type 0xef (fdisk says: "EFI (FAT-12/16/"),
+end C/H/S =  1023/254/63.
+>>> ??? why are the C/H/S values so far out ? 
+
+Partition 3:
+   00  fe  ff  ff  00  fe  ff  ff  44  05  00  00  c0  08  00  00
+Start block is 0x0544 = 1348 * 512 = 337 * 2048. The HFS+ image file.
+Partition size is 0x08c0 = 2240 * 512. The size of that file.
+Start C/H/S = 1023/254/63, type 0x00 ("Empty"), end C/H/S =  1023/254/63.
+>>> ??? why are the C/H/S values so far out ? 
 
 
 The second 512-block in the ISO image is a GPT header.
@@ -501,14 +531,13 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
   20 -  23 | reserved   | = 0
   24 -  31 | curr_lba   | Location of this header block = 0x1
   32 -  39 | back_lba   | Location of header backup block = 0x144ffe = 1331198
-                          >>> ??? That is 437.5 2K-blocks after the image end
-                          >>> ??? which is at 332362 (* 4 = 1329448)
-                          >>> ??? 1 MiB alignment ?
+                        | This is 1 KiB before the end of MBR partition 1.
+                          >>> ??? why 1 KiB and not 512 bytes ?
   40 -  47 | first_lba  | First usable LBA for partitions = 0x30 = 48
   48 -  55 | last_lba   | Last usable LBA for partitions  = 0x144fde = 1331166
-  56 -  71 | guid       | Disk GUID / UUID = {
-           |            |      0x73, 0x23, 0xc8, 0x79, 0x19, 0xe6, 0x97, 0x4d,
-           |            |      0x95, 0x17, 0x69, 0x30, 0xc5, 0x38, 0xe2, 0x99 }
+  56 -  71 | guid       | Disk GUID
+           |            | Random, produced by uuid_generate(),
+           |            | 32,16,16 byte swapped
   72 -  79 | part_start | Partition entries start LBA = 0x10 = 16 = byte 0x2000
            |            | (This is unusual. It leaves room for the Apple
            |            |  partition map entries.)
@@ -525,11 +554,17 @@ chosen so that the CRC of 0 bytes of input is 0x00000000.
 The least significant bits of input bytes get processed first. I.e. bit0 of
 the last input byte gets mapped to x exp (7 + 32), bit7 of this byte gets
 mapped to x exp (0 + 32).
-The resulting division residue gets bit mirrored. E.g. bit0 becomes bit31,
+The resulting division residue gets bitwise mirrored. E.g. bit0 becomes bit31,
 bit1 becomes bit30, and so on. Further it gets exored with 0xffffffff.
 
-
-The ISO image has a size of 332362 blocks of 2K = 1329448 blocks of 512.
+A GUID consists of a 32-bit integer, two 16-bit integers, and an array of
+8 bytes. The integers are to be stored big-endian.
+A globally registered class GUID are the partition type GUIDs.
+This example uses two of them
+Basic data partition:  a2 a0 d0 eb , e5 b9 , 33 44 , 87 c0 68 b6 b7 26 99 c7
+HFS+ partition      :  00 53 46 48 , 00 00 , aa 11 , aa 11 00 30 65 43 ec ac
+Note that the wikipedia list shows the first 32-bit word and the next two
+16-bit words in little-endia interpretation.
 
 
 Because the block size was announced as 2048, the first Apple partition map
@@ -631,8 +666,12 @@ A GPT partion entry looks like:
 
 Byte Range | Value      | Meaning (numbers are stored little endian)
 ---------- | ---------- | ----------------------------------------------------
-   0 -  15 | type_guid  | Partition type guid = random
-  16 -  31 | part_guid  | Unique partition GUID = random
+   0 -  15 | type_guid  | Partition type guid = Basic data partition
+           |            | Wikipedia: "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
+           |            | (Note: The first three words are shown byte swapped)
+  16 -  31 | part_guid  | Unique partition GUID
+           |            | Random, produced by uuid_generate()
+           |            | 32,16,16 byte swapped
   32 -  39 | start_lba  | First LBA = 0
   40 -  47 | end_lba    | Last LBA (inclusive) = 0x144828 = 1329448
            |            | This is the ISO image size in blocks of 512.
@@ -659,6 +698,7 @@ Next entry is at 0x2800 = 10240:
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
 
+Partition type GUID : "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7" = Basic data
 Start at block 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
 Last block is 0x0513 = 1299 = 164 + 1135. This end is correct.
 >>> The name is an unintentional patchwork in an 8 bit character set.
@@ -676,12 +716,42 @@ Next entry at byte 0x02100 = 8448:
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
 
+Partition type GUID : "48465300-0000-11AA-AA11-00306543ECAC" = HFS+
 Start block is 0x0544 = 1348 * 512 = 337 * 2048. The HFS+ image file.
 Last block is  0x0e03 = 3587 = 1348 + 2239. Correct.
 >>> Frankenstein's name, again. 
 
 The rest of the System Area is 0 up to the Primary Volume Descriptor
 at block 16.
+
+
+The ISO image file gets padded up to full MiB with sufficient room for the GPT
+backup which is stored near the very end of the image file. There is need for
+at least 16.5 KiB, which effectively occupy 18 KiB.
+
+The backup partition array is stored 17 KiB before the end of MBR partition 1
+resp. the image file.
+>>> why not 16.5 KiB before end ? Wikipedia suggests "LBA -33" counted from end.
+The content of the partition arry is the same as the one of the primary array
+at byte 0x4000.
+
+The GPT header is stored 1 KiB before the end of MBR partition 1.
+>>> why not 512 byte before end ? Wikipedia suggests "LBA -1" counted from end.
+
+   45  46  49  20  50  41  52  54  00  00  01  00  5c  00  00  00
+    E   F   I       P   A   R   T
+   f6  61  10  1c  00  00  00  00  fe  4f  14  00  00  00  00  00
+   01  00  00  00  00  00  00  00  30  00  00  00  00  00  00  00
+   de  4f  14  00  00  00  00  00  73  23  c8  79  19  e6  97  4d
+   95  17  69  30  c5  38  e2  99  de  4f  14  00  00  00  00  00
+   80  00  00  00  80  00  00  00  5b  6b  8a  65 
+
+It differs by its own CRC and by some of its parameters:
+Own address is 0x144ffe. The backup lba is 0x01 = Primary GPT header.
+Partition entries start is 0x144fde
+>>> This overlaps with the last usable LBA. The backup GPT must move up by
+>>> 512 bytes.
+
 
 ------------------------------------------------------------------------------
 
