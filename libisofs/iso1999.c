@@ -804,7 +804,7 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
     iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
     iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
     iso_datetime_17(vol.vol_effective_time, t->now, t->always_gmt);
-    vol.file_structure_version[0] = 1;
+    vol.file_structure_version[0] = 2;
 
     free(vol_id);
     free(volset_id);
