@@ -881,5 +881,7 @@ struct ecma119_vol_desc_terminator
     uint8_t reserved                 BP(8, 2048);
 };
 
+void ecma119_set_voldescr_times(IsoImageWriter *writer,
+                                struct ecma119_pri_vol_desc *vol);
 
 #endif /*LIBISO_ECMA119_H_*/

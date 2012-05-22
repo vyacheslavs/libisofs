@@ -21,6 +21,7 @@
 #include "eltorito.h"
 #include "libisofs.h"
 #include "util.h"
+#include "ecma119.h"
 
 
 #include <stdlib.h>
@@ -911,9 +912,7 @@ int joliet_writer_write_vol_desc(IsoImageWriter *writer)
     ucsncpy_pad((uint16_t*)vol.abstract_file_id, abstract_file_id, 37);
     ucsncpy_pad((uint16_t*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
-    iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
-    iso_datetime_17(vol.vol_effective_time, t->now, t->always_gmt);
+    ecma119_set_voldescr_times(writer, (struct ecma119_pri_vol_desc *) &vol);
     vol.file_structure_version[0] = 1;
 
     free(vol_id);

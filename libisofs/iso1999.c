@@ -19,6 +19,7 @@
 #include "filesrc.h"
 #include "eltorito.h"
 #include "util.h"
+#include "ecma119.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -801,9 +802,7 @@ int iso1999_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
     strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
-    iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
-    iso_datetime_17(vol.vol_effective_time, t->now, t->always_gmt);
+    ecma119_set_voldescr_times(writer, (struct ecma119_pri_vol_desc *) &vol);
     vol.file_structure_version[0] = 2;
 
     free(vol_id);

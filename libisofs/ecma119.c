@@ -451,6 +451,51 @@ char *get_relaxed_vol_id(Ecma119Image *t, const char *name)
     return strdup(name);
 }
 
+void ecma119_set_voldescr_times(IsoImageWriter *writer,
+                                struct ecma119_pri_vol_desc *vol)
+{
+    Ecma119Image *t = writer->target;
+    int i;
+
+    if (t->vol_uuid[0]) {
+        for(i = 0; i < 16; i++)
+            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
+        break;
+            else
+                vol->vol_creation_time[i] = t->vol_uuid[i];
+       for(; i < 16; i++)
+           vol->vol_creation_time[i] = '1';
+       vol->vol_creation_time[16] = 0;
+    } else if (t->vol_creation_time > 0)
+        iso_datetime_17(vol->vol_creation_time, t->vol_creation_time,
+                        t->always_gmt);
+    else
+        iso_datetime_17(vol->vol_creation_time, t->now, t->always_gmt);
+
+    if (t->vol_uuid[0]) {
+        for(i = 0; i < 16; i++)
+            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
+        break;
+            else
+                vol->vol_modification_time[i] = t->vol_uuid[i];
+       for(; i < 16; i++)
+           vol->vol_modification_time[i] = '1';
+       vol->vol_modification_time[16] = 0;
+    } else if (t->vol_modification_time > 0)
+        iso_datetime_17(vol->vol_modification_time, t->vol_modification_time,
+                        t->always_gmt);
+    else
+        iso_datetime_17(vol->vol_modification_time, t->now, t->always_gmt);
+
+    if (t->vol_expiration_time > 0)
+        iso_datetime_17(vol->vol_expiration_time, t->vol_expiration_time,
+                        t->always_gmt);
+
+    if (t->vol_effective_time > 0)
+        iso_datetime_17(vol->vol_effective_time, t->vol_effective_time,
+                        t->always_gmt);
+}
+
 /**
  * Write the Primary Volume Descriptor (ECMA-119, 8.4)
  */
@@ -460,7 +505,6 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     IsoImage *image;
     Ecma119Image *t;
     struct ecma119_pri_vol_desc vol;
-    int i;
     char *vol_id, *pub_id, *data_id, *volset_id;
     char *system_id, *application_id, *copyright_file_id;
     char *abstract_file_id, *biblio_file_id;
@@ -526,44 +570,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.abstract_file_id, abstract_file_id, 37);
     strncpy_pad((char*)vol.bibliographic_file_id, biblio_file_id, 37);
 
-    if (t->vol_uuid[0]) {
-        for(i = 0; i < 16; i++)
-            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
-        break;
-            else
-                vol.vol_creation_time[i] = t->vol_uuid[i];
-       for(; i < 16; i++)
-           vol.vol_creation_time[i] = '1';
-       vol.vol_creation_time[16] = 0;
-    } else if (t->vol_creation_time > 0)
-        iso_datetime_17(vol.vol_creation_time, t->vol_creation_time,
-                        t->always_gmt);
-    else
-        iso_datetime_17(vol.vol_creation_time, t->now, t->always_gmt);
-
-    if (t->vol_uuid[0]) {
-        for(i = 0; i < 16; i++)
-            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
-        break;
-            else
-                vol.vol_modification_time[i] = t->vol_uuid[i];
-       for(; i < 16; i++)
-           vol.vol_modification_time[i] = '1';
-       vol.vol_modification_time[16] = 0;
-    } else if (t->vol_modification_time > 0)
-        iso_datetime_17(vol.vol_modification_time, t->vol_modification_time,
-                        t->always_gmt);
-    else
-        iso_datetime_17(vol.vol_modification_time, t->now, t->always_gmt);
-
-    if (t->vol_expiration_time > 0)
-        iso_datetime_17(vol.vol_expiration_time, t->vol_expiration_time,
-                        t->always_gmt);
-
-    if (t->vol_effective_time > 0)
-        iso_datetime_17(vol.vol_effective_time, t->vol_effective_time,
-                        t->always_gmt);
-
+    ecma119_set_voldescr_times(writer, &vol);
     vol.file_structure_version[0] = 1;
 
     free(vol_id);

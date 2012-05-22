@@ -2111,7 +2111,10 @@ int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label);
 
 /**
  * Explicitely set the four timestamps of the emerging Primary Volume
- * Descriptor. Default with all parameters is 0.
+ * Descriptor and in the volume descriptors of Joliet and ISO 9660:1999,
+ * if those are to be generated.
+ * Default with all parameters is 0.
+ *
  * ECMA-119 defines them as:
  * @param opts
  *        The option set to be manipulated.
@@ -3190,7 +3193,7 @@ int el_torito_get_bootable(ElToritoBootImage *bootimg);
  *      the CD-ROM".
  *      Further boot images put 28 bytes into their Section Header.
  *      El Torito 1.0 states that "If the BIOS understands the ID string, it
- *      may choose to boot the * system using one of these entries in place
+ *      may choose to boot the system using one of these entries in place
  *      of the INITIAL/DEFAULT entry." (The INITIAL/DEFAULT entry points to the
  *      first boot image.)
  * @return
@@ -3300,6 +3303,23 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  *                 For that you need isolinux.bin from SYSLINUX 3.72 or later.
  *                 IMPORTANT: The application has to take care that the image
  *                            on media gets padded up to the next full MB.
+                              >>> unless a GPT gets created
+
+ *  >>> *** Under construction. *** Do not use yet:
+ *  >>> bit2-7= Mentioning in isohybrid GPT
+ *  >>>         0= do not mention in GPT
+ *  >>>         1= mention as EFI partition
+ *  >>>            @since 1.2.4
+ *  >>>         2= Mention as HFS+ partition
+ *  >>>            @since 1.2.4
+ *  >>>         Primary GPT and backup GPT get written if at least one 
+ *  >>>         ElToritoBootImage shall be mentioned
+ *  >>> bit8= Mention in isohybrid Apple partition map
+ *  >>>       APM get written if at least one ElToritoBootImage shall be
+ *  >>>       mentioned. The ISOLINUX MBR must look suitable or else an error
+ *  >>>       event will happen at image generation time.
+ *  >>>       @since 1.2.4
+
  * @param flag
  *        Reserved for future usage, set to 0.
  * @return
