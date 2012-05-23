@@ -83,6 +83,7 @@ struct iso_write_opts {
     unsigned int rockridge :1;
     unsigned int joliet :1;
     unsigned int iso1999 :1;
+    unsigned int hfsplus :1;
 
     unsigned int aaip :1; /* whether to write eventual ACL and EAs */
 
@@ -448,6 +449,7 @@ typedef struct ecma119_image Ecma119Image;
 typedef struct ecma119_node Ecma119Node;
 typedef struct joliet_node JolietNode;
 typedef struct iso1999_node Iso1999Node;
+typedef struct hfsplus_node HFSPlusNode;
 typedef struct Iso_File_Src IsoFileSrc;
 typedef struct Iso_Image_Writer IsoImageWriter;
 
@@ -467,6 +469,7 @@ struct ecma119_image
     unsigned int joliet :1;
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
+    unsigned int hfsplus :1;
 
     unsigned int hardlinks:1; /* see iso_write_opts_set_hardlinks() */
 
@@ -591,6 +594,16 @@ struct ecma119_image
     uint32_t joliet_path_table_size;
     uint32_t joliet_l_path_table_pos;
     uint32_t joliet_m_path_table_pos;
+
+    /*
+     * HFS+ related information
+     */
+    HFSPlusNode *hfsplus_root;
+    uint32_t hfsp_part_start;
+    uint32_t hfsp_nfiles;
+    uint32_t hfsp_ndirs;
+    uint32_t hfsp_cat_id;
+    uint32_t hfsp_allocation_blocks;
 
     /*
      * ISO 9660:1999 related information

@@ -21,6 +21,7 @@
 
 #include "ecma119.h"
 #include "joliet.h"
+#include "hfsplus.h"
 #include "iso1999.h"
 #include "eltorito.h"
 #include "ecma119_tree.h"
@@ -451,6 +452,9 @@ char *get_relaxed_vol_id(Ecma119Image *t, const char *name)
     return strdup(name);
 }
 
+/**
+ * Set the timestamps of Primary, Supplementary, or Enhanced Volume Descriptor.
+ */
 void ecma119_set_voldescr_times(IsoImageWriter *writer,
                                 struct ecma119_pri_vol_desc *vol)
 {
@@ -1260,6 +1264,8 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
     iso_msg_debug(target->image->id, "Write volume descriptors");
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
+        if (writer->write_vol_desc == hfsplus_writer_write_vol_desc)
+    continue;
         res = writer->write_vol_desc(writer);
         if (res < 0) 
             goto write_error;
@@ -1269,6 +1275,16 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
     res = write_vol_desc_terminator(target);
     if (res < 0)
         goto write_error;
+
+    /* Special treatment for HFS */
+    for (i = 0; i < (int) target->nwriters; ++i) {
+        writer = target->writers[i];
+        if (writer->write_vol_desc != hfsplus_writer_write_vol_desc)
+    continue;
+        res = writer->write_vol_desc(writer);
+        if (res < 0)
+            goto write_error;
+    }
 
     if(flag & 2) {
       iso_ring_buffer_get_buf_status(target->buffer, &buffer_size,
@@ -1314,6 +1330,13 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
 
         /* >>> TWINTREE: Enhance ISO1999 writer and add it here */
 
+        /* >>> HFS : ts B20523
+                     Vladimir wanted to run hfsplus_writer_write_vol_desc
+                     here. But this function is called after the terminator
+                     for the first descriptor set.
+                     So it would have to be called after this loop.
+                     If it is prepared for duplicate metadata at all.
+        */
         if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
            writer->write_vol_desc != joliet_writer_write_vol_desc)
     continue;
@@ -1325,6 +1348,11 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     ret = write_vol_desc_terminator(target);
     if (ret < 0)
         goto ex;
+
+    /* >>> HFS : ts B20523
+           If desired and capable, write HFS "volume descriptor" stuff here.
+    */
+
     (*write_count)++;
     target->eff_partition_offset = 0;
 
@@ -1631,6 +1659,13 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
 }
 
 static
+int is_ms_file(void *arg)
+{
+    IsoFileSrc *f = (IsoFileSrc *)arg;
+    return f->prev_img ? 0 : 1;
+}
+
+static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters, image_checksums_mad = 0, tag_pos;
@@ -1641,7 +1676,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     int system_area_options = 0;
     char *system_area = NULL;
     int write_count = 0, write_count_mem;
-
+    int hfsplus_writer_index = -1;
 
     /* 1. Allocate target and copy opts there */
     target = calloc(1, sizeof(Ecma119Image));
@@ -1666,6 +1701,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->iso_level = opts->level;
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
+    target->hfsplus = opts->hfsplus;
     target->iso1999 = opts->iso1999;
     target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
@@ -1891,6 +1927,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->joliet) {
         nwriters++;
     }
+    if (target->hfsplus) {
+        nwriters++;
+    }
     if (target->iso1999) {
         nwriters++;
     }
@@ -1935,6 +1974,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* create writer for Joliet structure */
     if (target->joliet) {
         ret = joliet_writer_create(target);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
+    }
+
+    /* create writer for HFS+ structure */
+    if (target->hfsplus) {
+        hfsplus_writer_index = target->nwriters - 1;
+        ret = hfsplus_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
         }
@@ -2007,6 +2055,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
             /* >>> TWINTREE: Enhance ISO1999 writer and add it here */
 
+            /* >>> HFS : ts B20523
+                         Vladimir wanted to run hfsplus_writer_write_vol_desc
+                         for the second descriptor set. But that aspect needs
+                         further clarification. So it is not yet implemented
+                         and is not yet counted here.
+            */
+
             if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
                writer->write_vol_desc != joliet_writer_write_vol_desc)
         continue;
@@ -2032,6 +2087,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (i == el_torito_writer_index)
     continue;
 
+        /* >>> HFS : ts B20523
+               Vladimir wanted to skip hfsplus_writer here.
+               I do not understand all motivation for this yet, but the
+               writer must compute its data size in sequence with the other
+               writers. The el_torito_writer jump is a hack and allowed only
+               because eltorito_writer_compute_data_blocks() does not
+               increase the block count. It rather performs -boot-info-table.
+         */
+
         /* Exposing address of data start to IsoWriteOpts and memorizing
            this address for all files which have no block address: 
            symbolic links, device files, empty data files.
@@ -2039,6 +2103,17 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
            will account resp. write this single block. 
         */
         if (i == file_src_writer_index) {
+
+            /* >>> HFS : ts B20523
+                   Vladimir wanted to delay the setting of
+                   target->empty_file_block here. But it might be important
+                   that this is the start block of the file_src_writer realm.
+                   I have to examine, whether it is ok to choose a different
+                   block.
+                   This is related anyway to the inappropriate skipping of
+                   hfs_writer. See above.
+            */
+
             if (! target->old_empty)
                 target->empty_file_block = target->curblock;
             opts->data_start_lba = target->curblock;
@@ -2049,6 +2124,50 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
+
+#ifdef NIX
+
+    /* >>> HFS : ts B20523
+           By Vladimir.
+           This should be integrated in above loop and probably go into
+           hfs_writer->compute_data_blocks()..
+           I have to examine what it does.
+    */
+    if (hfsplus_writer_index >= 0) {
+        IsoImageWriter *writer = target->writers[hfsplus_writer_index];
+        uint32_t extra; 
+        IsoFileSrc **filelist;
+        size_t size;
+        size_t j;
+
+        target->vol_space_size = target->curblock - target->ms_block;
+        target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
+
+        target->curblock = opts->data_start_lba;
+        ret = writer->compute_data_blocks(writer);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
+
+        writer = target->writers[file_src_writer_index];
+        if (! target->old_empty)
+            target->empty_file_block = target->curblock;
+        extra = target->curblock - opts->data_start_lba;
+        opts->data_start_lba = target->curblock;
+
+        filelist = (IsoFileSrc**)iso_rbtree_to_array(target->files, target->appendable ? is_ms_file : NULL, &size);
+        /* fill block value */
+        for (j = 0; j < size; ++j) {
+            int extent = 0;
+            IsoFileSrc *file = filelist[j];
+
+            for (extent = 0; extent < file->nsections - 1; ++extent) {
+                file->sections[extent].block += extra;
+          }
+        }
+     }
+
+#endif /* NIX */
 
     /* Now perform delayed image patching and System Area preparations */
     if (el_torito_writer_index >= 0) {
@@ -2412,6 +2531,10 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
     struct burn_source *source;
     Ecma119Image *target= NULL;
 
+    /* <<< ts B20523 : Only as long as Vladimir develops HFS */
+    iso_msg_debug(image->id, "(c) opts->hfsplus = 0x%x", opts->hfsplus);
+    iso_msg_debug(image->id, "(c) opts->joliet = 0x%x", opts->joliet);
+
     if (image == NULL || opts == NULL || burn_src == NULL) {
         return ISO_NULL_POINTER;
     }
@@ -2637,6 +2760,15 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable)
         return ISO_NULL_POINTER;
     }
     opts->joliet = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_hfsplus(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->hfsplus = enable ? 1 : 0;
     return ISO_SUCCESS;
 }
 

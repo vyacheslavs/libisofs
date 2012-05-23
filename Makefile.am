@@ -66,6 +66,8 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/rockridge_read.c \
 	libisofs/joliet.h \
 	libisofs/joliet.c \
+	libisofs/hfsplus.h \
+	libisofs/hfsplus.c \
 	libisofs/eltorito.h \
 	libisofs/eltorito.c \
 	libisofs/system_area.h \

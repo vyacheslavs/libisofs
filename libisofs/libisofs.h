@@ -295,6 +295,11 @@ enum IsoHideNodeFlag {
     /** Hide the node in the ISO-9660:1999 tree, if that format is enabled */
     LIBISO_HIDE_ON_1999 = 1 << 2,
 
+    /** Hide the node in the HFS+ tree, if that format is enabled.
+        @since 1.2.4
+    */
+    LIBISO_HIDE_ON_HFSPLUS = 1 << 4,
+
     /** With IsoNode and IsoBoot: Write data content even if the node is
      *                            not visible in any tree.
      *  With directory nodes    : Write data content of IsoNode and IsoBoot
@@ -1390,6 +1395,20 @@ int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable);
  * @since 0.6.2
  */
 int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
+
+/**
+ * Whether to add the HFS+ to the image.
+ *
+ * @param opts
+ *      The option set to be manipulated.
+ * @param enable
+ *      1 to enable HFS+ extension, 0 to not add them
+ * @return
+ *      1 success, < 0 error
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_set_hfsplus(IsoWriteOpts *opts, int enable);
 
 /**
  * Whether to use newer ISO-9660:1999 version.
