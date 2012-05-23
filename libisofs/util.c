@@ -1225,12 +1225,13 @@ uint16_t *ucsdup(const uint16_t *str)
 
 /**
  * Although each character is 2 bytes, we actually compare byte-by-byte
- * (thats what the spec says).
+ * because the words are big-endian. Comparing possibly swapped words
+ * would make the sorting order depend on the machine byte order.
  */
 int ucscmp(const uint16_t *s1, const uint16_t *s2)
 {
-    const char *s = (const char*)s1;
-    const char *t = (const char*)s2;
+    const uint8_t *s = (const uint8_t*)s1;
+    const uint8_t *t = (const uint8_t*)s2;
     size_t len1 = ucslen(s1);
     size_t len2 = ucslen(s2);
     size_t i, len = MIN(len1, len2) * 2;
