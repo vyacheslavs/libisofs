@@ -333,11 +333,12 @@ int joliet_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
 
     if (ext[0] != (uint16_t)0) {
         size_t extlen = ucslen(ext);
-        dest[pos++] = (uint16_t)0x2E00; /* '.' in big endian UCS */
+        iso_msb((uint8_t *) (dest + pos), 0x002E, 2); /* '.' in UCS */ 
+        pos++;
         ucsncpy(dest + pos, ext, extlen);
         pos += extlen;
     }
-    dest[pos] = (uint16_t)0;
+    iso_msb((uint8_t *) (dest + pos), 0, 2);
     free(ucsnumber);
     return ISO_SUCCESS;
 }
