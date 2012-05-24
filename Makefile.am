@@ -68,6 +68,9 @@ libisofs_libisofs_la_SOURCES = \
 	libisofs/joliet.c \
 	libisofs/hfsplus.h \
 	libisofs/hfsplus.c \
+	libisofs/hfsplus_decompose.c \
+	libisofs/hfsplus_classes.c \
+	libisofs/hfsplus_case.c \
 	libisofs/eltorito.h \
 	libisofs/eltorito.c \
 	libisofs/system_area.h \

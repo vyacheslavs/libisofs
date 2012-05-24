@@ -59,7 +59,7 @@ struct hfsplus_node
 };
 
 int hfsplus_writer_create(Ecma119Image *target);
-int hfsplus_writer_write_vol_desc(IsoImageWriter *writer);
+int hfsplus_tail_writer_create(Ecma119Image *target);
 
 struct hfsplus_extent
 {
@@ -149,7 +149,7 @@ struct hfsplus_catfile_thread
   uint16_t reserved;
   uint32_t parentid;
   uint16_t namelen;
-};
+} __attribute__ ((packed));
 
 struct hfsplus_catfile_common
 {
@@ -173,5 +173,10 @@ struct hfsplus_catfile_common
   uint32_t reserved;
 } __attribute__ ((packed));
 
+#define HFSPLUS_MAX_DECOMPOSE_LEN 4
+
+extern const uint16_t (*hfsplus_decompose_pages[256])[HFSPLUS_MAX_DECOMPOSE_LEN + 1];
+extern const uint16_t *hfsplus_class_pages[256];
+extern const uint16_t hfsplus_casefold[];
 
 #endif /* LIBISO_HFSPLUS_H */

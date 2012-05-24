@@ -1264,8 +1264,6 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
     iso_msg_debug(target->image->id, "Write volume descriptors");
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
-        if (writer->write_vol_desc == hfsplus_writer_write_vol_desc)
-    continue;
         res = writer->write_vol_desc(writer);
         if (res < 0) 
             goto write_error;
@@ -1275,16 +1273,6 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
     res = write_vol_desc_terminator(target);
     if (res < 0)
         goto write_error;
-
-    /* Special treatment for HFS */
-    for (i = 0; i < (int) target->nwriters; ++i) {
-        writer = target->writers[i];
-        if (writer->write_vol_desc != hfsplus_writer_write_vol_desc)
-    continue;
-        res = writer->write_vol_desc(writer);
-        if (res < 0)
-            goto write_error;
-    }
 
     if(flag & 2) {
       iso_ring_buffer_get_buf_status(target->buffer, &buffer_size,
@@ -1928,7 +1916,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         nwriters++;
     }
     if (target->hfsplus) {
-        nwriters++;
+        nwriters+= 2;
     }
     if (target->iso1999) {
         nwriters++;
@@ -1981,7 +1969,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* create writer for HFS+ structure */
     if (target->hfsplus) {
-        hfsplus_writer_index = target->nwriters - 1;
         ret = hfsplus_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
@@ -2022,6 +2009,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     file_src_writer_index = target->nwriters - 1;
 
+    /* create writer for HFS+ structure */
+    if (target->hfsplus) {
+        ret = hfsplus_tail_writer_create(target);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
+    }
 
     /* IMPORTANT: This must be the last writer before the checksum writer */
     ret = zero_writer_create(target, target->tail_blocks, 1);
@@ -2087,15 +2081,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (i == el_torito_writer_index)
     continue;
 
-        /* >>> HFS : ts B20523
-               Vladimir wanted to skip hfsplus_writer here.
-               I do not understand all motivation for this yet, but the
-               writer must compute its data size in sequence with the other
-               writers. The el_torito_writer jump is a hack and allowed only
-               because eltorito_writer_compute_data_blocks() does not
-               increase the block count. It rather performs -boot-info-table.
-         */
-
         /* Exposing address of data start to IsoWriteOpts and memorizing
            this address for all files which have no block address: 
            symbolic links, device files, empty data files.
@@ -2103,17 +2088,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
            will account resp. write this single block. 
         */
         if (i == file_src_writer_index) {
-
-            /* >>> HFS : ts B20523
-                   Vladimir wanted to delay the setting of
-                   target->empty_file_block here. But it might be important
-                   that this is the start block of the file_src_writer realm.
-                   I have to examine, whether it is ok to choose a different
-                   block.
-                   This is related anyway to the inappropriate skipping of
-                   hfs_writer. See above.
-            */
-
             if (! target->old_empty)
                 target->empty_file_block = target->curblock;
             opts->data_start_lba = target->curblock;
@@ -2579,6 +2553,12 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
 int iso_write(Ecma119Image *target, void *buf, size_t count)
 {
     int ret;
+
+    if (target->bytes_written + (off_t) count > target->total_size) {
+        iso_msg_submit(target->image->id, ISO_ASSERT_FAILURE, 0,
+                       "ISO overwrite");
+        return ISO_ASSERT_FAILURE;
+    }
 
     ret = iso_ring_buffer_write(target->buffer, buf, count);
     if (ret == 0) {
