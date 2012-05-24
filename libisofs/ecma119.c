@@ -1664,7 +1664,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     int system_area_options = 0;
     char *system_area = NULL;
     int write_count = 0, write_count_mem;
-    int hfsplus_writer_index = -1;
 
     /* 1. Allocate target and copy opts there */
     target = calloc(1, sizeof(Ecma119Image));
