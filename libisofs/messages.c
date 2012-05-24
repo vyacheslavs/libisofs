@@ -468,6 +468,8 @@ const char *iso_error_to_msg(int errcode)
         return "Attribute name cannot be represented";
     case ISO_AAIP_ACL_MULT_OBJ:
         return "ACL text contains multiple entries of user::, group::, other::";
+    case ISO_SECT_SCATTERED:
+        return "File sections do not form consecutive array of blocks";
     default:
         return "Unknown error";
     }
