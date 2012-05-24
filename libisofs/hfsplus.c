@@ -32,8 +32,11 @@
 #define HFSPLUS_BLOCK_SIZE BLOCK_SIZE
 #define HFSPLUS_CAT_NODE_SIZE (2 * BLOCK_SIZE)
 
-uint16_t ntohs(uint16_t netshort); /* Linux: <arpa/inet.h> */
-uint16_t htons(uint16_t hostshort); /* Linux: <arpa/inet.h> */
+#include <arpa/inet.h>
+/* For these prototypes:
+uint16_t ntohs(uint16_t netshort);
+uint16_t htons(uint16_t hostshort);
+*/
 
 
 static
