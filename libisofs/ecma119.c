@@ -1318,13 +1318,6 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
 
         /* >>> TWINTREE: Enhance ISO1999 writer and add it here */
 
-        /* >>> HFS : ts B20523
-                     Vladimir wanted to run hfsplus_writer_write_vol_desc
-                     here. But this function is called after the terminator
-                     for the first descriptor set.
-                     So it would have to be called after this loop.
-                     If it is prepared for duplicate metadata at all.
-        */
         if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
            writer->write_vol_desc != joliet_writer_write_vol_desc)
     continue;
@@ -1336,11 +1329,6 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     ret = write_vol_desc_terminator(target);
     if (ret < 0)
         goto ex;
-
-    /* >>> HFS : ts B20523
-           If desired and capable, write HFS "volume descriptor" stuff here.
-    */
-
     (*write_count)++;
     target->eff_partition_offset = 0;
 
@@ -1644,13 +1632,6 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
         }
     }
     return ISO_SUCCESS;
-}
-
-static
-int is_ms_file(void *arg)
-{
-    IsoFileSrc *f = (IsoFileSrc *)arg;
-    return f->prev_img ? 0 : 1;
 }
 
 static
@@ -2048,13 +2029,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
             /* >>> TWINTREE: Enhance ISO1999 writer and add it here */
 
-            /* >>> HFS : ts B20523
-                         Vladimir wanted to run hfsplus_writer_write_vol_desc
-                         for the second descriptor set. But that aspect needs
-                         further clarification. So it is not yet implemented
-                         and is not yet counted here.
-            */
-
             if(writer->write_vol_desc != ecma119_writer_write_vol_desc &&
                writer->write_vol_desc != joliet_writer_write_vol_desc)
         continue;
@@ -2097,50 +2071,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
-
-#ifdef NIX
-
-    /* >>> HFS : ts B20523
-           By Vladimir.
-           This should be integrated in above loop and probably go into
-           hfs_writer->compute_data_blocks()..
-           I have to examine what it does.
-    */
-    if (hfsplus_writer_index >= 0) {
-        IsoImageWriter *writer = target->writers[hfsplus_writer_index];
-        uint32_t extra; 
-        IsoFileSrc **filelist;
-        size_t size;
-        size_t j;
-
-        target->vol_space_size = target->curblock - target->ms_block;
-        target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
-
-        target->curblock = opts->data_start_lba;
-        ret = writer->compute_data_blocks(writer);
-        if (ret < 0) {
-            goto target_cleanup;
-        }
-
-        writer = target->writers[file_src_writer_index];
-        if (! target->old_empty)
-            target->empty_file_block = target->curblock;
-        extra = target->curblock - opts->data_start_lba;
-        opts->data_start_lba = target->curblock;
-
-        filelist = (IsoFileSrc**)iso_rbtree_to_array(target->files, target->appendable ? is_ms_file : NULL, &size);
-        /* fill block value */
-        for (j = 0; j < size; ++j) {
-            int extent = 0;
-            IsoFileSrc *file = filelist[j];
-
-            for (extent = 0; extent < file->nsections - 1; ++extent) {
-                file->sections[extent].block += extra;
-          }
-        }
-     }
-
-#endif /* NIX */
 
     /* Now perform delayed image patching and System Area preparations */
     if (el_torito_writer_index >= 0) {
@@ -2503,10 +2433,6 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
     int ret;
     struct burn_source *source;
     Ecma119Image *target= NULL;
-
-    /* <<< ts B20523 : Only as long as Vladimir develops HFS */
-    iso_msg_debug(image->id, "(c) opts->hfsplus = 0x%x", opts->hfsplus);
-    iso_msg_debug(image->id, "(c) opts->joliet = 0x%x", opts->joliet);
 
     if (image == NULL || opts == NULL || burn_src == NULL) {
         return ISO_NULL_POINTER;
