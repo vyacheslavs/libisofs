@@ -3551,8 +3551,8 @@ int iso_node_remove_all_xinfo(IsoNode *node, int flag);
  * @param proc
  *      The function pointer which serves as key
  * @param data
- *      Will be filled with the extended info corresponding to the given proc
- *      function
+ *      Will after successful call point to the xinfo data corresponding
+ *      to the given proc. This is a pointer, not a feeable data copy.
  * @return
  *      1 on success, 0 if node does not have extended info of the requested
  *      type, < 0 on error
@@ -6666,8 +6666,8 @@ struct iso_hfsplus_xinfo_data {
    * See: http://en.wikipedia.org/wiki/Creator_code , .../Type_code
    * @since 1.2.4
   */
-  unsigned int creator_code :4;
-  unsigned int type_code :4;
+  uint8_t creator_code[4];
+  uint8_t type_code[4];
 };
 
 /** 
