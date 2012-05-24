@@ -598,12 +598,22 @@ struct ecma119_image
     /*
      * HFS+ related information
      */
-    HFSPlusNode *hfsplus_root;
+    HFSPlusNode *hfsp_leafs; 
+    struct hfsplus_btree_level *hfsp_levels;
+    uint32_t hfsp_nlevels; 
     uint32_t hfsp_part_start;
     uint32_t hfsp_nfiles;
     uint32_t hfsp_ndirs;
     uint32_t hfsp_cat_id;
     uint32_t hfsp_allocation_blocks;
+    uint32_t hfsp_allocation_file_start;
+    uint32_t hfsp_extent_file_start;
+    uint32_t hfsp_catalog_file_start;
+    uint32_t hfsp_total_blocks;
+    uint32_t hfsp_allocation_size;
+    uint32_t hfsp_nleafs;
+    uint32_t hfsp_curleaf;
+    uint32_t hfsp_nnodes;
 
     /*
      * ISO 9660:1999 related information

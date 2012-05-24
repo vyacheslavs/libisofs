@@ -7046,6 +7046,10 @@ int iso_md5_match(char first_md5[16], char second_md5[16]);
                                                      (FAILURE, HIGH, -379)  */
 #define ISO_AAIP_ACL_MULT_OBJ       0xE830FE83
 
+/** File sections do not form consequtive array of blocks
+                                                     (FAILURE, HIGH, -378) */
+#define ISO_SECT_SCATTERED          0xE830FE82
+
 
 
 /* Internal developer note: 

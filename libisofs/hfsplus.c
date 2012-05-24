@@ -30,134 +30,102 @@
 #include <string.h>
 
 #define HFSPLUS_BLOCK_SIZE BLOCK_SIZE
-
+#define HFSPLUS_CAT_NODE_SIZE (2 * BLOCK_SIZE)
 static
-int get_hfsplus_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
+int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 {
     int ret;
     uint16_t *ucs_name;
-    uint16_t *jname = NULL;
 
-    if (iso->name == NULL) {
+    if (name == NULL) {
         /* it is not necessarily an error, it can be the root */
         return ISO_SUCCESS;
     }
 
-    ret = str2ucs(t->input_charset, iso->name, &ucs_name);
+    ret = str2ucs(t->input_charset, name, &ucs_name);
     if (ret < 0) {
-        iso_msg_debug(t->image->id, "Can't convert %s", iso->name);
+        iso_msg_debug(t->image->id, "Can't convert %s", name);
         return ret;
     }
     /* FIXME: Decompose it.  */
-    jname = ucs_name;
-    if (jname != NULL) {
-        *name = jname;
-        return ISO_SUCCESS;
-    } else {
-        /*
-         * only possible if mem error, as check for empty names is done
-         * in public tree
-         */
-        return ISO_OUT_OF_MEM;
-    }
-}
+    node->name = ucs_name;
+    /* FIXME: Lowercase it.  */
+    node->cmp_name = ucs_name;
 
-static
-void hfsplus_node_free(HFSPlusNode *node)
-{
-    if (node == NULL) {
-        return;
-    }
-    if (node->type == HFSPLUS_DIR) {
-        size_t i;
-        for (i = 0; i < node->info.dir->nchildren; i++) {
-            hfsplus_node_free(node->info.dir->children[i]);
-        }
-        free(node->info.dir->children);
-        free(node->info.dir);
-    }
-    iso_node_unref(node->node);
-    free(node->name);
-    free(node);
-}
-
-/**
- * Create a low level Hfsplus node
- * @return
- *      1 success, 0 ignored, < 0 error
- */
-static
-int create_node(Ecma119Image *t, IsoNode *iso, HFSPlusNode **node)
-{
-    int ret;
-    HFSPlusNode *hfsplus;
-
-    hfsplus = calloc(1, sizeof(HFSPlusNode));
-    if (hfsplus == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
-
-    if (iso->type == LIBISO_DIR) {
-        IsoDir *dir = (IsoDir*) iso;
-        hfsplus->info.dir = calloc(1, sizeof(struct hfsplus_dir_info));
-        if (hfsplus->info.dir == NULL) {
-            free(hfsplus);
-            return ISO_OUT_OF_MEM;
-        }
-        hfsplus->info.dir->children = calloc(sizeof(void*), dir->nchildren);
-        if (hfsplus->info.dir->children == NULL) {
-            free(hfsplus->info.dir);
-            free(hfsplus);
-            return ISO_OUT_OF_MEM;
-        }
-        hfsplus->type = HFSPLUS_DIR;
-    } else if (iso->type == LIBISO_FILE) {
-        /* it's a file */
-        off_t size;
-        IsoFileSrc *src;
-        IsoFile *file = (IsoFile*) iso;
-
-        size = iso_stream_get_size(file->stream);
-        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && t->iso_level != 3) {
-            char *ipath = iso_tree_get_node_path(iso);
-            free(hfsplus);
-            ret = iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
-                         "File \"%s\" can't be added to image because is "
-                         "greater than 4GB", ipath);
-            free(ipath);
-            return ret;
-        }
-
-        ret = iso_file_src_create(t, file, &src);
-        if (ret < 0) {
-            free(hfsplus);
-            return ret;
-        }
-        hfsplus->info.file = src;
-        hfsplus->type = HFSPLUS_FILE;
-    } else if (iso->type == LIBISO_BOOT) {
-        /* it's a el-torito boot catalog, that we write as a file */
-        IsoFileSrc *src;
-
-        ret = el_torito_catalog_file_src_create(t, &src);
-        if (ret < 0) {
-            free(hfsplus);
-            return ret;
-        }
-        hfsplus->info.file = src;
-        hfsplus->type = HFSPLUS_FILE;
-    } else {
-        /* should never happen */
-        free(hfsplus);
-        return ISO_ASSERT_FAILURE;
-    }
-
-    /* take a ref to the IsoNode */
-    hfsplus->node = iso;
-    iso_node_ref(iso);
-
-    *node = hfsplus;
+    node->strlen = ucslen (ucs_name);
     return ISO_SUCCESS;
+}
+
+
+static
+int filesrc_block_and_size(Ecma119Image *t, IsoFileSrc *src,
+                           uint32_t *start_block, uint64_t *total_size)
+{
+    int i;
+    uint32_t pos;
+
+    *start_block = 0;
+    *total_size = 0;
+    if (src->nsections <= 0)
+        return 0;
+    pos = *start_block = src->sections[0].block;
+    for (i = 0; i < src->nsections; i++) {
+        *total_size += src->sections[i].size;
+        if (pos != src->sections[i].block) {
+            iso_msg_submit(t->image->id, ISO_SECT_SCATTERED, 0,
+                      "File sections do not form consequtive array of blocks");
+            return ISO_SECT_SCATTERED;
+        }
+        /* If .size is not aligned to blocks then there is a byte gap.
+           No need to trace the exact byte address.
+        */ 
+        pos = src->sections[i].block + src->sections[i].size / 2048;
+    }
+    return 1;
+}
+
+static
+int hfsplus_count_tree(Ecma119Image *t, IsoNode *iso)
+{
+    if (t == NULL || iso == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    if (iso->hidden & LIBISO_HIDE_ON_HFSPLUS) {
+        /* file will be ignored */
+        return 0;
+    }
+
+    switch (iso->type) {
+    case LIBISO_SYMLINK:
+    case LIBISO_FILE:
+      t->hfsp_nfiles++;
+      return ISO_SUCCESS;
+    case LIBISO_DIR:
+      t->hfsp_ndirs++;
+      {
+	IsoNode *pos;
+	IsoDir *dir = (IsoDir*)iso;
+	pos = dir->children;
+	while (pos) {
+	  int cret;
+	  cret = hfsplus_count_tree(t, pos);
+	  if (cret < 0) {
+	    /* error */
+	    return cret;
+	  }
+	  pos = pos->next;
+	}
+      }
+      return ISO_SUCCESS;
+    case LIBISO_BOOT:
+      return ISO_SUCCESS;
+    case LIBISO_SPECIAL:
+      return ISO_SUCCESS;
+    default:
+      /* should never happen */
+      return ISO_ASSERT_FAILURE;
+    }
 }
 
 /**
@@ -167,13 +135,12 @@ int create_node(Ecma119Image *t, IsoNode *iso, HFSPlusNode **node)
  *      1 success, 0 file ignored, < 0 error
  */
 static
-int create_tree(Ecma119Image *t, IsoNode *iso, HFSPlusNode **tree, int pathlen)
+int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
 {
-    int ret, max_path;
-    HFSPlusNode *node = NULL;
-    uint16_t *jname = NULL;
+    int ret;
+    uint32_t cat_id, cleaf;
 
-    if (t == NULL || iso == NULL || tree == NULL) {
+    if (t == NULL || iso == NULL) {
         return ISO_NULL_POINTER;
     }
 
@@ -181,470 +148,85 @@ int create_tree(Ecma119Image *t, IsoNode *iso, HFSPlusNode **tree, int pathlen)
         /* file will be ignored */
         return 0;
     }
-    ret = get_hfsplus_name(t, iso, &jname);
-    if (ret < 0) {
-        return ret;
-    }
-    max_path = pathlen + 1 + (jname ? ucslen(jname) * 2 : 0);
 
-    switch (iso->type) {
-    case LIBISO_FILE:
-        ret = create_node(t, iso, &node);
-        break;
-    case LIBISO_DIR:
-        {
-            IsoNode *pos;
-            IsoDir *dir = (IsoDir*)iso;
-            ret = create_node(t, iso, &node);
-            if (ret < 0) {
-                free(jname);
-                return ret;
-            }
-            pos = dir->children;
-            while (pos) {
-                int cret;
-                HFSPlusNode *child;
-                cret = create_tree(t, pos, &child, max_path);
-                if (cret < 0) {
-                    /* error */
-                    hfsplus_node_free(node);
-                    ret = cret;
-                    break;
-                } else if (cret == ISO_SUCCESS) {
-                    /* add child to this node */
-                    int nchildren = node->info.dir->nchildren++;
-                    node->info.dir->children[nchildren] = child;
-                    child->parent = node;
-                }
-                pos = pos->next;
-            }
+    if (iso->type == LIBISO_FILE && iso->type == LIBISO_DIR)
+      return 0;
+
+    cat_id = t->hfsp_cat_id++;
+
+    set_hfsplus_name (t, iso->name, &t->hfsp_leafs[t->hfsp_curleaf]);
+    t->hfsp_leafs[t->hfsp_curleaf].node = iso;
+    t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
+    t->hfsp_leafs[t->hfsp_curleaf].parent_id = parent_id;
+
+    if (iso->type == LIBISO_FILE)
+      {
+        IsoFile *file = (IsoFile*) iso;
+	t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_FILE;
+        ret = iso_file_src_create(t, file, &t->hfsp_leafs[t->hfsp_curleaf].file);
+        if (ret < 0) {
+            return ret;
         }
-        break;
-    case LIBISO_BOOT:
-        if (t->eltorito) {
-            ret = create_node(t, iso, &node);
-        } else {
-            /* log and ignore */
-            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                "El-Torito catalog found on a image without El-Torito.");
-        }
-        break;
-    case LIBISO_SYMLINK:
-    case LIBISO_SPECIAL:
-        {
-            char *ipath = iso_tree_get_node_path(iso);
-            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                 "Can't add %s to Hfsplus tree. %s can only be added to a "
-                 "Rock Ridge tree.", ipath, (iso->type == LIBISO_SYMLINK ?
-                                             "Symlinks" : "Special files"));
-            free(ipath);
-        }
-        break;
-    default:
-        /* should never happen */
-        return ISO_ASSERT_FAILURE;
-    }
-    if (ret <= 0) {
-        free(jname);
-        return ret;
-    }
-    node->name = jname;
-    *tree = node;
+	t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common) + 2 * sizeof (struct hfsplus_forkdata);
+      }
+    else if (iso->type == LIBISO_DIR)
+      {
+	t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_DIR;
+	t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common);
+      }
+    cleaf = t->hfsp_curleaf;
+    t->hfsp_leafs[t->hfsp_curleaf].nchildren = 0;
+    t->hfsp_curleaf++;
+
+    t->hfsp_leafs[t->hfsp_curleaf].name = t->hfsp_leafs[t->hfsp_curleaf - 1].name;
+    t->hfsp_leafs[t->hfsp_curleaf].cmp_name = NULL;
+    t->hfsp_leafs[t->hfsp_curleaf].strlen = t->hfsp_leafs[t->hfsp_curleaf - 1].strlen;
+    t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_thread);
+    t->hfsp_leafs[t->hfsp_curleaf].node = iso;
+    t->hfsp_leafs[t->hfsp_curleaf].type = (iso->type == LIBISO_DIR) ? HFSPLUS_DIR_THREAD : HFSPLUS_FILE_THREAD;
+    t->hfsp_leafs[t->hfsp_curleaf].file = 0;
+    t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
+    t->hfsp_leafs[t->hfsp_curleaf].parent_id = cat_id;
+    t->hfsp_curleaf++;
+
+    if (iso->type == LIBISO_DIR)
+      {
+	IsoNode *pos;
+	IsoDir *dir = (IsoDir*)iso;
+
+	pos = dir->children;
+	while (pos)
+	  {
+	    int cret;
+	    cret = create_tree(t, pos, cat_id);
+	    if (cret < 0)
+	      return cret;
+	    pos = pos->next;
+	    t->hfsp_leafs[cleaf].nchildren++;
+	  }
+      }
     return ISO_SUCCESS;
 }
 
 static int
 cmp_node(const void *f1, const void *f2)
 {
-    HFSPlusNode *f = *((HFSPlusNode**)f1);
-    HFSPlusNode *g = *((HFSPlusNode**)f2);
-    return ucscmp(f->name, g->name);
-}
+  HFSPlusNode *f = (HFSPlusNode*) f1;
+  HFSPlusNode *g = (HFSPlusNode*) f2;
+  const uint16_t empty[1] = {0};
+  const uint16_t *a, *b; 
+  if (f->parent_id > g->parent_id)
+    return +1;
+  if (f->parent_id < g->parent_id)
+    return -1;
+  a = f->cmp_name;
+  b = g->cmp_name;
+  if (!a)
+    a = empty;
+  if (!b)
+    b = empty;
 
-static
-void sort_tree(HFSPlusNode *root)
-{
-    size_t i;
-
-    qsort(root->info.dir->children, root->info.dir->nchildren,
-          sizeof(void*), cmp_node);
-    for (i = 0; i < root->info.dir->nchildren; i++) {
-        HFSPlusNode *child = root->info.dir->children[i];
-        if (child->type == HFSPLUS_DIR)
-            sort_tree(child);
-    }
-}
-
-static
-int cmp_node_name(const void *f1, const void *f2)
-{
-    HFSPlusNode *f = *((HFSPlusNode**)f1);
-    HFSPlusNode *g = *((HFSPlusNode**)f2);
-    return ucscmp(f->name, g->name);
-}
-
-static
-int hfsplus_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
-                                int number, uint16_t *ext)
-{
-    int ret, pos;
-    uint16_t *ucsnumber;
-    char fmt[16];
-    char nstr[72];
-              /* was: The only caller of this function allocates dest
-                      with 66 elements and limits digits to < 8
-                 But this does not match the usage of nstr which has to take
-                 the decimal representation of an int.
-              */
-
-    if (digits >= 8)
-        return ISO_ASSERT_FAILURE;
-
-    sprintf(fmt, "%%0%dd", digits);
-    sprintf(nstr, fmt, number);
-
-    ret = str2ucs("ASCII", nstr, &ucsnumber);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /* copy name */
-    pos = ucslen(src);
-    ucsncpy(dest, src, pos);
-
-    /* copy number */
-    ucsncpy(dest + pos, ucsnumber, digits);
-    pos += digits;
-
-    if (ext[0] != (uint16_t)0) {
-        size_t extlen = ucslen(ext);
-        dest[pos++] = (uint16_t)0x2E00; /* '.' in big endian UCS */
-        ucsncpy(dest + pos, ext, extlen);
-        pos += extlen;
-    }
-    dest[pos] = (uint16_t)0;
-    free(ucsnumber);
-    return ISO_SUCCESS;
-}
-
-static
-int mangle_single_dir(Ecma119Image *t, HFSPlusNode *dir)
-{
-    int ret;
-    int i, nchildren, maxchar = 255;
-    HFSPlusNode **children;
-    IsoHTable *table;
-    int need_sort = 0;
-    uint16_t *full_name = NULL;
-    uint16_t *tmp = NULL;
-
-    LIBISO_ALLOC_MEM(full_name, uint16_t, LIBISO_HFSPLUS_NAME_MAX);
-    LIBISO_ALLOC_MEM(tmp, uint16_t, LIBISO_HFSPLUS_NAME_MAX);
-    nchildren = dir->info.dir->nchildren;
-    children = dir->info.dir->children;
-
-    /* a hash table will temporary hold the names, for fast searching */
-    ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
-                            (compare_function_t)ucscmp, &table);
-    if (ret < 0) {
-        goto ex;
-    }
-    for (i = 0; i < nchildren; ++i) {
-        uint16_t *name = children[i]->name;
-        ret = iso_htable_add(table, name, name);
-        if (ret < 0) {
-            goto mangle_cleanup;
-        }
-    }
-
-    for (i = 0; i < nchildren; ++i) {
-        uint16_t *name, *ext;
-        int max; /* computed max len for name, without extension */
-        int j = i;
-        int digits = 1; /* characters to change per name */
-
-        /* first, find all child with same name */
-        while (j + 1 < nchildren &&
-                !cmp_node_name(children + i, children + j + 1)) {
-            ++j;
-        }
-        if (j == i) {
-            /* name is unique */
-            continue;
-        }
-
-        /*
-         * A max of 7 characters is good enought, it allows handling up to
-         * 9,999,999 files with same name.
-         */
-         /* Important: hfsplus_create_mangled_name() relies on digits < 8 */
-
-        while (digits < 8) {
-            int ok, k;
-            uint16_t *dot;
-            int change = 0; /* number to be written */
-
-            /* copy name to buffer */
-            ucscpy(full_name, children[i]->name);
-
-            /* compute name and extension */
-            dot = ucsrchr(full_name, '.');
-            if (dot != NULL && children[i]->type != HFSPLUS_DIR) {
-
-                /*
-                 * File (not dir) with extension
-                 */
-                int extlen;
-                full_name[dot - full_name] = 0;
-                name = full_name;
-                ext = dot + 1;
-
-                extlen = ucslen(ext);
-                max = maxchar + 1 - extlen - 1 - digits;
-                if (max <= 0) {
-                    /* this can happen if extension is too long */
-                    if (extlen + max > 3) {
-                        /*
-                         * reduce extension len, to give name an extra char
-                         * note that max is negative or 0
-                         */
-                        extlen = extlen + max - 1;
-                        ext[extlen] = 0;
-                        max = maxchar + 2 - extlen - 1 - digits;
-                    } else {
-                        /*
-                         * error, we don't support extensions < 3
-                         * This can't happen with current limit of digits.
-                         */
-                        ret = ISO_ERROR;
-                        goto mangle_cleanup;
-                    }
-                }
-                /* ok, reduce name by digits */
-                if (name + max < dot) {
-                    name[max] = 0;
-                }
-            } else {
-                /* Directory, or file without extension */
-                if (children[i]->type == HFSPLUS_DIR) {
-                    max = maxchar + 1 - digits;
-                    dot = NULL; /* dots have no meaning in dirs */
-                } else {
-                    max = maxchar + 1 - digits;
-                }
-                name = full_name;
-                if ((size_t) max < ucslen(name)) {
-                    name[max] = 0;
-                }
-                /* let ext be an empty string */
-                ext = name + ucslen(name);
-            }
-
-            ok = 1;
-            /* change name of each file */
-            for (k = i; k <= j; ++k) {
-                while (1) {
-                    ret = hfsplus_create_mangled_name(tmp, name, digits,
-                                                     change, ext);
-                    if (ret < 0) {
-                        goto mangle_cleanup;
-                    }
-                    ++change;
-                    if (change > int_pow(10, digits)) {
-                        ok = 0;
-                        break;
-                    }
-                    if (!iso_htable_get(table, tmp, NULL)) {
-                        /* the name is unique, so it can be used */
-                        break;
-                    }
-                }
-                if (ok) {
-                    uint16_t *new = ucsdup(tmp);
-                    if (new == NULL) {
-                        ret = ISO_OUT_OF_MEM;
-                        goto mangle_cleanup;
-                    }
-
-                    iso_htable_remove_ptr(table, children[k]->name, NULL);
-                    free(children[k]->name);
-                    children[k]->name = new;
-                    iso_htable_add(table, new, new);
-
-                    /*
-                     * if we change a name we need to sort again children
-                     * at the end
-                     */
-                    need_sort = 1;
-                } else {
-                    /* we need to increment digits */
-                    break;
-                }
-            }
-            if (ok) {
-                break;
-            } else {
-                ++digits;
-            }
-        }
-        if (digits == 8) {
-            ret = ISO_MANGLE_TOO_MUCH_FILES;
-            goto mangle_cleanup;
-        }
-        i = j;
-    }
-
-    /*
-     * If needed, sort again the files inside dir
-     */
-    if (need_sort) {
-        qsort(children, nchildren, sizeof(void*), cmp_node_name);
-    }
-
-    ret = ISO_SUCCESS;
-
-mangle_cleanup : ;
-ex:;
-    iso_htable_destroy(table, NULL);
-    LIBISO_FREE_MEM(tmp);
-    LIBISO_FREE_MEM(full_name);
-    return ret;
-}
-
-static
-int mangle_tree(Ecma119Image *t, HFSPlusNode *dir)
-{
-    int ret;
-    size_t i;
-
-    ret = mangle_single_dir(t, dir);
-    if (ret < 0) {
-        return ret;
-    }
-
-    /* recurse */
-    for (i = 0; i < dir->info.dir->nchildren; ++i) {
-        if (dir->info.dir->children[i]->type == HFSPLUS_DIR) {
-            ret = mangle_tree(t, dir->info.dir->children[i]);
-            if (ret < 0) {
-                /* error */
-                return ret;
-            }
-        }
-    }
-    return ISO_SUCCESS;
-}
-
-static
-int hfsplus_tree_create(Ecma119Image *t)
-{
-    int ret;
-    HFSPlusNode *root;
-
-    if (t == NULL) {
-        return ISO_NULL_POINTER;
-    }
-
-    ret = create_tree(t, (IsoNode*)t->image->root, &root, 0);
-    if (ret <= 0) {
-        if (ret == 0) {
-            /* unexpected error, root ignored!! This can't happen */
-            ret = ISO_ASSERT_FAILURE;
-        }
-        return ret;
-    }
-
-    /* the Hfsplus tree is stored in Ecma119Image target */
-    t->hfsplus_root = root;
-
-    iso_msg_debug(t->image->id, "Sorting the Hfsplus tree...");
-    sort_tree(root);
-
-    iso_msg_debug(t->image->id, "Mangling Hfsplus names...");
-    ret = mangle_tree(t, root);
-    if (ret < 0)
-        return ret;
-    return ISO_SUCCESS;
-}
-
-/**
- * Compute the size of a directory entry for a single node
- */
-static
-size_t calc_dirent_len(Ecma119Image *t, HFSPlusNode *n)
-{
-    /* note than name len is always even, so we always need the pad byte */
-    int ret = n->name ? ucslen(n->name) * 2 + 34 : 34;
-    if (n->type == HFSPLUS_FILE && !(t->omit_version_numbers & 3)) {
-        /* take into account version numbers */
-        ret += 4;
-    }
-    return ret;
-}
-
-/**
- * Computes the total size of all directory entries of a single hfsplus dir.
- * This is like ECMA-119 6.8.1.1, but taking care that names are stored in
- * UCS.
- */
-static
-size_t calc_dir_size(Ecma119Image *t, HFSPlusNode *dir)
-{
-    size_t i, len;
-
-    /* size of "." and ".." entries */
-    len = 34 + 34;
-
-    for (i = 0; i < dir->info.dir->nchildren; ++i) {
-        size_t remaining;
-        int section, nsections;
-        HFSPlusNode *child = dir->info.dir->children[i];
-        size_t dirent_len = calc_dirent_len(t, child);
-
-        nsections = (child->type == HFSPLUS_FILE) ? child->info.file->nsections : 1;
-        for (section = 0; section < nsections; ++section) {
-            remaining = HFSPLUS_BLOCK_SIZE - (len % HFSPLUS_BLOCK_SIZE);
-            if (dirent_len > remaining) {
-                /* child directory entry doesn't fit on block */
-                len += remaining + dirent_len;
-            } else {
-                len += dirent_len;
-            }
-        }
-    }
-
-    /*
-     * The size of a dir is always a multiple of block size, as we must add
-     * the size of the unused space after the last directory record
-     * (ECMA-119, 6.8.1.3)
-     */
-    len = ROUND_UP(len, HFSPLUS_BLOCK_SIZE);
-
-    /* cache the len */
-    dir->info.dir->len = len;
-    return len;
-}
-
-static
-void calc_dir_pos(Ecma119Image *t, HFSPlusNode *dir)
-{
-    size_t i, len;
-
-    t->hfsp_ndirs++;
-    dir->info.dir->block = t->curblock;
-    dir->cat_id = t->hfsp_cat_id++;
-    len = calc_dir_size(t, dir);
-    t->curblock += DIV_UP(len, HFSPLUS_BLOCK_SIZE);
-    for (i = 0; i < dir->info.dir->nchildren; i++) {
-        HFSPlusNode *child = dir->info.dir->children[i];
-        if (child->type == HFSPLUS_DIR)
-	  calc_dir_pos(t, child);
-        else
-	  {
-	    child->cat_id = t->hfsp_cat_id++;
-	    t->hfsp_nfiles++;
-	  }
-    }
+  return ucscmp(a, b);
 }
 
 static
@@ -653,6 +235,7 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     Ecma119Image *t;
     uint32_t old_curblock, total_size;
 
+
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
     }
@@ -660,9 +243,11 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
     old_curblock = t->curblock;
 
-    /* compute position of directories */
-    iso_msg_debug(t->image->id, "Computing position of Hfsplus dir structure");
-    calc_dir_pos(t, t->hfsplus_root);
+    t->hfsp_catalog_file_start = t->curblock;
+    t->curblock += 2 * t->hfsp_nnodes;
+
+    t->hfsp_extent_file_start = t->curblock;
+    t->curblock++;
 
     /* We need one bit for every block. */
     /* So if we allocate x blocks we have to satisfy:
@@ -671,118 +256,17 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
      */
     total_size = t->total_size + t->curblock - old_curblock;
     t->hfsp_allocation_blocks = total_size / (8 * HFSPLUS_BLOCK_SIZE - 1) + 1;
+    t->hfsp_allocation_file_start = t->curblock;
     t->curblock += t->hfsp_allocation_blocks;
+
+    iso_msg_debug(t->image->id, "curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);    
 
     return ISO_SUCCESS;
 }
 
-/**
- * Write a single directory record for Hfsplus. It is like (ECMA-119, 9.1),
- * but file identifier is stored in UCS.
- *
- * @param file_id
- *     if >= 0, we use it instead of the filename (for "." and ".." entries).
- * @param len_fi
- *     Computed length of the file identifier. Total size of the directory
- *     entry will be len + 34 (ECMA-119, 9.1.12), as padding is always needed
- */
-static
-void write_one_dir_record(Ecma119Image *t, HFSPlusNode *node, int file_id,
-                          uint8_t *buf, size_t len_fi, int extent)
+static void set_time (uint32_t *tm, uint32_t t)
 {
-    uint32_t len;
-    uint32_t block;
-    uint8_t len_dr; /*< size of dir entry */
-    int multi_extend = 0;
-    uint8_t *name = (file_id >= 0) ? (uint8_t*)&file_id
-            : (uint8_t*)node->name;
-
-    struct ecma119_dir_record *rec = (struct ecma119_dir_record*)buf;
-    IsoNode *iso;
-
-    len_dr = 33 + len_fi + ((len_fi % 2) ? 0 : 1);
-
-    memcpy(rec->file_id, name, len_fi);
-
-    if (node->type == HFSPLUS_FILE && !(t->omit_version_numbers & 3)) {
-        len_dr += 4;
-        rec->file_id[len_fi++] = 0;
-        rec->file_id[len_fi++] = ';';
-        rec->file_id[len_fi++] = 0;
-        rec->file_id[len_fi++] = '1';
-    }
-
-    if (node->type == HFSPLUS_DIR) {
-        /* use the cached length */
-        len = node->info.dir->len;
-        block = node->info.dir->block;
-    } else if (node->type == HFSPLUS_FILE) {
-        block = node->info.file->sections[extent].block;
-        len = node->info.file->sections[extent].size;
-        multi_extend = (node->info.file->nsections - 1 == extent) ? 0 : 1;
-    } else {
-        /*
-         * for nodes other than files and dirs, we set both
-         * len and block to 0
-         */
-        len = 0;
-        block = 0;
-    }
-
-    /*
-     * For ".." entry we need to write the parent info!
-     */
-    if (file_id == 1 && node->parent)
-        node = node->parent;
-
-    rec->len_dr[0] = len_dr;
-    iso_bb(rec->block, block - t->eff_partition_offset, 4);
-    iso_bb(rec->length, len, 4);
-
-    /* was: iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
-    */
-    iso= node->node;
-    iso_datetime_7(rec->recording_time, 
-                   (t->dir_rec_mtime & 2) ? ( t->replace_timestamps ?
-                                              t->timestamp : iso->mtime )
-                                          : t->now, t->always_gmt);
-
-    rec->flags[0] = ((node->type == HFSPLUS_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
-    iso_bb(rec->vol_seq_number, (uint32_t) 1, 2);
-    rec->len_fi[0] = len_fi;
-}
-
-/**
- * Copy up to \p max characters from \p src to \p dest. If \p src has less than
- * \p max characters, we pad dest with " " characters.
- */
-static
-void ucsncpy_pad(uint16_t *dest, const uint16_t *src, size_t max)
-{
-    char *cdest, *csrc;
-    size_t len, i;
-
-    cdest = (char*)dest;
-    csrc = (char*)src;
-
-    if (src != NULL) {
-        len = MIN(ucslen(src) * 2, max);
-    } else {
-        len = 0;
-    }
-
-    for (i = 0; i < len; ++i)
-        cdest[i] = csrc[i];
-
-    for (i = len; i < max; i += 2) {
-        cdest[i] = '\0';
-        cdest[i + 1] = ' ';
-    }
-}
-
-static void set_time (uint32_t *tm, Ecma119Image *t)
-{
-  iso_msb ((uint8_t *) tm, t->now + 2082844800, 4);
+  iso_msb ((uint8_t *) tm, t + 2082844800, 4);
 }
 
 int hfsplus_writer_write_vol_desc(IsoImageWriter *writer)
@@ -812,36 +296,56 @@ int hfsplus_writer_write_vol_desc(IsoImageWriter *writer)
 
   memset (&sb, 0, sizeof (sb));
 
+  t->hfsp_total_blocks = t->total_size / HFSPLUS_BLOCK_SIZE - t->hfsp_part_start;
+  t->hfsp_allocation_size = (t->hfsp_total_blocks + 7) >> 3;
+
   iso_msb ((uint8_t *) &sb.magic, 0x482b, 2);
   iso_msb ((uint8_t *) &sb.version, 4, 2);
   /* Cleanly unmounted, software locked.  */
   iso_msb ((uint8_t *) &sb.attributes, (1 << 8) | (1 << 15), 4);
   iso_msb ((uint8_t *) &sb.last_mounted_version, 0x6c69736f, 4);
-  set_time (&sb.ctime, t);
-  set_time (&sb.utime, t);
-  set_time (&sb.backup_time, t);
-  set_time (&sb.fsck_time, t);
+  set_time (&sb.ctime, t->now);
+  set_time (&sb.utime, t->now);
+  set_time (&sb.fsck_time, t->now);
   iso_msb ((uint8_t *) &sb.file_count, t->hfsp_nfiles, 4);
   iso_msb ((uint8_t *) &sb.folder_count, t->hfsp_ndirs, 4);
   iso_msb ((uint8_t *) &sb.blksize, 0x800, 4);
   iso_msb ((uint8_t *) &sb.catalog_node_id, t->hfsp_cat_id, 4);
-  iso_msb ((uint8_t *) &sb.rsrc_clumpsize, 0x800, 4);
-  iso_msb ((uint8_t *) &sb.data_clumpsize, 0x800, 4);
-  iso_msb ((uint8_t *) &sb.total_blocks, t->total_size / 0x800 - t->hfsp_part_start, 4);
-  /*  
-  uint64_t encodings_bitmap;
-  uint32_t ppc_bootdir;
-  uint32_t intel_bootfile;
-  uint32_t showfolder;
-  uint32_t os9folder;
-  uint32_t unused;
-  uint32_t osxfolder;
-  uint64_t num_serial;
-  struct hfsplus_forkdata allocations_file;
-  struct hfsplus_forkdata extents_file;
-  struct hfsplus_forkdata catalog_file;
-  struct hfsplus_forkdata attrib_file;
-  struct hfsplus_forkdata startup_file;*/
+  iso_msb ((uint8_t *) &sb.rsrc_clumpsize, HFSPLUS_BLOCK_SIZE, 4);
+  iso_msb ((uint8_t *) &sb.data_clumpsize, HFSPLUS_BLOCK_SIZE, 4);
+  iso_msb ((uint8_t *) &sb.total_blocks, t->hfsp_total_blocks, 4);
+  iso_msb ((uint8_t *) &sb.encodings_bitmap, 1, 8);
+
+  iso_msb ((uint8_t *) &sb.allocations_file.size, t->hfsp_allocation_size, 8);
+  iso_msb ((uint8_t *) &sb.allocations_file.clumpsize, HFSPLUS_BLOCK_SIZE, 4);
+  iso_msb ((uint8_t *) &sb.allocations_file.blocks, (t->hfsp_allocation_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
+  iso_msb ((uint8_t *) &sb.allocations_file.extents[0].start, t->hfsp_allocation_file_start - t->hfsp_part_start, 4);
+  iso_msb ((uint8_t *) &sb.allocations_file.extents[0].count, (t->hfsp_allocation_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
+
+  iso_msb ((uint8_t *) &sb.extents_file.size, HFSPLUS_BLOCK_SIZE, 8);
+  iso_msb ((uint8_t *) &sb.extents_file.clumpsize, HFSPLUS_BLOCK_SIZE, 4);
+  iso_msb ((uint8_t *) &sb.extents_file.blocks, 1, 4);
+  iso_msb ((uint8_t *) &sb.extents_file.extents[0].start, t->hfsp_extent_file_start - t->hfsp_part_start, 4);
+  iso_msb ((uint8_t *) &sb.extents_file.extents[0].count, 1, 4);
+  iso_msg_debug(t->image->id, "extent_file_start = %d\n", (int)t->hfsp_extent_file_start);
+
+  iso_msb ((uint8_t *) &sb.catalog_file.size, HFSPLUS_BLOCK_SIZE * 2 * t->hfsp_nnodes, 8);
+  iso_msb ((uint8_t *) &sb.catalog_file.clumpsize, HFSPLUS_BLOCK_SIZE * 2, 4);
+  iso_msb ((uint8_t *) &sb.catalog_file.blocks, 2 * t->hfsp_nnodes, 4);
+  iso_msb ((uint8_t *) &sb.catalog_file.extents[0].start, t->hfsp_catalog_file_start - t->hfsp_part_start, 4);
+  iso_msb ((uint8_t *) &sb.catalog_file.extents[0].count, 2 * t->hfsp_nnodes, 4);
+  iso_msg_debug(t->image->id, "catalog_file_start = %d\n", (int)t->hfsp_catalog_file_start);
+
+  /* 
+     FIXME: set:
+     uint32_t ppc_bootdir;
+     uint32_t intel_bootfile;
+     uint32_t showfolder;
+     uint32_t os9folder;
+     uint32_t unused;
+     uint32_t osxfolder;
+     uint64_t num_serial;
+  */
 
   ret = iso_write(t, &sb, sizeof (sb));
   if (ret < 0)
@@ -850,118 +354,303 @@ int hfsplus_writer_write_vol_desc(IsoImageWriter *writer)
 }
 
 static
-int write_one_dir(Ecma119Image *t, HFSPlusNode *dir)
+uid_t px_get_uid(Ecma119Image *t, IsoNode *n)
 {
-    int ret;
-    uint8_t *buffer = NULL;
-    size_t i;
-    size_t fi_len, len;
-
-    /* buf will point to current write position on buffer */
-    uint8_t *buf;
-
-    /* initialize buffer with 0s */
-    LIBISO_ALLOC_MEM(buffer, uint8_t, HFSPLUS_BLOCK_SIZE);
-    buf = buffer;
-
-    /* write the "." and ".." entries first */
-    write_one_dir_record(t, dir, 0, buf, 1, 0);
-    buf += 34;
-    write_one_dir_record(t, dir, 1, buf, 1, 0);
-    buf += 34;
-
-    for (i = 0; i < dir->info.dir->nchildren; i++) {
-        int section, nsections;
-        HFSPlusNode *child = dir->info.dir->children[i];
-
-        /* compute len of directory entry */
-        fi_len = ucslen(child->name) * 2;
-        len = fi_len + 34;
-        if (child->type == HFSPLUS_FILE && !(t->omit_version_numbers & 3)) {
-            len += 4;
-        }
-
-        nsections = (child->type == HFSPLUS_FILE) ? child->info.file->nsections : 1;
-
-        for (section = 0; section < nsections; ++section) {
-
-            if ( (buf + len - buffer) > HFSPLUS_BLOCK_SIZE) {
-                /* dir doesn't fit in current block */
-                ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
-                if (ret < 0) {
-                    goto ex;
-                }
-                memset(buffer, 0, HFSPLUS_BLOCK_SIZE);
-                buf = buffer;
-            }
-            /* write the directory entry in any case */
-            write_one_dir_record(t, child, -1, buf, fi_len, section);
-            buf += len;
-        }
+    if (t->replace_uid) {
+        return t->uid;
+    } else {
+        return n->uid;
     }
-
-    /* write the last block */
-    ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
-ex:;
-    LIBISO_FREE_MEM(buffer);
-    return ret;
 }
 
 static
-int write_dirs(Ecma119Image *t, HFSPlusNode *root)
+uid_t px_get_gid(Ecma119Image *t, IsoNode *n)
 {
-    int ret;
-    size_t i;
-
-    /* write all directory entries for this dir */
-    ret = write_one_dir(t, root);
-    if (ret < 0) {
-        return ret;
+    if (t->replace_gid) {
+        return t->gid;
+    } else {
+        return n->gid;
     }
-
-    /* recurse */
-    for (i = 0; i < root->info.dir->nchildren; i++) {
-        HFSPlusNode *child = root->info.dir->children[i];
-        if (child->type == HFSPLUS_DIR) {
-            ret = write_dirs(t, child);
-            if (ret < 0) {
-                return ret;
-            }
-        }
-    }
-    return ISO_SUCCESS;
 }
 
 static
-int hfsplus_writer_write_dirs(IsoImageWriter *writer)
+mode_t px_get_mode(Ecma119Image *t, IsoNode *n, int isdir)
 {
-    int ret;
-    Ecma119Image *t;
-
-    t = writer->target;
-
-    /* first of all, we write the directory structure */
-    ret = write_dirs(t, t->hfsplus_root);
-    if (ret < 0) {
-        return ret;
+    if (isdir) {
+        if (t->replace_dir_mode) {
+            return (n->mode & S_IFMT) | t->dir_mode;
+        }
+    } else {
+        if (t->replace_file_mode) {
+            return (n->mode & S_IFMT) | t->file_mode;
+        }
     }
-
-    return ret;
+    return n->mode;
 }
+
 
 static
 int hfsplus_writer_write_data(IsoImageWriter *writer)
 {
     int ret;
+    static char buffer[2 * HFSPLUS_BLOCK_SIZE];
+    uint32_t complete_blocks, remaining_blocks;
+    int over;
+    Ecma119Image *t = writer->target;
+    struct hfsplus_btnode *node_head;
+    struct hfsplus_btheader *tree_head;
+    int level;
+    uint32_t curpos = 1;
+    uint32_t src_start;
+    uint64_t src_size;
 
     if (writer == NULL) {
         return ISO_NULL_POINTER;
     }
 
-    ret = hfsplus_writer_write_dirs(writer);
+    iso_msg_debug(t->image->id, "real catalog_file_start = %d\n", (int)t->bytes_written / 2048);
+
+    memset (buffer, 0, sizeof (buffer));
+    node_head = (struct hfsplus_btnode *) buffer;
+    node_head->type = 1;
+    iso_msb ((uint8_t *) &node_head->count, 3, 2);
+    tree_head = (struct hfsplus_btheader *) (node_head + 1);
+    iso_msb ((uint8_t *) &tree_head->depth, t->hfsp_nlevels, 2);
+    iso_msb ((uint8_t *) &tree_head->root, 1, 4);
+    iso_msb ((uint8_t *) &tree_head->leaf_records, t->hfsp_nleafs, 4);
+    iso_msb ((uint8_t *) &tree_head->first_leaf_node, t->hfsp_nnodes - t->hfsp_levels[t->hfsp_nlevels - 1].level_size, 4);
+    iso_msb ((uint8_t *) &tree_head->last_leaf_node, t->hfsp_nnodes - 1, 4);
+    iso_msb ((uint8_t *) &tree_head->nodesize, HFSPLUS_CAT_NODE_SIZE, 2);
+    iso_msb ((uint8_t *) &tree_head->keysize, 6 + 2 * LIBISO_HFSPLUS_NAME_MAX, 2);
+    iso_msb ((uint8_t *) &tree_head->total_nodes, t->hfsp_nnodes, 4);
+    iso_msb ((uint8_t *) &tree_head->free_nodes, 0, 4);
+    iso_msb ((uint8_t *) &tree_head->clump_size, HFSPLUS_CAT_NODE_SIZE, 4);
+    tree_head->key_compare = 0xcf;
+    iso_msb ((uint8_t *) &tree_head->attributes, 2, 4);
+    memset (buffer + 0xf8, -1, t->hfsp_nnodes / 8);
+    buffer[0xf8 + (t->hfsp_nnodes / 8)] = 0xff00 >> (t->hfsp_nnodes % 8);
+
+    buffer[HFSPLUS_CAT_NODE_SIZE - 1] = sizeof (*node_head);
+    buffer[HFSPLUS_CAT_NODE_SIZE - 3] = sizeof (*node_head) + sizeof (*tree_head);
+    buffer[HFSPLUS_CAT_NODE_SIZE - 5] = (char) 0xf8;
+    buffer[HFSPLUS_CAT_NODE_SIZE - 7] = HFSPLUS_CAT_NODE_SIZE & 0xff;
+    buffer[HFSPLUS_CAT_NODE_SIZE - 8] = HFSPLUS_CAT_NODE_SIZE >> 8;
+
+    iso_msg_debug(t->image->id, "Write\n");
+    ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
     if (ret < 0)
         return ret;
 
+    for (level = t->hfsp_nlevels - 1; level > 0; level--)
+      {
+	uint32_t i;
+	uint32_t next_lev = curpos + t->hfsp_levels[level].level_size;
+	for (i = 0; i < t->hfsp_levels[level].level_size; i++)
+	  {
+	    uint32_t curoff;
+	    uint32_t j;
+	    uint32_t curnode = t->hfsp_levels[level].nodes[i].start;
+	    memset (buffer, 0, sizeof (buffer));
+	    node_head = (struct hfsplus_btnode *) buffer;
+	    if (i != t->hfsp_levels[level].level_size - 1)
+	      iso_msb ((uint8_t *) &node_head->next, curpos + i + 1, 4);
+	    if (i != 0)
+	      iso_msb ((uint8_t *) &node_head->prev, curpos + i - 1, 4);
+	    node_head->type = 0;
+	    node_head->height = level + 1;
+	    iso_msb ((uint8_t *) &node_head->count, t->hfsp_levels[level].nodes[i].cnt, 2);
+	    curoff = sizeof (struct hfsplus_btnode);
+	    for (j = 0; j < t->hfsp_levels[level].nodes[i].cnt; j++)
+	      {
+		iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+
+		iso_msb ((uint8_t *) buffer + curoff, 2 * t->hfsp_levels[level - 1].nodes[curnode].strlen + 6, 2);
+		iso_msb ((uint8_t *) buffer + curoff + 2, t->hfsp_levels[level - 1].nodes[curnode].parent_id, 4);
+		iso_msb ((uint8_t *) buffer + curoff + 6, t->hfsp_levels[level - 1].nodes[curnode].strlen, 2);
+		curoff += 8;
+		memcpy ((uint8_t *) buffer + curoff, t->hfsp_levels[level - 1].nodes[curnode].str, t->hfsp_levels[level - 1].nodes[curnode].strlen);
+		curoff += 2 * t->hfsp_levels[level - 1].nodes[curnode].strlen;
+		iso_msb ((uint8_t *) buffer + curoff, next_lev + curnode, 4);
+		curoff += 4;
+		curnode++;
+	      }
+	    iso_msb ((uint8_t *) buffer +  HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+	    iso_msg_debug(t->image->id, "Write\n");
+
+	    ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
+
+	    if (ret < 0)
+	      return ret;
+	  }
+	curpos = next_lev;
+      }
+
+    {
+      uint32_t i;
+      uint32_t next_lev = curpos + t->hfsp_levels[level].level_size;
+      for (i = 0; i < t->hfsp_levels[level].level_size; i++)
+	{
+	  uint32_t curoff;
+	  uint32_t j;
+	  uint32_t curnode = t->hfsp_levels[level].nodes[i].start;
+	  memset (buffer, 0, sizeof (buffer));
+	  node_head = (struct hfsplus_btnode *) buffer;
+	  if (i != t->hfsp_levels[level].level_size - 1)
+	    iso_msb ((uint8_t *) &node_head->next, curpos + i + 1, 4);
+	  if (i != 0)
+	    iso_msb ((uint8_t *) &node_head->prev, curpos + i - 1, 4);
+	  node_head->type = -1;
+	  node_head->height = level + 1;
+	  iso_msb ((uint8_t *) &node_head->count, t->hfsp_levels[level].nodes[i].cnt, 2);
+	  curoff = sizeof (struct hfsplus_btnode);
+	  for (j = 0; j < t->hfsp_levels[level].nodes[i].cnt; j++)
+	    {
+	      iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+	      iso_msg_debug(t->image->id, "%d out of %d, %p", (int) curnode, t->hfsp_nleafs,
+			    t->hfsp_leafs[curnode].node);
+
+	      switch (t->hfsp_leafs[curnode].type)
+		{
+		case HFSPLUS_FILE_THREAD:
+		case HFSPLUS_DIR_THREAD:
+		  {
+		    struct hfsplus_catfile_thread *thread;
+		    iso_msb ((uint8_t *) buffer + curoff, 6, 2);
+		    iso_msb ((uint8_t *) buffer + curoff + 2, t->hfsp_leafs[curnode].parent_id, 4);
+		    iso_msb ((uint8_t *) buffer + curoff + 6, 0, 2);
+		    curoff += 8;
+		    thread = (struct hfsplus_catfile_thread *) (buffer + curoff);
+		    ((uint8_t *) &thread->type)[1] = t->hfsp_leafs[curnode].type;
+		    iso_msb ((uint8_t *) &thread->parentid, t->hfsp_leafs[curnode].parent_id, 4);
+		    iso_msb ((uint8_t *) &thread->namelen, t->hfsp_leafs[curnode].strlen, 4);
+		    curoff += sizeof (*thread);
+		    memcpy (buffer + curoff, t->hfsp_leafs[curnode].name, t->hfsp_leafs[curnode].strlen * 2);
+		    curoff += t->hfsp_leafs[curnode].strlen * 2;
+		    break;
+		  }
+		case HFSPLUS_FILE:
+		case HFSPLUS_DIR:
+		  {
+		    struct hfsplus_catfile_common *common;
+		    struct hfsplus_forkdata *data_fork;
+		    iso_msb ((uint8_t *) buffer + curoff, 6 + 2 * t->hfsp_leafs[curnode].strlen, 2);
+		    iso_msb ((uint8_t *) buffer + curoff + 2, t->hfsp_leafs[curnode].parent_id, 4);
+		    iso_msb ((uint8_t *) buffer + curoff + 6, t->hfsp_leafs[curnode].strlen, 2);
+		    curoff += 8;
+		    memcpy (buffer + curoff, t->hfsp_leafs[curnode].name, t->hfsp_leafs[curnode].strlen * 2);
+		    curoff += t->hfsp_leafs[curnode].strlen * 2;
+
+		    common = (struct hfsplus_catfile_common *) (buffer + curoff);
+		    ((uint8_t *) &common->type)[1] = t->hfsp_leafs[curnode].type;
+		    iso_msb ((uint8_t *) &common->valence, t->hfsp_leafs[curnode].nchildren, 2);
+		    iso_msb ((uint8_t *) &common->fileid, t->hfsp_leafs[curnode].cat_id, 4);
+		    set_time (&common->ctime, t->hfsp_leafs[curnode].node->ctime);
+		    set_time (&common->mtime, t->hfsp_leafs[curnode].node->mtime);
+		    /* FIXME: distinguish attr_mtime and mtime.  */
+		    set_time (&common->attr_mtime, t->hfsp_leafs[curnode].node->mtime);
+		    set_time (&common->atime, t->hfsp_leafs[curnode].node->atime);
+
+		    iso_msb ((uint8_t *) &common->uid, px_get_uid (t, t->hfsp_leafs[curnode].node), 4);
+		    iso_msb ((uint8_t *) &common->gid, px_get_gid (t, t->hfsp_leafs[curnode].node), 4);
+		    iso_msb ((uint8_t *) &common->mode, px_get_mode (t, t->hfsp_leafs[curnode].node, (t->hfsp_leafs[curnode].type == HFSPLUS_DIR)), 2);
+
+		    /*
+		      FIXME:
+		      uint8_t user_flags;
+		      uint8_t group_flags;
+		      uint32_t special;
+		      uint8_t finder_info[32];
+		    */
+
+		    iso_msb ((uint8_t *) &common->flags, (t->hfsp_leafs[curnode].type == HFSPLUS_DIR) ? 0 : 2, 2);
+		    if (t->hfsp_leafs[curnode].type == HFSPLUS_FILE)
+		      {
+			curoff += sizeof (*common);
+			data_fork = (struct hfsplus_forkdata *) (buffer + curoff);
+			ret = filesrc_block_and_size(t, t->hfsp_leafs[curnode].file, &src_start, &src_size);
+			if (ret < 0)
+				return ret;
+
+			iso_msb ((uint8_t *) &data_fork->size, src_size >> 32, 4);
+			iso_msb ((uint8_t *) &data_fork->size + 4, src_size, 4);
+			iso_msb ((uint8_t *) &data_fork->clumpsize, HFSPLUS_BLOCK_SIZE, 4);
+			iso_msb ((uint8_t *) &data_fork->blocks, (src_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
+			iso_msb ((uint8_t *) &data_fork->extents[0].start, src_start - t->hfsp_part_start, 4);
+			iso_msb ((uint8_t *) &data_fork->extents[0].count, (src_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
+			
+			curoff += sizeof (*data_fork) * 2;
+			/* FIXME: resource fork */
+		      }
+		    break;
+		  }
+		}
+	      curnode++;
+	    }
+	  iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+	  iso_msg_debug(t->image->id, "Write\n");
+	  ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
+	  if (ret < 0)
+	    return ret;
+	}
+	curpos = next_lev;
+    }
+    iso_msg_debug(t->image->id, "%d written", (int) t->bytes_written);
+
+    iso_msg_debug(t->image->id, "real extent_file_start = %d\n", (int)t->bytes_written / 2048);
+
+    memset (buffer, 0, sizeof (buffer));
+    node_head = (struct hfsplus_btnode *) buffer;
+    node_head->type = 1;
+    iso_msb ((uint8_t *) &node_head->count, 3, 2);
+    tree_head = (struct hfsplus_btheader *) (node_head + 1);
+    iso_msb ((uint8_t *) &tree_head->nodesize, HFSPLUS_BLOCK_SIZE, 2);
+    iso_msb ((uint8_t *) &tree_head->keysize, 10, 2);
+    iso_msb ((uint8_t *) &tree_head->total_nodes, 1, 4);
+    iso_msb ((uint8_t *) &tree_head->free_nodes, 0, 4);
+    iso_msb ((uint8_t *) &tree_head->clump_size, HFSPLUS_BLOCK_SIZE, 4);
+    iso_msb ((uint8_t *) &tree_head->attributes, 2, 4);
+    buffer[0xf8] = (char) 0x80;
+
+    buffer[HFSPLUS_BLOCK_SIZE - 1] = sizeof (*node_head);
+    buffer[HFSPLUS_BLOCK_SIZE - 3] = sizeof (*node_head) + sizeof (*tree_head);
+    buffer[HFSPLUS_BLOCK_SIZE - 5] = (char) 0xf8;
+    buffer[HFSPLUS_BLOCK_SIZE - 7] = HFSPLUS_BLOCK_SIZE & 0xff;
+    buffer[HFSPLUS_BLOCK_SIZE - 8] = HFSPLUS_BLOCK_SIZE >> 8;
+
+    ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
+    if (ret < 0)
+        return ret;
+
+    memset (buffer, -1, sizeof (buffer));
+    complete_blocks = (t->hfsp_allocation_size - 1) / HFSPLUS_BLOCK_SIZE;
+    remaining_blocks = t->hfsp_allocation_blocks - complete_blocks;
+
+    while (complete_blocks--)
+      {
+	ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
+	if (ret < 0)
+	  return ret;
+      }
+    over = (t->hfsp_allocation_size - 1) % HFSPLUS_BLOCK_SIZE;
+    if (over)
+      {
+	memset (buffer + over, 0, sizeof (buffer) - over);
+	buffer[over] = 0xff00 >> (t->hfsp_total_blocks % 8);
+	ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
+	if (ret < 0)
+	  return ret;
+	remaining_blocks--;
+      }
+    memset (buffer, 0, sizeof (buffer));
+    /* When we have both FAT and HFS+ we may to overestimate needed blocks a bit.  */
+    while (remaining_blocks--)
+      {
+	ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
+	if (ret < 0)
+	  return ret;
+      }
+
+    iso_msg_debug(t->image->id, "%d written", (int) t->bytes_written);
     return ISO_SUCCESS;
 }
 
@@ -970,7 +659,12 @@ int hfsplus_writer_free_data(IsoImageWriter *writer)
 {
     /* free the Hfsplus tree */
     Ecma119Image *t = writer->target;
-    hfsplus_node_free(t->hfsplus_root);
+    uint32_t i;
+    for (i = 0; i < t->hfsp_curleaf; i++)
+      if (t->hfsp_leafs[i].type != HFSPLUS_FILE_THREAD
+	  && t->hfsp_leafs[i].type != HFSPLUS_DIR_THREAD)
+	free (t->hfsp_leafs[i].name);
+    free(t->hfsp_leafs);
     return ISO_SUCCESS;
 }
 
@@ -978,6 +672,10 @@ int hfsplus_writer_create(Ecma119Image *target)
 {
     int ret;
     IsoImageWriter *writer;
+    int max_levels;
+    int level = 0;
+    IsoNode *pos;
+    IsoDir *dir;
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
@@ -992,18 +690,176 @@ int hfsplus_writer_create(Ecma119Image *target)
     writer->target = target;
 
     iso_msg_debug(target->image->id, "Creating low level Hfsplus tree...");
-    ret = hfsplus_tree_create(target);
+    target->hfsp_nfiles = 0;
+    target->hfsp_ndirs = 0;
+    target->hfsp_cat_id = 16;
+    ret = hfsplus_count_tree(target, (IsoNode*)target->image->root);
     if (ret < 0) {
         free((char *) writer);
         return ret;
     }
 
+    target->hfsp_nleafs = 2 * (target->hfsp_nfiles + target->hfsp_ndirs);
+    target->hfsp_curleaf = 0;
+
+    target->hfsp_leafs = malloc (target->hfsp_nleafs * sizeof (target->hfsp_leafs[0]));
+    if (target->hfsp_leafs == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+
+    set_hfsplus_name (target, target->image->volume_id, &target->hfsp_leafs[target->hfsp_curleaf]);
+    target->hfsp_leafs[target->hfsp_curleaf].node = (IsoNode *) target->image->root;
+    target->hfsp_leafs[target->hfsp_curleaf].used_size = target->hfsp_leafs[target->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common);
+
+    target->hfsp_leafs[target->hfsp_curleaf].type = HFSPLUS_DIR;
+    target->hfsp_leafs[target->hfsp_curleaf].file = 0;
+    target->hfsp_leafs[target->hfsp_curleaf].cat_id = 2;
+    target->hfsp_leafs[target->hfsp_curleaf].parent_id = 1;
+    target->hfsp_leafs[target->hfsp_curleaf].nchildren = 0;
+    target->hfsp_curleaf++;
+
+    target->hfsp_leafs[target->hfsp_curleaf].name = target->hfsp_leafs[target->hfsp_curleaf - 1].name;
+    target->hfsp_leafs[target->hfsp_curleaf].cmp_name = 0;
+    target->hfsp_leafs[target->hfsp_curleaf].strlen = target->hfsp_leafs[target->hfsp_curleaf - 1].strlen;
+    target->hfsp_leafs[target->hfsp_curleaf].used_size = target->hfsp_leafs[target->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_thread);
+    target->hfsp_leafs[target->hfsp_curleaf].node = (IsoNode *) target->image->root;
+    target->hfsp_leafs[target->hfsp_curleaf].type = HFSPLUS_DIR_THREAD;
+    target->hfsp_leafs[target->hfsp_curleaf].file = 0;
+    target->hfsp_leafs[target->hfsp_curleaf].cat_id = 2;
+    target->hfsp_leafs[target->hfsp_curleaf].parent_id = 2;
+    target->hfsp_curleaf++;
+
+    dir = (IsoDir*)target->image->root;
+
+    pos = dir->children;
+    while (pos)
+      {
+	int cret;
+	cret = create_tree(target, pos, 2);
+	if (cret < 0)
+	  return cret;
+	pos = pos->next;
+	target->hfsp_leafs[0].nchildren++;
+      }
+
+    qsort(target->hfsp_leafs, target->hfsp_nleafs,
+          sizeof(*target->hfsp_leafs), cmp_node);
+
+    for (max_levels = 0; target->hfsp_nleafs >> max_levels; max_levels++);
+    max_levels += 2;
+    target->hfsp_levels = malloc (max_levels * sizeof (target->hfsp_levels[0]));
+    if (target->hfsp_levels == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+
+    target->hfsp_nnodes = 1;
+    {
+      uint32_t last_start = 0;
+      uint32_t i;
+      unsigned bytes_rem = HFSPLUS_CAT_NODE_SIZE - sizeof (struct hfsplus_btnode) - 2;
+
+      target->hfsp_levels[level].nodes = malloc ((target->hfsp_nleafs + 1) *  sizeof (target->hfsp_levels[level].nodes[0]));
+      if (!target->hfsp_levels[level].nodes)
+	return ISO_OUT_OF_MEM;
+    
+      target->hfsp_levels[level].level_size = 0;  
+      for (i = 0; i < target->hfsp_nleafs; i++)
+	{
+	  if (bytes_rem < target->hfsp_leafs[i].used_size)
+	    {
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].start = last_start;
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].cnt = i - last_start;
+	      if (target->hfsp_leafs[last_start].cmp_name)
+		{
+		  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].strlen = target->hfsp_leafs[last_start].strlen;
+		  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].str = target->hfsp_leafs[last_start].name;
+		}
+	      else
+		{
+		  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].strlen = 0;
+		  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].str = NULL;
+		}
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].parent_id = target->hfsp_leafs[last_start].parent_id;
+	      target->hfsp_levels[level].level_size++;
+	      last_start = i;
+	      bytes_rem = HFSPLUS_CAT_NODE_SIZE - sizeof (struct hfsplus_btnode) - 2;
+	    }
+	  bytes_rem -= target->hfsp_leafs[i].used_size;
+	}
+
+      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].start = last_start;
+      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].cnt = i - last_start;
+      if (target->hfsp_leafs[last_start].cmp_name)
+	{
+	  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].strlen = target->hfsp_leafs[last_start].strlen;
+	  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].str = target->hfsp_leafs[last_start].name;
+	}
+      else
+	{
+	  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].strlen = 0;
+	  target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].str = NULL;
+	}
+      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].parent_id = target->hfsp_leafs[last_start].parent_id;
+      target->hfsp_levels[level].level_size++;
+      target->hfsp_nnodes += target->hfsp_levels[level].level_size;
+    }
+
+    while (target->hfsp_levels[level].level_size > 1)
+      {
+	uint32_t last_start = 0;
+	uint32_t i;
+	uint32_t last_size;
+	unsigned bytes_rem = HFSPLUS_CAT_NODE_SIZE - sizeof (struct hfsplus_btnode) - 2;
+
+	last_size = target->hfsp_levels[level].level_size;
+
+	level++;
+
+	target->hfsp_levels[level].nodes = malloc (((last_size + 1) / 2) *  sizeof (target->hfsp_levels[level].nodes[0]));
+	if (!target->hfsp_levels[level].nodes)
+	  return ISO_OUT_OF_MEM;
+    
+	target->hfsp_levels[level].level_size = 0;  
+
+	for (i = 0; i < last_size; i++)
+	  {
+	    uint32_t used_size;
+	    used_size = target->hfsp_levels[level - 1].nodes[i].strlen * 2 + 14;
+	    if (bytes_rem < used_size)
+	    {
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].start = last_start;
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].cnt = i - last_start;
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].strlen = target->hfsp_levels[level - 1].nodes[last_start].strlen;
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].str = target->hfsp_levels[level - 1].nodes[last_start].str;
+	      target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].parent_id = target->hfsp_levels[level - 1].nodes[last_start].parent_id;
+	      target->hfsp_levels[level].level_size++;
+	      last_start = i;
+	      bytes_rem = HFSPLUS_CAT_NODE_SIZE - sizeof (struct hfsplus_btnode) - 2;
+	    }
+	  bytes_rem -= used_size;
+	}
+
+	target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].start = last_start;
+	target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].cnt = i - last_start;
+	target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].strlen = target->hfsp_levels[level - 1].nodes[last_start].strlen;
+	target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].str = target->hfsp_levels[level - 1].nodes[last_start].str;
+	target->hfsp_levels[level].nodes[target->hfsp_levels[level].level_size].parent_id = target->hfsp_levels[level - 1].nodes[last_start].parent_id;
+	target->hfsp_levels[level].level_size++;
+	target->hfsp_nnodes += target->hfsp_levels[level].level_size;
+      }
+
+    target->hfsp_nlevels = level + 1;
+
+    if (target->hfsp_nnodes > (HFSPLUS_CAT_NODE_SIZE - 0x100) * 8)
+      {
+	return iso_msg_submit(target->image->id, ISO_MANGLE_TOO_MUCH_FILES, 0,
+			      "HFS+ map nodes aren't implemented");
+
+	return ISO_MANGLE_TOO_MUCH_FILES;
+      }
+
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
-    target->hfsp_nfiles = 0;
-    target->hfsp_ndirs = 0;
-    target->hfsp_cat_id = 1;
-
 
     /* we need the volume descriptor */
     target->curblock++;
