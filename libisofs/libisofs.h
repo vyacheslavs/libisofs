@@ -6647,6 +6647,53 @@ int iso_md5_end(void **md5_context, char result[16]);
 int iso_md5_match(char first_md5[16], char second_md5[16]);
 
 
+/* -------------------------------- For HFS+ ------------------------------- */
+
+
+/** 
+ * HFS+ attributes which may be attached to IsoNode objects as data parameter
+ * of iso_node_add_xinfo(). As parameter proc use iso_hfsplus_xinfo_func().
+ * Create instances of this struct by iso_hfsplus_xinfo_new().
+ *
+ * @since 1.2.4
+ */
+struct iso_hfsplus_xinfo_data {
+
+  /* Currently set to 0 by iso_hfsplus_xinfo_new() */
+  int version;
+
+  /* Attributes available with version 0.
+   * See: http://en.wikipedia.org/wiki/Creator_code , .../Type_code
+   * @since 1.2.4
+  */
+  unsigned int creator_code :4;
+  unsigned int type_code :4;
+};
+
+/** 
+ * The function that is used to mark struct iso_hfsplus_xinfo_data at IsoNodes
+ * and finally disposes such structs when their IsoNodes get disposed.
+ * Usually an application does not call this function, but only uses it as
+ * parameter of xinfo calls like iso_node_add_xinfo() or iso_node_get_xinfo().
+ *
+ * @since 1.2.4
+ */
+int iso_hfsplus_xinfo_func(void *data, int flag);
+
+/** 
+ * Create an instance of struct iso_hfsplus_xinfo_new().
+ *
+ * @param flag
+ *      Bitfield for control purposes. Unused yet. Submit 0.
+ * @return
+ *      A pointer to the new object
+ *      NULL indicates failure to allocate memory
+ *
+ * @since 1.2.4
+ */
+struct iso_hfsplus_xinfo_data *iso_hfsplus_xinfo_new(int flag);
+
+
 /************ Error codes and return values for libisofs ********************/
 
 /** successfully execution */

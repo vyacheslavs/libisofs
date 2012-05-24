@@ -2064,4 +2064,24 @@ void *iso_alloc_mem(size_t size, size_t count, int flag)
 	iso_msg_submit(-1, ISO_OUT_OF_MEM, 0, "Out of virtual memory");
     return pt;
 }
+
+
+int iso_hfsplus_xinfo_func(void *data, int flag)
+{
+    if (flag == 1 && data != NULL)
+        free(data);
+    return 1;
+}
+
+
+struct iso_hfsplus_xinfo_data *iso_hfsplus_xinfo_new(int flag)
+{
+    struct iso_hfsplus_xinfo_data *o;
+
+    o = calloc(1, sizeof(struct iso_hfsplus_xinfo_data));
+    if (o == NULL)
+        return NULL;
+    o->version = 0;
+    return o;
+}
  
