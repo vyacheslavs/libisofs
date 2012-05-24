@@ -40,8 +40,7 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
  * Be cautious with changing parameters. Only few combinations are tested.
  *
  */
-int make_isolinux_mbr(uint32_t *img_blocks, uint32_t boot_lba,
-                      uint32_t mbr_id, int head_count, int sector_count,
+int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
                       uint8_t *buf, int flag);
 
@@ -750,9 +749,16 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             */
             return ISO_ISOLINUX_CANT_PATCH;
         }
-        ret = make_isolinux_mbr(&img_blocks, t->bootsrc[0]->sections[0].block,
-                               (uint32_t) 0, t->partition_heads_per_cyl,
-                               t->partition_secs_per_head, 0, 1, 0x17, buf, 1);
+
+        /* >>> ISOHYBRID : need option to set fs_type of MBR partition 1 
+                           (here it is 0x17) */;
+
+        /* >>> ??? Why is partition_offset 0 here ?
+                   It gets adjusted later by iso_offset_partition_start()
+                   Would it harm to give the real offset here ?
+        */;
+
+        ret = make_isolinux_mbr(&img_blocks, t, 0, 1, 0x17, buf, 1);
         if (ret != 1)
             return ret;
     } else if (sa_type == 1) {
@@ -911,6 +917,9 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         iso_msgs_submit(0,
                   "Image size exceeds 1024 cylinders. Cannot align partition.",
                   0, "WARNING", 0);
+        iso_msgs_submit(0,
+               "There are said to be BIOSes which will not boot this via MBR.",
+               0, "WARNING", 0);
         {ret = ISO_SUCCESS; goto ex;}
     }
 

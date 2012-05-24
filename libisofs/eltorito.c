@@ -197,14 +197,14 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg)
  */
 int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag)
 {
-    bootimg->isolinux_options = (options & 0x03);
+    bootimg->isolinux_options = (options & 0x01ff);
     return ISO_SUCCESS;
 }
 
 /* API */
 int el_torito_get_isolinux_options(ElToritoBootImage *bootimg, int flag)
 {
-    return bootimg->isolinux_options & 0x03;
+    return bootimg->isolinux_options & 0x01ff;
 }
 
 /* API */

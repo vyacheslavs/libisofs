@@ -23,6 +23,21 @@
 /* for gettimeofday() */
 #include <sys/time.h>
 
+/* >>> ISOHYBRID : Need ./configure test for uuid_generate() which checks for:
+                   uuid_t, uuid_generate, the need for -luuid
+*/
+/* <<<
+#define Libisofs_with_uuid_generatE 1
+*/
+
+#ifdef Libisofs_with_uuid_generatE
+#include <uuid/uuid.h>
+#endif
+
+#include "filesrc.h"
+#include "ecma119.h"
+#include "eltorito.h"
+
 
 /* This code stems from syslinux-3.72/utils/isohybrid, a perl script
 under GPL which is Copyright 2002-2008 H. Peter Anvin.
@@ -45,7 +60,7 @@ license from above stem licenses, typically from LGPL.
 In case its generosity is needed, here is the 2-clause BSD license:
 
 make_isohybrid_mbr.c is copyright 2002-2008 H. Peter Anvin
-                              and 2008-2010 Thomas Schmitt
+                              and 2008-2012 Thomas Schmitt
 
 1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
@@ -353,6 +368,9 @@ Main:
 */
 
 
+/* >>> ISOHYBRID : mention the new stuff learned from mjg and isohybrid.c */
+
+
 static
 int lba512chs_to_buf(char **wpt, off_t lba, int head_count, int sector_count)
 {
@@ -377,27 +395,380 @@ int lba512chs_to_buf(char **wpt, off_t lba, int head_count, int sector_count)
 }
 
 
+/* Find out whether GPT and APM are desired */
+static int assess_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
+                          int *apm_count)
+{
+    int i, ilx_opts;
+
+    for (i = 0; i < t->catalog->num_bootimages; i++) {
+        ilx_opts = t->catalog->bootimages[i]->isolinux_options;
+        if (((ilx_opts >> 2) & 63) == 1 || ((ilx_opts >> 2) & 63) == 2) {
+            if (*gpt_count < 128)
+                gpt_idx[*gpt_count]= i;
+            (*gpt_count)++;
+        }
+        if (ilx_opts & 256)
+            (*apm_count)++;
+    }
+    if (*apm_count > 6) {
+        iso_msgs_submit(0,
+                   "Too many entries desired for Apple Partition Map. (max 6)",
+                   0, "FAILURE", 0);
+        return ISO_ISOLINUX_CANT_PATCH;
+    }
+    return ISO_SUCCESS;
+}
+
+
+/* Insert APM head into MBR */
+static int insert_apm_head(uint8_t *buf, int apm_count)
+{
+    int i;
+    static uint8_t apm_mbr_start[32] = {
+        0x33, 0xed, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+        0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90
+    };
+    static uint8_t apm_head[32] = {
+        0x45, 0x52, 0x08, 0x00, 0x00, 0x00, 0x90, 0x90,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
+    if (apm_count) {
+        for (i = 0; i < 32; i++)
+            if(buf[i] != apm_mbr_start[i])
+        break;
+        if (i < 32) {
+            iso_msgs_submit(0,
+               "MBR template file seems not prepared for Apple Partition Map.",
+               0, "FAILURE", 0);
+            return ISO_ISOLINUX_CANT_PATCH;
+        }
+        for (i = 0; i < 32; i++)
+            buf[i] = apm_head[i];
+    }
+    return ISO_SUCCESS;
+}
+
+
+#ifdef Libisofs_with_uuid_generatE
+
+static void swap_uuid(void *u_pt)
+{
+     uint8_t tr, *u;
+
+     u = (uint8_t *) u_pt;
+     tr = u[0]; u[0] = u[3]; u[3] = tr;
+     tr = u[1]; u[1] = u[2]; u[2] = tr;
+     tr = u[4]; u[4] = u[5]; u[5] = tr;
+     tr = u[6]; u[6] = u[7]; u[7] = tr;
+}
+
+#endif /* Libisofs_with_uuid_generatE */
+
+
+/* CRC-32 as of GPT and Ethernet.
+   Parameters are deduced from a table driven implementation in isohybrid.c
+*/
+static unsigned int crc32_gpt(unsigned char *data, int count, int flag)
+{   
+    unsigned int acc, top, result = 0;
+    long int i;
+
+    /* Chosen so that the CRC of 0 bytes of input is 0x00000000 */
+    acc = 0x46af6449;
+
+    /* Process data bits and flush numerator by 32 zero bits */
+    for (i = 0; i < count * 8 + 32; i++) {
+        top = acc & 0x80000000;
+        acc = (acc << 1);
+        if (i < count * 8)
+            /* The least significant bits of input bytes get processed first */
+            acc |= ((data[i / 8] >> (i % 8)) & 1);
+        if (top)
+            /* Division by the generating polynomial */
+            acc ^= 0x04c11db7;
+    }
+    /* Mirror residue bits */
+    for (i = 0; i < 32; i++)
+        if (acc & (1 << i))
+            result |= 1 << (31 - i);
+    /* Return bit complement */
+    return result ^ 0xffffffff;
+}
+
+
+static void random_uuid(Ecma119Image *t, uint8_t *uuid)
+{
+#ifdef Libisofs_with_uuid_generatE
+    uuid_t u;
+#else
+    uint8_t u[16];
+    /* produced by uuidgen(1) by Andreas Dilger */
+    static uint8_t uuid_template[16] = {
+        0x6e, 0xf5, 0xa3, 0x8b, 0xcb, 0xfa, 0xdd, 0x4e,
+        0x36, 0x9f, 0x0b, 0x12, 0x51, 0xc3, 0x7d, 0x1a
+    };
+    uint32_t rnd, salt;
+    struct timeval tv;
+    struct timezone tz;
+    static int counter = 0;
+    int i;
+#endif
+
+#ifdef Libisofs_with_uuid_generatE
+
+    uuid_generate(u);
+    swap_uuid((void *) u);
+    memcpy(wpt, u, 16);
+
+#else
+
+    salt = crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0); 
+
+    /* This relies on the uniqueness of the template and the rareness of
+       bootable ISO image production via libisofs. Estimated 53 bits of
+       entropy should influence the production of a single day. 
+       So first collisions are to be expected with about 100 million images
+       per day.
+    */
+    memcpy(u, uuid_template, 16);
+    gettimeofday(&tv, &tz);
+    for (i = 0; i < 4; i++)
+        u[3 + i] = (salt >> (8 * i)) & 0xff;
+    u[8] = (salt >> 8) & 0xff;
+    rnd = ((0xffffffffff & tv.tv_sec) << 8) |
+          (((tv.tv_usec >> 16) ^ (salt & 0xf0)) & 0xff);
+    u[9] ^= counter & 0xff;
+    for (i = 0; i < 4; i++)
+        u[10 + i] ^= (rnd >> (8 * i)) & 0xff;
+    u[14] ^= (tv.tv_usec >> 8) & 0xff;
+    u[15] ^= tv.tv_usec & 0xff;
+    counter++;
+
+#endif /* ! Libisofs_with_uuid_generatE */    
+
+}
+
+
+/* Describe the first three GPT boot images as MBR partitions */
+static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
+                                        int gpt_idx[128], int *gpt_cursor)
+{
+    int ilx_opts;
+    off_t hd_blocks;
+    static uint8_t dummy_chs[3] = {
+        0xfe, 0xff, 0xff, 
+    };
+
+    wpt[0] = 0;
+    memcpy(wpt + 1, dummy_chs, 3);
+    ilx_opts = t->catalog->bootimages[gpt_idx[*gpt_cursor]]->isolinux_options;
+    if (((ilx_opts >> 2) & 63) == 2)
+        wpt[4] = 0x00; /* HFS gets marked as "Empty" */
+    else
+        ((unsigned char *) wpt)[4] = 0xef; /* "EFI (FAT-12/16/" */
+
+    memcpy(wpt + 5, dummy_chs, 3);
+
+    /* Start LBA (in 512 blocks) */
+    wpt += 8;
+    lsb_to_buf(&wpt, t->bootsrc[gpt_idx[*gpt_cursor]]->sections[0].block * 4,
+               32, 0);
+
+    /* Number of blocks */
+    hd_blocks = t->bootsrc[gpt_idx[*gpt_cursor]]->sections[0].size;
+    hd_blocks = hd_blocks / 512 + !!(hd_blocks % 512);
+    lsb_to_buf(&wpt, (int) hd_blocks, 32, 0);
+
+    (*gpt_cursor)++;
+    return ISO_SUCCESS;
+}
+
+
+static void write_gpt_entry(Ecma119Image *t, char *buf, uint8_t type_guid[16],
+                            off_t start_lba, off_t end_lba, uint8_t flags[8],
+                            uint8_t name[72])
+{
+    char *wpt = buf;
+
+    memcpy(wpt, type_guid, 16);
+    wpt += 16;
+    random_uuid(t, (uint8_t *) wpt);
+    wpt += 16;
+    lsb_to_buf(&wpt, start_lba & 0xffffffff, 32, 0);
+    lsb_to_buf(&wpt, (start_lba >> 32) & 0xffffffff, 32, 0);
+    lsb_to_buf(&wpt, end_lba & 0xffffffff, 32, 0);
+    lsb_to_buf(&wpt, (end_lba >> 32) & 0xffffffff, 32, 0);
+    memcpy(wpt, name, 72);
+}
+
+
+static int write_gpt_array(Ecma119Image *t, char *buf, uint32_t part_start)
+{
+    static uint8_t basic_data_uuid[16] = {
+        0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
+        0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7
+    };
+    static uint8_t hfs_uuid[16] = {
+        0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
+        0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
+    };
+    uint8_t *uuid;
+    int i, ilx_opts;
+    off_t start_lba, end_lba;
+
+    /* >>> First entry describes overall image , basic_data_uuid
+    start_lba = ;
+    end_lba = ;
+    write_gpt_entry(t, buf + 512 * part_start, basic_data_uuid,
+                           off_t start_lba, off_t end_lba, uint8_t flags[8],
+                           uint8_t name[72])
+    */;
+
+    /* >>> Each marked boot image gets its entry */;
+    for (i= 0; i < t->catalog->num_bootimages; i++) {
+        ilx_opts= (t->catalog->bootimages[i]->isolinux_options >> 2) & 63;
+        if (ilx_opts == 1)
+            uuid = basic_data_uuid;
+        else if (ilx_opts == 1)
+            uuid = hfs_uuid;
+        else
+    continue;
+
+        /* >>> */;
+
+    }
+
+    /* >>> */;
+
+    return ISO_SUCCESS;
+}
+
+
+static int write_gpt_header_block(Ecma119Image *t, char *buf,
+                                  uint32_t part_start, uint32_t p_arr_crc)
+{
+    static char *sig = "EFI PART";
+    static char revision[4] = {0x00, 0x00, 0x01, 0x00};
+    char *wpt;
+    uint32_t crc;
+    off_t back_lba;
+
+    memset(buf, 0, 512);
+    wpt = buf;
+
+    memcpy(wpt, sig, 8); /* no trailing 0 */
+    wpt += 8;
+    memcpy(wpt, revision, 4);
+    wpt += 4;
+    lsb_to_buf(&wpt, 92, 32, 0);
+
+    /* CRC will be inserted later */
+    wpt += 4;
+
+    /* reserved */
+    lsb_to_buf(&wpt, 0, 32, 0);
+    /* Own LBA low 32 */
+    lsb_to_buf(&wpt, 1, 32, 0);
+    /* Own LBA high 32 */
+    lsb_to_buf(&wpt, 0, 32, 0);
+
+    /* Backup LBA is 1 hd block before image end */
+    back_lba = t->curblock * 4 - 1;
+    lsb_to_buf(&wpt, (uint32_t) (back_lba & 0xffffffff), 32, 1);
+    lsb_to_buf(&wpt, (uint32_t) (back_lba >> 32), 32, 1);
+
+    /* First usable LBA for partitions (entry array occupies 32 hd blocks) */
+    lsb_to_buf(&wpt, part_start + 32, 32, 0);
+    lsb_to_buf(&wpt, 0, 32, 0);
+
+    /* Last usable LBA for partitions */
+    lsb_to_buf(&wpt, (uint32_t) ((back_lba - 32) & 0xffffffff), 32, 1);
+    lsb_to_buf(&wpt, (uint32_t) ((back_lba - 32) >> 32), 32, 1);
+
+    /* Disk GUID */
+    random_uuid(t, (uint8_t *) wpt);
+    wpt += 16;
+
+    /* Partition entries start */
+    lsb_to_buf(&wpt, part_start, 32, 0);
+    lsb_to_buf(&wpt, 0, 32, 0);
+
+    /* Number of partition entries */
+    lsb_to_buf(&wpt, 128, 32, 0);
+
+    /* Size of a partition entry */
+    lsb_to_buf(&wpt, 128, 32, 0);
+
+    /* CRC-32 of the partition array */
+    lsb_to_buf(&wpt, p_arr_crc, 32, 0);
+
+
+    /* <<< Only for a first test */
+    if (wpt - buf != 92) {
+        iso_msgs_submit(0,
+                   "program error : write_gpt_header_block : wpt != 92",
+                   0, "FATAL", 0);
+        return ISO_ISOLINUX_CANT_PATCH;
+    }
+
+
+    /* CRC-32 of this header while head_crc is 0 */
+    wpt = buf + 16;
+    crc = crc32_gpt((unsigned char *) buf, wpt - buf, 0); 
+    lsb_to_buf(&wpt, crc, 32, 0);
+
+    return ISO_SUCCESS;
+}
+
+
 /*
  * @param flag  bit0= make own random MBR Id from current time
  */
-int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
-                      uint32_t mbr_id, int head_count, int sector_count,
+int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
                       uint8_t *buf, int flag)
 {
     uint32_t id, part, nominal_part_size;
     off_t hd_img_blocks, hd_boot_lba;
     char *wpt;
+    uint32_t boot_lba, mbr_id, p_arr_crc, part_start;
+    int head_count, sector_count, ret;
+    int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor;
     /* For generating a weak random number */
     struct timeval tv;
     struct timezone tz;
 
     hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4;
 
+    boot_lba = t->bootsrc[0]->sections[0].block;
+    mbr_id = 0;
+    head_count = t->partition_heads_per_cyl;
+    sector_count = t->partition_secs_per_head;
+
+    ret = assess_gpt_apm(t, &gpt_count, gpt_idx, &apm_count);
+    if (ret < 0)
+        return ret;
+    ret = insert_apm_head(buf, apm_count);
+    if (ret < 0)
+        return ret;
+
+
     /* Padding of image_size to a multiple of sector_count*head_count
        happens already at compute time and is implemented by
        an appropriate increase of Ecma119Image->tail_blocks.
     */
+
+    if (gpt_count) {
+
+        /* >>> ISOHYBRID : need to make sure that backup GPT fits into tail */;
+
+    }
 
     wpt = (char *) buf + 432;
 
@@ -422,10 +793,21 @@ int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
 
     /* # Offset 446
     */
+    gpt_cursor= 0;
     for (part = 1 ; part <= 4; part++) {
         if ((int) part != part_number) {
-            /* if this_partition != partition_number: write 16 zero bytes */
+            /* if this_partition != partition_number: write 16 zero bytes
+               (this is now overriden by the eventual desire to announce
+                EFI and HFS boot images.)
+            */
             memset(wpt, 0, 16);
+
+            if (gpt_cursor < gpt_count) {
+                ret = gpt_images_as_mbr_partitions(t, wpt, gpt_idx,
+                                                   &gpt_cursor);
+                if (ret < 0)
+                    return ret;
+            }
             wpt+= 16;
     continue;
         }
@@ -451,6 +833,24 @@ int make_isolinux_mbr(int32_t *img_blocks, uint32_t boot_lba,
     /*  write word 0xaa55            # Offset 510
     */
     lsb_to_buf(&wpt, 0xaa55, 16, 0);
+
+    if (gpt_count) {
+
+        /* >>> ISOHYBRID : write primary GPT and compute p_arr_crc */;
+        part_start = 4 + (apm_count + 1) * 4;
+
+
+        ret = write_gpt_header_block(t, (char *) buf + 512, 
+                                     part_start, p_arr_crc);
+        if (ret < 0)
+            return ret;
+    }
+
+    if (apm_count) {
+
+        /* >>> ISOHYBRID : write APM entry blocks (2K) */;
+
+    }
 
     return(1);
 }
