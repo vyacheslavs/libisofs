@@ -48,6 +48,10 @@ struct hfsplus_node
 
   IsoNode *node; /*< reference to the iso node */
 
+  enum { UNIX_NONE, UNIX_SYMLINK, UNIX_SPECIAL } unix_type;
+  uint32_t symlink_block;
+  uint32_t symlink_size;
+
   enum hfsplus_node_type type;
   IsoFileSrc *file;
   uint32_t cat_id;
@@ -167,8 +171,10 @@ struct hfsplus_catfile_common
   uint8_t user_flags;
   uint8_t group_flags;
   uint16_t mode;
-  uint32_t special;
-  uint8_t finder_info[32];
+  uint32_t special; 
+  uint8_t file_type[4]; /* For folders: window size */
+  uint8_t file_creator[4]; /* For folders: window size */
+  uint8_t finder_info[24];
   uint32_t text_encoding;
   uint32_t reserved;
 } __attribute__ ((packed));

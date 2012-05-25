@@ -107,9 +107,22 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
     for (iptr = ucs_name, optr = node->name; *iptr; iptr++)
       {
 	const uint16_t *dptr;
-	uint8_t high = ((uint8_t *) iptr)[0];
-	uint8_t low = ((uint8_t *) iptr)[1];
-	/* FIXME: decompose jamos.  */
+	uint16_t val = ntohs (*iptr);
+	uint8_t high = val >> 8;
+	uint8_t low = val & 0xff;
+	if (val >= 0xac00 && val <= 0xd7a3)
+	  {
+	    uint16_t s, l, v, t;
+	    s = val - 0xac00;
+	    l = s / (21 * 28);
+	    v = (s % (21 * 28)) / 28;
+	    t = s % 28;
+	    *optr++ = htons (l + 0x1100);
+	    *optr++ = htons (v + 0x1161);
+	    if (t)
+	      *optr++ = htons (t + 0x11a7);
+	    continue;
+	  }
 	if (!hfsplus_decompose_pages[high])
 	  {
 	    *optr++ = *iptr;
@@ -170,6 +183,8 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
       }
     *optr = 0;
 
+    free (ucs_name);
+
     node->strlen = ucslen (node->name);
     return ISO_SUCCESS;
 }
@@ -188,6 +203,7 @@ int hfsplus_count_tree(Ecma119Image *t, IsoNode *iso)
 
     switch (iso->type) {
     case LIBISO_SYMLINK:
+    case LIBISO_SPECIAL:
     case LIBISO_FILE:
       t->hfsp_nfiles++;
       return ISO_SUCCESS;
@@ -209,8 +225,6 @@ int hfsplus_count_tree(Ecma119Image *t, IsoNode *iso)
       }
       return ISO_SUCCESS;
     case LIBISO_BOOT:
-      return ISO_SUCCESS;
-    case LIBISO_SPECIAL:
       return ISO_SUCCESS;
     default:
       /* should never happen */
@@ -239,7 +253,8 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
         return 0;
     }
 
-    if (iso->type == LIBISO_FILE && iso->type == LIBISO_DIR)
+    if (iso->type != LIBISO_FILE && iso->type != LIBISO_DIR
+	&& iso->type != LIBISO_SYMLINK && iso->type != LIBISO_SPECIAL)
       return 0;
 
     cat_id = t->hfsp_cat_id++;
@@ -248,21 +263,44 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
     t->hfsp_leafs[t->hfsp_curleaf].node = iso;
     t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
     t->hfsp_leafs[t->hfsp_curleaf].parent_id = parent_id;
+    t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_NONE;
 
-    if (iso->type == LIBISO_FILE)
+    switch (iso->type)
       {
-        IsoFile *file = (IsoFile*) iso;
+      case LIBISO_SYMLINK:
+	{
+	  IsoSymlink *sym = (IsoSymlink*) iso;
+	  t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_FILE;
+	  t->hfsp_leafs[t->hfsp_curleaf].symlink_size = strlen (sym->dest);
+	  t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_SYMLINK;
+	  t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common) + 2 * sizeof (struct hfsplus_forkdata);
+	  break;
+	}
+      case LIBISO_SPECIAL:
+	t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_SPECIAL;
 	t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_FILE;
-        ret = iso_file_src_create(t, file, &t->hfsp_leafs[t->hfsp_curleaf].file);
-        if (ret < 0) {
-            return ret;
-        }
 	t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common) + 2 * sizeof (struct hfsplus_forkdata);
-      }
-    else if (iso->type == LIBISO_DIR)
-      {
-	t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_DIR;
-	t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common);
+	break;
+
+      case LIBISO_FILE:
+	{
+	  IsoFile *file = (IsoFile*) iso;
+	  t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_FILE;
+	  ret = iso_file_src_create(t, file, &t->hfsp_leafs[t->hfsp_curleaf].file);
+	  if (ret < 0) {
+            return ret;
+	  }
+	  t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common) + 2 * sizeof (struct hfsplus_forkdata);
+	}
+	break;
+      case LIBISO_DIR:
+	{
+	  t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_DIR;
+	  t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common);
+	  break;
+	}
+      default:
+	return ISO_ASSERT_FAILURE;
       }
     cleaf = t->hfsp_curleaf;
     t->hfsp_leafs[t->hfsp_curleaf].nchildren = 0;
@@ -277,6 +315,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
     t->hfsp_leafs[t->hfsp_curleaf].file = 0;
     t->hfsp_leafs[t->hfsp_curleaf].cat_id = parent_id;
     t->hfsp_leafs[t->hfsp_curleaf].parent_id = cat_id;
+    t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_NONE;
     t->hfsp_curleaf++;
 
     if (iso->type == LIBISO_DIR)
@@ -351,6 +390,7 @@ static
 int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
+    uint32_t i;
 
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
@@ -367,6 +407,14 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
 
     t->hfsp_extent_file_start = t->curblock;
     t->curblock++;
+
+    iso_msg_debug(t->image->id, "(d) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
+    for (i = 0; i < t->hfsp_nleafs; i++)
+      if (t->hfsp_leafs[i].unix_type == UNIX_SYMLINK)
+	{
+	  t->hfsp_leafs[i].symlink_block = t->curblock;
+	  t->curblock += (t->hfsp_leafs[i].symlink_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE;
+	}
 
     iso_msg_debug(t->image->id, "(a) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
 
@@ -499,9 +547,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     struct hfsplus_btnode *node_head;
     struct hfsplus_btheader *tree_head;
     int level;
-    uint32_t curpos = 1;
-    uint32_t src_start;
-    uint64_t src_size;
+    uint32_t curpos = 1, i;
 
     if (writer == NULL) {
         return ISO_NULL_POINTER;
@@ -667,26 +713,83 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 		      FIXME:
 		      uint8_t user_flags;
 		      uint8_t group_flags;
-		      uint32_t special;
-		      uint8_t finder_info[32];
-		    */
 
-		    iso_msb ((uint8_t *) &common->flags, (t->hfsp_leafs[curnode].type == HFSPLUS_DIR) ? 0 : 2, 2);
+		      finder info
+		    */
+		    if (t->hfsp_leafs[curnode].type == HFSPLUS_FILE)
+		      {
+			if (t->hfsp_leafs[curnode].unix_type == UNIX_SYMLINK)
+			  {
+			    memcpy (common->file_type, "slnk", 4);
+			    memcpy (common->file_creator, "rhap", 4);
+			  }
+			else
+			  {
+			    struct iso_hfsplus_xinfo_data *xinfo;
+			    ret = iso_node_get_xinfo(t->hfsp_leafs[curnode].node,
+						     iso_hfsplus_xinfo_func,
+						     (void *) &xinfo);
+			    if (ret > 0)
+			      {
+				memcpy (common->file_type, xinfo->type_code,
+					4);
+				memcpy (common->file_creator,
+					xinfo->creator_code, 4);
+			      /* use xinfo */;
+			      }
+			    else if (ret < 0)
+			      return ret;
+			    else 
+			      {
+				memcpy (common->file_type, "????", 4);
+				memcpy (common->file_creator, "????", 4);
+			      }
+			  }
+
+			if (t->hfsp_leafs[curnode].unix_type == UNIX_SPECIAL
+			    && (S_ISBLK(t->hfsp_leafs[curnode].node->mode)
+				|| S_ISCHR(t->hfsp_leafs[curnode].node->mode)))
+			  iso_msb ((uint8_t *) &common->special,
+				   (((IsoSpecial*) t->hfsp_leafs[curnode].node)->dev & 0xffffffff),
+				   4);
+
+			iso_msb ((uint8_t *) &common->flags, 2, 2);
+		      }
+		    else if (t->hfsp_leafs[curnode].type == HFSPLUS_DIR)
+		      {
+			iso_msb ((uint8_t *) &common->flags, 0, 2);
+		      }
 		    curoff += sizeof (*common);
 		    if (t->hfsp_leafs[curnode].type == HFSPLUS_FILE)
 		      {
+			uint64_t sz;
+			uint32_t blk;
 			data_fork = (struct hfsplus_forkdata *) (buffer + curoff);
 
-			ret = filesrc_block_and_size(t, t->hfsp_leafs[curnode].file, &src_start, &src_size);
-			if (ret < 0)
-				return ret;
-
-			iso_msb ((uint8_t *) &data_fork->size, src_size >> 32, 4);
-			iso_msb ((uint8_t *) &data_fork->size + 4, src_size, 4);
+			if (t->hfsp_leafs[curnode].unix_type == UNIX_SYMLINK)
+			  {
+			    blk = t->hfsp_leafs[curnode].symlink_block;
+			    sz = t->hfsp_leafs[curnode].symlink_size;
+			  }
+			else if (t->hfsp_leafs[curnode].unix_type == UNIX_SPECIAL)
+			  {
+			    blk = 0;
+			    sz = 0;
+			  }
+			else
+			  {
+			    ret = filesrc_block_and_size(t,
+							 t->hfsp_leafs[curnode].file,
+							 &blk, &sz);
+			    if (ret <= 0)
+			      return ret;
+			  }
+			iso_msb ((uint8_t *) &data_fork->size, sz >> 32, 4);
+			iso_msb ((uint8_t *) &data_fork->size + 4, sz, 4);
 			iso_msb ((uint8_t *) &data_fork->clumpsize, HFSPLUS_BLOCK_SIZE, 4);
-			iso_msb ((uint8_t *) &data_fork->blocks, (src_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
-			iso_msb ((uint8_t *) &data_fork->extents[0].start, src_start - t->hfsp_part_start, 4);
-			iso_msb ((uint8_t *) &data_fork->extents[0].count, (src_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
+			iso_msb ((uint8_t *) &data_fork->blocks, (sz + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
+			iso_msb ((uint8_t *) &data_fork->extents[0].start, blk - t->hfsp_part_start, 4);
+			iso_msb ((uint8_t *) &data_fork->extents[0].count, (sz + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE, 4);
 			
 			curoff += sizeof (*data_fork) * 2;
 			/* FIXME: resource fork */
@@ -729,6 +832,24 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
     if (ret < 0)
         return ret;
+
+    iso_msg_debug(t->image->id, "(d) %d written", (int) t->bytes_written / 0x800);
+    memset (buffer, 0, sizeof (buffer));
+    for (i = 0; i < t->hfsp_nleafs; i++)
+      if (t->hfsp_leafs[i].unix_type == UNIX_SYMLINK)
+	{
+	  IsoSymlink *sym = (IsoSymlink*) t->hfsp_leafs[i].node;
+	  int overhead;
+	  ret = iso_write(t, sym->dest, t->hfsp_leafs[i].symlink_size);
+	  if (ret < 0)
+	    return ret;
+	  overhead = t->hfsp_leafs[i].symlink_size % HFSPLUS_BLOCK_SIZE;
+	  if (overhead)
+	    overhead = HFSPLUS_BLOCK_SIZE - overhead;
+	  ret = iso_write(t, buffer, overhead);
+	  if (ret < 0)
+	    return ret;
+	}
 
     iso_msg_debug(t->image->id, "(a) %d written", (int) t->bytes_written / 0x800);
     return ISO_SUCCESS;
@@ -792,8 +913,14 @@ int hfsplus_writer_free_data(IsoImageWriter *writer)
     for (i = 0; i < t->hfsp_curleaf; i++)
       if (t->hfsp_leafs[i].type != HFSPLUS_FILE_THREAD
 	  && t->hfsp_leafs[i].type != HFSPLUS_DIR_THREAD)
-	free (t->hfsp_leafs[i].name);
+	{
+	  free (t->hfsp_leafs[i].name);
+	  free (t->hfsp_leafs[i].cmp_name);
+	}
     free(t->hfsp_leafs);
+    for (i = 0; i < t->hfsp_nlevels; i++)
+      free (t->hfsp_levels[i].nodes);
+    free(t->hfsp_levels);
     return ISO_SUCCESS;
 }
 
@@ -851,6 +978,7 @@ int hfsplus_writer_create(Ecma119Image *target)
     target->hfsp_leafs[target->hfsp_curleaf].cat_id = 2;
     target->hfsp_leafs[target->hfsp_curleaf].parent_id = 1;
     target->hfsp_leafs[target->hfsp_curleaf].nchildren = 0;
+    target->hfsp_leafs[target->hfsp_curleaf].unix_type = UNIX_NONE;
     target->hfsp_curleaf++;
 
     target->hfsp_leafs[target->hfsp_curleaf].name = target->hfsp_leafs[target->hfsp_curleaf - 1].name;
@@ -862,6 +990,7 @@ int hfsplus_writer_create(Ecma119Image *target)
     target->hfsp_leafs[target->hfsp_curleaf].file = 0;
     target->hfsp_leafs[target->hfsp_curleaf].cat_id = 1;
     target->hfsp_leafs[target->hfsp_curleaf].parent_id = 2;
+    target->hfsp_leafs[target->hfsp_curleaf].unix_type = UNIX_NONE;
     target->hfsp_curleaf++;
 
     dir = (IsoDir*)target->image->root;
