@@ -110,6 +110,13 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 	uint16_t val = ntohs (*iptr);
 	uint8_t high = val >> 8;
 	uint8_t low = val & 0xff;
+
+	if (val == ':')
+	  {
+	    *optr++ = htons ('/');
+	    continue;
+	  }
+
 	if (val >= 0xac00 && val <= 0xd7a3)
 	  {
 	    uint16_t s, l, v, t;
@@ -243,6 +250,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
 {
     int ret;
     uint32_t cat_id, cleaf;
+    int i;
 
     if (t == NULL || iso == NULL) {
         return ISO_NULL_POINTER;
@@ -258,6 +266,10 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
       return 0;
 
     cat_id = t->hfsp_cat_id++;
+
+    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
+      if (t->hfsplus_blessed[i] == iso)
+	t->hfsp_bless_id[i] = cat_id;
 
     set_hfsplus_name (t, iso->name, &t->hfsp_leafs[t->hfsp_curleaf]);
     t->hfsp_leafs[t->hfsp_curleaf].node = iso;
@@ -472,6 +484,7 @@ write_sb (Ecma119Image *t)
     struct hfsplus_volheader sb;
     static char buffer[1024];
     int ret;
+    int i;
 
     iso_msg_debug(t->image->id, "Write HFS+ superblock");
 
@@ -521,14 +534,13 @@ write_sb (Ecma119Image *t)
     iso_msb ((uint8_t *) &sb.catalog_file.extents[0].count, 2 * t->hfsp_nnodes, 4);
     iso_msg_debug(t->image->id, "catalog_file_start = %d\n", (int)t->hfsp_catalog_file_start);
 
+    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
+     iso_msb ((uint8_t *) (&sb.ppc_bootdir + i
+			   + (i == ISO_HFSPLUS_BLESS_OSX_FOLDER)),
+	      t->hfsp_bless_id[i], 4);
+
     /* 
        FIXME: set:
-       uint32_t ppc_bootdir;
-       uint32_t intel_bootfile;
-       uint32_t showfolder;
-       uint32_t os9folder;
-       uint32_t unused;
-       uint32_t osxfolder;
        uint64_t num_serial;
     */
 
@@ -735,7 +747,6 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 					4);
 				memcpy (common->file_creator,
 					xinfo->creator_code, 4);
-			      /* use xinfo */;
 			      }
 			    else if (ret < 0)
 			      return ret;
@@ -938,6 +949,7 @@ int hfsplus_writer_create(Ecma119Image *target)
     int level = 0;
     IsoNode *pos;
     IsoDir *dir;
+    int i;
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
@@ -960,6 +972,9 @@ int hfsplus_writer_create(Ecma119Image *target)
         free((char *) writer);
         return ret;
     }
+
+    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
+      target->hfsp_bless_id[i] = 0;
 
     target->hfsp_nleafs = 2 * (target->hfsp_nfiles + target->hfsp_ndirs);
     target->hfsp_curleaf = 0;

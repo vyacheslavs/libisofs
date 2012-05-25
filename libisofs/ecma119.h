@@ -622,6 +622,7 @@ struct ecma119_image
     uint32_t hfsp_nleafs;
     uint32_t hfsp_curleaf;
     uint32_t hfsp_nnodes;
+    uint32_t hfsp_bless_id[ISO_HFSPLUS_BLESS_MAX];
 
     /*
      * ISO 9660:1999 related information
