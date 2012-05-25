@@ -6694,6 +6694,60 @@ int iso_hfsplus_xinfo_func(void *data, int flag);
 struct iso_hfsplus_xinfo_data *iso_hfsplus_xinfo_new(int flag);
 
 
+/**
+ * HFS+ blessings are relationships between HFS+ enhanced ISO images and
+ * particular files in such images. Except for ISO_HFSPLUS_BLESS_INTEL_BOOTFILE
+ * and ISO_HFSPLUS_BLESS_MAX, these files have to be directories.
+ * No file may have more than one blessing. Each blessing can only be issued
+ * to one file.
+ *
+ * @since 1.2.4
+ */
+enum IsoHfsplusBlessings {
+    /* The blessing that is issued by mkisofs option -hfs-bless. */
+    ISO_HFSPLUS_BLESS_PPC_BOOTDIR,
+
+    /* To be applied to a data file */
+    ISO_HFSPLUS_BLESS_INTEL_BOOTFILE,
+
+    /* Further blessings for directories */
+    ISO_HFSPLUS_BLESS_SHOWFOLDER,
+    ISO_HFSPLUS_BLESS_OS9_FOLDER,
+    ISO_HFSPLUS_BLESS_OSX_FOLDER,
+
+    /* Not a blessing, but telling the number of blessings in this list */
+    ISO_HFSPLUS_BLESS_MAX
+};
+
+/**
+ * Issue a blessing to a particular IsoNode. If the blessing is already issued
+ * to some file, then it gets revoked from that one.
+ * 
+ * @param opts
+ *      The option set to be manipulated.
+ * @param blessing
+ *      The kind of blessing to be issued. Use 
+ * @param node
+ *      The file that shall be blessed. It must actually be an IsoDir or
+ *      IsoFile as is appropriate for the kind of blessing. (See above enum.)
+ *      The node may not yet bear a blessing other than the desired one.
+ * @param flag
+ *      Bitfield for control purposes.
+ *        bit0= Revoke blessing rather than issue it
+ *        bit1= Revoke any blessing of the node,
+ *              regardless of parameter blessing
+ * @return
+ *      1 means successful blessing or revokation of an existing blessing
+ *      0 means that the blessing could not be issued,
+ *        or that the node was not blessed and revokation was desired
+ *      <0 is one of the listed error codes
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_bless(IsoWriteOpts *opts, enum IsoHfsplusBlessings blessing,
+                         IsoNode *node, int flag);
+
+
 /************ Error codes and return values for libisofs ********************/
 
 /** successfully execution */

@@ -2066,6 +2066,7 @@ void *iso_alloc_mem(size_t size, size_t count, int flag)
 }
 
 
+/* API, >>> ts B20525 : should finally go to hfplus.c */
 int iso_hfsplus_xinfo_func(void *data, int flag)
 {
     if (flag == 1 && data != NULL)
@@ -2074,6 +2075,7 @@ int iso_hfsplus_xinfo_func(void *data, int flag)
 }
 
 
+/* API, >>> ts B20525 : should finally go to hfplus.c */
 struct iso_hfsplus_xinfo_data *iso_hfsplus_xinfo_new(int flag)
 {
     struct iso_hfsplus_xinfo_data *o;
