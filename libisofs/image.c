@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -93,6 +93,9 @@ int iso_image_new(const char *name, IsoImage **image)
     img->checksum_idx_count = 0;
     img->checksum_array = NULL;
     img->generator_is_running = 0;
+    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
+        img->hfsplus_blessed[i] = NULL;
+
     *image = img;
     return ISO_SUCCESS;
 }
@@ -112,20 +115,22 @@ void iso_image_ref(IsoImage *image)
  */
 void iso_image_unref(IsoImage *image)
 {
-    if (--image->refcount == 0) {
-        int nexcl;
+    int nexcl, i;
 
+    if (--image->refcount == 0) {
         /* we need to free the image */
+
         if (image->user_data_free != NULL) {
             /* free attached data */
             image->user_data_free(image->user_data);
         }
-
         for (nexcl = 0; nexcl < image->nexcludes; ++nexcl) {
             free(image->excludes[nexcl]);
         }
         free(image->excludes);
-
+        for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
+            if (image->hfsplus_blessed[i] != NULL)
+                iso_node_unref(image->hfsplus_blessed[i]);
         iso_node_unref((IsoNode*)image->root);
         iso_node_builder_unref(image->builder);
         iso_filesystem_unref(image->fs);
@@ -657,3 +662,48 @@ int iso_image_give_up_mips_boot(IsoImage *image, int flag)
     image->num_mips_boot_files = 0;
     return ISO_SUCCESS;
 }
+
+/* API */
+int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
+                            IsoNode *node, int flag)
+{
+    unsigned int i, ok = 0;
+
+    if (flag & 2) {
+        /* Delete any blessing */
+        for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
+             if (img->hfsplus_blessed[i] == node || node == NULL) {
+                 img->hfsplus_blessed[i] = NULL;
+                 ok = 1;
+             }
+        }
+        return ok;
+    }
+    if (blessing == ISO_HFSPLUS_BLESS_MAX)
+        return ISO_WRONG_ARG_VALUE;
+    if (flag & 1) {
+        /* Delete a particular blessing */
+        if (img->hfsplus_blessed[blessing] == node || node == NULL) {
+            img->hfsplus_blessed[blessing] = NULL;
+            return 1;
+        }
+        return 0;
+    }
+
+    /* No two hats on one node */
+    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX && node != NULL; i++)
+        if (i != blessing && img->hfsplus_blessed[i] == node)
+            return 0;
+    /* Enforce correct file type */
+    if (blessing == ISO_HFSPLUS_BLESS_INTEL_BOOTFILE) {
+        if (node->type != LIBISO_FILE)
+            return 0;
+    } else {
+        if (node->type != LIBISO_DIR)
+            return 0;
+    }
+
+    img->hfsplus_blessed[blessing] = node;
+    return 1;
+}
+

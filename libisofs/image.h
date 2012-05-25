@@ -180,6 +180,13 @@ struct Iso_Image
      */
     int generator_is_running;
 
+    /* Pointers to directories or files which shall be get a HFS+ blessing.
+     * libisofs/hfsplus.c et.al. will compare these pointers
+     * with the ->node pointer of Ecma119Nodes.
+     * See libisofs.h
+     */
+    IsoNode *hfsplus_blessed[ISO_HFSPLUS_BLESS_MAX];
+
 };
 
 

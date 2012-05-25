@@ -6723,29 +6723,31 @@ enum IsoHfsplusBlessings {
  * Issue a blessing to a particular IsoNode. If the blessing is already issued
  * to some file, then it gets revoked from that one.
  * 
- * @param opts
- *      The option set to be manipulated.
+ * @param image
+ *     The image to manipulate.
  * @param blessing
- *      The kind of blessing to be issued. Use 
+ *      The kind of blessing to be issued.
  * @param node
  *      The file that shall be blessed. It must actually be an IsoDir or
  *      IsoFile as is appropriate for the kind of blessing. (See above enum.)
  *      The node may not yet bear a blessing other than the desired one.
+ *      If node is NULL, then the blessing will be revoked from any node
+ *      which bears it.
  * @param flag
  *      Bitfield for control purposes.
- *        bit0= Revoke blessing rather than issue it
- *        bit1= Revoke any blessing of the node,
- *              regardless of parameter blessing
+ *        bit0= Revoke blessing if node != NULL bears it.
+ *        bit1= Revoke any blessing of the node, regardless of parameter
+ *              blessing. If node is NULL, then revoke all blessings in opts.
  * @return
- *      1 means successful blessing or revokation of an existing blessing
- *      0 means that the blessing could not be issued,
- *        or that the node was not blessed and revokation was desired
- *      <0 is one of the listed error codes
+ *      1 means successful blessing or revokation of an existing blessing.
+ *      0 means the node already bears another blessing, or is of wrong type,
+ *        or that the node was not blessed and revokation was desired.
+ *      <0 is one of the listed error codes.
  *
  * @since 1.2.4
  */
-int iso_write_opts_bless(IsoWriteOpts *opts, enum IsoHfsplusBlessings blessing,
-                         IsoNode *node, int flag);
+int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
+                            IsoNode *node, int flag);
 
 
 /************ Error codes and return values for libisofs ********************/

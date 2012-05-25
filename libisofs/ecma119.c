@@ -1872,7 +1872,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     strcpy(target->ascii_disc_label, opts->ascii_disc_label);
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
-         target->hfsplus_blessed[i] = opts->hfsplus_blessed[i];
+         target->hfsplus_blessed[i] = src->hfsplus_blessed[i];
          if (target->hfsplus_blessed[i] != NULL)
              iso_node_ref(target->hfsplus_blessed[i]);
     }
@@ -2607,8 +2607,6 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->allow_dir_id_ext = 0;
     wopts->old_empty = 0;
     wopts->untranslated_name_len = 0;
-    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
-        wopts->hfsplus_blessed[i] = NULL;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -2635,9 +2633,6 @@ void iso_write_opts_free(IsoWriteOpts *opts)
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         if (opts->appended_partitions[i] != NULL)
             free(opts->appended_partitions[i]);
-    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
-        if (opts->hfsplus_blessed[i] != NULL)
-            iso_node_unref(opts->hfsplus_blessed[i]);
 
     free(opts);
 }
@@ -3229,14 +3224,5 @@ int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label)
     strncpy(opts->ascii_disc_label, label, ISO_DISC_LABEL_SIZE - 1);
     opts->ascii_disc_label[ISO_DISC_LABEL_SIZE - 1] = 0;
     return ISO_SUCCESS;
-}
-
-/* API */
-int iso_write_opts_bless(IsoWriteOpts *opts, enum IsoHfsplusBlessings blessing,
-                         IsoNode *node, int flag)
-{
-    /* >>> */;
-
-    return 0;
 }
 
