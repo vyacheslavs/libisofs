@@ -663,6 +663,13 @@ int iso_image_give_up_mips_boot(IsoImage *image, int flag)
     return ISO_SUCCESS;
 }
 
+static void unset_blessing(IsoImage *img, unsigned int idx)
+{
+    if (img->hfsplus_blessed[idx] != NULL)
+        iso_node_unref(img->hfsplus_blessed[idx]);
+    img->hfsplus_blessed[idx] = NULL;
+}
+
 /* API */
 int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
                             IsoNode *node, int flag)
@@ -672,10 +679,10 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
     if (flag & 2) {
         /* Delete any blessing */
         for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
-             if (img->hfsplus_blessed[i] == node || node == NULL) {
-                 img->hfsplus_blessed[i] = NULL;
-                 ok = 1;
-             }
+            if (img->hfsplus_blessed[i] == node || node == NULL) {
+                unset_blessing(img, i);
+                ok = 1;
+            }
         }
         return ok;
     }
@@ -684,12 +691,17 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
     if (flag & 1) {
         /* Delete a particular blessing */
         if (img->hfsplus_blessed[blessing] == node || node == NULL) {
-            img->hfsplus_blessed[blessing] = NULL;
+            unset_blessing(img, i);
             return 1;
         }
         return 0;
     }
 
+    if (node == NULL) {
+        unset_blessing(img, (unsigned int) blessing);
+        return 1;
+    }
+        
     /* No two hats on one node */
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX && node != NULL; i++)
         if (i != blessing && img->hfsplus_blessed[i] == node)
@@ -703,7 +715,10 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
             return 0;
     }
 
+    unset_blessing(img, (unsigned int) blessing);
     img->hfsplus_blessed[blessing] = node;
+    if (node != NULL)
+        iso_node_ref(node);
     return 1;
 }
 
