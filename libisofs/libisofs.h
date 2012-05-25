@@ -6737,7 +6737,8 @@ enum IsoHfsplusBlessings {
  *      Bitfield for control purposes.
  *        bit0= Revoke blessing if node != NULL bears it.
  *        bit1= Revoke any blessing of the node, regardless of parameter
- *              blessing. If node is NULL, then revoke all blessings in opts.
+ *              blessing. If node is NULL, then revoke all blessings in
+ *              the image.
  * @return
  *      1 means successful blessing or revokation of an existing blessing.
  *      0 means the node already bears another blessing, or is of wrong type,
