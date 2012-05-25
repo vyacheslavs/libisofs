@@ -215,6 +215,10 @@ LIBJTE_MISCONFIGURATION_ = 0;
                                        iso_px_ino_xinfo_cloner, 0);
     if (ret < 0)
         return ret;
+    ret = iso_node_xinfo_make_clonable(iso_hfsplus_xinfo_func,
+                                       iso_hfsplus_xinfo_cloner, 0);
+    if (ret < 0)
+        return ret;
     return 1;
 }
 
