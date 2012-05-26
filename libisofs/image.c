@@ -691,7 +691,7 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
     if (flag & 1) {
         /* Delete a particular blessing */
         if (img->hfsplus_blessed[blessing] == node || node == NULL) {
-            unset_blessing(img, i);
+            unset_blessing(img, (unsigned int) blessing);
             return 1;
         }
         return 0;
