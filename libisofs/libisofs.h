@@ -7147,14 +7147,14 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
 #define ISO_AAIP_BAD_ATTR_NAME      0xE830FE84
 
 /** ACL text contains multiple entries of user::, group::, other::
-                                                     (FAILURE, HIGH, -379)  */
+                                                     (FAILURE, HIGH, -381)  */
 #define ISO_AAIP_ACL_MULT_OBJ       0xE830FE83
 
 /** File sections do not form consecutive array of blocks
-                                                     (FAILURE, HIGH, -378) */
+                                                     (FAILURE, HIGH, -382) */
 #define ISO_SECT_SCATTERED          0xE830FE82
 
-/** Too many Apple Partition Map entries requested (FAILURE, HIGH, -377)*/
+/** Too many Apple Partition Map entries requested (FAILURE, HIGH, -383)*/
 #define ISO_BOOT_TOO_MANY_APM       0xE830FE81
 
 
