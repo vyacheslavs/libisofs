@@ -70,6 +70,11 @@
 #endif
 
 
+/* The maximum number of Apple Partition Map entries.
+*/
+#define ISO_APM_ENTRIES_MAX 63
+
+
 /**
  * Holds the options for the image generation.
  */
@@ -598,6 +603,7 @@ struct ecma119_image
 
     /*
      * HFS+ related information
+     * (by Vladimir Serbinenko, see libisofs/hfsplus.c)
      */
     HFSPlusNode *hfsp_leafs; 
     struct hfsplus_btree_level *hfsp_levels;
@@ -776,7 +782,17 @@ struct ecma119_image
 
     char ascii_disc_label[ISO_DISC_LABEL_SIZE];
 
+    /* See IsoImage and libisofs.h */
     IsoNode *hfsplus_blessed[ISO_HFSPLUS_BLESS_MAX];
+
+    /* Apple Partition Map description. To be composed during IsoImageWriter
+       method ->compute_data_blocks() by calling iso_register_apm_entry().
+    */
+    struct iso_apm_partition_request *apm_req[ISO_APM_ENTRIES_MAX];
+    int apm_req_count;
+    /* 512 by default. May be changed to 2048 before writer thread starts. */
+    int apm_block_size;
+
 };
 
 #define BP(a,b) [(b) - (a) + 1]

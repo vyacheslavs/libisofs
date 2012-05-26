@@ -474,6 +474,8 @@ const char *iso_error_to_msg(int errcode)
         return "ACL text contains multiple entries of user::, group::, other::";
     case ISO_SECT_SCATTERED:
         return "File sections do not form consecutive array of blocks";
+    case ISO_BOOT_TOO_MANY_APM:
+        return "Too many Apple Partition Map entries requested";
     default:
         return "Unknown error";
     }

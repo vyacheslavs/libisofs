@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
+ * Copyright (c) 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -62,5 +63,44 @@ int iso_read_mipsel_elf(Ecma119Image *t, int flag);
 /* Compute size and position of appended partitions.
 */
 int iso_compute_append_partitions(Ecma119Image *t, int flag);
+
+
+/* The parameter struct for production of a single Apple Partition Map entry.
+   See also the partial APM description in doc/boot_sectors.txt.
+   The list of entries is stored in Ecma119Image.apm_req.
+   The size of a block can be chosen by setting Ecma119Image.apm_block_size.
+   If an entry has start_block <=1, then its block_count will be adjusted
+   to the final size of the partition map.
+   If no such entry is requested, then it will be prepended automatically
+   with name "Apple" and type "Apple_partition_map".
+*/
+struct iso_apm_partition_request {
+
+    /* Always given in blocks of 2 KiB.
+       Written to the ISO image according to Ecma119Image.apm_block_size.
+    */
+    uint32_t start_block;
+    uint32_t block_count;
+
+    /* All 32 bytes get copied to the system area.
+       Take care to pad up short strings by 0.
+    */
+    uint8_t name[32];
+    uint8_t type[32];
+};
+
+/* Copies the content of req and registers it in t.apm_req[].
+   I.e. after the call the submitted storage of req can be disposed or re-used.
+   Submit 0 as value flag.
+*/
+int iso_register_apm_entry(Ecma119Image *t,
+                           struct iso_apm_partition_request *req, int flag);
+
+/* Convenience frontend for iso_register_apm_entry().
+   name and type are 0-terminated strings, which may get silently truncated.
+*/
+int iso_quick_apm_entry(Ecma119Image *t, 
+           uint32_t start_block, uint32_t block_count, char *name, char *type);
+
 
 #endif /* SYSTEM_AREA_H_ */

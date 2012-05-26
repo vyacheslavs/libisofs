@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2011 Thomas Schmitt
+ * Copyright (c) 2010 - 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -688,6 +688,189 @@ static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
 }
 
 
+/* Convenience frontend for iso_register_apm_entry().
+   name and type are 0-terminated strings.
+*/
+int iso_quick_apm_entry(Ecma119Image *t,
+           uint32_t start_block, uint32_t block_count, char *name, char *type)
+{
+    int ret;
+    struct iso_apm_partition_request *entry;
+
+    entry = calloc(1, sizeof(struct iso_apm_partition_request));
+    if (entry == NULL)
+        return ISO_OUT_OF_MEM;
+    entry->start_block = start_block;
+    entry->block_count = block_count;
+    strncpy((char *) entry->name, name, 32);
+    strncpy((char *) entry->type, type, 32);
+    ret = iso_register_apm_entry(t, entry, 0);
+    free(entry);
+    return ret;
+}
+
+
+/**
+ * Compare the start_sectors of two iso_apm_partition_request
+ */
+static
+int cmp_apm_partition_request(const void *f1, const void *f2)
+{
+    struct iso_apm_partition_request *r1, *r2;
+
+    r1 = *((struct iso_apm_partition_request **) f1);
+    r2 = *((struct iso_apm_partition_request **) f2);
+    if (r1->start_block < r2->start_block)
+        return -1;
+    if (r1->start_block > r2->start_block)
+        return 1;
+    return 0;
+}
+
+static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
+                               struct iso_apm_partition_request *req,
+                               uint8_t *buf, int map_entries, int flag)
+{
+    uint8_t *wpt;
+    int block_fac;
+
+    block_fac = apm_block_size / 512;
+
+    memset(buf, apm_block_size, 0);
+    wpt = buf;
+
+    /* Signature */
+    wpt[0] = 'P'; wpt[1] = 'M';
+    wpt+= 2;
+    /* reserved */
+    wpt += 2;
+    /* Number of partition entries */
+    iso_msb(wpt, (uint32_t) map_entries, 4);
+    wpt += 4;
+    /* Physical block start of partition */
+    iso_msb(wpt, req->start_block * block_fac, 4);
+    wpt += 4;
+    /* Physical block count of partition */
+    iso_msb(wpt, req->block_count * block_fac, 4);
+    wpt += 4;
+    /* Partition name */
+    memcpy(wpt, req->name, 32);
+    wpt += 32;
+    /* Type string */
+    memcpy(wpt, req->type, 32);
+    wpt += 32;
+    /* Logical block start */
+    iso_msb(wpt, 0, 4);
+    wpt += 4;
+    /* Logical block count */
+    iso_msb(wpt, req->block_count * block_fac, 4);
+    wpt += 4;
+    /* Status flags : bit0= entry is valid , bit1= entry is allocated */
+    iso_msb(wpt, 3, 4);
+    wpt += 4;
+
+    /* boot_block , boot_bytes , processor , reserved : are all 0 */
+
+    return ISO_SUCCESS;
+}
+
+static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
+{
+    int i, ret, gap_counter = 0, up_to;
+    uint32_t part_end, goal;
+    char gap_name[33];
+
+#ifdef NIX
+    /* Disabled */
+
+    /* <<< ts B20526 : Dummy mock-up */
+    if (t->apm_req_count <= 0) {
+        /*
+        ret = iso_quick_apm_entry(t, 16, 20, "Test1_name_16_20", "Test1_type");
+        */
+        ret = iso_quick_apm_entry(t, 30, 20, "Test1_name_30_20", "Test1_type");
+        if (ret < 0)
+            return ret;
+        ret = iso_quick_apm_entry(t, 100, 400, "Test2_name_100_400",
+                                  "Test2_type");
+        if (ret < 0)
+            return ret;
+    }
+#endif /* NIX */
+
+    if (t->apm_req_count <= 0)
+        return 2;
+
+    /* Find out whether an entry with start_block == 1 is requested */
+    for (i = 0; i < t->apm_req_count; i++) {
+        if (t->apm_req[i]->start_block <= 1)
+    break;
+    }
+    if (i >= t->apm_req_count) {
+        ret = iso_quick_apm_entry(t, 1, 0, "Apple", "Apple_partition_map");
+        if (ret < 0)
+            return ret;
+    }
+
+    /* Sort and fill gaps */
+    qsort(t->apm_req, t->apm_req_count,
+        sizeof(struct iso_apm_partition_request *), cmp_apm_partition_request);
+    /* t->apm_req_count will grow during the loop */
+    up_to = t->apm_req_count + 1;
+    for (i = 1; i < up_to; i++) {
+        if (i < up_to - 1)
+            goal = t->apm_req[i]->start_block;
+        else
+            goal = img_blocks;
+        if (i == 1) {
+            /* Description of APM itself */
+            /* Actual APM size is not yet known. Protection begins at PVD */
+            part_end = 16;
+            if (goal < 16 && goal> 1)
+                    part_end = goal;
+        } else {
+            part_end = t->apm_req[i - 1]->start_block +
+                       t->apm_req[i - 1]->block_count;
+        }
+        if (part_end > goal) {
+
+            /* >>> Overlapping partition. ??? Warn ??? Bail  out ??? */;
+
+        } 
+        if (part_end < goal) {
+            sprintf(gap_name, "Gap%d", gap_counter);
+            gap_counter++;
+            ret = iso_quick_apm_entry(t, part_end,
+                                      goal - part_end,
+                                      gap_name, "ISO9660_data");
+            if (ret < 0)
+                return ret;
+        }
+    }
+
+    /* Merge list of gap partitions with list of already sorted entries */
+    qsort(t->apm_req, t->apm_req_count,
+        sizeof(struct iso_apm_partition_request *), cmp_apm_partition_request);
+
+    /* If block size is larger than 512, then not all 63 entries will fit */
+    if ((t->apm_req_count + 1) * t->apm_block_size > 32768) 
+        return ISO_BOOT_TOO_MANY_APM;
+
+    t->apm_req[0]->start_block = 1;
+
+    /* >>> ts B20526 : ??? isohybrid has 16. Logical block count is 10. Why ?*/
+    t->apm_req[0]->block_count = t->apm_req_count;
+
+    for (i = 0; i < t->apm_req_count; i++) {
+        ret = iso_write_apm_entry(t, t->apm_block_size, t->apm_req[i],
+                       buf + (i + 1) * t->apm_block_size, t->apm_req_count, 0);
+        if (ret < 0)
+            return ret;
+    }
+    return ISO_SUCCESS;
+}
+
+
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
     int ret, int_img_blocks, sa_type, i, will_append = 0;
@@ -735,6 +918,32 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
         return ISO_SUCCESS;
     }
+
+    /* If APM entries were submitted to iso_register_apm_entry(), then they
+       get sprinkled over the system area before any other data get inserted.
+       Note that Block0 of the APM is not written but is in the responsibility
+       of the MBR template. Its block size MUST match t->apm_block_size.
+
+       >>> ts B20526
+       >>> ??? Shall i check  t->system_area_data  whether there are the first
+       >>> ??? four bytes of a Block0 and what block size they announce ?
+       >>> pro: That would prevent cruel mishaps
+       >>> con: t->system_area_data is totally opaque up to now.
+       >>>      I cannot easily predict whether the first bytes get altered
+       >>>      in the course of processing.
+
+       >>> ts B20526
+       >>> This does not care for eventual image enlargements in last minute.
+       >>> A sa_type, that does this, will have to adjust the last APM entry
+       >>> if exactness matters.
+    */
+    ret = iso_write_apm(t, img_blocks, buf);
+    if (ret < 0) {
+        iso_msg_submit(t->image->id, ret, 0,
+                       "Cannot set up Apple Partition Map");
+        return ret;
+    }
+
     if (sa_type == 0 && (t->system_area_options & 1)) {
         /* Write GRUB protective msdos label, i.e. a simple partition table */
         ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
@@ -942,3 +1151,22 @@ ex:;
     LIBISO_FREE_MEM(msg);
     return ret;
 }
+
+
+int iso_register_apm_entry(Ecma119Image *t,
+                           struct iso_apm_partition_request *req, int flag)
+{
+    struct iso_apm_partition_request *entry;
+
+    if (t->apm_req_count >= ISO_APM_ENTRIES_MAX)
+        return ISO_BOOT_TOO_MANY_APM;
+    entry = calloc(1, sizeof(struct iso_apm_partition_request));
+    if (entry == NULL)
+        return ISO_OUT_OF_MEM;
+    
+    memcpy(entry, req, sizeof(struct iso_apm_partition_request));
+    t->apm_req[t->apm_req_count] = entry;
+    t->apm_req_count++;
+    return ISO_SUCCESS;
+}
+
