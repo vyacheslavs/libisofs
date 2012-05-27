@@ -286,6 +286,7 @@ iso_write_opts_set_dir_rec_mtime;
 iso_write_opts_set_disc_label;
 iso_write_opts_set_fifo_size;
 iso_write_opts_set_hardlinks;
+iso_write_opts_set_hfsp_serial_number;
 iso_write_opts_set_hfsplus;
 iso_write_opts_set_iso1999;
 iso_write_opts_set_iso_level;

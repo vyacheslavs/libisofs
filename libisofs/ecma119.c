@@ -1815,6 +1815,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
 
+    memcpy(target->hfsp_serial_number, opts->hfsp_serial_number, 8);
+
     target->md5_file_checksums = opts->md5_file_checksums;
     target->md5_session_checksum = opts->md5_session_checksum;
     strcpy(target->scdbackup_tag_parm, opts->scdbackup_tag_parm);
@@ -1875,9 +1877,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     strcpy(target->ascii_disc_label, opts->ascii_disc_label);
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
-         target->hfsplus_blessed[i] = src->hfsplus_blessed[i];
-         if (target->hfsplus_blessed[i] != NULL)
-             iso_node_ref(target->hfsplus_blessed[i]);
+        target->hfsplus_blessed[i] = src->hfsplus_blessed[i];
+        if (target->hfsplus_blessed[i] != NULL)
+            iso_node_ref(target->hfsplus_blessed[i]);
     }
     target->apm_block_size = 512;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)
@@ -2617,6 +2619,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->allow_dir_id_ext = 0;
     wopts->old_empty = 0;
     wopts->untranslated_name_len = 0;
+    for (i = 0; i < 8; i++)
+        wopts->hfsp_serial_number[i] = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -3233,6 +3237,13 @@ int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label)
 {
     strncpy(opts->ascii_disc_label, label, ISO_DISC_LABEL_SIZE - 1);
     opts->ascii_disc_label[ISO_DISC_LABEL_SIZE - 1] = 0;
+    return ISO_SUCCESS;
+}
+ 
+int iso_write_opts_set_hfsp_serial_number(IsoWriteOpts *opts,
+                                          uint8_t serial_number[8])
+{
+    memcpy(opts->hfsp_serial_number, serial_number, 8);
     return ISO_SUCCESS;
 }
 

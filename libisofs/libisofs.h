@@ -1411,6 +1411,23 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_hfsplus(IsoWriteOpts *opts, int enable);
 
 /**
+ * Supply a serial number for the HFS+ extension of the emerging image.
+ *
+ * @param opts
+ *      The option set to be manipulated.
+ * @param serial_number
+ *      8 bytes which should be unique to the image.
+ *      If all bytes are 0, then the serial number will be generated as
+ *      random number by libisofs. This is the default setting.
+ * @return
+ *      1 success, < 0 error
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_set_hfsp_serial_number(IsoWriteOpts *opts,
+                                          uint8_t serial_number[8]);
+
+/**
  * Whether to use newer ISO-9660:1999 version.
  *
  * This is the second version of ISO-9660. It allows longer filenames and has
