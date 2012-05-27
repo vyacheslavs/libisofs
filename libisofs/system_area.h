@@ -103,4 +103,27 @@ int iso_quick_apm_entry(Ecma119Image *t,
            uint32_t start_block, uint32_t block_count, char *name, char *type);
 
 
+/* CRC-32 as of GPT and Ethernet.
+*/
+unsigned int iso_crc32_gpt(unsigned char *data, int count, int flag);
+
+
+/* These two pseudo-random generators produce byte strings which will
+   surely not duplicate in the first 256 calls. If more calls are necessary
+   in the same process, then one must wait until the output of
+   gettimeofday(2) changes.
+   It is advised to obtain them as late as possible, so that Ecma119Image *t
+   can distinguish itself from other image production setups which might be
+   run on other machines with the same process number at the same time.
+*/
+
+/* Produces a weakly random variation of a hardcoded real random uuid
+*/
+void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16]);
+
+/* Produces a weakly random variation of a hardcoded real random template
+*/
+void iso_random_8byte(Ecma119Image *t, uint8_t result[8]);
+
+
 #endif /* SYSTEM_AREA_H_ */

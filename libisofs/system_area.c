@@ -27,6 +27,19 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+/* for gettimeofday() */
+#include <sys/time.h>
+
+/* >>> Need ./configure test for uuid_generate() which checks for:
+       uuid_t, uuid_generate, the need for -luuid
+*/
+/*
+#define Libisofs_with_uuid_generatE 1
+*/
+#ifdef Libisofs_with_uuid_generatE
+#include <uuid/uuid.h>
+#endif
+
 
 /*
  * Create a MBR for an isohybrid enabled ISOLINUX boot image.
@@ -834,7 +847,8 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         }
         if (part_end > goal) {
 
-            /* >>> Overlapping partition. ??? Warn ??? Bail  out ??? */;
+            /* >>> Overlapping partition. */;
+            /* >>> Vladimir: "Throw error." */;
 
         } 
         if (part_end < goal) {
@@ -923,14 +937,6 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
        get sprinkled over the system area before any other data get inserted.
        Note that Block0 of the APM is not written but is in the responsibility
        of the MBR template. Its block size MUST match t->apm_block_size.
-
-       >>> ts B20526
-       >>> ??? Shall i check  t->system_area_data  whether there are the first
-       >>> ??? four bytes of a Block0 and what block size they announce ?
-       >>> pro: That would prevent cruel mishaps
-       >>> con: t->system_area_data is totally opaque up to now.
-       >>>      I cannot easily predict whether the first bytes get altered
-       >>>      in the course of processing.
 
        >>> ts B20526
        >>> This does not care for eventual image enlargements in last minute.
@@ -1168,5 +1174,125 @@ int iso_register_apm_entry(Ecma119Image *t,
     t->apm_req[t->apm_req_count] = entry;
     t->apm_req_count++;
     return ISO_SUCCESS;
+}
+
+#ifdef Libisofs_with_uuid_generatE
+
+static void swap_uuid(void *u_pt)
+{
+     uint8_t tr, *u;
+
+     u = (uint8_t *) u_pt;
+     tr = u[0]; u[0] = u[3]; u[3] = tr;
+     tr = u[1]; u[1] = u[2]; u[2] = tr;
+     tr = u[4]; u[4] = u[5]; u[5] = tr;
+     tr = u[6]; u[6] = u[7]; u[7] = tr;
+}
+
+#endif /* Libisofs_with_uuid_generatE */
+
+
+/* CRC-32 as of GPT and Ethernet.
+   Parameters are deduced from a table driven implementation in isohybrid.c
+*/
+unsigned int iso_crc32_gpt(unsigned char *data, int count, int flag)
+{   
+    unsigned int acc, top, result = 0;
+    long int i;
+
+    /* Chosen so that the CRC of 0 bytes of input is 0x00000000 */
+    acc = 0x46af6449;
+
+    /* Process data bits and flush numerator by 32 zero bits */
+    for (i = 0; i < count * 8 + 32; i++) {
+        top = acc & 0x80000000;
+        acc = (acc << 1);
+        if (i < count * 8)
+            /* The least significant bits of input bytes get processed first */
+            acc |= ((data[i / 8] >> (i % 8)) & 1);
+        if (top)
+            /* Division by the generating polynomial */
+            acc ^= 0x04c11db7;
+    }
+    /* Mirror residue bits */
+    for (i = 0; i < 32; i++)
+        if (acc & (1 << i))
+            result |= 1 << (31 - i);
+    /* Return bit complement */
+    return result ^ 0xffffffff;
+}
+
+
+void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
+{
+#ifdef Libisofs_with_uuid_generatE
+    uuid_t u;
+#else
+    uint8_t u[16];
+    /* produced by uuid_generate() and byte-swapped to isohybrid.c habits */
+    static uint8_t uuid_template[16] = {
+        0xee, 0x29, 0x9d, 0xfc, 0x65, 0xcc, 0x7c, 0x40,
+        0x92, 0x61, 0x5b, 0xcd, 0x6f, 0xed, 0x08, 0x34
+    };
+    uint32_t rnd, salt;
+    struct timeval tv;
+    struct timezone tz;
+    pid_t pid;
+    static int counter = 0;
+    int i;
+#endif
+
+#ifdef Libisofs_with_uuid_generatE
+
+    uuid_generate(u);
+    swap_uuid((void *) u);
+    memcpy(uuid, u, 16);
+
+#else
+
+    salt = iso_crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0); 
+    salt ^= getpid();
+
+    /* This relies on the uniqueness of the template and the rareness of
+       bootable ISO image production via libisofs. Estimated 53 bits of
+       entropy should influence the production of a single day. 
+       So first collisions are to be expected with about 100 million images
+       per day.
+    */
+    memcpy(u, uuid_template, 16);
+    gettimeofday(&tv, &tz);
+    for (i = 0; i < 4; i++)
+        u[i] = (salt >> (8 * i)) & 0xff;
+    for (i = 0; i < 2; i++)
+        u[4 + i] = (pid >> (8 * i)) & 0xff;
+    u[6] = ((salt >> 8) | (pid >> 16)) & 0xff;
+    rnd = ((0xffffffffff & tv.tv_sec) << 8) |
+          (((tv.tv_usec >> 16) ^ (salt & 0xf0)) & 0xff);
+    u[9] ^= counter & 0xff;
+    for (i = 0; i < 4; i++)
+        u[10 + i] ^= (rnd >> (8 * i)) & 0xff;
+    u[14] ^= (tv.tv_usec >> 8) & 0xff;
+    u[15] ^= tv.tv_usec & 0xff;
+    counter++;
+
+    memcpy(uuid, u, 16);
+
+#endif /* ! Libisofs_with_uuid_generatE */    
+
+}
+
+
+void iso_random_8byte(Ecma119Image *t, uint8_t result[8])
+{
+    uint8_t uuid[16];
+    int i;
+    
+    iso_random_uuid(t, uuid);
+    for (i = 0; i < 8; i++) {
+        if (i == 1) 
+            result[i] = uuid[9]; /* The intra-process counter */
+        else 
+            result[i] = uuid[i] ^ uuid[i + 8];
+    }
 }
 

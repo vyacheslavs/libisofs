@@ -23,17 +23,6 @@
 /* for gettimeofday() */
 #include <sys/time.h>
 
-/* >>> ISOHYBRID : Need ./configure test for uuid_generate() which checks for:
-                   uuid_t, uuid_generate, the need for -luuid
-*/
-/* <<<
-#define Libisofs_with_uuid_generatE 1
-*/
-
-#ifdef Libisofs_with_uuid_generatE
-#include <uuid/uuid.h>
-#endif
-
 #include "filesrc.h"
 #include "ecma119.h"
 #include "eltorito.h"
@@ -455,106 +444,6 @@ static int insert_apm_head(uint8_t *buf, int apm_count)
 }
 
 
-#ifdef Libisofs_with_uuid_generatE
-
-static void swap_uuid(void *u_pt)
-{
-     uint8_t tr, *u;
-
-     u = (uint8_t *) u_pt;
-     tr = u[0]; u[0] = u[3]; u[3] = tr;
-     tr = u[1]; u[1] = u[2]; u[2] = tr;
-     tr = u[4]; u[4] = u[5]; u[5] = tr;
-     tr = u[6]; u[6] = u[7]; u[7] = tr;
-}
-
-#endif /* Libisofs_with_uuid_generatE */
-
-
-/* CRC-32 as of GPT and Ethernet.
-   Parameters are deduced from a table driven implementation in isohybrid.c
-*/
-static unsigned int crc32_gpt(unsigned char *data, int count, int flag)
-{   
-    unsigned int acc, top, result = 0;
-    long int i;
-
-    /* Chosen so that the CRC of 0 bytes of input is 0x00000000 */
-    acc = 0x46af6449;
-
-    /* Process data bits and flush numerator by 32 zero bits */
-    for (i = 0; i < count * 8 + 32; i++) {
-        top = acc & 0x80000000;
-        acc = (acc << 1);
-        if (i < count * 8)
-            /* The least significant bits of input bytes get processed first */
-            acc |= ((data[i / 8] >> (i % 8)) & 1);
-        if (top)
-            /* Division by the generating polynomial */
-            acc ^= 0x04c11db7;
-    }
-    /* Mirror residue bits */
-    for (i = 0; i < 32; i++)
-        if (acc & (1 << i))
-            result |= 1 << (31 - i);
-    /* Return bit complement */
-    return result ^ 0xffffffff;
-}
-
-
-static void random_uuid(Ecma119Image *t, uint8_t *uuid)
-{
-#ifdef Libisofs_with_uuid_generatE
-    uuid_t u;
-#else
-    uint8_t u[16];
-    /* produced by uuidgen(1) by Andreas Dilger */
-    static uint8_t uuid_template[16] = {
-        0x6e, 0xf5, 0xa3, 0x8b, 0xcb, 0xfa, 0xdd, 0x4e,
-        0x36, 0x9f, 0x0b, 0x12, 0x51, 0xc3, 0x7d, 0x1a
-    };
-    uint32_t rnd, salt;
-    struct timeval tv;
-    struct timezone tz;
-    static int counter = 0;
-    int i;
-#endif
-
-#ifdef Libisofs_with_uuid_generatE
-
-    uuid_generate(u);
-    swap_uuid((void *) u);
-    memcpy(wpt, u, 16);
-
-#else
-
-    salt = crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0); 
-
-    /* This relies on the uniqueness of the template and the rareness of
-       bootable ISO image production via libisofs. Estimated 53 bits of
-       entropy should influence the production of a single day. 
-       So first collisions are to be expected with about 100 million images
-       per day.
-    */
-    memcpy(u, uuid_template, 16);
-    gettimeofday(&tv, &tz);
-    for (i = 0; i < 4; i++)
-        u[3 + i] = (salt >> (8 * i)) & 0xff;
-    u[8] = (salt >> 8) & 0xff;
-    rnd = ((0xffffffffff & tv.tv_sec) << 8) |
-          (((tv.tv_usec >> 16) ^ (salt & 0xf0)) & 0xff);
-    u[9] ^= counter & 0xff;
-    for (i = 0; i < 4; i++)
-        u[10 + i] ^= (rnd >> (8 * i)) & 0xff;
-    u[14] ^= (tv.tv_usec >> 8) & 0xff;
-    u[15] ^= tv.tv_usec & 0xff;
-    counter++;
-
-#endif /* ! Libisofs_with_uuid_generatE */    
-
-}
-
-
 /* Describe the first three GPT boot images as MBR partitions */
 static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
                                         int gpt_idx[128], int *gpt_cursor)
@@ -598,7 +487,7 @@ static void write_gpt_entry(Ecma119Image *t, char *buf, uint8_t type_guid[16],
 
     memcpy(wpt, type_guid, 16);
     wpt += 16;
-    random_uuid(t, (uint8_t *) wpt);
+    iso_random_uuid(t, (uint8_t *) wpt);
     wpt += 16;
     lsb_to_buf(&wpt, start_lba & 0xffffffff, 32, 0);
     lsb_to_buf(&wpt, (start_lba >> 32) & 0xffffffff, 32, 0);
@@ -692,7 +581,7 @@ static int write_gpt_header_block(Ecma119Image *t, char *buf,
     lsb_to_buf(&wpt, (uint32_t) ((back_lba - 32) >> 32), 32, 1);
 
     /* Disk GUID */
-    random_uuid(t, (uint8_t *) wpt);
+    iso_random_uuid(t, (uint8_t *) wpt);
     wpt += 16;
 
     /* Partition entries start */
@@ -720,7 +609,7 @@ static int write_gpt_header_block(Ecma119Image *t, char *buf,
 
     /* CRC-32 of this header while head_crc is 0 */
     wpt = buf + 16;
-    crc = crc32_gpt((unsigned char *) buf, wpt - buf, 0); 
+    crc = iso_crc32_gpt((unsigned char *) buf, wpt - buf, 0); 
     lsb_to_buf(&wpt, crc, 32, 0);
 
     return ISO_SUCCESS;
