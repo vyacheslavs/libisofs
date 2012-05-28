@@ -26,6 +26,7 @@
 #include "filesrc.h"
 #include "ecma119.h"
 #include "eltorito.h"
+#include "system_area.h"
 
 
 /* This code stems from syslinux-3.72/utils/isohybrid, a perl script

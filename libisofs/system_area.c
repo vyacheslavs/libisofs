@@ -1251,8 +1251,8 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
 
 #else
 
-    salt = iso_crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0); 
-    salt ^= getpid();
+    pid = getpid();
+    salt = iso_crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0) ^ pid; 
 
     /* This relies on the uniqueness of the template and the rareness of
        bootable ISO image production via libisofs. Estimated 53 bits of
