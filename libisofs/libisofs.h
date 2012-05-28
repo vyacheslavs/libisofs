@@ -7003,7 +7003,6 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
                                                     (FAILURE, HIGH, -343) */
 #define ISO_AAIP_NON_USER_NAME    0xE830FEA9
 
-
 /** Too many references on a single IsoExternalFilterCommand
                                                     (FAILURE, HIGH, -344) */
 #define ISO_EXTF_TOO_OFTEN        0xE830FEA8
@@ -7171,8 +7170,11 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
                                                      (FAILURE, HIGH, -382) */
 #define ISO_SECT_SCATTERED          0xE830FE82
 
-/** Too many Apple Partition Map entries requested (FAILURE, HIGH, -383)*/
+/** Too many Apple Partition Map entries requested (FAILURE, HIGH, -383) */
 #define ISO_BOOT_TOO_MANY_APM       0xE830FE81
+
+/** Overlapping Apple Partition Map entries requested (FAILURE, HIGH, -384) */
+#define ISO_BOOT_APM_OVERLAP        0xE830FE80
 
 
 

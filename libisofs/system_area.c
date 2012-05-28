@@ -800,8 +800,10 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     if (t->apm_req_count <= 0) {
         /*
         ret = iso_quick_apm_entry(t, 16, 20, "Test1_name_16_20", "Test1_type");
-        */
         ret = iso_quick_apm_entry(t, 30, 20, "Test1_name_30_20", "Test1_type");
+        */
+        /* >>> Caution: Size 90 causes intentional partition overlap error */
+        ret = iso_quick_apm_entry(t, 30, 90, "BAD_30_90_BAD", "Test1_type");
         if (ret < 0)
             return ret;
         ret = iso_quick_apm_entry(t, 100, 400, "Test2_name_100_400",
@@ -846,16 +848,15 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
                        t->apm_req[i - 1]->block_count;
         }
         if (part_end > goal) {
-
-            /* >>> Overlapping partition. */;
-            /* >>> Vladimir: "Throw error." */;
-
+            iso_msg_submit(t->image->id, ISO_BOOT_APM_OVERLAP, 0,
+               "Program error: APM partitions %d and %d oberlap by %lu blocks",
+               i - 1, i, part_end - goal);
+            return ISO_BOOT_APM_OVERLAP;
         } 
         if (part_end < goal) {
             sprintf(gap_name, "Gap%d", gap_counter);
             gap_counter++;
-            ret = iso_quick_apm_entry(t, part_end,
-                                      goal - part_end,
+            ret = iso_quick_apm_entry(t, part_end, goal - part_end,
                                       gap_name, "ISO9660_data");
             if (ret < 0)
                 return ret;

@@ -476,6 +476,8 @@ const char *iso_error_to_msg(int errcode)
         return "File sections do not form consecutive array of blocks";
     case ISO_BOOT_TOO_MANY_APM:
         return "Too many Apple Partition Map entries requested";
+    case ISO_BOOT_APM_OVERLAP:
+        return "Overlapping Apple Partition Map entries requested";
     default:
         return "Unknown error";
     }
