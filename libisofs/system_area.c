@@ -740,6 +740,9 @@ int cmp_apm_partition_request(const void *f1, const void *f2)
     return 0;
 }
 
+/* @param flag bit0= This is the entry in block 1. Its blocks are already in
+                     the desired apm_block_size unit. Set block_fac to 1.
+*/
 static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
                                struct iso_apm_partition_request *req,
                                uint8_t *buf, int map_entries, int flag)
@@ -747,7 +750,11 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     uint8_t *wpt;
     int block_fac;
 
-    block_fac = 2048 / apm_block_size;
+    if (flag & 1)
+        block_fac = 1;
+    else
+        block_fac = 2048 / apm_block_size;
+        
 
     memset(buf, apm_block_size, 0);
     wpt = buf;
@@ -792,6 +799,12 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     int i, ret, gap_counter = 0, up_to;
     uint32_t part_end, goal;
     char gap_name[33];
+    /* This is a micro mick-up of an APM Block0
+       and also harmless x86 machine code.
+    */
+    static uint8_t block0_template[8] = {
+        0x45, 0x52, 0x02, 0x00, 0xeb, 0x02, 0xff, 0xff
+    };
 
 #ifdef NIX
     /* Disabled */
@@ -800,10 +813,10 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     if (t->apm_req_count <= 0) {
         /*
         ret = iso_quick_apm_entry(t, 16, 20, "Test1_name_16_20", "Test1_type");
-        ret = iso_quick_apm_entry(t, 30, 20, "Test1_name_30_20", "Test1_type");
-        */
-        /* >>> Caution: Size 90 causes intentional partition overlap error */
+        / * >>> Caution: Size 90 causes intentional partition overlap error * /
         ret = iso_quick_apm_entry(t, 30, 90, "BAD_30_90_BAD", "Test1_type");
+        */
+        ret = iso_quick_apm_entry(t, 30, 20, "Test1_name_30_20", "Test1_type");
         if (ret < 0)
             return ret;
         ret = iso_quick_apm_entry(t, 100, 400, "Test2_name_100_400",
@@ -867,6 +880,14 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     qsort(t->apm_req, t->apm_req_count,
         sizeof(struct iso_apm_partition_request *), cmp_apm_partition_request);
 
+    /* These are the only APM block sizes which can be processed here */
+    if (t->apm_block_size > 1536)
+        t->apm_block_size = 2048;
+    else if (t->apm_block_size > 768)
+        t->apm_block_size = 1024;
+    else
+        t->apm_block_size = 512;
+
     /* If block size is larger than 512, then not all 63 entries will fit */
     if ((t->apm_req_count + 1) * t->apm_block_size > 32768) 
         return ISO_BOOT_TOO_MANY_APM;
@@ -876,9 +897,16 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     /* >>> ts B20526 : ??? isohybrid has 16. Logical block count is 10. Why ?*/
     t->apm_req[0]->block_count = t->apm_req_count;
 
+    /* Write APM block 0. Very sparse, not to overwrite much of possible MBR.*/
+    memcpy(buf, block0_template, 8);
+    buf[2]= (t->apm_block_size >> 8) & 0xff;
+    buf[3]= 0;
+
+    /* Write APM Block 1 to t->apm_req_count */
     for (i = 0; i < t->apm_req_count; i++) {
         ret = iso_write_apm_entry(t, t->apm_block_size, t->apm_req[i],
-                       buf + (i + 1) * t->apm_block_size, t->apm_req_count, 0);
+                       buf + (i + 1) * t->apm_block_size, t->apm_req_count,
+                       i == 0);
         if (ret < 0)
             return ret;
     }
