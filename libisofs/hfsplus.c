@@ -23,6 +23,7 @@
 #include "libisofs.h"
 #include "util.h"
 #include "ecma119.h"
+#include "system_area.h"
 
 
 #include <stdlib.h>
@@ -395,7 +396,10 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
   t->curblock += t->hfsp_allocation_blocks;
   t->curblock++;
   t->hfsp_total_blocks = t->curblock - t->hfsp_part_start;
-  return ISO_SUCCESS;
+
+  t->apm_block_size = 0x800;
+  return iso_quick_apm_entry(t, t->hfsp_part_start, t->hfsp_total_blocks,
+                            "HFSPLUS_Hybrid", "Apple_HFS");
 }
 
 static
@@ -539,10 +543,7 @@ write_sb (Ecma119Image *t)
 			   + (i == ISO_HFSPLUS_BLESS_OSX_FOLDER)),
 	      t->hfsp_bless_id[i], 4);
 
-    /* 
-       FIXME: set:
-       uint64_t num_serial;
-    */
+    memcpy (&sb.num_serial, &t->hfsp_serial_number, 8);
 
     ret = iso_write(t, &sb, sizeof (sb));
     if (ret < 0)
