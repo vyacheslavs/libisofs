@@ -106,6 +106,7 @@ iso_image_get_volset_id;
 iso_image_get_volume_id;
 iso_image_give_up_mips_boot;
 iso_image_hfsplus_bless;
+iso_image_hfsplus_get_blessed;
 iso_image_import;
 iso_image_new;
 iso_image_ref;

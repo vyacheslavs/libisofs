@@ -6767,6 +6767,39 @@ enum IsoHfsplusBlessings {
 int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
                             IsoNode *node, int flag);
 
+/**
+ * Get the array of nodes which are currently blessed.
+ * Array indice correspond to enum IsoHfsplusBlessings.
+ *
+ * Several usage restrictions apply. See parameter blessed_nodes.
+ *
+ * @param image
+ *     The image to inquire.
+ * @param blessed_nodes
+ *     Will return a pointer to an internal node array of image.
+ *     This pointer is valid only as long as image exists and only until
+ *     iso_image_hfsplus_bless() gets used to manipulate the blessings.
+ *     Do not free() this array. Do not alter the content of the array
+ *     directly, but rather use iso_image_hfsplus_bless() and re-inquire
+ *     by iso_image_hfsplus_get_blessed().
+ *     This call does not impose an extra reference on the nodes in the
+ *     array. So do not iso_node_unref() them.
+ *     Nodes listed here are not necessarily grafted into the tree of
+ *     the IsoImage.
+ * @param bless_max
+ *     Will return the number of elements in the array.
+ *     It is unlikely but not outruled that it will be larger than
+ *     ISO_HFSPLUS_BLESS_MAX in this libisofs.h file.
+ * @param flag
+ *      Bitfield for control purposes. Submit 0.
+ * @return
+ *      1 means success, <0 means error
+ *
+ * @since 1.2.4
+ */
+int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
+                                  int *bless_max, int flag);
+
 
 /************ Error codes and return values for libisofs ********************/
 

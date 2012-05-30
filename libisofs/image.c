@@ -722,3 +722,13 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
     return 1;
 }
 
+
+/* API */
+int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
+                                  int *bless_max, int flag)
+{
+    *blessed_nodes = img->hfsplus_blessed;
+    *bless_max = ISO_HFSPLUS_BLESS_MAX;
+    return 1;
+}
+
