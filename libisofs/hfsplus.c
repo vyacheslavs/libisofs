@@ -510,7 +510,7 @@ write_sb (Ecma119Image *t)
     set_time (&sb.utime, t->now);
     set_time (&sb.fsck_time, t->now);
     iso_msb ((uint8_t *) &sb.file_count, t->hfsp_nfiles, 4);
-    iso_msb ((uint8_t *) &sb.folder_count, t->hfsp_ndirs, 4);
+    iso_msb ((uint8_t *) &sb.folder_count, t->hfsp_ndirs - 1, 4);
     iso_msb ((uint8_t *) &sb.blksize, 0x800, 4);
     iso_msb ((uint8_t *) &sb.catalog_node_id, t->hfsp_cat_id, 4);
     iso_msb ((uint8_t *) &sb.rsrc_clumpsize, HFSPLUS_BLOCK_SIZE, 4);
@@ -586,7 +586,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     iso_msb ((uint8_t *) &tree_head->depth, t->hfsp_nlevels, 2);
     iso_msb ((uint8_t *) &tree_head->root, 1, 4);
     iso_msb ((uint8_t *) &tree_head->leaf_records, t->hfsp_nleafs, 4);
-    iso_msb ((uint8_t *) &tree_head->first_leaf_node, t->hfsp_nnodes - t->hfsp_levels[t->hfsp_nlevels - 1].level_size, 4);
+    iso_msb ((uint8_t *) &tree_head->first_leaf_node, t->hfsp_nnodes - t->hfsp_levels[0].level_size, 4);
     iso_msb ((uint8_t *) &tree_head->last_leaf_node, t->hfsp_nnodes - 1, 4);
     iso_msb ((uint8_t *) &tree_head->nodesize, HFSPLUS_CAT_NODE_SIZE, 2);
     iso_msb ((uint8_t *) &tree_head->keysize, 6 + 2 * LIBISO_HFSPLUS_NAME_MAX, 2);
@@ -601,8 +601,8 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     buffer[HFSPLUS_CAT_NODE_SIZE - 1] = sizeof (*node_head);
     buffer[HFSPLUS_CAT_NODE_SIZE - 3] = sizeof (*node_head) + sizeof (*tree_head);
     buffer[HFSPLUS_CAT_NODE_SIZE - 5] = (char) 0xf8;
-    buffer[HFSPLUS_CAT_NODE_SIZE - 7] = HFSPLUS_CAT_NODE_SIZE & 0xff;
-    buffer[HFSPLUS_CAT_NODE_SIZE - 8] = HFSPLUS_CAT_NODE_SIZE >> 8;
+    buffer[HFSPLUS_CAT_NODE_SIZE - 7] = (HFSPLUS_CAT_NODE_SIZE - 8) & 0xff;
+    buffer[HFSPLUS_CAT_NODE_SIZE - 8] = (HFSPLUS_CAT_NODE_SIZE - 8) >> 8;
 
     iso_msg_debug(t->image->id, "Write\n");
     ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
@@ -636,7 +636,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 		iso_msb ((uint8_t *) buffer + curoff + 2, t->hfsp_levels[level - 1].nodes[curnode].parent_id, 4);
 		iso_msb ((uint8_t *) buffer + curoff + 6, t->hfsp_levels[level - 1].nodes[curnode].strlen, 2);
 		curoff += 8;
-		memcpy ((uint8_t *) buffer + curoff, t->hfsp_levels[level - 1].nodes[curnode].str, t->hfsp_levels[level - 1].nodes[curnode].strlen);
+		memcpy ((uint8_t *) buffer + curoff, t->hfsp_levels[level - 1].nodes[curnode].str, 2 * t->hfsp_levels[level - 1].nodes[curnode].strlen);
 		curoff += 2 * t->hfsp_levels[level - 1].nodes[curnode].strlen;
 		iso_msb ((uint8_t *) buffer + curoff, next_lev + curnode, 4);
 		curoff += 4;
@@ -674,8 +674,8 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 	  for (j = 0; j < t->hfsp_levels[level].nodes[i].cnt; j++)
 	    {
 	      iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
-	      iso_msg_debug(t->image->id, "%d out of %d, %p", (int) curnode, t->hfsp_nleafs,
-			    t->hfsp_leafs[curnode].node);
+	      iso_msg_debug(t->image->id, "%d out of %d, %s", (int) curnode, t->hfsp_nleafs,
+			    t->hfsp_leafs[curnode].node->name);
 
 	      switch (t->hfsp_leafs[curnode].type)
 		{
@@ -796,6 +796,8 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 			    if (ret <= 0)
 			      return ret;
 			  }
+			if (sz == 0)
+			  blk = t->hfsp_part_start;
 			iso_msb ((uint8_t *) &data_fork->size, sz >> 32, 4);
 			iso_msb ((uint8_t *) &data_fork->size + 4, sz, 4);
 			iso_msb ((uint8_t *) &data_fork->clumpsize, HFSPLUS_BLOCK_SIZE, 4);
@@ -838,8 +840,8 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     buffer[HFSPLUS_BLOCK_SIZE - 1] = sizeof (*node_head);
     buffer[HFSPLUS_BLOCK_SIZE - 3] = sizeof (*node_head) + sizeof (*tree_head);
     buffer[HFSPLUS_BLOCK_SIZE - 5] = (char) 0xf8;
-    buffer[HFSPLUS_BLOCK_SIZE - 7] = HFSPLUS_BLOCK_SIZE & 0xff;
-    buffer[HFSPLUS_BLOCK_SIZE - 8] = HFSPLUS_BLOCK_SIZE >> 8;
+    buffer[HFSPLUS_BLOCK_SIZE - 7] = (HFSPLUS_BLOCK_SIZE - 8) & 0xff;
+    buffer[HFSPLUS_BLOCK_SIZE - 8] = (HFSPLUS_BLOCK_SIZE - 8) >> 8;
 
     ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
     if (ret < 0)

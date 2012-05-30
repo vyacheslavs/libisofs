@@ -145,6 +145,7 @@ struct hfsplus_btheader
   uint8_t btree_type;
   uint8_t key_compare;
   uint32_t attributes;
+  uint32_t reserved[16];
 } __attribute__ ((packed));
 
 struct hfsplus_catfile_thread
