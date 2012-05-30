@@ -601,7 +601,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     buffer[HFSPLUS_CAT_NODE_SIZE - 1] = sizeof (*node_head);
     buffer[HFSPLUS_CAT_NODE_SIZE - 3] = sizeof (*node_head) + sizeof (*tree_head);
     buffer[HFSPLUS_CAT_NODE_SIZE - 5] = (char) 0xf8;
-    buffer[HFSPLUS_CAT_NODE_SIZE - 7] = (HFSPLUS_CAT_NODE_SIZE - 8) & 0xff;
+    buffer[HFSPLUS_CAT_NODE_SIZE - 7] = (char) ((HFSPLUS_CAT_NODE_SIZE - 8) & 0xff);
     buffer[HFSPLUS_CAT_NODE_SIZE - 8] = (HFSPLUS_CAT_NODE_SIZE - 8) >> 8;
 
     iso_msg_debug(t->image->id, "Write\n");
@@ -840,7 +840,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     buffer[HFSPLUS_BLOCK_SIZE - 1] = sizeof (*node_head);
     buffer[HFSPLUS_BLOCK_SIZE - 3] = sizeof (*node_head) + sizeof (*tree_head);
     buffer[HFSPLUS_BLOCK_SIZE - 5] = (char) 0xf8;
-    buffer[HFSPLUS_BLOCK_SIZE - 7] = (HFSPLUS_BLOCK_SIZE - 8) & 0xff;
+    buffer[HFSPLUS_BLOCK_SIZE - 7] = (char) ((HFSPLUS_BLOCK_SIZE - 8) & 0xff);
     buffer[HFSPLUS_BLOCK_SIZE - 8] = (HFSPLUS_BLOCK_SIZE - 8) >> 8;
 
     ret = iso_write(t, buffer, HFSPLUS_BLOCK_SIZE);
