@@ -125,6 +125,9 @@ void ecma119_image_free(Ecma119Image *t)
     for (i = 0; (int) i < t->apm_req_count; i++)
         if (t->apm_req[i] != NULL)
             free(t->apm_req[i]);
+    for (i = 0; (int) i < t->gpt_req_count; i++)
+        if (t->gpt_req[i] != NULL)
+            free(t->gpt_req[i]);
 
     free(t);
 }
@@ -1881,13 +1884,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (target->hfsplus_blessed[i] != NULL)
             iso_node_ref(target->hfsplus_blessed[i]);
     }
+    /* Note: Set apm_block_size to 2048, if desired, before pthread_create()
+             at the end of this function.
+             Register any Apple Partition Map entries before pthread_create().
+     */
     target->apm_block_size = 512;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)
         target->apm_req[i] = NULL;
-    /* Set apm_block_size to 2048, if desired, before pthread_create()
-       at the end of this function.
-       Register any Apple Partition Map entries before pthread_create().
-     */
+    for (i = 0; i < ISO_GPT_ENTRIES_MAX; i++)
+        target->gpt_req[i] = NULL;
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...

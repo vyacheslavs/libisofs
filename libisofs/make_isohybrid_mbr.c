@@ -480,23 +480,7 @@ static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
 }
 
 
-static void write_gpt_entry(Ecma119Image *t, char *buf, uint8_t type_guid[16],
-                            off_t start_lba, off_t end_lba, uint8_t flags[8],
-                            uint8_t name[72])
-{
-    char *wpt = buf;
-
-    memcpy(wpt, type_guid, 16);
-    wpt += 16;
-    iso_random_uuid(t, (uint8_t *) wpt);
-    wpt += 16;
-    lsb_to_buf(&wpt, start_lba & 0xffffffff, 32, 0);
-    lsb_to_buf(&wpt, (start_lba >> 32) & 0xffffffff, 32, 0);
-    lsb_to_buf(&wpt, end_lba & 0xffffffff, 32, 0);
-    lsb_to_buf(&wpt, (end_lba >> 32) & 0xffffffff, 32, 0);
-    memcpy(wpt, name, 72);
-}
-
+#ifdef NIX
 
 static int write_gpt_array(Ecma119Image *t, char *buf, uint32_t part_start)
 {
@@ -515,6 +499,9 @@ static int write_gpt_array(Ecma119Image *t, char *buf, uint32_t part_start)
     /* >>> First entry describes overall image , basic_data_uuid
     start_lba = ;
     end_lba = ;
+
+    >>> replace write_gpt_entry by iso_quick_gpt_entry
+
     write_gpt_entry(t, buf + 512 * part_start, basic_data_uuid,
                            off_t start_lba, off_t end_lba, uint8_t flags[8],
                            uint8_t name[72])
@@ -530,7 +517,7 @@ static int write_gpt_array(Ecma119Image *t, char *buf, uint32_t part_start)
         else
     continue;
 
-        /* >>> */;
+        /* >>>  iso_quick_gpt_entry() */
 
     }
 
@@ -539,82 +526,7 @@ static int write_gpt_array(Ecma119Image *t, char *buf, uint32_t part_start)
     return ISO_SUCCESS;
 }
 
-
-static int write_gpt_header_block(Ecma119Image *t, char *buf,
-                                  uint32_t part_start, uint32_t p_arr_crc)
-{
-    static char *sig = "EFI PART";
-    static char revision[4] = {0x00, 0x00, 0x01, 0x00};
-    char *wpt;
-    uint32_t crc;
-    off_t back_lba;
-
-    memset(buf, 0, 512);
-    wpt = buf;
-
-    memcpy(wpt, sig, 8); /* no trailing 0 */
-    wpt += 8;
-    memcpy(wpt, revision, 4);
-    wpt += 4;
-    lsb_to_buf(&wpt, 92, 32, 0);
-
-    /* CRC will be inserted later */
-    wpt += 4;
-
-    /* reserved */
-    lsb_to_buf(&wpt, 0, 32, 0);
-    /* Own LBA low 32 */
-    lsb_to_buf(&wpt, 1, 32, 0);
-    /* Own LBA high 32 */
-    lsb_to_buf(&wpt, 0, 32, 0);
-
-    /* Backup LBA is 1 hd block before image end */
-    back_lba = t->curblock * 4 - 1;
-    lsb_to_buf(&wpt, (uint32_t) (back_lba & 0xffffffff), 32, 1);
-    lsb_to_buf(&wpt, (uint32_t) (back_lba >> 32), 32, 1);
-
-    /* First usable LBA for partitions (entry array occupies 32 hd blocks) */
-    lsb_to_buf(&wpt, part_start + 32, 32, 0);
-    lsb_to_buf(&wpt, 0, 32, 0);
-
-    /* Last usable LBA for partitions */
-    lsb_to_buf(&wpt, (uint32_t) ((back_lba - 32) & 0xffffffff), 32, 1);
-    lsb_to_buf(&wpt, (uint32_t) ((back_lba - 32) >> 32), 32, 1);
-
-    /* Disk GUID */
-    iso_random_uuid(t, (uint8_t *) wpt);
-    wpt += 16;
-
-    /* Partition entries start */
-    lsb_to_buf(&wpt, part_start, 32, 0);
-    lsb_to_buf(&wpt, 0, 32, 0);
-
-    /* Number of partition entries */
-    lsb_to_buf(&wpt, 128, 32, 0);
-
-    /* Size of a partition entry */
-    lsb_to_buf(&wpt, 128, 32, 0);
-
-    /* CRC-32 of the partition array */
-    lsb_to_buf(&wpt, p_arr_crc, 32, 0);
-
-
-    /* <<< Only for a first test */
-    if (wpt - buf != 92) {
-        iso_msgs_submit(0,
-                   "program error : write_gpt_header_block : wpt != 92",
-                   0, "FATAL", 0);
-        return ISO_ISOLINUX_CANT_PATCH;
-    }
-
-
-    /* CRC-32 of this header while head_crc is 0 */
-    wpt = buf + 16;
-    crc = iso_crc32_gpt((unsigned char *) buf, wpt - buf, 0); 
-    lsb_to_buf(&wpt, crc, 32, 0);
-
-    return ISO_SUCCESS;
-}
+#endif /* NIX */
 
 
 /*
@@ -627,7 +539,7 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     uint32_t id, part, nominal_part_size;
     off_t hd_img_blocks, hd_boot_lba;
     char *wpt;
-    uint32_t boot_lba, mbr_id, p_arr_crc, part_start;
+    uint32_t boot_lba, mbr_id, p_arr_crc, part_start, max_gpt_entries;
     int head_count, sector_count, ret;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor;
     /* For generating a weak random number */
@@ -729,9 +641,12 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
         /* >>> ISOHYBRID : write primary GPT and compute p_arr_crc */;
         part_start = 4 + (apm_count + 1) * 4;
 
+        /* >>> compute max_gpt_entries from number of APM */
+        max_gpt_entries = 128; /* suffices for 6 payload APM entries */
 
-        ret = write_gpt_header_block(t, (char *) buf + 512, 
-                                     part_start, p_arr_crc);
+        ret = iso_write_gpt_header_block(t, (uint32_t) *img_blocks,
+                                         buf + 512, max_gpt_entries,
+                                         part_start, p_arr_crc);
         if (ret < 0)
             return ret;
     }

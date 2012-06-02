@@ -7209,6 +7209,12 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /** Overlapping Apple Partition Map entries requested (FAILURE, HIGH, -384) */
 #define ISO_BOOT_APM_OVERLAP        0xE830FE80
 
+/** Too many GPT entries requested (FAILURE, HIGH, -385) */
+#define ISO_BOOT_TOO_MANY_GPT       0xE830FE7F
+
+/** Overlapping GPT entries requested (FAILURE, HIGH, -386) */
+#define ISO_BOOT_GPT_OVERLAP        0xE830FE7E
+
 
 
 /* Internal developer note: 

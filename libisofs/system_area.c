@@ -723,22 +723,52 @@ int iso_quick_apm_entry(Ecma119Image *t,
 }
 
 
+/* Convenience frontend for iso_register_gpt_entry().
+   name has to be already encoded as UTF-16LE.
+*/
+int iso_quick_gpt_entry(Ecma119Image *t,
+                        uint32_t start_block, uint32_t block_count,
+                        uint8_t type_guid[16], uint8_t partition_guid[16],
+                        uint64_t flags, uint8_t name[72])
+{
+    int ret;
+    struct iso_gpt_partition_request *entry;
+
+    entry = calloc(1, sizeof(struct iso_gpt_partition_request));
+    if (entry == NULL)
+        return ISO_OUT_OF_MEM;
+    entry->start_block = start_block;
+    entry->block_count = block_count;
+    memcpy(entry->type_guid, type_guid, 16);
+    memcpy(entry->partition_guid, partition_guid, 16);
+    entry->flags = flags;
+    memcpy(entry->name, name, 72);
+    ret = iso_register_gpt_entry(t, entry, 0);
+    free(entry);
+    return ret;
+}
+
+
 /**
  * Compare the start_sectors of two iso_apm_partition_request
  */
 static
-int cmp_apm_partition_request(const void *f1, const void *f2)
+int cmp_partition_request(const void *f1, const void *f2)
 {
-    struct iso_apm_partition_request *r1, *r2;
+    struct iso_partition_request {
+       uint32_t start_block;
+       uint32_t block_count;
+    } *r1, *r2;
 
-    r1 = *((struct iso_apm_partition_request **) f1);
-    r2 = *((struct iso_apm_partition_request **) f2);
+    r1 = *((struct iso_partition_request **) f1);
+    r2 = *((struct iso_partition_request **) f2);
     if (r1->start_block < r2->start_block)
         return -1;
     if (r1->start_block > r2->start_block)
         return 1;
     return 0;
 }
+
 
 /* @param flag bit0= This is the entry in block 1. Its blocks are already in
                      the desired apm_block_size unit. Set block_fac to 1.
@@ -842,7 +872,7 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 
     /* Sort and fill gaps */
     qsort(t->apm_req, t->apm_req_count,
-        sizeof(struct iso_apm_partition_request *), cmp_apm_partition_request);
+        sizeof(struct iso_apm_partition_request *), cmp_partition_request);
     /* t->apm_req_count will grow during the loop */
     up_to = t->apm_req_count + 1;
     for (i = 1; i < up_to; i++) {
@@ -862,7 +892,7 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         }
         if (part_end > goal) {
             iso_msg_submit(t->image->id, ISO_BOOT_APM_OVERLAP, 0,
-               "Program error: APM partitions %d and %d oberlap by %lu blocks",
+               "Program error: APM partitions %d and %d overlap by %lu blocks",
                i - 1, i, part_end - goal);
             return ISO_BOOT_APM_OVERLAP;
         } 
@@ -878,7 +908,7 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 
     /* Merge list of gap partitions with list of already sorted entries */
     qsort(t->apm_req, t->apm_req_count,
-        sizeof(struct iso_apm_partition_request *), cmp_apm_partition_request);
+        sizeof(struct iso_apm_partition_request *), cmp_partition_request);
 
     /* These are the only APM block sizes which can be processed here */
     if (t->apm_block_size > 1536)
@@ -914,11 +944,266 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 }
 
 
+static void iso_write_gpt_entry(Ecma119Image *t, uint8_t *buf,
+                                uint8_t type_guid[16], uint8_t part_uuid[16],
+                                uint64_t start_lba, uint64_t end_lba,
+                                uint64_t flags, uint8_t name[72])
+{
+    char *wpt;
+    int i;
+
+    wpt = (char *) buf;
+    memcpy(wpt, type_guid, 16);
+    wpt += 16;
+    for (i = 0; i < 16; i++)
+        if (part_uuid[i])
+    break;
+    if (i < 16) {
+        memcpy(wpt, part_uuid, 16);
+    } else {
+        iso_random_uuid(t, (uint8_t *) wpt);
+    }
+    wpt += 16;
+    iso_lsb_to_buf(&wpt, start_lba & 0xffffffff, 4, 0);
+    iso_lsb_to_buf(&wpt, (start_lba >> 32) & 0xffffffff, 4, 0);
+    iso_lsb_to_buf(&wpt, end_lba & 0xffffffff, 4, 0);
+    iso_lsb_to_buf(&wpt, (end_lba >> 32) & 0xffffffff, 4, 0);
+    iso_lsb_to_buf(&wpt, flags & 0xffffffff, 4, 0);
+    iso_lsb_to_buf(&wpt, (flags >> 32) & 0xffffffff, 4, 0);
+    memcpy(wpt, name, 72);
+}
+
+
+int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
+                               uint8_t *buf, uint32_t max_entries,
+                               uint32_t part_start, uint32_t p_arr_crc)
+{
+    static char *sig = "EFI PART";
+    static char revision[4] = {0x00, 0x00, 0x01, 0x00};
+    char *wpt;
+    uint32_t crc;
+    off_t back_lba;
+
+    memset(buf, 0, 128);
+    wpt = (char *) buf;
+
+    /* >>> Make signature adjustable */
+    memcpy(wpt, sig, 8); /* no trailing 0 */
+    wpt += 8;
+
+    memcpy(wpt, revision, 4);
+    wpt += 4;
+    iso_lsb_to_buf(&wpt, 92, 4, 0);
+
+    /* CRC will be inserted later */
+    wpt += 4;
+
+    /* reserved */
+    iso_lsb_to_buf(&wpt, 0, 4, 0);
+    /* Own LBA low 32 */
+    iso_lsb_to_buf(&wpt, 1, 4, 0);
+    /* Own LBA high 32 */
+    iso_lsb_to_buf(&wpt, 0, 4, 0);
+
+    /* Backup LBA is 1 hd block before image end */
+    back_lba = img_blocks * 4 - 1;
+    iso_lsb_to_buf(&wpt, (uint32_t) (back_lba & 0xffffffff), 4, 1);
+    iso_lsb_to_buf(&wpt, (uint32_t) (back_lba >> 32), 4, 1);
+
+    /* First usable LBA for partitions (4 entries per hd block) */
+    iso_lsb_to_buf(&wpt, part_start + max_entries / 4, 4, 0);
+    iso_lsb_to_buf(&wpt, 0, 4, 0);
+
+    /* Last usable LBA for partitions */
+    iso_lsb_to_buf(&wpt,
+                 (uint32_t) ((back_lba - max_entries / 4) & 0xffffffff), 4, 1);
+    iso_lsb_to_buf(&wpt,
+                 (uint32_t) ((back_lba - max_entries / 4) >> 32), 4, 1);
+
+    /* Disk GUID */
+    /* >>> Make adjustable */
+    iso_random_uuid(t, (uint8_t *) wpt);
+    wpt += 16;
+
+    /* Partition entries start */
+    iso_lsb_to_buf(&wpt, part_start, 4, 0);
+    iso_lsb_to_buf(&wpt, 0, 4, 0);
+
+    /* Number of partition entries */
+    iso_lsb_to_buf(&wpt, max_entries, 4, 0);
+
+    /* Size of a partition entry */
+    iso_lsb_to_buf(&wpt, 128, 4, 0);
+
+    /* CRC-32 of the partition array */
+    iso_lsb_to_buf(&wpt, p_arr_crc, 4, 0);
+
+
+    /* <<< Only for a first test */
+    if (wpt - (char *) buf != 92) {
+        iso_msgs_submit(0,
+                   "program error : write_gpt_header_block : wpt != 92",
+                   0, "FATAL", 0);
+        return ISO_ISOLINUX_CANT_PATCH;
+    }
+
+    /* CRC-32 of this header while head_crc is 0 */
+    crc = iso_crc32_gpt((unsigned char *) buf, 128, 0); 
+    wpt = ((char *) buf) + 16;
+    iso_lsb_to_buf(&wpt, crc, 4, 0);
+
+    return ISO_SUCCESS;
+}
+
+
+/* Only for up to 36 characters ISO-8859-1 (or ASCII) input */
+static void poor_man_s_utf_16le(uint8_t gap_name[72])
+{
+    int i;
+
+    for (i = strlen((char *) gap_name) - 1; i >= 0; i--) {
+        gap_name[2 * i] = gap_name[i];
+        gap_name[2 * i + 1] = 0;
+    }
+}
+
+
+/* 
+   >>> Need to memorize GPT copy for backup writer at tail
+*/
+static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks,
+                         uint8_t *buf, uint32_t part_start)
+{
+    static uint8_t basic_data_uuid[16] = {
+        0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
+        0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7
+    };
+
+    uint32_t p_arr_crc = 0, max_entries, part_end, goal;
+    uint64_t start_lba, end_lba;
+    int ret, i, gap_counter = 0, up_to;
+    struct iso_gpt_partition_request *req;
+    uint8_t gpt_name[72];
+    static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
+
+#ifndef NIX
+    /* >>> Disable */
+    
+    /* <<< ts B20526 : Dummy mock-up */
+    if (t->gpt_req_count <= 0) { 
+
+        /* <<< ??? Move to system_area.h and publish as macro ?
+                   Or to make_isohybrid_mbr.c ?
+        */
+        static uint8_t hfs_uuid[16] = {
+            0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
+            0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
+        };
+
+        memset(gpt_name, 0, 72);
+        gpt_name[0] = 'T'; gpt_name[2] = '1';
+        strcpy((char *) gpt_name, "GPT Test 1");
+        poor_man_s_utf_16le(gpt_name);
+        /*
+        ret = iso_quick_gpt_entry(t, 16, 20, hfs_uuid, zero_uuid,
+                                  gpt_flags, gpt_name);
+        / * >>> Caution: Size 90 causes intentional partition overlap error * /
+        ret = iso_quick_gpt_entry(t, 30, 90, hfs_uuid, zero_uuid,
+                                  gpt_flags, gpt_name);
+        */ 
+        ret = iso_quick_gpt_entry(t, 30, 40, hfs_uuid, zero_uuid,
+                                  gpt_flags, gpt_name);
+        if (ret < 0)
+            return ret;
+        strcpy((char *) gpt_name, "GPT Test 2");
+        poor_man_s_utf_16le(gpt_name);
+        ret = iso_quick_gpt_entry(t, 110,  60, basic_data_uuid, zero_uuid,
+                                  gpt_flags, gpt_name);
+        if (ret < 0)
+            return ret;
+    }
+#endif /* NIX */
+
+
+    if (t->gpt_req_count == 0)
+        return 2;
+
+    /* Maximum number of GPT entries of 128 bytes until ISO PVD is reached */
+    if (part_start >= 64)
+        return ISO_ASSERT_FAILURE; /* miscomputation of part_start */
+    max_entries = (64 - part_start) * 4;
+
+    /* Sort and fill gaps */
+    qsort(t->gpt_req, t->gpt_req_count,
+        sizeof(struct iso_gpt_partition_request *), cmp_partition_request);
+    /* t->gpt_req_count will grow during the loop */
+    up_to = t->gpt_req_count + 1;
+    for (i = 0; i < up_to; i++) {
+        if (i < up_to - 1)
+            goal = t->gpt_req[i]->start_block;
+        else
+            goal = img_blocks;
+        if (i == 0) {
+            if (goal <= 16)
+    continue;
+            part_end = 16;
+        } else {
+            part_end = t->gpt_req[i - 1]->start_block +
+                       t->gpt_req[i - 1]->block_count;
+        }
+        if (part_end > goal) {
+            iso_msg_submit(t->image->id, ISO_BOOT_GPT_OVERLAP, 0,
+               "Program error: GPT partitions %d and %d overlap by %lu blocks",
+               i - 1, i, part_end - goal);
+            return ISO_BOOT_GPT_OVERLAP;
+        }
+        if (part_end < goal) {
+            memset(gpt_name, 0, 72);
+            sprintf((char *) gpt_name, "Gap%d", gap_counter);
+            poor_man_s_utf_16le(gpt_name);
+            gap_counter++;
+            ret = iso_quick_gpt_entry(t, part_end, goal - part_end,
+                                      basic_data_uuid, zero_uuid,
+                                      gpt_flags, gpt_name);
+            if (ret < 0)
+                return ret;
+        }
+    }
+    /* Merge list of gap partitions with list of already sorted entries */
+    qsort(t->gpt_req, t->gpt_req_count,
+        sizeof(struct iso_gpt_partition_request *), cmp_partition_request);
+ 
+    if ((int) max_entries < t->gpt_req_count)
+        return ISO_BOOT_TOO_MANY_GPT;
+
+    /* Write the GPT entries to buf */
+    for (i = 0; i < t->gpt_req_count; i++) {
+        req = t->gpt_req[i];
+        start_lba = ((uint64_t) req->start_block) * 4;
+        end_lba = ((uint64_t) start_lba) + req->block_count * 4 - 1;
+        iso_write_gpt_entry(t, buf + 512 * part_start + 128 * i,
+                            req->type_guid, req->partition_guid, 
+                            start_lba, end_lba, req->flags, req->name);
+    }
+    for (; i < (int) max_entries; i++)
+        memset(buf + 512 * part_start + 128 * i, 0, 128);
+
+    p_arr_crc = iso_crc32_gpt((unsigned char *) buf + 512 * part_start,
+                              128 * max_entries, 0);
+    ret = iso_write_gpt_header_block(t, img_blocks, buf + 512, max_entries,
+                                     part_start, p_arr_crc);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
     int ret, int_img_blocks, sa_type, i, will_append = 0;
     int first_partition = 1, last_partition = 4;
-    uint32_t img_blocks;
+    uint32_t img_blocks, gpt_part_start;
 
     if ((t == NULL) || (buf == NULL)) {
         return ISO_NULL_POINTER;
@@ -963,19 +1248,40 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
 
     /* If APM entries were submitted to iso_register_apm_entry(), then they
-       get sprinkled over the system area before any other data get inserted.
-       Note that Block0 of the APM is not written but is in the responsibility
-       of the MBR template. Its block size MUST match t->apm_block_size.
+       get sprinkled over the system area after the system area template was
+       loaded and before any other data get inserted.
+       Note that if APM and MBR get combined, then the first 8 bytes of the MBR
+       template must be replaceable by:
+          {0x45, 0x52, 0x08 0x00, 0xeb, 0x02, 0xff, 0xff}
 
        >>> ts B20526
        >>> This does not care for eventual image enlargements in last minute.
        >>> A sa_type, that does this, will have to adjust the last APM entry
        >>> if exactness matters.
     */
+    if (t->gpt_req_count > 0 &&
+        t->apm_block_size != 2048 && t->apm_req_count > 0) {
+        t->apm_block_size = 2048;
+        iso_msgs_submit(0,
+                 "GPT and APM requested. Had to force APM Block size to 2048.",
+                 0, "DEBUG", 0);
+    }
     ret = iso_write_apm(t, img_blocks, buf);
     if (ret < 0) {
         iso_msg_submit(t->image->id, ret, 0,
                        "Cannot set up Apple Partition Map");
+        return ret;
+    }
+    gpt_part_start = 0;
+    if (t->apm_req_count > 0)
+        gpt_part_start = (t->apm_req_count + 1) * (t->apm_block_size / 512);
+    if (gpt_part_start < 2)
+        gpt_part_start = 2;
+    else if (gpt_part_start >= 64)
+        return ISO_BOOT_TOO_MANY_GPT;
+    ret = iso_write_gpt(t, img_blocks, buf, gpt_part_start);
+    if (ret < 0) {
+        iso_msg_submit(t->image->id, ret, 0, "Cannot set up GPT");
         return ret;
     }
 
@@ -1202,6 +1508,24 @@ int iso_register_apm_entry(Ecma119Image *t,
     memcpy(entry, req, sizeof(struct iso_apm_partition_request));
     t->apm_req[t->apm_req_count] = entry;
     t->apm_req_count++;
+    return ISO_SUCCESS;
+}
+
+
+int iso_register_gpt_entry(Ecma119Image *t,
+                           struct iso_gpt_partition_request *req, int flag)
+{
+    struct iso_gpt_partition_request *entry;
+
+    if (t->gpt_req_count >= ISO_GPT_ENTRIES_MAX)
+        return ISO_BOOT_TOO_MANY_GPT;
+    entry = calloc(1, sizeof(struct iso_gpt_partition_request));
+    if (entry == NULL)
+        return ISO_OUT_OF_MEM;
+    
+    memcpy(entry, req, sizeof(struct iso_gpt_partition_request));
+    t->gpt_req[t->gpt_req_count] = entry;
+    t->gpt_req_count++;
     return ISO_SUCCESS;
 }
 

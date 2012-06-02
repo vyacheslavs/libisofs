@@ -70,9 +70,17 @@
 #endif
 
 
-/* The maximum number of Apple Partition Map entries.
+/* The theoretical maximum number of Apple Partition Map entries in the
+   System Area of an ISO image:
+   Block0 plus 63 entries with block size 512
 */
 #define ISO_APM_ENTRIES_MAX 63
+
+/* The theoretical maximum number of GPT entries in the System Area of an
+   ISO image:
+   MBR plus GPT header block plus 248 GPT entries of 128 bytes each. 
+*/
+#define ISO_GPT_ENTRIES_MAX 248
 
 
 /**
@@ -802,6 +810,12 @@ struct ecma119_image
     int apm_req_count;
     /* 512 by default. May be changed to 2048 before writer thread starts. */
     int apm_block_size;
+
+    /* GPT description. To be composed during IsoImageWriter
+       method ->compute_data_blocks() by calling iso_register_gpt_entry().
+    */
+    struct iso_gpt_partition_request *gpt_req[ISO_GPT_ENTRIES_MAX];
+    int gpt_req_count;
 
 };
 

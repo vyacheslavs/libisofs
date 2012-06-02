@@ -478,6 +478,10 @@ const char *iso_error_to_msg(int errcode)
         return "Too many Apple Partition Map entries requested";
     case ISO_BOOT_APM_OVERLAP:
         return "Overlapping Apple Partition Map entries requested";
+    case ISO_BOOT_TOO_MANY_GPT:
+        return "Too many GPT entries requested";
+    case ISO_BOOT_GPT_OVERLAP:
+        return "Overlapping GPT entries requested";
     default:
         return "Unknown error";
     }

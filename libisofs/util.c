@@ -1355,6 +1355,18 @@ void iso_bb(uint8_t *buf, uint32_t num, int bytes)
     iso_msb(buf+bytes, num, bytes);
 }
 
+/* An alternative to iso_lsb() which advances the write pointer
+*/
+int iso_lsb_to_buf(char **wpt, uint32_t value, int bytes, int flag)
+{
+    int b, bits;
+
+    bits = bytes * 8;
+    for (b = 0; b < bits; b += 8)
+        *((unsigned char *) ((*wpt)++)) = (value >> b) & 0xff;
+    return (1);
+}
+
 uint32_t iso_read_lsb(const uint8_t *buf, int bytes)
 {
     int i;
