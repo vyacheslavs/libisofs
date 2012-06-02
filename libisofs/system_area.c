@@ -1087,8 +1087,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks,
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
 
-#ifndef NIX
-    /* >>> Disable */
+#ifdef NIX
+    /* Disabled */
     
     /* <<< ts B20526 : Dummy mock-up */
     if (t->gpt_req_count <= 0) { 
