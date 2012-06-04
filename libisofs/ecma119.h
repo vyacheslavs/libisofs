@@ -805,6 +805,8 @@ struct ecma119_image
 
     /* Apple Partition Map description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_apm_entry().
+       Make sure that the composing writers get registered before the
+       gpt_tail_writer.
     */
     struct iso_apm_partition_request *apm_req[ISO_APM_ENTRIES_MAX];
     int apm_req_count;
@@ -813,9 +815,25 @@ struct ecma119_image
 
     /* GPT description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_gpt_entry().
+       Make sure that the composing writers get registered before the
+       gpt_tail_writer.
     */
     struct iso_gpt_partition_request *gpt_req[ISO_GPT_ENTRIES_MAX];
     int gpt_req_count;
+
+    /* Messages from gpt_tail_writer_compute_data_blocks() to
+       iso_write_system_area().
+    */
+    /* Start of GPT entries in System Area, block size 512 */
+    uint32_t gpt_part_start;
+    /* The ISO block number after the backup GPT header , block size 2048 */
+    uint32_t gpt_backup_end; 
+    uint32_t gpt_max_entries;
+
+    /* Message from write_head_part1()/iso_write_system_area() to the
+       write_data() methods of the writers.
+    */
+    uint8_t sys_area_as_written[16 * BLOCK_SIZE];
 
 };
 

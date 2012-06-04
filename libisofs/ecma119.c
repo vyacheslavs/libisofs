@@ -1251,10 +1251,11 @@ static
 int write_head_part1(Ecma119Image *target, int *write_count, int flag)
 {
     int res, i;
-    uint8_t sa[16 * BLOCK_SIZE];
+    uint8_t *sa;
     IsoImageWriter *writer;
     size_t buffer_size = 0, buffer_free = 0, buffer_start_free = 0;
 
+    sa = target->sys_area_as_written;
     iso_ring_buffer_get_buf_status(target->buffer, &buffer_size,
                                    &buffer_start_free);
     *write_count = 0;
@@ -1884,15 +1885,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (target->hfsplus_blessed[i] != NULL)
             iso_node_ref(target->hfsplus_blessed[i]);
     }
-    /* Note: Set apm_block_size to 2048, if desired, before pthread_create()
-             at the end of this function.
-             Register any Apple Partition Map entries before pthread_create().
-     */
     target->apm_block_size = 512;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)
         target->apm_req[i] = NULL;
     for (i = 0; i < ISO_GPT_ENTRIES_MAX; i++)
         target->gpt_req[i] = NULL;
+    target->gpt_part_start = 0;
+    target->gpt_backup_end = 0;
+    target->gpt_max_entries = 0;
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -1926,6 +1926,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->iso1999) {
         nwriters++;
     }
+    nwriters++; /* GPT backup tail writer */
     nwriters++; /* Tail padding writer */
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
@@ -2021,6 +2022,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
         }
     }
+
+    /* This writer has to be added to the list after any writer which might
+       request production of APM or GPT partition entries by its
+       compute_data_blocks() method. Its compute_data_blocks() fills the gaps
+       in APM requests. It determines the position of primary GPT and
+       backup GPT. Further it reserves blocks for the backup GPT.
+    */
+    ret = gpt_tail_writer_ecma119_writer_create(target);
+    if (ret < 0)
+        goto target_cleanup;
 
     /* IMPORTANT: This must be the last writer before the checksum writer */
     ret = zero_writer_create(target, target->tail_blocks, 1);
