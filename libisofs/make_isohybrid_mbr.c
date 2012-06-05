@@ -539,7 +539,7 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     uint32_t id, part, nominal_part_size;
     off_t hd_img_blocks, hd_boot_lba;
     char *wpt;
-    uint32_t boot_lba, mbr_id, p_arr_crc, part_start, max_gpt_entries;
+    uint32_t boot_lba, mbr_id, p_arr_crc = 0, part_start, max_gpt_entries;
     int head_count, sector_count, ret;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor;
     /* For generating a weak random number */
