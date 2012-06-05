@@ -1894,6 +1894,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->gpt_backup_end = 0;
     target->gpt_max_entries = 0;
 
+    target->filesrc_blocks = 0;
+
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
      * Each writer inits its structures and stores needed info into
@@ -1973,14 +1975,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         }
     }
 
-    /* create writer for HFS+ structure */
-    if (target->hfsplus) {
-        ret = hfsplus_writer_create(target);
-        if (ret < 0) {
-            goto target_cleanup;
-        }
-    }
-
     /* create writer for ISO 9660:1999 structure */
     if (target->iso1999) {
         ret = iso1999_writer_create(target);
@@ -2006,6 +2000,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     ret = mspad_writer_create(target);
     if (ret < 0) {
         goto target_cleanup;
+    }
+
+    /* create writer for HFS+/FAT structure */
+    /* Impotant: It must be created directly before iso_file_src_writer_create.
+    */
+    if (target->hfsplus) {
+        ret = hfsplus_writer_create(target);
+        if (ret < 0) {
+            goto target_cleanup;
+        }
     }
 
     /* create writer for file contents */
@@ -2076,6 +2080,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     }
 
+
+    /* At least the FAT computation needs to know the size of filesrc data
+       in advance. So this call produces target->filesrc_blocks and
+       relative extent addresses, which get absolute in
+       filesrc_writer_compute_data_blocks().
+    */
+    ret = filesrc_writer_pre_compute(target->writers[file_src_writer_index]);
+    if (ret < 0)
+        goto target_cleanup;
 
     /*
      * 3.

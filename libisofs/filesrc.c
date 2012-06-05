@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- *               2010 - 2011 Thomas Schmitt
+ *               2010 - 2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -220,8 +220,7 @@ int is_ms_file(void *arg)
     return f->prev_img ? 0 : 1;
 }
 
-static
-int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
+int filesrc_writer_pre_compute(IsoImageWriter *writer)
 {
     size_t i, size;
     Ecma119Image *t;
@@ -233,12 +232,13 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     }
 
     t = writer->target;
+    t->filesrc_blocks = 0;
 
     /* Normally reserve a single zeroed block for all files which have
        no block address: symbolic links, device files, empty data files.
     */
     if (! t->old_empty)
-        t->curblock++;
+        t->filesrc_blocks++;
 
     /* on appendable images, ms files shouldn't be included */
     if (t->appendable) {
@@ -265,7 +265,7 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
 
         off_t section_size = iso_stream_get_size(file->stream);
         for (extent = 0; extent < file->nsections - 1; ++extent) {
-            file->sections[extent].block = t->curblock + extent *
+            file->sections[extent].block = t->filesrc_blocks + extent *
                         (ISO_EXTENT_SIZE / BLOCK_SIZE);
             file->sections[extent].size = ISO_EXTENT_SIZE;
             section_size -= (off_t) ISO_EXTENT_SIZE;
@@ -275,18 +275,54 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
          * final section
          */
         if (section_size <= 0) {
-            file->sections[extent].block = t->empty_file_block;
+            /* Will become t->empty_file_block
+               in filesrc_writer_compute_data_blocks()
+               Special use of 0xffffffe0 to 0xffffffff is covered by
+               mspad_writer which enforces a minimum start of filesrc at
+               block 0x00000020.
+            */
+            file->sections[extent].block = 0xffffffff;
         } else {
             file->sections[extent].block =
-                         t->curblock + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
+                   t->filesrc_blocks + extent * (ISO_EXTENT_SIZE / BLOCK_SIZE);
         }
         file->sections[extent].size = (uint32_t)section_size;
 
-        t->curblock += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
+        t->filesrc_blocks += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }
 
     /* the list is only needed by this writer, store locally */
     writer->data = filelist;
+    return ISO_SUCCESS;
+}
+
+static
+int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    Ecma119Image *t;
+    int extent = 0;
+    size_t  i;
+    IsoFileSrc *file;
+    IsoFileSrc **filelist;
+
+    if (writer == NULL) {
+        return ISO_ASSERT_FAILURE;
+    }
+    t = writer->target;
+    filelist = (IsoFileSrc **) writer->data;
+
+    /* Give all extent addresses their final absolute value */
+    i = 0;
+    while ((file = filelist[i++]) != NULL) {
+       for (extent = 0; extent < file->nsections; ++extent) {
+            if (file->sections[extent].block == 0xffffffff)
+                file->sections[extent].block = t->empty_file_block;
+            else
+                file->sections[extent].block += t->curblock;
+       }
+    }
+
+    t->curblock += t->filesrc_blocks;
     return ISO_SUCCESS;
 }
 

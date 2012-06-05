@@ -835,6 +835,12 @@ struct ecma119_image
     */
     uint8_t sys_area_as_written[16 * BLOCK_SIZE];
 
+    /* Size of the filesrc_writer area (data file content).
+       This is available before any IsoImageWriter.compute_data_blocks()
+       is called.
+    */
+    uint32_t filesrc_blocks;
+
 };
 
 #define BP(a,b) [(b) - (a) + 1]

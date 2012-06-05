@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ *               2012 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -92,5 +93,13 @@ off_t iso_file_src_get_size(IsoFileSrc *file);
  * It takes care of written the files in the correct order.
  */
 int iso_file_src_writer_create(Ecma119Image *target);
+
+/**
+ * Determine number of filesrc blocks in the image and compute extent addresses
+ * relative to start of the file source writer area.
+ * filesrc_writer_compute_data_blocks() later makes them absolute.
+ */
+int filesrc_writer_pre_compute(IsoImageWriter *writer);
+
 
 #endif /*LIBISO_FILESRC_H_*/
