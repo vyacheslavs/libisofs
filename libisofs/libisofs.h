@@ -1397,12 +1397,29 @@ int iso_write_opts_set_rockridge(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
 
 /**
- * Whether to add the HFS+ to the image.
+ * Whether to add a HFS+ filesystem to the image which points to the same
+ * file content as the other directory trees.
+ * It will get marked by an Apple Partition Map in the System Area of the ISO
+ * image. This may collide with data submitted by
+ *   iso_write_opts_set_system_area()
+ * and with settings made by 
+ *   el_torito_set_isolinux_options()
+ * The first 8 bytes of the System Area get overwritten by
+ *   {0x45, 0x52, 0x08 0x00, 0xeb, 0x02, 0xff, 0xff}
+ * which can be executed as x86 machine code without negative effects.
+ * So if an MBR gets combined with this feature, then its first 8 bytes
+ * should contain no essential commands.
+ * The next blocks of 2 KiB in the System Area will be occupied by APM entries.
+ * The first one covers the part of the ISO image before the HFS+ filesystem
+ * metadata. The second one marks the range from HFS+ metadata to the end
+ * of file content data. If more ISO image data follow, then a third partition
+ * entry gets produced. Other features of libisofs might cause the need for
+ * more APM entries.
  *
  * @param opts
  *      The option set to be manipulated.
  * @param enable
- *      1 to enable HFS+ extension, 0 to not add them
+ *      1 to enable HFS+ extension, 0 to not add HFS+ metadata and APM
  * @return
  *      1 success, < 0 error
  *
