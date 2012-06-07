@@ -15,10 +15,11 @@ specifications, some is just rumor which happens to work (maybe not even that).
 
 EL Torito CD booting, for PC-BIOS x86, PowerPC, (old) Mac, EFI.
 
-MBR, for PC-BIOS x86 from (pseudo-) hard disk
-- SYSLINUX isohybrid MBR
-  >>> under construction: - SYSLINUX isohybrid for UEFI and x86 Mac
-- GRUB2 grub-mkrescue MBR
+Master Boot Record (MBR), for PC-BIOS x86 from (pseudo-) hard disk
+
+Apple Partition Map (APM) 
+
+GUID Partition Table (GPT)
 
 MIPS Volume Header, for MIPS Big Endian, e.g. SGI Indigo2.
 
@@ -26,6 +27,10 @@ DEC Boot Block, for MIPS Little Endian , e.g. DECstation.
 
 SUN Disk Label and boot images, for SUN SPARC
 
+Combinations of boot mechanisms:
+- SYSLINUX isohybrid MBR
+- SYSLINUX isohybrid for MBR, UEFI and x86 Mac
+- GRUB2 grub-mkrescue MBR
 
 ------------------------------------------------------------------------------
 
@@ -249,7 +254,7 @@ Byte Range | Value      | Meaning
 ------------------------------------------------------------------------------
 
 
-                                   MBR
+                           Master Boot Record (MBR)
                   for PC-BIOS x86 from (pseudo-) hard disk
 
 Sources:
@@ -344,126 +349,32 @@ See <libisofs/libisofs.h> for call iso_write_opts_set_part_offset()
 and http://libburnia-project.org/wiki/PartitionOffset for examples with
 program xorriso.
 
-
 ------------------------------------------------------------------------------
 
 
-                             SYSLINUX Isohybrid MBR
+                           Apple Partition Map (APM) 
+    for Apple Macs introduced since 2000 and more computer-like than iPad
+                  from CD and often from (pseudo-) hard disk
 
 Sources:
-    syslinux-3.72/utils/isohybrid , a perl script by H. Peter Anvin = hpa.
-    Mailing list conversations with hpa.
+    http://mjg59.dreamwidth.org/11285.html
+    http://opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116/IOApplePartitionScheme.h (typedef struct Block0)
+    http://www.informit.com/articles/article.aspx?p=376123&seqNum=3
+    syslinux-4.05/utils/isohybrid.c
+    Mail conversations with Vladimir Serbinenko.
 
 
-An isohybrid MBR directs the booting BIOS to an ISOLINUX boot image which
-is also the target of an El Torito boot catalog entry.
-For that purpose one has to take an MBR template and has to set a few bytes
-to values which sufficiently describe the ISO image and the boot image file.
+APM has an adjustable block size. Because the ISO images shall always work
+on optical media, and in order to make room for the header block of an
+additional GPT, only block size 2048 is considered here.
+The role of APM in the boot process is to guide the firmware to a
+HFS+ filesystem.
 
-Words are composed little-endian style.
-
-Byte Range | Value      | Meaning
----------- | ---------- | ----------------------------------------------------
-   0 - 431 | = opaque = | Syslinux machine code provided by MBR template
-           |            |
- 432 - 439 | hd_bootlba | Address of the ISOLINUX boot image file in the
-           |            | ISO image. Counted in 512 byte blocks.
-           |            |
- 440 - 443 |     mbr_id | Random number
- 444 - 445 |          0 | Padding
-           |            |
- 446 - 509 | ========== | Partition table
-           |            |
- 446 - 461 | part_entry | Partition table entry 1 describing ISO image size
-           |            | rounded up to the next full MiB. The partition starts
-           |            | at LBA 0. (I.e. contrary to tradition.)
-           |            | See above for partition table entry format.
-           |            |
- 462 - 509 |          0 | Unused partition entries 2 to 4
- 510 - 511 |     0xaa55 | MBR signature
----------- | ---------- | ----------------------------------------------------
-
-The ISO image file gets padded up to the next full MiB.
-
-hpa about MBR templates and partition table filesystem types:
-
-"[MBR templates] are available in the Syslinux build tree under the names:
-   mbr/isohdp[fp]x*.bin
- The default probably should be mbr/isohdppx.bin, but it's ultimately up
- to the user.
- [...]
- Note: the filesystem type is largely arbitrary, in theory it can be any
- value other than 0x00, 0x05, 0x0f, 0x85, 0xee, or 0xef.  0x17 ("Windows
- IFS Hidden") seems safeish, some people believe 0x83 (Linux) is better.
-"
-
-
->>>                   SYSLINUX isohybrid for UEFI and x86-Mac
-
-Sources:
-  http://mjg59.dreamwidth.org/11285.html
-  http://mjg59.fedorapeople.org/Fedora-LiveCD.iso
-  http://opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116/IOApplePartitionScheme.h (typedef struct Block0)
-  http://www.informit.com/articles/article.aspx?p=376123&seqNum=3
-  http://en.wikipedia.org/wiki/GUID_Partition_Table
-  http://en.wikipedia.org/wiki/GUID
-  syslinux-4.05/utils/isohybrid.c
-
->>> Motivation: What systems will use the additional data ? amd64 UEFI ?
-
-This is a very condensed format which exposes a lot of entry points for boot
-firmware.
-
-  Byte Range   | Value      | Meaning
--------------- | ---------- | -------------------------------------------------
-     0 -   511 | mbr        | Isohybrid MBR pointing to x86 boot image file,
-               |            | with three entries in its partition map.
-               |            | It shares its first 32 bytes with apm_head.
-     0 -    31 | apm_head   | Mock-up of the start of the first block of
-               |            | an Apple Partition Map (APM).
-   446  -  461 | mbr_entry1 | Partition table entry 1 describing the size of
-               |            | the ISO image plus the backup GPT, padded up to
-               |            | the next full MiB.
-   462  -  477 | mbr_entry2 | Entry 2 describing the UEFI VFAT boot image.
-   478  -  493 | mbr_entry3 | Entry 3 describing the HFS+ boot image.
-               |            |
-   512 -  1023 | gpt_head   | GPT header describing the GPT partition array.
-  1024 -  2047 | unused     |
-  2048 -  4095 | apm_entry1 | APM entry 1 describing ISO image size.
-  4096 -  6143 | apm_entry2 | APM entry 2 describing the UEFI VFAT boot image.
-  6144 -  8195 | apm_entry3 | APM entry 3 describing the HFS+ boot image.
-  8192 -  8319 | gpt_entry1 | GPT partition entry 1 for the ISO image size.
-  8320 -  8447 | gpt_entry2 | GPT partition entry 2 for UEFI VFAT boot image,
-  8448 -  8575 | gpt_entry3 | GPT partition entry 3 for the HFS+ boot image.
-  8576 - 24575 | gtp_empty  | Empty GPT partition entries 4 to 128.
- 24576 - 32767 | unused     |
- 32768 - 34815 | iso_pvd    | ISO 9660 superblock
- 34816 - 36863 | el_torito  | EL Torito boot block pointing to a boot catalog
-               |            | with entries for the MBR boot image (platform id
-               |            | 0x00), and for the two other boot images
-               |            | (platform id 0xef)
--------------- | ---------- | -------------------------------------------------
-
-
-For the purpose of booting, there may be two EFI boot image files in the
-ISO image. A VFAT image and a HFS+ image. The content of both is not in the
-scope of this document.
-These boot images get announced by EL Torito boot catalog entries with
-Platform Id 0xef.
-
-
-Newer SYSLINUX MBR templates begin by 32 bytes of machine code which are
-intentionally non-essential:
-   33  ed  90  90  90  90  90  90  90  90  90  90  90  90  90  90
-   90  90  90  90  90  90  90  90  90  90  90  90  90  90  90  90
-They may be overwritten by other bytes which must not produce errors or
-undesirable side effects when executed as x86 machine code.
-The following 32 bytes from block 0 of an Apple Partiton Map (APM) are such
-harmless code. They stem from Fedora-LiveCD.iso by Matthew Garret:
-   45  52  08  00  00  00  90  90  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-They do not depend on any properties of the ISO image or the information
-that is described in the following text.
+Block0 of an APM begins at byte 0 of the medium. Thus it collides with MBR and
+other boot sector formats. By lucky coincidence it is possible to compose
+a mock-up of a Block0 which is acceptable to firmware which expects APM,
+and is also harmless x86 machine with no negative side effects.
+So it is possible to combine APM with specially prepared MBR.
 
 The layout of a Block0 of an APM is:
 
@@ -471,7 +382,9 @@ Byte Range | Value      | Meaning (all numbers are stored big endian)
 ---------- | ---------- | ----------------------------------------------------
    0 -   1 | sig        | Signature 0x45 = 'E' , 0x52 = 'R'
    2 -   3 | block_size | 0x0800 = 2048
-   4 -   7 | block_count| 0x9090 = 37008
+   4 -   7 | block_count| Number of blocks covered by APM
+           |            | Often some x86-harmless dummy. E.g. 0x9090 = 37008
+           |            | or 0xeb02ffff = 3,942,842,367                         
    8 -   9 | dev_type   | obscure: "device type"
   10 -  11 | dev_id     | obscure: "device id"
   12 -  15 | drv_data   | obscure: "driver data"
@@ -481,49 +394,111 @@ Byte Range | Value      | Meaning (all numbers are stored big endian)
   82 - 511 | reserved   |
 ---------- | ---------- | ----------------------------------------------------
 
-(The block_count of 0x9090 is pure fantasy. It shall only mark the disc as
- not empty.)
+The SYSLINUX program isohybrid.c overwrites the first 32 bytes of this
+layout by its dummy values. It uses the small block_count 0x00009090 and
+sets all bytes up to 31 to 0.
+The libisofs HFS+ extension by Vladimir Serbinenko overwrites only the
+first 8 bytes. It uses the large block_count 0xeb02ffff.
 
-The data block ranges of the two EFI boot images get described by MBR
-partition entries 2 and 3, which thus claim blocks inside of partition 1.
-This partition nesting is acceptable to some EFI implementations only if the
-type of partition 1 is 0x00.
+Block0 and the following APM entries each occupy 1 block of the announced size.
 
-The MBR partition entry number 1 is
-   80  00  01  00  00  3f  a0  89  00  00  00  00  00  50  14  00
-It marks the partition as bootable, starting at block 0, with a size that
-is the smallest full MiB not smaller than the ISO image size + 18 KiB.
-(The 18 KiB are needed for the GPT backup.)
-The ISO image has a size of 332362 blocks of 2K = 1329448 * 512 = 649.14 MiB.
-The partition size is 0x145000 = 1331200 * 512 = 650 MiB.
-Start C/H/S = 0/0/1, type is 0x0 ("Empty"), end C/H/S is 649/63/32.
+The first APM entry describes the range from its own start to the end of the
+last APM entry. Each of the other APM entries describes a partition.
 
-Partition 2:
-   00  fe  ff  ff  ef  fe  ff  ff  a4  00  00  00  70  04  00  00
-Start block is 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
-Partition size is 0x0470 = 1136 * 512. The size of that file.
-Start C/H/S = 1023/254/63, type 0xef (fdisk says: "EFI (FAT-12/16/"),
-end C/H/S =  1023/254/63.
->>> ??? why are the C/H/S values so far out ? 
+The layout of an Apple partition map entry is:
 
-Partition 3:
-   00  fe  ff  ff  00  fe  ff  ff  44  05  00  00  c0  08  00  00
-Start block is 0x0544 = 1348 * 512 = 337 * 2048. The HFS+ image file.
-Partition size is 0x08c0 = 2240 * 512. The size of that file.
-Start C/H/S = 1023/254/63, type 0x00 ("Empty"), end C/H/S =  1023/254/63.
->>> ??? why are the C/H/S values so far out ? 
+Byte Range | Value      | Meaning (all numbers are stored big endian)
+---------- | ---------- | ----------------------------------------------------
+   0 -   1 | sig        | Signature 0x50 = 'P' , 0x4d = 'M'
+   2 -   3 | reserved   |
+   4 -   7 | map_entries| Number of partition entries.
+           |            | All entries show the same number.
+   8 -  11 | start_block| "physical block start of partition"
+  12 -  15 | block_count| "physical block count of partition"
+  16 -  47 | name       | Partition name 
+  48 -  79 | type       | Type string
+  80 -  83 | lb_start   | Logical block start = 0
+  84 -  87 | lb_count   | Logical block count (same as block_count)
+  88 -  91 | flags      | Status flags
+           |            | bit0= entry is valid
+           |            | bit1= entry is allocated
+           |            | bit4= partition is readable
+           |            | bit5= partition is writable
+  92 -  95 | boot_block | Logical start block number of boot code = 0
+  96 -  99 | boot_bytes | Number of bytes in boot code = 0
+ 100 - 119 |            | More boot code stuff = 0
+ 120 - 135 | processor  | "processor type" = 0
+ 136 - 511 | reserved   |
+---------- | ---------- | ----------------------------------------------------
+
+For the first APM entry (byte 0x0800), the following values apply:
+map_entries = number of APM entries, including itself. E.g. 4.
+start_block = 1
+block_count = map_entries
+name        = "Apple"
+type        = "Apple_partition_map"
+flags       = 3
+
+libisofs uses APM to mark a HFS+ filesystem partition within an ISO 9660 image.
+Usually the APM has 3 more entries after the first entry:
+
+Entry 2 (byte 0x1000) describes the block interval from ISO image start to
+the start of the HFS+ filesystem meta data.
+start_block = 16
+block_count = start_of_hfs - 16
+name        = "Gap0"
+type        = "ISO9660_data"
+flags       = 0x13
+
+Entry 3 (byte 0x1800) describes the interval from the start of the HFS+ meta
+data to the end of the HFS+ data at the end of its partition. This includes all
+content blocks of the data files in the ISO image.
+start_block = start_of_hfs
+block_count = end_of_hfs - start_of_hfs
+name        = "HFSPLUS_Hybrid"
+type        = "Apple_HFS"
+flags       = 0x13
+
+Entry 4 (byte 0x2000) describes the interval from the end of the HFS+
+partition to the end of the ISO image. It is possible that this interval is
+empty. In this case, no forth APM entry will be written.
+start_block = end_of_hfs
+block_count = end_of_iso - end_of_hfs
+name        = "Gap1"
+type        = "ISO9660_data"
+flags       = 0x13
 
 
-The second 512-block in the ISO image is a GPT header.
+>>> Open questions:
+>>> What HFS+ blessings are needed for booting ?
+>>> What files need what HFS creator and type settings ?
 
-   45  46  49  20  50  41  52  54  00  00  01  00  5c  00  00  00
-    E   F   I       P   A   R   T
-   13  db  71  5d  00  00  00  00  01  00  00  00  00  00  00  00
-   fe  4f  14  00  00  00  00  00  30  00  00  00  00  00  00  00
-   de  4f  14  00  00  00  00  00  73  23  c8  79  19  e6  97  4d
-   95  17  69  30  c5  38  e2  99  10  00  00  00  00  00  00  00
-   80  00  00  00  80  00  00  00  5b  6b  8a  65
 
+------------------------------------------------------------------------------
+
+
+                        GUID Partition Table (GPT)
+                    for alternative mountability paths
+        and for booting of some Apple Macs from (pseudo-) hard disk
+
+Sources:
+  http://mjg59.dreamwidth.org/11285.html
+  http://mjg59.fedorapeople.org/Fedora-LiveCD.iso
+  http://en.wikipedia.org/wiki/GUID_Partition_Table
+  http://en.wikipedia.org/wiki/GUID
+
+
+GPT is the partition map format of EFI, a successor of PC-BIOS.
+Block size is always 512. GPT consists of a header block at block address 1 and
+a partition table near the start of the medium. This is called the primary GPT.
+There is a backup copy of header and table near the end of the medium.
+
+GPT is particularly designed to co-exist with MBR. If it is present, then the
+booting firmware may or may not prefer it over the MBR partition table.
+GPT can co-exist with APM if APM block size is at least 1024. In this case,
+the primary partition table will begin after the last APM entry block.
+
+The header block format is:
 Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
 ---------- | ---------- | ----------------------------------------------------
    0 -   7 | sig        | Signature "EFI PART" (with no trailing zero)
@@ -531,20 +506,14 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
   12 -  15 | head_size  | Header size = 0x5c = 92
   16 -  19 | head_crc   | CRC-32 of this header while head_crc is 0
   20 -  23 | reserved   | = 0
-  24 -  31 | curr_lba   | Location of this header block = 0x1
-  32 -  39 | back_lba   | Location of header backup block = 0x144ffe = 1331198
-           |            | This is 1 KiB before the end of MBR partition 1
-           |            | (but should be 512 bytes).
-           |            | (Potential isohybrid.c bug #1:
-           |            |  Backup GPT is dislocated by 512 bytes.)
-  40 -  47 | first_lba  | First usable LBA for partitions = 0x30 = 48
-  48 -  55 | last_lba   | Last usable LBA for partitions  = 0x144fde = 1331166
-  56 -  71 | guid       | Disk GUID
-           |            | Random, produced by uuid_generate(),
-           |            | 32,16,16 byte swapped
-  72 -  79 | part_start | Partition entries start LBA = 0x10 = 16 = byte 0x2000
-           |            | (This is unusual. It leaves room for the Apple
-           |            |  partition map entries.)
+  24 -  31 | curr_lba   | Location of this header block = 1
+  32 -  39 | back_lba   | Location of header backup block. See below.
+  40 -  47 | first_lba  | First usable LBA for partitions
+  48 -  55 | last_lba   | Last usable LBA for partitions
+  56 -  71 | guid       | Disk GUID, Random
+  72 -  79 | part_start | Partition entries start
+           |            | Normally this is 2. But to co-exist with APM, it
+                        | might become some other number up to 62.
   80 -  83 | entry_count| Number of partition entries = 0x80 = 128
   84 -  87 | entry_size | Size of a partition entry = 0x80 = 128
   88 -  91 | p_arr_crc  | CRC-32 of the partition array
@@ -563,250 +532,54 @@ bit1 becomes bit30, and so on. Further it gets exored with 0xffffffff.
 
 A GUID consists of a 32-bit integer, two 16-bit integers, and an array of
 8 bytes. The integers are to be stored big-endian.
-A globally registered class GUID are the partition type GUIDs.
+A globally registered class of GUID are the partition type GUIDs.
 This example uses two of them
 Basic data partition:  a2 a0 d0 eb , e5 b9 , 33 44 , 87 c0 68 b6 b7 26 99 c7
 HFS+ partition      :  00 53 46 48 , 00 00 , aa 11 , aa 11 00 30 65 43 ec ac
 Note that the wikipedia list shows the first 32-bit word and the next two
 16-bit words in little-endia interpretation.
 
-
-Because the block size was announced as 2048, the first Apple partition map
-entry is located at byte 0x800 = 2048.
-It describes the partition map itself:
-   50  4d  00  00  00  00  00  03  00  00  00  01  00  00  00  10
-    P   M
-   41  70  70  6c  65  00  00  00  00  00  00  00  00  00  00  00
-    A   p   p   l   e
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   41  70  70  6c  65  5f  70  61  72  74  69  74  69  6f  6e  5f
-    A   p   p   l   e   _   p   a   r   t   i   t   i   o   n   _
-   6d  61  70  00  00  00  00  00  00  00  00  00  00  00  00  00
-    m   a   p
-   00  00  00  00  00  00  00  0a  00  00  00  03  00  00  00  00
-
-The layout of an Apple partition map entry is:
-
-Byte Range | Value      | Meaning (all numbers are stored big endian)
----------- | ---------- | ----------------------------------------------------
-   0 -   1 | sig        | Signature 0x50 = 'P' , 0x4d = 'M'
-   2 -   3 | reserved   |
-   4 -   7 | map_entries| "number of partition entries" = 3
-   8 -  11 | start_block| "physical block start of partition" = 1
-  12 -  15 | block_count| "physical block count of partition" = 16
-           |            | (The value of 16 claims the ISO 9660 PVD as part of
-           |            |  the partition table. It should be 4 instead.)
-  16 -  47 | name       | Partition name = "Apple"
-  48 -  79 | type       | Type string = "Apple_partition_map"
-  80 -  83 | lb_start   | Logical block start = 0
-  84 -  87 | lb_count   | Logical block count = 10
-  88 -  91 | flags      | Status flags = 3 
-           |            | bit0= entry is valid
-           |            | bit1= entry is allocated
-           |            | bit4= partition is readable
-           |            | bit5= partition is writable
-  92 -  95 | boot_block | Logical start block number of boot code = 0
-  96 -  99 | boot_bytes | Number of bytes in boot code = 0
- 100 - 119 |            | More boot code stuff = 0
- 120 - 135 | processor  | "processor type" = 0
- 136 - 511 | reserved   |
----------- | ---------- | ----------------------------------------------------
-
-(Potential isohybrid.c bug #2:
- Apple partition map entries bear the block count for blocks of 512 bytes
- whereas Apple Block0 announces blocks of 2048 bytes.)
-
-The next Apple partition map entry is at byte 0x1000 = 4096:
-
-   50  4d  00  00  00  00  00  03  00  00  00  29  00  00  04  70
-   45  46  49  00  00  00  00  00  00  00  00  00  00  00  00  00
-    E   F   I
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   41  70  70  6c  65  5f  48  46  53  00  00  00  00  00  00  00
-    A   p   p   l   e   _   H   F   S
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  04  70  00  00  00  33  00  00  00  00
-
-3 partitions, start block is 0x29 = 41,
-block count is 0x0470 = 1136 (should be 284), name is "EFI",
-type is "Apple_HFS" (although this is a FAT image),
-logical block start = 0, lb_count = 1136 (should be 284),
-flags = 0x33 : valid, allocated, readable, writable.
-This points to file /isolinux/efiboot.img in the ISO image.
-(Potential isohybrid.c bug #2:
- Apple partition map entries bear the block count for blocks of 512 bytes
- whereas Apple Block0 announces blocks of 2048 bytes.)
-
-At byte 0x1800 = 6144, there is Apple partition map entry 3:
-
-   50  4d  00  00  00  00  00  03  00  00  01  51  00  00  08  c0
-   45  46  49  00  00  00  00  00  00  00  00  00  00  00  00  00
-    E   F   I
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   41  70  70  6c  65  5f  48  46  53  00  00  00  00  00  00  00
-    A   p   p   l   e   _   H   F   S
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  08  c0  00  00  00  33  00  00  00  00
-
-3 partitions, start block is 0x0151 = 337 (LBA of /isolinux/macboot.img),
-block count = 0x08c0 = 2240 (should be 560), name is "EFI",
-type is "Apple_HFS", logical block start = 0, lb_count = 2240 (should be 560),
-flags = 0x33 : valid, allocated, readable, writable.
-(Potential isohybrid.c bug #2:
- Apple partition map entries bear the block count for blocks of 512 bytes
- whereas Apple Block0 announces blocks of 2048 bytes.)
-
-At byte 0x2000 = 8192 begins the GPT partition array.
-It ends at byte 0x4000 = 16384.
-
-   a2  a0  d0  eb  e5  b9  33  44  87  c0  68  b6  b7  26  99  c7
-   a1  87  a1  ba  4d  2c  27  45  ae  05  cf  ab  a6  fa  87  c1
-   00  00  00  00  00  00  00  00  28  49  14  00  00  00  00  00
-   00  00  00  00  00  00  00  00  49  53  4f  48  79  62  72  69
-                                    I   S   O   H   y   b   r   i
-   64  20  49  53  4f  00  49  53  4f  48  79  62  72  69  64  00
-    d       I   S   O       I   S   O   H   y   b   r   i   d   
-   41  70  70  6c  00  00  00  00  00  00  00  00  00  00  00  00
-    A   p   p   l
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-
-A GPT partion entry looks like:
+The partition table is an array of entries. Each has a size of 128 bytes.
+A partition table entry looks like:
 
 Byte Range | Value      | Meaning (numbers are stored little endian)
 ---------- | ---------- | ----------------------------------------------------
-   0 -  15 | type_guid  | Partition type GUID = Basic data partition
-           |            | Wikipedia: "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
-           |            | (Note: The first three words are shown byte swapped)
-  16 -  31 | part_guid  | Unique partition GUID
-           |            | Random, produced by uuid_generate()
-           |            | 32,16,16 byte swapped
-  32 -  39 | start_lba  | First LBA = 0
-  40 -  47 | end_lba    | Last LBA (inclusive) = 0x144828 = 1329448
-           |            | This is the ISO image size in blocks of 512.
-           |            | (Potential isohybrid.c bug #3:
-           |            |  The end_lba in the first GPT entry should be 1 less
-           |            |  than the count of 512 byte blocks of the ISO image.)
+   0 -  15 | type_guid  | Partition type GUID
+  16 -  31 | part_guid  | Unique partition GUID, Random
+  32 -  39 | start_lba  | First LBA
+  40 -  47 | end_lba    | Last LBA (inclusive)
   48 -  55 | flags      | Attribute flags
            |            | bit0= "System Partition" Do not alter.
            |            | bit2= Legacy BIOS bootable (MBR partition type 0x80)
            |            | bit60= read-only
-  56 - 127 | name       | Wikipedia says UTF-16LE.
-           |            | (Potential isohybrid.c bug #4:
-           |            |  The name in Fedora-LiveCD.iso is 8 bit and result
-           |            |  of faulty memory operation on a text constant.)
+  56 - 127 | name       | Characters encoded as UTF-16LE. Padded by 0-bytes.
 ---------- | ---------- | ----------------------------------------------------
 
-Next entry is at 0x2800 = 10240:
 
-   a2  a0  d0  eb  e5  b9  33  44  87  c0  68  b6  b7  26  99  c7
-   c8  de  c8  1f  fb  f0  51  40  8c  8a  d2  f6  b1  46  16  dc
-   a4  00  00  00  00  00  00  00  13  05  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  49  53  4f  48  79  62  72  69
-                                    I   S   O   H   y   b   r   i
-   64  00  41  70  70  6c  65  00  41  70  70  6c  00  00  00  00
-    d       A   p   p   l   e       A   p   p   l
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+About header field "Location of header backup block":
 
-Partition type GUID : "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7" = Basic data
-Start at block 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
-Last block is 0x0513 = 1299 = 164 + 1135. This end is correct.
-(Potential isohybrid.c bug #4:
- Wrong character set and incidential bytes in GPT partition name.)
+Near to the end of the image, after any data blocks which might be of interest
+for the filesystems covered by GPT partitions, there is a backup of partition
+table and header block.
+The header block is supposed to mark the end of the usable medium. But libisofs
+may have the need to add more data.
+The partition table is stored directly before the header block. So it will
+normally not begin at a 2 KiB block start.
 
-Next entry at byte 0x02100 = 8448:
-
-   00  53  46  48  00  00  aa  11  aa  11  00  30  65  43  ec  ac
-   c8  de  c8  1f  fb  f0  51  40  8c  8a  d2  f6  b1  46  16  dc
-   44  05  00  00  00  00  00  00  03  0e  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  49  53  4f  48  79  62  72  69
-                                    I   S   O   H   y   b   r   i
-   64  00  41  70  70  6c  65  00  41  70  70  6c  00  00  00  00
-    d       A   p   p   l   e       A   p   p   l
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
-
-Partition type GUID : "48465300-0000-11AA-AA11-00306543ECAC" = HFS+
-Start block is 0x0544 = 1348 * 512 = 337 * 2048. The HFS+ image file.
-Last block is  0x0e03 = 3587 = 1348 + 2239. Correct.
-(Potential isohybrid.c bug #4:
- Wrong character set and incidential bytes in GPT partition name.)
-
-The rest of the System Area is 0 up to the Primary Volume Descriptor
-at block 16.
-
-
-The ISO image file gets padded up to full MiB with sufficient room for the GPT
-backup which is stored near the very end of the image file. There is need for
-at least 16.5 KiB, which effectively occupy 18 KiB.
-
-The backup partition array is stored 17 KiB before the end of MBR partition 1
-resp. the image file.
-(Potential isohybrid.c bug #1:
- Wikipedia suggests "LBA -33" counted from end. This would be 16.5 KiB before
- end.)
-
-The content of the partition arry is the same as the one of the primary array
-at byte 0x4000.
-
-The GPT header is stored 1 KiB before the end of MBR partition 1.
-(Potential isohybrid.c bug #1:
- Wikipedia suggests "LBA -1" counted from end. This ould be 512 bytes.)
-
-   45  46  49  20  50  41  52  54  00  00  01  00  5c  00  00  00
-    E   F   I       P   A   R   T
-   f6  61  10  1c  00  00  00  00  fe  4f  14  00  00  00  00  00
-   01  00  00  00  00  00  00  00  30  00  00  00  00  00  00  00
-   de  4f  14  00  00  00  00  00  73  23  c8  79  19  e6  97  4d
-   95  17  69  30  c5  38  e2  99  de  4f  14  00  00  00  00  00
-   80  00  00  00  80  00  00  00  5b  6b  8a  65 
-
-It differs by its own CRC and by some of its parameters:
-Own address is 0x144ffe. The backup lba is 0x01 = Primary GPT header.
-Partition entries start is 0x144fde
-(Potential isohybrid.c bug #1:
- This overlaps with the last usable LBA. The backup GPT must move up by
- 512 bytes.)
-
-
-------------------------------------------------------------------------------
-
-
-                          GRUB2 grub-mkrescue MBR
-
-Sources:
-    Mailing list conversations with Vladimir Serbinenko.
-
-
-The MBR file that is used with GRUB2 script grub-mkrescue needs only a
-partition table entry which describes the image size.
-
-Byte Range | Value      | Meaning
+The content of the backup partition table is the same as the one of the
+primary table.
+The backup header differs from the primary header by 
+Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
 ---------- | ---------- | ----------------------------------------------------
-   0 - 445 | = opaque = | GRUB2 machine code provided by MBR template
-           |            |
- 446 - 509 | ========== | Partition table
-           |            |
- 446 - 461 | part_entry | Partition table entry 1 describing ISO image size
-           |            | Peculiar is the start offset of 1 block.
-           |            | This prevents mounting of the partition.
-           |            | See above for partition table entry format.
-           |            |
- 462 - 509 |          0 | Unused partition entries 2 to 4
- 510 - 511 |     0xaa55 | MBR signature
+  16 -  19 | head_crc   | CRC-32 of this header while head_crc is 0.
+           |            | Is recomputed after the following changes.
+  24 -  31 | curr_lba   | Location of this header block.
+           |            | Shows own block address.
+  32 -  39 | back_lba   | Location of header backup block.
+           |            | Points to primary header block = 1
+  72 -  79 | part_start | Partition entries start.
+           |            | Points to start of backup partition table.
 ---------- | ---------- | ----------------------------------------------------
-
-Vladimir Serbinenko about the partition table entry:
-"Currently we use first and not last entry. You need to:
- 1) Zero-fill 446-510
- 2) Put 0x55, 0xAA into 510-512
- 3) Put 0x80 (for bootable partition), 0, 2, 0 (C/H/S of the start), 0xcd
-   (partition type), [3 bytes of C/H/S end], 0x01, 0x00, 0x00, 0x00 (LBA
-   start in little endian), [LBA end in little endian] at 446-462
-"
 
 ------------------------------------------------------------------------------
 
@@ -1100,6 +873,435 @@ Byte Range | Value      | Meaning
 ------------------------------------------------------------------------------
 
 >>> ??? DEC Alpha
+
+------------------------------------------------------------------------------
+
+                         Combinations of boot mechanisms
+
+------------------------------------------------------------------------------
+
+
+                             SYSLINUX Isohybrid MBR
+
+Sources:
+    syslinux-3.72/utils/isohybrid , a perl script by H. Peter Anvin = hpa.
+    Mailing list conversations with hpa.
+
+
+An isohybrid MBR directs the booting BIOS to an ISOLINUX boot image which
+is also the target of an El Torito boot catalog entry.
+For that purpose one has to take an MBR template and has to set a few bytes
+to values which sufficiently describe the ISO image and the boot image file.
+
+Words are composed little-endian style.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 - 431 | = opaque = | Syslinux machine code provided by MBR template
+           |            |
+ 432 - 439 | hd_bootlba | Address of the ISOLINUX boot image file in the
+           |            | ISO image. Counted in 512 byte blocks.
+           |            |
+ 440 - 443 |     mbr_id | Random number
+ 444 - 445 |          0 | Padding
+           |            |
+ 446 - 509 | ========== | Partition table
+           |            |
+ 446 - 461 | part_entry | Partition table entry 1 describing ISO image size
+           |            | rounded up to the next full MiB. The partition starts
+           |            | at LBA 0. (I.e. contrary to tradition.)
+           |            | See above for partition table entry format.
+           |            |
+ 462 - 509 |          0 | Unused partition entries 2 to 4
+ 510 - 511 |     0xaa55 | MBR signature
+---------- | ---------- | ----------------------------------------------------
+
+The ISO image file gets padded up to the next full MiB.
+
+hpa about MBR templates and partition table filesystem types:
+
+"[MBR templates] are available in the Syslinux build tree under the names:
+   mbr/isohdp[fp]x*.bin
+ The default probably should be mbr/isohdppx.bin, but it's ultimately up
+ to the user.
+ [...]
+ Note: the filesystem type is largely arbitrary, in theory it can be any
+ value other than 0x00, 0x05, 0x0f, 0x85, 0xee, or 0xef.  0x17 ("Windows
+ IFS Hidden") seems safeish, some people believe 0x83 (Linux) is better.
+"
+
+
+>>>                SYSLINUX isohybrid for MBR, UEFI and x86-Mac
+
+Sources:
+  http://mjg59.dreamwidth.org/11285.html
+  http://mjg59.fedorapeople.org/Fedora-LiveCD.iso
+  http://opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116/IOApplePartitionScheme.h (typedef struct Block0)
+  http://www.informit.com/articles/article.aspx?p=376123&seqNum=3
+  http://en.wikipedia.org/wiki/GUID_Partition_Table
+  http://en.wikipedia.org/wiki/GUID
+  syslinux-4.05/utils/isohybrid.c
+
+>>> Motivation: What systems will use the additional data ? amd64 UEFI ?
+
+This is a very condensed format which exposes a lot of entry points for boot
+firmware. It disobeys some of the prescriptions in the previous chapter.
+
+  Byte Range   | Value      | Meaning
+-------------- | ---------- | -------------------------------------------------
+     0 -   511 | mbr        | Isohybrid MBR pointing to x86 boot image file,
+               |            | with three entries in its partition map.
+               |            | It shares its first 32 bytes with apm_head.
+     0 -    31 | apm_head   | Mock-up of the start of the first block of
+               |            | an Apple Partition Map (APM).
+   446  -  461 | mbr_entry1 | Partition table entry 1 describing the size of
+               |            | the ISO image plus the backup GPT, padded up to
+               |            | the next full MiB.
+   462  -  477 | mbr_entry2 | Entry 2 describing the UEFI VFAT boot image.
+   478  -  493 | mbr_entry3 | Entry 3 describing the HFS+ boot image.
+               |            |
+   512 -  1023 | gpt_head   | GPT header describing the GPT partition array.
+  1024 -  2047 | unused     |
+  2048 -  4095 | apm_entry1 | APM entry 1 describing APM entries 1 to 3.
+  4096 -  6143 | apm_entry2 | APM entry 2 describing the UEFI VFAT boot image.
+  6144 -  8195 | apm_entry3 | APM entry 3 describing the HFS+ boot image.
+  8192 -  8319 | gpt_entry1 | GPT partition entry 1 for the ISO image size.
+  8320 -  8447 | gpt_entry2 | GPT partition entry 2 for UEFI VFAT boot image,
+  8448 -  8575 | gpt_entry3 | GPT partition entry 3 for the HFS+ boot image.
+  8576 - 24575 | gtp_empty  | Empty GPT partition entries 4 to 128.
+ 24576 - 32767 | unused     |
+ 32768 - 34815 | iso_pvd    | ISO 9660 superblock
+ 34816 - 36863 | el_torito  | EL Torito boot block pointing to a boot catalog
+               |            | with entries for the MBR boot image (platform id
+               |            | 0x00), and for the two other boot images
+               |            | (platform id 0xef)
+-------------- | ---------- | -------------------------------------------------
+
+
+For the purpose of booting, there may be two EFI boot image files in the
+ISO image. A VFAT image and a HFS+ image. The content of both is not in the
+scope of this document.
+These boot images get announced by EL Torito boot catalog entries with
+Platform Id 0xef.
+
+
+Newer SYSLINUX MBR templates begin by 32 bytes of machine code which are
+intentionally non-essential:
+   33  ed  90  90  90  90  90  90  90  90  90  90  90  90  90  90
+   90  90  90  90  90  90  90  90  90  90  90  90  90  90  90  90
+They may be overwritten by other bytes which must not produce errors or
+undesirable side effects when executed as x86 machine code.
+The following 32 bytes from block 0 of an Apple Partiton Map (APM) are such
+harmless code. They stem from Fedora-LiveCD.iso by Matthew Garret:
+   45  52  08  00  00  00  90  90  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+They do not depend on any properties of the ISO image or the information
+that is described in the following text.
+
+The layout of Block0 is constant:
+
+Byte Range | Value      | Meaning (all numbers are stored big endian)
+---------- | ---------- | ----------------------------------------------------
+   0 -   1 | sig        | Signature 0x45 = 'E' , 0x52 = 'R'
+   2 -   3 | block_size | 0x0800 = 2048
+   4 -   7 | block_count| 0x9090 = 37008
+   8 -   9 | dev_type   | obscure: "device type" = 0
+  10 -  11 | dev_id     | obscure: "device id"   = 0
+  12 -  15 | drv_data   | obscure: "driver data" = 0
+  16 -  17 | drv_count  | obscure: "driver descriptor count" = 0
+  18 -  81 | drv_map    | obscure: "driver descriptor table"
+           |            |          with 8 entries of 16 bytes each
+           |            |          first 14 bytes are 0
+---------- | ---------- | ----------------------------------------------------
+
+The block_count of 0x9090 is pure fantasy. It shall only mark the disc as
+not empty.
+
+The data block ranges of the two EFI boot images get described by MBR
+partition entries 2 and 3, which thus claim blocks inside of partition 1.
+This partition nesting is acceptable to some EFI implementations only if the
+type of partition 1 is 0x00.
+
+The MBR partition entry number 1 is
+   80  00  01  00  00  3f  a0  89  00  00  00  00  00  50  14  00
+It marks the partition as bootable, starting at block 0, with a size that
+is the smallest full MiB not smaller than the ISO image size + 18 KiB.
+(The 18 KiB are needed for the GPT backup.)
+The ISO image has a size of 332362 blocks of 2K = 1329448 * 512 = 649.14 MiB.
+The partition size is 0x145000 = 1331200 * 512 = 650 MiB.
+Start C/H/S = 0/0/1, type is 0x0 ("Empty"), end C/H/S is 649/63/32.
+
+Partition 2:
+   00  fe  ff  ff  ef  fe  ff  ff  a4  00  00  00  70  04  00  00
+Start block is 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
+Partition size is 0x0470 = 1136 * 512. The size of that file.
+Start C/H/S = 1023/254/63, type 0xef (fdisk says: "EFI (FAT-12/16/"),
+end C/H/S =  1023/254/63.
+
+Partition 3:
+   00  fe  ff  ff  00  fe  ff  ff  44  05  00  00  c0  08  00  00
+Start block is 0x0544 = 1348 * 512 = 337 * 2048. The HFS+ image file.
+Partition size is 0x08c0 = 2240 * 512. The size of that file.
+Start C/H/S = 1023/254/63, type 0x00 ("Empty"), end C/H/S =  1023/254/63.
+
+
+The second 512-block in the ISO image is the GPT header.
+
+   45  46  49  20  50  41  52  54  00  00  01  00  5c  00  00  00
+    E   F   I       P   A   R   T
+   13  db  71  5d  00  00  00  00  01  00  00  00  00  00  00  00
+   fe  4f  14  00  00  00  00  00  30  00  00  00  00  00  00  00
+   de  4f  14  00  00  00  00  00  73  23  c8  79  19  e6  97  4d
+   95  17  69  30  c5  38  e2  99  10  00  00  00  00  00  00  00
+   80  00  00  00  80  00  00  00  5b  6b  8a  65
+
+Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
+---------- | ---------- | ----------------------------------------------------
+  12 -  15 | head_size  | Header size = 0x5c = 92
+  24 -  31 | curr_lba   | Location of this header block = 0x1
+  32 -  39 | back_lba   | Location of header backup block = 0x144ffe = 1331198
+           |            | This is 1 KiB before the end of MBR partition 1
+           |            | (but should be 512 bytes).
+           |            | (Potential isohybrid.c bug #1:
+           |            |  Backup GPT is dislocated by 512 bytes.)
+  40 -  47 | first_lba  | First usable LBA for partitions = 0x30 = 48
+  48 -  55 | last_lba   | Last usable LBA for partitions  = 0x144fde = 1331166
+  56 -  71 | guid       | Disk GUID
+           |            | Random, produced by uuid_generate(),
+           |            | 32,16,16 byte swapped
+  72 -  79 | part_start | Partition entries start LBA = 0x10 = 16 = byte 0x2000
+           |            | (This is unusual. It leaves room for the Apple
+           |            |  partition map entries.)
+---------- | ---------- | ----------------------------------------------------
+
+
+Because the block size was announced as 2048, the first Apple partition map
+entry is located at byte 0x800 = 2048.
+It describes the partition map itself:
+   50  4d  00  00  00  00  00  03  00  00  00  01  00  00  00  10
+    P   M
+   41  70  70  6c  65  00  00  00  00  00  00  00  00  00  00  00
+    A   p   p   l   e
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   41  70  70  6c  65  5f  70  61  72  74  69  74  69  6f  6e  5f
+    A   p   p   l   e   _   p   a   r   t   i   t   i   o   n   _
+   6d  61  70  00  00  00  00  00  00  00  00  00  00  00  00  00
+    m   a   p
+   00  00  00  00  00  00  00  0a  00  00  00  03  00  00  00  00
+
+
+Byte Range | Value      | Meaning (all numbers are stored big endian)
+---------- | ---------- | ----------------------------------------------------
+   4 -   7 | map_entries| "number of partition entries" = 3
+   8 -  11 | start_block| "physical block start of partition" = 1
+  12 -  15 | block_count| "physical block count of partition" = 16
+           |            | (Potential isohybrid.c bug #2:
+           |            |  The value of 16 claims the ISO 9660 PVD as part of
+           |            |  the partition table. It should be 4 instead.)
+  16 -  47 | name       | Partition name = "Apple"
+  48 -  79 | type       | Type string = "Apple_partition_map"
+  80 -  83 | lb_start   | Logical block start = 0
+  84 -  87 | lb_count   | Logical block count = 10
+  88 -  91 | flags      | Status flags = 3 (valid, allocated)
+  92 -  95 | boot_block | Logical start block number of boot code = 0
+  96 -  99 | boot_bytes | Number of bytes in boot code = 0
+ 100 - 119 |            | More boot code stuff = 0
+ 120 - 135 | processor  | "processor type" = 0
+ 136 - 511 | reserved   |
+---------- | ---------- | ----------------------------------------------------
+
+(Potential isohybrid.c bug #2:
+ Apple partition map entries bear the block count for blocks of 512 bytes
+ whereas Apple Block0 announces blocks of 2048 bytes.)
+
+The next Apple partition map entry is at byte 0x1000 = 4096:
+
+   50  4d  00  00  00  00  00  03  00  00  00  29  00  00  04  70
+   45  46  49  00  00  00  00  00  00  00  00  00  00  00  00  00
+    E   F   I
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   41  70  70  6c  65  5f  48  46  53  00  00  00  00  00  00  00
+    A   p   p   l   e   _   H   F   S
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  04  70  00  00  00  33  00  00  00  00
+
+3 partitions, start block is 0x29 = 41,
+block count is 0x0470 = 1136 (should be 284), name is "EFI",
+type is "Apple_HFS" (although this is a FAT image),
+logical block start = 0, lb_count = 1136 (should be 284),
+flags = 0x33 : valid, allocated, readable, writable.
+This points to file /isolinux/efiboot.img in the ISO image.
+(Potential isohybrid.c bug #2:
+ Apple partition map entries bear the block count for blocks of 512 bytes
+ whereas Apple Block0 announces blocks of 2048 bytes.)
+
+At byte 0x1800 = 6144, there is Apple partition map entry 3:
+
+   50  4d  00  00  00  00  00  03  00  00  01  51  00  00  08  c0
+   45  46  49  00  00  00  00  00  00  00  00  00  00  00  00  00
+    E   F   I
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   41  70  70  6c  65  5f  48  46  53  00  00  00  00  00  00  00
+    A   p   p   l   e   _   H   F   S
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  08  c0  00  00  00  33  00  00  00  00
+
+3 partitions, start block is 0x0151 = 337 (LBA of /isolinux/macboot.img),
+block count = 0x08c0 = 2240 (should be 560), name is "EFI",
+type is "Apple_HFS", logical block start = 0, lb_count = 2240 (should be 560),
+flags = 0x33 : valid, allocated, readable, writable.
+(Potential isohybrid.c bug #2:
+ Apple partition map entries bear the block count for blocks of 512 bytes
+ whereas Apple Block0 announces blocks of 2048 bytes.)
+
+At byte 0x2000 = 8192 begins the GPT partition array.
+It ends at byte 0x4000 = 16384.
+
+   a2  a0  d0  eb  e5  b9  33  44  87  c0  68  b6  b7  26  99  c7
+   a1  87  a1  ba  4d  2c  27  45  ae  05  cf  ab  a6  fa  87  c1
+   00  00  00  00  00  00  00  00  28  49  14  00  00  00  00  00
+   00  00  00  00  00  00  00  00  49  53  4f  48  79  62  72  69
+                                    I   S   O   H   y   b   r   i
+   64  20  49  53  4f  00  49  53  4f  48  79  62  72  69  64  00
+    d       I   S   O       I   S   O   H   y   b   r   i   d   
+   41  70  70  6c  00  00  00  00  00  00  00  00  00  00  00  00
+    A   p   p   l
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+
+Byte Range | Value      | Meaning (numbers are stored little endian)
+---------- | ---------- | ----------------------------------------------------
+   0 -  15 | type_guid  | Partition type GUID = Basic data partition
+           |            | Wikipedia: "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
+           |            | (Note: The first three words are shown byte swapped)
+  16 -  31 | part_guid  | Unique partition GUID
+           |            | Random, produced by uuid_generate()
+           |            | 32,16,16 byte swapped
+  32 -  39 | start_lba  | First LBA = 0
+  40 -  47 | end_lba    | Last LBA (inclusive) = 0x144828 = 1329448
+           |            | This is the ISO image size in blocks of 512.
+           |            | (Potential isohybrid.c bug #3:
+           |            |  The end_lba in the first GPT entry should be 1 less
+           |            |  than the count of 512 byte blocks of the ISO image.)
+  48 -  55 | flags      | Attribute flags = 0
+  56 - 127 | name       | Wikipedia says UTF-16LE.
+           |            | (Potential isohybrid.c bug #4:
+           |            |  The name in Fedora-LiveCD.iso is 8 bit and result
+           |            |  of faulty memory operation on a text constant.)
+---------- | ---------- | ----------------------------------------------------
+
+Next entry is at 0x2800 = 10240:
+
+   a2  a0  d0  eb  e5  b9  33  44  87  c0  68  b6  b7  26  99  c7
+   c8  de  c8  1f  fb  f0  51  40  8c  8a  d2  f6  b1  46  16  dc
+   a4  00  00  00  00  00  00  00  13  05  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  49  53  4f  48  79  62  72  69
+                                    I   S   O   H   y   b   r   i
+   64  00  41  70  70  6c  65  00  41  70  70  6c  00  00  00  00
+    d       A   p   p   l   e       A   p   p   l
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+
+Partition type GUID : "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7" = Basic data
+Start at block 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
+Last block is 0x0513 = 1299 = 164 + 1135. This end is correct.
+(Potential isohybrid.c bug #4:
+ Wrong character set and incidential bytes in GPT partition name.)
+
+Next entry at byte 0x02100 = 8448:
+
+   00  53  46  48  00  00  aa  11  aa  11  00  30  65  43  ec  ac
+   c8  de  c8  1f  fb  f0  51  40  8c  8a  d2  f6  b1  46  16  dc
+   44  05  00  00  00  00  00  00  03  0e  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  49  53  4f  48  79  62  72  69
+                                    I   S   O   H   y   b   r   i
+   64  00  41  70  70  6c  65  00  41  70  70  6c  00  00  00  00
+    d       A   p   p   l   e       A   p   p   l
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+   00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
+
+Partition type GUID : "48465300-0000-11AA-AA11-00306543ECAC" = HFS+
+Start block is 0x0544 = 1348 * 512 = 337 * 2048. The HFS+ image file.
+Last block is  0x0e03 = 3587 = 1348 + 2239. Correct.
+(Potential isohybrid.c bug #4:
+ Wrong character set and incidential bytes in GPT partition name.)
+
+The rest of the System Area is 0 up to the Primary Volume Descriptor
+at block 16.
+
+
+The ISO image file gets padded up to full MiB with sufficient room for the GPT
+backup which is stored near the very end of the image file. There is need for
+at least 16.5 KiB, which effectively occupy 18 KiB.
+
+The backup partition array is stored 17 KiB before the end of MBR partition 1
+resp. the image file.
+(Potential isohybrid.c bug #1:
+ Wikipedia suggests "LBA -33" counted from end. This would be 16.5 KiB before
+ end.)
+
+The GPT header is stored 1 KiB before the end of MBR partition 1.
+(Potential isohybrid.c bug #1:
+ Wikipedia suggests "LBA -1" counted from end. This would be 512 bytes.)
+
+   45  46  49  20  50  41  52  54  00  00  01  00  5c  00  00  00
+    E   F   I       P   A   R   T
+   f6  61  10  1c  00  00  00  00  fe  4f  14  00  00  00  00  00
+   01  00  00  00  00  00  00  00  30  00  00  00  00  00  00  00
+   de  4f  14  00  00  00  00  00  73  23  c8  79  19  e6  97  4d
+   95  17  69  30  c5  38  e2  99  de  4f  14  00  00  00  00  00
+   80  00  00  00  80  00  00  00  5b  6b  8a  65 
+
+It differs by its own CRC and by some of its parameters:
+Own address is 0x144ffe. The backup lba is 0x01 = Primary GPT header.
+Partition entries start is 0x144fde
+(Potential isohybrid.c bug #1:
+ This overlaps with the last usable LBA. The backup GPT must move up by
+ 512 bytes.)
+
+------------------------------------------------------------------------------
+
+
+                          GRUB2 grub-mkrescue MBR
+
+Sources:
+    Mailing list conversations with Vladimir Serbinenko.
+
+
+The MBR file that is used with GRUB2 script grub-mkrescue needs only a
+partition table entry which describes the image size.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 - 445 | = opaque = | GRUB2 machine code provided by MBR template
+           |            |
+ 446 - 509 | ========== | Partition table
+           |            |
+ 446 - 461 | part_entry | Partition table entry 1 describing ISO image size
+           |            | Peculiar is the start offset of 1 block.
+           |            | This prevents mounting of the partition.
+           |            | See above for partition table entry format.
+           |            |
+ 462 - 509 |          0 | Unused partition entries 2 to 4
+ 510 - 511 |     0xaa55 | MBR signature
+---------- | ---------- | ----------------------------------------------------
+
+Vladimir Serbinenko about the partition table entry:
+"Currently we use first and not last entry. You need to:
+ 1) Zero-fill 446-510
+ 2) Put 0x55, 0xAA into 510-512
+ 3) Put 0x80 (for bootable partition), 0, 2, 0 (C/H/S of the start), 0xcd
+   (partition type), [3 bytes of C/H/S end], 0x01, 0x00, 0x00, 0x00 (LBA
+   start in little endian), [LBA end in little endian] at 446-462
+"
+
+------------------------------------------------------------------------------
+
+>>> Mac bootable GRUB2 image with HFS+ and APM
+>>> ? With EFI partition ?
+>>> ? With PC-BIOS MBR ?
 
 ------------------------------------------------------------------------------
 
