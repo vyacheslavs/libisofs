@@ -137,6 +137,8 @@ libisofs will call the methods of the writer object when it computes the
 block addresses of the various image components, when it writes volume
 descriptors, when it writes directory trees, and when it finally disposes the
 Ecma119Image object.
+Before calling the first method, it will publish the number of data file
+content blocks in Ecma119Image.filesrc_blocks.
 
 The method IsoImageWriter.compute_data_blocks() has to predict the storage
 needs in the area of directory trees.
