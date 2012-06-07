@@ -124,6 +124,55 @@ Registered:
 -------------------------------------------------------------------------------
 
 Name:
+      isofs.hb
+
+Purpose:
+      Records the IsoHfsplusBlessings blessing of a IsoNode as defined
+      in libisofs.h. At image load time, this info shall be converted back
+      into a relation between IsoImage and IsoNode so that it is available for
+      the HFS+ writer when a new ISO 9660 / HFS+ image gets produced.
+
+Format of Value:
+      BLESSING
+      This is a single byte out of {'p', 'i', 's', '9', 'x'} for
+      ISO_HFSPLUS_BLESS_PPC_BOOTDIR, ISO_HFSPLUS_BLESS_INTEL_BOOTFILE,
+      ISO_HFSPLUS_BLESS_SHOWFOLDER, ISO_HFSPLUS_BLESS_OS9_FOLDER,
+      ISO_HFSPLUS_BLESS_OSX_FOLDER.
+
+Example:
+      { 'p' }
+
+Registered:
+      07 Jun 2012 by Thomas Schmitt for xorriso.
+
+-------------------------------------------------------------------------------
+
+Name:
+      isofs.hx
+
+Purpose:
+      Records the iso_hfsplus_xinfo_data information as defined in libisofs.h.
+      At image load time, this info shall be converted back into an xinfo
+      attachment for iso_hfsplus_xinfo_func so that it is available for
+      the HFS+ writer when a new ISO 9660 / HFS+ image gets produced.
+
+Format of Value:
+      VERSION_LEN | VERSION | CREATOR | TYPE
+      VERSION_LEN complies to ISO 9660 Format section 7.1.1.
+      The byte string VERSION begins with the most significant byte.
+      VERSION == 0 is the only one that is currently defined. It assures the
+      existence of 4 bytes CREATOR and 4 bytes TYPE.
+      Higher versions will keep these 8 bytes and possibly add new ones. 
+
+Example:
+      { 1, 0, 'Y', 'Y', 'D', 'N', 'T', 'E', 'X', 'T' }
+
+Registered:
+      07 Jun 2012 by Thomas Schmitt for xorriso.
+
+-------------------------------------------------------------------------------
+
+Name:
       isofs.st
 
 Purpose:

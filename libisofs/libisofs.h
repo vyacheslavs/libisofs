@@ -6787,6 +6787,7 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
 /**
  * Get the array of nodes which are currently blessed.
  * Array indice correspond to enum IsoHfsplusBlessings.
+ * Array element value NULL means that no node bears that blessing.
  *
  * Several usage restrictions apply. See parameter blessed_nodes.
  *
