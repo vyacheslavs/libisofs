@@ -2033,7 +2033,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
        in APM requests. It determines the position of primary GPT and
        backup GPT. Further it reserves blocks for the backup GPT.
     */
-    ret = gpt_tail_writer_ecma119_writer_create(target);
+    ret = gpt_tail_writer_create(target);
     if (ret < 0)
         goto target_cleanup;
 

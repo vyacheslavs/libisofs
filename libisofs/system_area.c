@@ -1812,7 +1812,7 @@ static int gpt_tail_writer_free_data(IsoImageWriter *writer)
 }
 
 
-int gpt_tail_writer_ecma119_writer_create(Ecma119Image *target)
+int gpt_tail_writer_create(Ecma119Image *target)
 {
     IsoImageWriter *writer;
 

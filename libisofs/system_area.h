@@ -192,7 +192,7 @@ int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
 
 /* Creates the GPT backup tail writer.
 */
-int gpt_tail_writer_ecma119_writer_create(Ecma119Image *target);
+int gpt_tail_writer_create(Ecma119Image *target);
 
 
 #endif /* SYSTEM_AREA_H_ */
