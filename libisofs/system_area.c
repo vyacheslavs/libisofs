@@ -773,12 +773,14 @@ int cmp_partition_request(const void *f1, const void *f2)
 
 /* @param flag bit0= This is the entry in block 1. Its blocks are already in
                      the desired apm_block_size unit. Set block_fac to 1.
+                     Set flags to 3 rather than 0x13.
 */
 static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
                                struct iso_apm_partition_request *req,
                                uint8_t *buf, int map_entries, int flag)
 {
     uint8_t *wpt;
+    uint32_t flags;
     int block_fac;
 
     if (flag & 1)
@@ -816,8 +818,14 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     /* Logical block count */
     iso_msb(wpt, req->block_count * block_fac, 4);
     wpt += 4;
-    /* Status flags : bit0= entry is valid , bit1= entry is allocated */
-    iso_msb(wpt, 3, 4);
+    /* Status flags : bit0= entry is valid , bit1= entry is allocated
+                      bit4= partition is readable , bit5= partition is writable
+    */
+    if (flag & 1)
+        flags = 3;
+    else
+        flags = 0x13;
+    iso_msb(wpt, flags, 4);
     wpt += 4;
 
     /* boot_block , boot_bytes , processor , reserved : are all 0 */
