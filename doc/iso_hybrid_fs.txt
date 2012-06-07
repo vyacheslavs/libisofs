@@ -84,6 +84,23 @@ libisofs/ecma119.h at struct ecma119_image.system_area_options and in
 libisofs/libisofs.h at call iso_write_opts_set_system_area(). See e.g.
 "MIPS Big Endian Volume Header".
 
+libisofs/system_area.h offers an inner API to define partitions for Apple
+Partition Map (APM) and for GPT from within the compute_data_blocks methods
+of the IsoImageWriter objects (see below). If both get combined, then
+APM block size must be 2048. In this case, the partition entries of APM
+and GPT overwrite the following bytes of the submitted
+Ecma119Image.system_area_data:
+  0x0000    to 0x0007   by { 0x45, 0x52, 0x08 0x00, 0xeb, 0x02, 0xff, 0xff}
+  0x0200    to 0x02ff   by GPT header block
+  0x0800    to APM_end  by APM blocks (APM_end = 2048*(Num_APM_partitions + 1)
+  APM_end+1 to 0x7fff   by GPT entries
+This offers still room for a PC-BIOS MBR which has essentially no-op commands
+in its first 8 bytes.
+If no GPT is desired, then the bytes after APM_end stay unaltered.
+If more modesty with overwriting is needed, then this would have to be caused
+by either a specialized system area type or by additional elements of the
+inner API for APM and GPT.
+
 
 The layout of the areas above image_start+16 is defined in function
 libisofs/ecma119.c:ecma119_image_new(). This is done by creating and
@@ -147,6 +164,15 @@ struct iso_file_section is defined in libisofs/libisofs.h.
 
 IsoImageWriter.free_data() disposes the writer and the JolietNode tree.
 
+
+Further examples for add-on writers are those created by:
+
+  hfsplus_writer_create()        is in charge for initial part of an
+                                 embedded HFS+ filesystem
+  hfsplus_tail_writer_create()   is in charge for trailing part of HFS+
+                                 after the data file content area
+  gpt_tail_writer_create()       is in charge for the backup GPT near the
+                                 end of the ISO image
 
 -------------------------------------------------------------------------------
 
