@@ -2029,6 +2029,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         }
     }
 
+/* >>> Decide whether the GPT tail writer can be the last of all
+*/
+#define Libisofs_gpt_writer_lasT yes
+
+#ifndef Libisofs_gpt_writer_lasT
     /* This writer has to be added to the list after any writer which might
        request production of APM or GPT partition entries by its
        compute_data_blocks() method. Its compute_data_blocks() fills the gaps
@@ -2038,6 +2043,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     ret = gpt_tail_writer_create(target);
     if (ret < 0)
         goto target_cleanup;
+#endif /* ! Libisofs_gpt_writer_lasT */
 
     /* IMPORTANT: This must be the last writer before the checksum writer */
     ret = zero_writer_create(target, target->tail_blocks, 1);
@@ -2050,6 +2056,21 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
     }
     
+#ifdef Libisofs_gpt_writer_lasT
+    /* This writer shall be the last one in the list, because it protects the
+       image on media which are seen as GPT partitioned.
+       In any case it has to come after any writer which might request
+       production of APM or GPT partition entries by its compute_data_blocks()
+       method.
+       gpt_tail_writer_compute_data_blocks() fills the gaps in APM requests.
+       It determines the position of primary GPT and backup GPT.
+       Further it reserves blocks for the backup GPT.
+    */
+    ret = gpt_tail_writer_create(target);
+    if (ret < 0)
+        goto target_cleanup;
+#endif /* Libisofs_gpt_writer_lasT */
+
     if (target->partition_offset > 0) {
         /* After volume descriptors and superblock tag are accounted for:
            account for second volset
