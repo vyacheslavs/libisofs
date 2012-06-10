@@ -1347,6 +1347,8 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
 
     ret = ISO_SUCCESS;
 ex:;
+    if (buf != NULL)
+        free(buf);
     return ret;
 }
 
