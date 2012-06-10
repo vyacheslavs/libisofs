@@ -2153,6 +2153,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         /* The ring buffer must be large enough to take opts->overwrite
         */
         ret = ISO_OVWRT_FIFO_TOO_SMALL;
+        goto target_cleanup;
     }
     ret = iso_ring_buffer_new(opts->fifo_size, &target->buffer);
     if (ret < 0) {
