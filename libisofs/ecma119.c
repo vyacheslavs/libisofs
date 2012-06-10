@@ -2151,7 +2151,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* create the ring buffer */
     if (opts->overwrite != NULL &&
-        opts->fifo_size / 2048 < 32 + target->partition_offset) {
+        opts->fifo_size < 32 + target->partition_offset) {
         /* The ring buffer must be large enough to take opts->overwrite
         */
         ret = ISO_OVWRT_FIFO_TOO_SMALL;
