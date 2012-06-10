@@ -3,7 +3,7 @@
 
                by Thomas Schmitt    - mailto:scdbackup@gmx.net
                Libburnia project    - mailto:libburn-hackers@pykix.org
-                                  21 Feb 2012
+                                  07 Jun 2012
 
 
 The overall framework for the filesystem images produced by libisofs is given

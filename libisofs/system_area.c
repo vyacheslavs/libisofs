@@ -820,11 +820,16 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     wpt += 4;
     /* Status flags : bit0= entry is valid , bit1= entry is allocated
                       bit4= partition is readable , bit5= partition is writable
+                      bit30= automatic mount (legacy Mac)
     */
-    if (flag & 1)
+    if (flag & 1) {
         flags = 3;
-    else
+    } else {
         flags = 0x13;
+        if (strncmp((char *) req->type, "Apple_HFS", 9) == 0 &&
+            req->type[9] == 0)
+            flags |= 0x40000000;
+    }
     iso_msb(wpt, flags, 4);
     wpt += 4;
 
