@@ -1682,6 +1682,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rockridge = opts->rockridge;
     target->joliet = opts->joliet;
     target->hfsplus = opts->hfsplus;
+    target->fat = opts->fat;
     target->iso1999 = opts->iso1999;
     target->hardlinks = opts->hardlinks;
     target->aaip = opts->aaip;
@@ -1924,7 +1925,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->joliet) {
         nwriters++;
     }
-    if (target->hfsplus) {
+    if (target->hfsplus || target->fat) {
         nwriters+= 2;
     }
     if (target->iso1999) {
@@ -2007,7 +2008,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* create writer for HFS+/FAT structure */
     /* Impotant: It must be created directly before iso_file_src_writer_create.
     */
-    if (target->hfsplus) {
+    if (target->hfsplus || target->fat) {
         ret = hfsplus_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
@@ -2022,7 +2023,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     file_src_writer_index = target->nwriters - 1;
 
     /* create writer for HFS+ structure */
-    if (target->hfsplus) {
+    if (target->hfsplus || target->fat) {
         ret = hfsplus_tail_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
@@ -2639,6 +2640,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         return ISO_ASSERT_FAILURE;
         break;
     }
+    wopts->hfsplus = 0;
+    wopts->fat = 0;
     wopts->fifo_size = 1024; /* 2 MB buffer */
     wopts->sort_files = 1; /* file sorting is always good */
 
@@ -2749,6 +2752,15 @@ int iso_write_opts_set_hfsplus(IsoWriteOpts *opts, int enable)
         return ISO_NULL_POINTER;
     }
     opts->hfsplus = enable ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_fat(IsoWriteOpts *opts, int enable)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->fat = enable ? 1 : 0;
     return ISO_SUCCESS;
 }
 

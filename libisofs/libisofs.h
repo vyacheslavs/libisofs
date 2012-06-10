@@ -1428,6 +1428,24 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_hfsplus(IsoWriteOpts *opts, int enable);
 
 /**
+ * Whether to add a FAT32 filesystem to the image which points to the same
+ * file content as the other directory trees.
+ *
+ * >>> FAT32 is planned to get implemented in co-existence with HFS+
+ * >>> Describe impact on MBR
+ *
+ * @param opts
+ *      The option set to be manipulated.
+ * @param enable
+ *      1 to enable FAT32 extension, 0 to not add FAT metadata
+ * @return
+ *      1 success, < 0 error
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_set_fat(IsoWriteOpts *opts, int enable);
+
+/**
  * Supply a serial number for the HFS+ extension of the emerging image.
  *
  * @param opts

@@ -97,6 +97,7 @@ struct iso_write_opts {
     unsigned int joliet :1;
     unsigned int iso1999 :1;
     unsigned int hfsplus :1;
+    unsigned int fat :1;
 
     unsigned int aaip :1; /* whether to write eventual ACL and EAs */
 
@@ -489,6 +490,7 @@ struct ecma119_image
     unsigned int eltorito :1;
     unsigned int iso1999 :1;
     unsigned int hfsplus :1;
+    unsigned int fat :1;
 
     unsigned int hardlinks:1; /* see iso_write_opts_set_hardlinks() */
 
