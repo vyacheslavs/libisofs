@@ -7251,6 +7251,12 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /** Overlapping GPT entries requested (FAILURE, HIGH, -386) */
 #define ISO_BOOT_GPT_OVERLAP        0xE830FE7E
 
+/** Too many MBR partition entries requested (FAILURE, HIGH, -387) */
+#define ISO_BOOT_TOO_MANY_MBR       0xE830FE7D
+
+/** Overlapping MBR entries requested (FAILURE, HIGH, -388) */
+#define ISO_BOOT_MBR_OVERLAP        0xE830FE7C
+
 
 
 /* Internal developer note: 

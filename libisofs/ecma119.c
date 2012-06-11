@@ -125,6 +125,9 @@ void ecma119_image_free(Ecma119Image *t)
     for (i = 0; (int) i < t->apm_req_count; i++)
         if (t->apm_req[i] != NULL)
             free(t->apm_req[i]);
+    for (i = 0; (int) i < t->mbr_req_count; i++)
+        if (t->mbr_req[i] != NULL)
+            free(t->mbr_req[i]);
     for (i = 0; (int) i < t->gpt_req_count; i++)
         if (t->gpt_req[i] != NULL)
             free(t->gpt_req[i]);
@@ -1891,6 +1894,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->apm_block_size = 512;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)
         target->apm_req[i] = NULL;
+    for (i = 0; i < ISO_MBR_ENTRIES_MAX; i++)
+        target->mbr_req[i] = NULL;
     for (i = 0; i < ISO_GPT_ENTRIES_MAX; i++)
         target->gpt_req[i] = NULL;
     target->gpt_part_start = 0;

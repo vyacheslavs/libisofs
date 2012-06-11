@@ -76,6 +76,10 @@
 */
 #define ISO_APM_ENTRIES_MAX 63
 
+/* The maximum number of MBR partition table entries.
+*/
+#define ISO_MBR_ENTRIES_MAX  4
+
 /* The theoretical maximum number of GPT entries in the System Area of an
    ISO image:
    MBR plus GPT header block plus 248 GPT entries of 128 bytes each. 
@@ -814,6 +818,12 @@ struct ecma119_image
     int apm_req_count;
     /* 512 by default. May be changed to 2048 before writer thread starts. */
     int apm_block_size;
+
+    /* MBR partition table description. To be composed during IsoImageWriter
+       method ->compute_data_blocks() by calling iso_register_mbr_entry().
+    */
+    struct iso_mbr_partition_request *mbr_req[ISO_MBR_ENTRIES_MAX];
+    int mbr_req_count;
 
     /* GPT description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_gpt_entry().

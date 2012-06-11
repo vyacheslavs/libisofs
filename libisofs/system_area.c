@@ -750,6 +750,26 @@ int iso_quick_gpt_entry(Ecma119Image *t,
 }
 
 
+int iso_quick_mbr_entry(Ecma119Image *t,
+                        uint32_t start_block, uint32_t block_count,
+                        uint8_t type_byte, uint8_t status_byte)
+{
+    int ret;
+    struct iso_mbr_partition_request *entry;
+
+    entry = calloc(1, sizeof(struct iso_mbr_partition_request));
+    if (entry == NULL)
+        return ISO_OUT_OF_MEM;
+    entry->start_block = start_block;
+    entry->block_count = block_count;
+    entry->type_byte = type_byte;
+    entry->status_byte = status_byte;
+    ret = iso_register_mbr_entry(t, entry, 0);
+    free(entry);
+    return ret;
+}
+
+
 /**
  * Compare the start_sectors of two iso_apm_partition_request
  */
@@ -1000,6 +1020,72 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 }
 
 
+static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
+{
+    int i, ret;
+
+#ifdef NIX
+    /* Disabled */
+
+    /* <<< Dummy mock-up */
+    if (t->mbr_req_count <= 0) {
+        ret = iso_quick_mbr_entry(t, 0, 0, 0xee, 0);
+        if (ret < 0)
+            return ret;
+        ret = iso_quick_mbr_entry(t, 100, 0, 0x0c, 0x80);
+        if (ret < 0)
+            return ret;
+    }
+#endif /* NIX */
+
+    if (t->mbr_req_count <= 0)
+        return 2;
+
+    /* >>> Sort by start block ? */
+
+    /* Adjust partition ends */
+    for (i = 0; i < t->mbr_req_count; i++) {
+        if (i > 0) {
+            if (t->mbr_req[i]->start_block <= t->mbr_req[i - 1]->start_block &&
+                !(t->mbr_req[i]->block_count == 0 &&
+                  t->mbr_req[i]->start_block ==
+                                             t->mbr_req[i - 1]->start_block))
+                return ISO_BOOT_MBR_OVERLAP;
+            if (t->mbr_req[i - 1]->start_block +
+                   t->mbr_req[i - 1]->block_count > t->mbr_req[i]->start_block)
+                return ISO_BOOT_MBR_OVERLAP;
+        }
+        if (t->mbr_req[i]->block_count != 0)
+    continue;
+        if (i < t->mbr_req_count - 1)
+            t->mbr_req[i]->block_count = t->mbr_req[i + 1]->start_block -
+                                         t->mbr_req[i]->start_block;
+        else
+            t->mbr_req[i]->block_count = img_blocks -
+                                         t->mbr_req[i]->start_block;
+    }
+
+    /* >>> Permutate ? */
+
+    /* Write partition slots */
+    for (i = 0; i < ISO_MBR_ENTRIES_MAX; i++) {
+        memset(buf + 446 + i * 16, 0, 16);
+        if (i >= t->mbr_req_count)
+    continue;
+        if (t->mbr_req[i]->block_count == 0)
+    continue;
+        ret = write_mbr_partition_entry(i + 1, (int) t->mbr_req[i]->type_byte,
+                  t->mbr_req[i]->start_block, t->mbr_req[i]->block_count,
+                  t->partition_secs_per_head, t->partition_heads_per_cyl,
+                  buf, 0);
+        if (ret < 0)
+            return ret;
+        buf[446 + i * 16] = t->mbr_req[i]->status_byte;
+    }
+    return ISO_SUCCESS;
+}
+
+
 static void iso_write_gpt_entry(Ecma119Image *t, uint8_t *buf,
                                 uint8_t type_guid[16], uint8_t part_uuid[16],
                                 uint64_t start_lba, uint64_t end_lba,
@@ -1205,9 +1291,6 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
                                      t->gpt_part_start, p_arr_crc);
     if (ret < 0)
         return ret;
-
-    /* >>> Memorize GPT copy for backup writer at tail */;
-
     return ISO_SUCCESS;
 }
 
@@ -1276,6 +1359,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     if (ret < 0) {
         iso_msg_submit(t->image->id, ret, 0,
                        "Cannot set up Apple Partition Map");
+        return ret;
+    }
+    ret = iso_write_mbr(t, img_blocks, buf);
+    if (ret < 0) {
+        iso_msg_submit(t->image->id, ret, 0,
+                       "Cannot set up MBR partition table");
         return ret;
     }
     ret = iso_write_gpt(t, img_blocks, buf);
@@ -1511,6 +1600,24 @@ int iso_register_apm_entry(Ecma119Image *t,
 }
 
 
+int iso_register_mbr_entry(Ecma119Image *t,
+                           struct iso_mbr_partition_request *req, int flag)
+{
+    struct iso_mbr_partition_request *entry;
+
+    if (t->mbr_req_count >= ISO_MBR_ENTRIES_MAX)
+        return ISO_BOOT_TOO_MANY_MBR;
+    entry = calloc(1, sizeof(struct iso_mbr_partition_request));
+    if (entry == NULL)
+        return ISO_OUT_OF_MEM;
+    
+    memcpy(entry, req, sizeof(struct iso_mbr_partition_request));
+    t->mbr_req[t->mbr_req_count] = entry;
+    t->mbr_req_count++;
+    return ISO_SUCCESS;
+}
+
+
 int iso_register_gpt_entry(Ecma119Image *t,
                            struct iso_gpt_partition_request *req, int flag)
 {
@@ -1738,6 +1845,7 @@ static int gpt_tail_writer_compute_data_blocks(IsoImageWriter *writer)
         t->curblock++; 
     /* The ISO block number after the backup GPT header */
     t->gpt_backup_end = t->curblock;
+
     return ISO_SUCCESS;
 }
 

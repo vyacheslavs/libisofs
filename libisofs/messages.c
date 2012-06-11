@@ -482,6 +482,10 @@ const char *iso_error_to_msg(int errcode)
         return "Too many GPT entries requested";
     case ISO_BOOT_GPT_OVERLAP:
         return "Overlapping GPT entries requested";
+    case ISO_BOOT_TOO_MANY_MBR:
+        return "Too many MBR partition entries requested";
+    case ISO_BOOT_MBR_OVERLAP:
+        return "Overlapping MBR entries requested";
     default:
         return "Unknown error";
     }

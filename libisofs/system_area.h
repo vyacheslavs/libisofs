@@ -65,6 +65,50 @@ int iso_read_mipsel_elf(Ecma119Image *t, int flag);
 int iso_compute_append_partitions(Ecma119Image *t, int flag);
 
 
+/* The parameter struct for production of a single MBR partition entry.
+   See also the description of MBR in doc/boot_sectors.txt.
+   No sorting and gap filling is done before the System Area gets written.
+   Requested entries with block_count == 0 get expanded to the start of
+   the next requested entry resp. to image end, if no entry follows.
+   start_block of a follwing entry must be at least a high as the sum of
+   start_block and block_count of the previous entry.
+   Empty requested entries will be represented as 16 bytes of 0.
+*/
+struct iso_mbr_partition_request {
+
+    /* Always given in blocks of 2 KiB */
+    uint32_t start_block;
+
+    /* A block count of 0 means that the partition reaches up to the start of
+       the next one.
+    */
+    uint32_t block_count;
+
+    /* Partition type */
+    uint8_t type_byte;
+
+    /* 0x80 = bootable */
+    uint8_t status_byte;
+
+    /* >>> Is a permutation of entries needed ? */
+
+};
+
+/* Copies the content of req and registers it in t.mbr_req[].
+   I.e. after the call the submitted storage of req can be disposed or re-used.
+   Submit 0 as value flag.
+*/
+int iso_register_mbr_entry(Ecma119Image *t,
+                           struct iso_mbr_partition_request *req, int flag);
+
+/* Convenience frontend for iso_register_mbr_entry().
+   name and type are 0-terminated strings, which may get silently truncated.
+*/
+int iso_quick_mbr_entry(Ecma119Image *t, 
+                        uint32_t start_block, uint32_t block_count,
+                        uint8_t type_byte, uint8_t status_byte);
+
+
 /* The parameter struct for production of a single Apple Partition Map entry.
    See also the partial APM description in doc/boot_sectors.txt.
    The list of entries is stored in Ecma119Image.apm_req.
