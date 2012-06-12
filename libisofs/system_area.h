@@ -234,6 +234,10 @@ int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
                                uint8_t *buf, uint32_t max_entries,
                                uint32_t part_start, uint32_t p_arr_crc);
 
+/* Creates the Partition Prepend writer.
+*/
+int partprepend_writer_create(Ecma119Image *target);
+
 /* Creates the GPT backup tail writer.
 */
 int gpt_tail_writer_create(Ecma119Image *target);

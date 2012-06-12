@@ -2326,6 +2326,65 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle);
  */
 int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
 
+/**
+ * Copy a data file from the local filesystem into the emerging ISO image.
+ * Mark it by an MBR partition entry as PreP partition and also cause
+ * protective MBR partition entries before and after this partition.
+ * Vladimir Serbinenko stated aboy PreP = PowerPC Reference Platform :
+ *   "PreP [...] refers mainly to IBM hardware. PreP boot is a partition
+ *    containing only raw ELF and having type 0x41."
+ *
+ * This feature is only combinable with system area type 0
+ * >>> and currently not combinable with ISOLINUX isohybrid production.
+ * It overrides --protective-msdos-label. See iso_write_opts_set_system_area().
+ * Only partition 4 stays available for iso_write_opts_set_partition_img().
+ * It is compatible with HFS+/FAT production by storing the PreP partition
+ * before the start of the HFS+/FAT partition.
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param image_path
+ *        File address in the local file system.
+ *        NULL revokes production of the PreP partition.
+ * @param flag
+ *        Reserved for future usage, set to 0.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_set_prep_img(IsoWriteOpts *opts, char *image_path,
+                                int flag);
+
+/**
+ * Copy a data file from the local filesystem into the emerging ISO image.
+ * Mark it by an GPT partition entry as EFI System partition, and also cause
+ * protective GPT partition entries before and after the partition.
+ * GPT = Globally Unique Identifier Partition Table
+ *
+ * This feature may collide with data submitted by
+ *   iso_write_opts_set_system_area()
+ * and with settings made by
+ *   el_torito_set_isolinux_options()
+ * It is compatible with HFS+/FAT production by storing the EFI partition
+ * before the start of the HFS+/FAT partition.
+ * The GPT overwrites byte 0x0200 to 0x03ff of the system area and all
+ * further bytes above 0x0800 which are not used by an Apple Partition Map.
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param image_path
+ *        File address in the local file system.
+ *        NULL revokes production of the EFI boot partition.
+ * @param flag
+ *        Reserved for future usage, set to 0.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path, 
+                                 int flag);
 
 /**
  * Cause an arbitrary data file to be appended to the ISO image and to be
@@ -2353,6 +2412,8 @@ int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
  *        The MBR partition type. E.g. FAT12 = 0x01 , FAT16 = 0x06, 
  *        Linux Native Partition = 0x83. See fdisk command L.
  *        This parameter is ignored with SUN Disk Label.
+ * @param flag
+ *        Reserved for future usage, set to 0.
  * @return
  *        ISO_SUCCESS or error
  *
@@ -7197,7 +7258,7 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /** Cannot open data file for appended partition (FAILURE, HIGH, -370) */
 #define ISO_BAD_PARTITION_FILE     0xE830FE8E
 
-/** May not combine appended partition with non-MBR system area
+/** May not combine MBR partition with non-MBR system area
                                                        (FAILURE, HIGH, -371) */
 #define ISO_NON_MBR_SYS_AREA       0xE830FE8D
 
@@ -7254,8 +7315,11 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /** Too many MBR partition entries requested (FAILURE, HIGH, -387) */
 #define ISO_BOOT_TOO_MANY_MBR       0xE830FE7D
 
-/** Overlapping MBR entries requested (FAILURE, HIGH, -388) */
+/** Overlapping MBR partition entries requested (FAILURE, HIGH, -388) */
 #define ISO_BOOT_MBR_OVERLAP        0xE830FE7C
+
+/** Attempt to use an MBR partition entry twice (FAILURE, HIGH, -389) */
+#define ISO_BOOT_MBR_COLLISION      0xE830FE7B
 
 
 

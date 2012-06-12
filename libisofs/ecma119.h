@@ -452,6 +452,16 @@ struct iso_write_opts {
     */
     uint32_t tail_blocks;
 
+    /* Eventual disk file path of a PreP partition which shall be prepended
+       to HFS+/FAT and IsoFileSrc areas and marked by an MBR partition entry.
+    */
+    char *prep_partition;
+
+    /* Eventual disk file path of an EFI system partition image which shall
+       be prepended to HFS+/FAT and IsoFileSrc areas and marked by a GPT entry.
+    */
+    char *efi_boot_partition;
+
     /* Eventual disk file paths of prepared images which shall be appended
        after the ISO image and described by partiton table entries in a MBR
     */
@@ -825,6 +835,9 @@ struct ecma119_image
     struct iso_mbr_partition_request *mbr_req[ISO_MBR_ENTRIES_MAX];
     int mbr_req_count;
 
+    char *prep_partition; 
+    uint32_t prep_part_size;
+
     /* GPT description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_gpt_entry().
        Make sure that the composing writers get registered before the
@@ -832,6 +845,9 @@ struct ecma119_image
     */
     struct iso_gpt_partition_request *gpt_req[ISO_GPT_ENTRIES_MAX];
     int gpt_req_count;
+
+    char *efi_boot_partition;
+    uint32_t efi_boot_part_size;
 
     /* Messages from gpt_tail_writer_compute_data_blocks() to
        iso_write_system_area().
@@ -985,5 +1001,9 @@ struct ecma119_vol_desc_terminator
 
 void ecma119_set_voldescr_times(IsoImageWriter *writer,
                                 struct ecma119_pri_vol_desc *vol);
+
+/* Copies a data file into the ISO image output stream */
+int iso_write_partition_file(Ecma119Image *target, char *path,
+                             uint32_t prepad, uint32_t blocks, int flag);
 
 #endif /*LIBISO_ECMA119_H_*/

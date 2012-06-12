@@ -116,6 +116,10 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->writers);
     if (t->partition_root != NULL)
         ecma119_node_free(t->partition_root);
+    if (t->prep_partition != NULL)
+        free(t->prep_partition);
+    if (t->efi_boot_partition != NULL)
+        free(t->efi_boot_partition);
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         if (t->appended_partitions[i] != NULL)
             free(t->appended_partitions[i]);
@@ -1403,8 +1407,8 @@ static int finish_libjte(Ecma119Image *target)
 }
 
 
-static int write_mbr_partition_file(Ecma119Image *target, char *path,
-                                    uint32_t prepad, uint32_t blocks, int flag)
+int iso_write_partition_file(Ecma119Image *target, char *path,
+                             uint32_t prepad, uint32_t blocks, int flag)
 {
     FILE *fp = NULL;
     uint32_t i;
@@ -1486,7 +1490,7 @@ void *write_function(void *arg)
     continue;
         if (target->appended_partitions[i][0] == 0)
     continue;
-        res = write_mbr_partition_file(target, target->appended_partitions[i],
+        res = iso_write_partition_file(target, target->appended_partitions[i],
                                        target->appended_part_prepad[i],
                                        target->appended_part_size[i], 0);
         if (res < 0)
@@ -1777,6 +1781,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         for (i = 0; i < ISO_MAX_PARTITIONS; i++)
             if (opts->appended_partitions[i] != NULL)
                 return ISO_NON_MBR_SYS_AREA;
+    if (sa_type != 0 && opts->prep_partition != NULL)
+        return ISO_NON_MBR_SYS_AREA;
 
     target->system_area_data = NULL;
     if (system_area != NULL) {
@@ -1873,6 +1879,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->wthread_is_running = 0;
 
+    target->prep_partition = NULL;
+    if (opts->prep_partition != NULL) {
+        target->prep_partition = strdup(opts->prep_partition);
+        if (target->prep_partition == NULL)
+            return ISO_OUT_OF_MEM;
+    }
+    target->prep_part_size = 0;
+    target->efi_boot_partition = NULL;
+    if (opts->efi_boot_partition != NULL) {
+        target->efi_boot_partition = strdup(opts->efi_boot_partition);
+        if (target->efi_boot_partition == NULL)
+            return ISO_OUT_OF_MEM;
+    }
+    target->efi_boot_part_size = 0;
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         target->appended_partitions[i] = NULL;
         if (opts->appended_partitions[i] != NULL) {
@@ -1930,11 +1950,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->joliet) {
         nwriters++;
     }
-    if (target->hfsplus || target->fat) {
-        nwriters+= 2;
-    }
     if (target->iso1999) {
         nwriters++;
+    }
+    nwriters++; /* Partition Prepend writer */
+    if (target->hfsplus || target->fat) {
+        nwriters+= 2;
     }
     nwriters++; /* GPT backup tail writer */
     nwriters++; /* Tail padding writer */
@@ -2009,6 +2030,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (ret < 0) {
         goto target_cleanup;
     }
+
+    /* The writer for MBR and GPT partitions outside iso_file_src.
+     * If PreP or FAT are desired, it creates MBR partition entries and
+     * surrounding protecting partition entries.
+     * If EFI boot partition is desired, it creates a GPT entry for it.
+     * >>> It shall learn to grab Ecma119Node instead of external disk files.
+     */
+     ret = partprepend_writer_create(target);
+    if (ret < 0)
+        goto target_cleanup;
 
     /* create writer for HFS+/FAT structure */
     /* Impotant: It must be created directly before iso_file_src_writer_create.
@@ -2673,6 +2704,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 #endif /* Libisofs_with_libjtE */
 
     wopts->tail_blocks = 0;
+    wopts->prep_partition = NULL;
+    wopts->efi_boot_partition = NULL;
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         wopts->appended_partitions[i] = NULL;
     wopts->ascii_disc_label[0] = 0;
@@ -2705,6 +2738,10 @@ void iso_write_opts_free(IsoWriteOpts *opts)
 
     if (opts->system_area_data != NULL)
         free(opts->system_area_data);
+    if (opts->prep_partition != NULL)
+        free(opts->prep_partition);
+    if (opts->efi_boot_partition != NULL)
+        free(opts->efi_boot_partition);
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         if (opts->appended_partitions[i] != NULL)
             free(opts->appended_partitions[i]);
@@ -3287,19 +3324,44 @@ int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks)
     return ISO_SUCCESS;
 }
 
+int iso_write_opts_set_prep_img(IsoWriteOpts *opts, char *image_path, int flag)
+{
+    if (opts->prep_partition != NULL)
+        free(opts->prep_partition);
+    if (image_path == NULL)
+        return ISO_SUCCESS;
+    opts->prep_partition = strdup(image_path);
+    if (opts->prep_partition == NULL)
+        return ISO_OUT_OF_MEM;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path, 
+                                 int flag)
+{
+    if (opts->efi_boot_partition != NULL)
+        free(opts->efi_boot_partition);
+    if (image_path == NULL)
+        return ISO_SUCCESS;
+    opts->efi_boot_partition = strdup(image_path);
+    if (opts->efi_boot_partition == NULL)
+        return ISO_OUT_OF_MEM;
+    return ISO_SUCCESS;
+}
+
 int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
                             uint8_t partition_type, char *image_path, int flag)
 {
     if (partition_number < 1 || partition_number > ISO_MAX_PARTITIONS)
         return ISO_BAD_PARTITION_NO;
-
     if (opts->appended_partitions[partition_number - 1] != NULL)
         free(opts->appended_partitions[partition_number - 1]);
+    if (image_path == NULL)
+        return ISO_SUCCESS;
     opts->appended_partitions[partition_number - 1] = strdup(image_path);
     if (opts->appended_partitions[partition_number - 1] == NULL)
         return ISO_OUT_OF_MEM;
     opts->appended_part_types[partition_number - 1] = partition_type;
-
     return ISO_SUCCESS;
 }
 

@@ -451,7 +451,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_BAD_PARTITION_FILE:
         return "Cannot open data file for appended partition";
     case ISO_NON_MBR_SYS_AREA:
-        return "May not combine appended partition with non-MBR system area";
+        return "May not combine MBR partition with non-MBR system area";
     case ISO_DISPLACE_ROLLOVER:
         return "Displacement offset leads outside 32 bit range";
     case ISO_NAME_NEEDS_TRANSL:
@@ -485,7 +485,9 @@ const char *iso_error_to_msg(int errcode)
     case ISO_BOOT_TOO_MANY_MBR:
         return "Too many MBR partition entries requested";
     case ISO_BOOT_MBR_OVERLAP:
-        return "Overlapping MBR entries requested";
+        return "Overlapping MBR partition entries requested";
+    case ISO_BOOT_MBR_COLLISION:
+        return "Attempt to use an MBR partition entry twice";
     default:
         return "Unknown error";
     }

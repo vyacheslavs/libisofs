@@ -88,6 +88,25 @@ void iso_compute_cyl_head_sec(uint32_t *img_blocks, int hpc, int sph,
     }
 }
 
+static uint32_t compute_partition_size(char *disk_path, uint32_t *size,
+                                       int flag)
+{
+    int ret;
+    off_t num;
+    struct stat stbuf;
+
+    *size = 0;
+    ret = stat(disk_path, &stbuf);
+    if (ret == -1)
+        return ISO_BAD_PARTITION_FILE;
+    if (! S_ISREG(stbuf.st_mode))
+        return ISO_BAD_PARTITION_FILE;
+    num = ((stbuf.st_size + 2047) / 2048);
+    if (num > 0x3fffffff || num == 0)
+        return ISO_BAD_PARTITION_FILE;
+    *size = num;
+    return ISO_SUCCESS;
+}
 
 /* Compute size and position of appended partitions.
 */
@@ -95,7 +114,6 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 {
     int ret, i, sa_type;
     uint32_t pos, size, add_pos = 0;
-    struct stat stbuf;
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     pos = (t->vol_space_size + t->ms_block);
@@ -104,12 +122,9 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
     continue;
         if (t->appended_partitions[i][0] == 0)
     continue;
-        ret = stat(t->appended_partitions[i], &stbuf);
-        if (ret == -1)
-            return ISO_BAD_PARTITION_FILE;
-        if (! S_ISREG(stbuf.st_mode))
-            return ISO_BAD_PARTITION_FILE;
-        size = ((stbuf.st_size + 2047) / 2048);
+        ret = compute_partition_size(t->appended_partitions[i], &size, 0);
+        if (ret < 0)
+            return ret;
         if (sa_type == 3 && (pos % ISO_SUN_CYL_SIZE))
             add_pos = ISO_SUN_CYL_SIZE - (pos % ISO_SUN_CYL_SIZE);
         t->appended_part_prepad[i] = add_pos;
@@ -1367,6 +1382,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                        "Cannot set up MBR partition table");
         return ret;
     }
+    if (t->mbr_req_count > 0 && sa_type != 0)
+        return ISO_NON_MBR_SYS_AREA;
     ret = iso_write_gpt(t, img_blocks, buf);
     if (ret < 0) {
         iso_msg_submit(t->image->id, ret, 0, "Cannot set up GPT");
@@ -1374,11 +1391,14 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
 
     if (sa_type == 0 && (t->system_area_options & 1)) {
-        /* Write GRUB protective msdos label, i.e. a simple partition table */
-        ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
-                                    t->partition_heads_per_cyl, buf, 0);
-        if (ret != ISO_SUCCESS) /* error should never happen */
-            return ISO_ASSERT_FAILURE;
+        if (t->mbr_req_count == 0){
+            /* Write GRUB protective msdos label, i.e. a simple partition
+               table */
+            ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
+                                      t->partition_heads_per_cyl, buf, 0);
+            if (ret != ISO_SUCCESS) /* error should never happen */
+               return ISO_ASSERT_FAILURE;
+        }
     } else if(sa_type == 0 && (t->system_area_options & 2)) {
         /* Patch externally provided system area as isohybrid MBR */
         if (t->catalog == NULL || t->system_area_data == NULL) {
@@ -1396,6 +1416,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                    Would it harm to give the real offset here ?
         */;
 
+        /* >>> Coordinate with partprepend writer */
+        /* <<< provisory trap */
+        if (t->mbr_req_count > 0)
+            return ISO_BOOT_MBR_OVERLAP;
+
         ret = make_isolinux_mbr(&img_blocks, t, 0, 1, 0x17, buf, 1);
         if (ret != 1)
             return ret;
@@ -1407,7 +1432,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         ret = make_mipsel_boot_block(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
-    } else if ((t->partition_offset > 0 || will_append) && sa_type == 0) {
+    } else if (sa_type == 3) {
+        ret = make_sun_disk_label(t, buf, 0);
+        if (ret != ISO_SUCCESS)
+            return ret;
+    } else if ((t->partition_offset > 0 || will_append) && sa_type == 0 &&
+               t->mbr_req_count == 0) {
         /* Write a simple partition table. */
         ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
                                     t->partition_heads_per_cyl, buf, 2);
@@ -1421,14 +1451,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             if (ret < 0)
                 return ret;
         }
-    } else if (sa_type == 3) {
-        ret = make_sun_disk_label(t, buf, 0);
-        if (ret != ISO_SUCCESS)
-            return ret;
     }
 
-    if (t->partition_offset > 0 && sa_type == 0) {
-        /* Adjust partition table to partition offset */
+    if (t->partition_offset > 0 && sa_type == 0 && t->mbr_req_count == 0) {
+        /* Adjust partition table to partition offset.
+           With t->mbr_req_count > 0 this has already been done,
+        */
         img_blocks = t->curblock;                  /* value might be altered */
         ret = iso_offset_partition_start(img_blocks, t->partition_offset,
                                          t->partition_secs_per_head,
@@ -1437,17 +1465,21 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ISO_ASSERT_FAILURE;
     }
 
-    /* This eventually overwrites the partition table entries made so far */
+    /* This eventually overwrites the non-mbr_req partition table entries
+       made so far. Overwriting those from t->mbr_req is not allowed.
+    */
     for (i = first_partition - 1; i <= last_partition - 1; i++) {
         if (t->appended_partitions[i] == NULL)
     continue;
+        if (i < t->mbr_req_count)
+            return ISO_BOOT_MBR_COLLISION;
         if (sa_type == 3) {
-          ret = write_sun_partition_entry(i + 1, t->appended_partitions,
+            ret = write_sun_partition_entry(i + 1, t->appended_partitions,
                         t->appended_part_start, t->appended_part_size,
                         ISO_SUN_CYL_SIZE,
                         buf, t->appended_partitions[i][0] == 0);
         } else {
-          ret = write_mbr_partition_entry(i + 1, t->appended_part_types[i],
+            ret = write_mbr_partition_entry(i + 1, t->appended_part_types[i],
                         t->appended_part_start[i], t->appended_part_size[i],
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
                         buf, 0);
@@ -1953,4 +1985,135 @@ int gpt_tail_writer_create(Ecma119Image *target)
 
     return ISO_SUCCESS;
 }
+
+
+/* ----------------------  Partition Prepend Writer --------------------- */
+
+
+static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    Ecma119Image *t;
+    int ret, will_have_gpt = 0;
+    static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
+    uint8_t gpt_name[72];
+
+    /* <<< ??? Move to system_area.h and publish as macro ? */
+    static uint8_t efi_sys_uuid[16] = {
+       0x28, 0x73, 0x2a, 0xc1, 0x1f, 0xf8, 0xd2, 0x11,
+       0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b
+    };
+
+    if (writer == NULL)
+        return ISO_ASSERT_FAILURE;
+    t = writer->target;
+
+    /* >>> t->chrp_mark */;
+
+    if (t->efi_boot_partition != NULL) {
+        ret = compute_partition_size(t->efi_boot_partition,
+                                     &(t->efi_boot_part_size), 0);
+        if (ret < 0)
+            return ret;
+        memset(gpt_name, 0, 72);
+        strcpy((char *) gpt_name, "EFI boot partition");
+        poor_man_s_utf_16le(gpt_name);
+        ret = iso_quick_gpt_entry(t, t->curblock, t->efi_boot_part_size,
+                                 efi_sys_uuid, zero_uuid, gpt_flags, gpt_name);
+        if (ret < 0)
+            return ret;
+        t->curblock += t->efi_boot_part_size;
+    }
+
+    if (t->efi_boot_partition != NULL || t->hfsplus)
+        will_have_gpt = 1;
+    if (t->prep_partition != NULL) {
+        ret = compute_partition_size(t->prep_partition, &(t->prep_part_size),
+                                     0);
+        if (ret < 0)
+            return ret;
+    }
+    if (t->prep_part_size > 0 || t->fat || will_have_gpt) {
+        /* Protecting MBR entry for ISO start or whole ISO */
+        ret = iso_quick_mbr_entry(t, (uint32_t) t->partition_offset,
+                                 (uint32_t) 0, will_have_gpt ? 0xee : 0xcd, 0);
+        if (ret < 0)
+            return ret;
+    }
+    if (t->prep_part_size > 0) {
+        ret = iso_quick_mbr_entry(t, t->curblock, t->prep_part_size, 0x41, 0);
+        if (ret < 0)
+            return ret;
+        t->curblock += t->prep_part_size;
+    }
+    if (t->prep_part_size > 0 || t->fat) {
+        /* FAT partition or protecting MBR entry for ISO end */
+        ret = iso_quick_mbr_entry(t, (uint32_t) t->curblock, (uint32_t) 0,
+                                  t->fat ? 0x0c : 0xcd, 0);
+        if (ret < 0)
+            return ret;
+    }
+
+    return ISO_SUCCESS;
+}
+
+
+static int partprepend_writer_write_vol_desc(IsoImageWriter *writer)
+{
+    return ISO_SUCCESS;
+}
+
+
+static int partprepend_writer_write_data(IsoImageWriter *writer)
+{
+    Ecma119Image *t;
+    int ret;
+
+    t = writer->target;
+
+    if (t->efi_boot_partition != NULL && t->efi_boot_part_size) {
+        ret = iso_write_partition_file(t, t->efi_boot_partition, (uint32_t) 0,
+                                       t->efi_boot_part_size, 0);
+        if (ret < 0)
+            return ret;
+    }
+    if (t->prep_partition != NULL && t->prep_part_size) {
+        ret = iso_write_partition_file(t, t->prep_partition, (uint32_t) 0,
+                                       t->prep_part_size, 0);
+        if (ret < 0)
+            return ret;
+    }
+
+    return ISO_SUCCESS;
+}
+
+
+static int partprepend_writer_free_data(IsoImageWriter *writer)
+{
+    return ISO_SUCCESS;
+}
+
+
+int partprepend_writer_create(Ecma119Image *target)
+{
+    IsoImageWriter *writer;
+
+    writer = calloc(1, sizeof(IsoImageWriter));
+    if (writer == NULL) {
+        return ISO_OUT_OF_MEM;
+    }
+
+    writer->compute_data_blocks = partprepend_writer_compute_data_blocks;
+    writer->write_vol_desc = partprepend_writer_write_vol_desc;
+    writer->write_data = partprepend_writer_write_data;
+    writer->free_data = partprepend_writer_free_data;
+    writer->data = NULL;
+    writer->target = target;
+
+    /* add this writer to image */
+    target->writers[target->nwriters++] = writer;
+
+    return ISO_SUCCESS;
+}
+
 
