@@ -2030,8 +2030,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         t->curblock += t->efi_boot_part_size;
     }
 
-    if ((((t->system_area_options >> 10) & 0xf) == 1) &&
-       ((t->system_area_options >> 2) & 0x3f) == 0) {
+    if ((t->system_area_options & 0x3cff) == 0x0400) {
         /* CHRP is not compatible with any other partition in MBR */
         if (t->prep_partition != NULL || t->fat || will_have_gpt ||
             t->mbr_req_count > 0)

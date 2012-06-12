@@ -2082,6 +2082,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
 #endif /* ! Libisofs_gpt_writer_lasT */
 
+
+    /* >>> Should not the checksum writer come before the zero writer ? */
+
     /* IMPORTANT: This must be the last writer before the checksum writer */
     ret = zero_writer_create(target, target->tail_blocks, 1);
     if (ret < 0)
