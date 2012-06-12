@@ -2008,7 +2008,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         return ISO_ASSERT_FAILURE;
     t = writer->target;
 
-    /* >>> t->chrp_mark */;
+    if (t->efi_boot_partition != NULL || t->hfsplus || t->gpt_req_count > 0)
+        will_have_gpt = 1;
 
     if (t->efi_boot_partition != NULL) {
         ret = compute_partition_size(t->efi_boot_partition,
@@ -2025,8 +2026,18 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         t->curblock += t->efi_boot_part_size;
     }
 
-    if (t->efi_boot_partition != NULL || t->hfsplus)
-        will_have_gpt = 1;
+    if ((((t->system_area_options >> 10) & 0xf) == 1) &&
+       ((t->system_area_options >> 2) & 0x3f) == 0) {
+        /* CHRP is not compatible with any other partition in MBR */
+        if (t->prep_partition != NULL || t->fat || will_have_gpt ||
+            t->mbr_req_count > 0)
+            return ISO_BOOT_MBR_OVERLAP;
+        ret = iso_quick_mbr_entry(t, (uint32_t) 0, (uint32_t) 0, 0x96, 0);
+        if (ret < 0)
+            return ret;
+        return ISO_SUCCESS;
+    }
+
     if (t->prep_partition != NULL) {
         ret = compute_partition_size(t->prep_partition, &(t->prep_part_size),
                                      0);

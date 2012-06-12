@@ -3235,8 +3235,9 @@ int iso_write_opts_get_data_start(IsoWriteOpts *opts, uint32_t *data_start,
  *              ISOLINUX boot image (see iso_image_set_boot_image()) and
  *              only if not bit0 is set.
  *        bit2-7= System area type
- *              0= PC-BIOS DOS MBR
- *              1= MIPS Big Endian Volume Header
+ *        bit8-9= Only with System area type 0 = MBR
+ *                Cylinder alignment mode
+ *        bit10-13= System area sub type
  * @param flag     bit0 = invalidate any attached system area data
  *                        same as data == NULL
  *                 bit1 = keep data unaltered
@@ -3258,7 +3259,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         memcpy(opts->system_area_data, data, 32768);
     }
     if (!(flag & 4))
-        opts->system_area_options = options & 0x3ff;
+        opts->system_area_options = options & 0x3fff;
     return ISO_SUCCESS;
 }
 

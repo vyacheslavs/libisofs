@@ -2145,12 +2145,20 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 to 8.
  *                 This will overwrite the first 512 bytes of the submitted
  *        bit8-9= Only with System area type 0 = MBR
- *                @since 1.0.4
- *                Cylinder alignment mode eventually pads the image to make it
- *                end at a cylinder boundary.
+ *              @since 1.0.4
+ *              Cylinder alignment mode eventually pads the image to make it
+ *              end at a cylinder boundary.
  *                0 = auto (align if bit1)
  *                1 = always align to cylinder boundary
  *                2 = never align to cylinder boundary
+ *        bit10-13= System area sub type
+ *              @since 1.2.4
+ *              With type 0 = MBR:
+ *                Gets overridden by bit0 and bit1.
+ *                0 = no particular sub type
+ *                1 = CHRP: A single MBR partition of type 0x96 covers the
+ *                          ISO image. Not compatible with any other feature
+ *                          which needs to have own MBR partition entries.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
