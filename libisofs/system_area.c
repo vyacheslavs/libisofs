@@ -1570,7 +1570,8 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         if (img_blocks >= 0x40000000)
             {ret = ISO_SUCCESS; goto ex;}
         cylsize = 64 * 32 * 512;
-    } else if ((t->system_area_options & 2) || always_align) {
+
+    } else if (t->system_area_options & 2) {
         /* Patch externally provided system area as isohybrid MBR */
         if (t->catalog == NULL || t->system_area_data == NULL) {
             /* isohybrid makes only sense together with ISOLINUX boot image
@@ -1578,6 +1579,9 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
             */
             {ret = ISO_ISOLINUX_CANT_PATCH; goto ex;}
         }
+        cylsize = t->partition_heads_per_cyl * t->partition_secs_per_head
+                  * 512;
+    } else if (always_align) {
         cylsize = t->partition_heads_per_cyl * t->partition_secs_per_head
                   * 512;
     } 
