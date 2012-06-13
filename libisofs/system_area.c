@@ -58,6 +58,8 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
                       uint8_t *buf, int flag);
 
+static int precompute_gpt(Ecma119Image *t);
+
 
 /*
  * @param flag bit0= img_blocks is start address rather than end address:
@@ -1533,9 +1535,12 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         {ret = ISO_SUCCESS; goto ex;}
     always_align = (t->system_area_options >> 8) & 3;
 
-    /* >>> Take into account the other stuff: TAIL GPTB */;
+    /* Take into account the backup GPT */;
+    ret = precompute_gpt(t);
+    if (ret < 0)
+        goto ex;
 
-    img_blocks = t->curblock + t->tail_blocks;
+    img_blocks = t->curblock + t->tail_blocks + t->gpt_backup_size;
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
     if (((t->system_area_options & 3) || always_align)
         && (off_t) (t->partition_heads_per_cyl * t->partition_secs_per_head
@@ -1794,16 +1799,14 @@ void iso_random_8byte(Ecma119Image *t, uint8_t result[8])
 }
 
 
-static int gpt_tail_writer_compute_data_blocks(IsoImageWriter *writer)
+/* Probably already called by tail writer */
+static int precompute_gpt(Ecma119Image *t)
 {
-    Ecma119Image *t;
-    uint32_t gpt_part_start, gpt_size;
+    uint32_t gpt_part_start;
     int ret;
 
-    if (writer == NULL) {
-        return ISO_ASSERT_FAILURE;
-    }
-    t = writer->target;
+    /* Avoid repetition by  gpt_tail_writer_compute_data_blocks */
+    t->gpt_is_computed = 1;
 
     /* Rectify APM requests early in order to learn the size of GPT.
        iso_write_apm() relies on this being already done here.
@@ -1877,10 +1880,27 @@ static int gpt_tail_writer_compute_data_blocks(IsoImageWriter *writer)
 
     /* Necessary number of 2K blocks */
     t->gpt_max_entries = (64 - t->gpt_part_start) * 4;
-    gpt_size = (t->gpt_max_entries / 4 + 1) * 512;
-    t->curblock += gpt_size / 2048;
-    if (gpt_size % 2048)
-        t->curblock++; 
+    t->gpt_backup_size = ((t->gpt_max_entries / 4 + 1) * 512 + 2047) / 2048;
+
+    return ISO_SUCCESS;
+}
+
+
+static int gpt_tail_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    Ecma119Image *t;
+    int ret;
+
+    if (writer == NULL)
+        return ISO_ASSERT_FAILURE;
+    t = writer->target;
+
+    if (! t->gpt_is_computed) {
+        ret = precompute_gpt(t);
+        if (ret < 0)
+            return ret;
+    }
+    t->curblock += t->gpt_backup_size;
     /* The ISO block number after the backup GPT header */
     t->gpt_backup_end = t->curblock;
 
@@ -1899,7 +1919,7 @@ static int gpt_tail_writer_write_data(IsoImageWriter *writer)
     Ecma119Image *t;
     uint8_t *head, *new_head, *entries;
     uint8_t *backup_buf = NULL;
-    uint32_t gpt_size, crc, i;
+    uint32_t crc, i;
     uint64_t part_start;
     int ret;
 
@@ -1907,12 +1927,10 @@ static int gpt_tail_writer_write_data(IsoImageWriter *writer)
     if (t->gpt_backup_end == 0 || t->gpt_max_entries == 0)
         return ISO_SUCCESS; /* No backup GPT area reserved by compute_data() */
 
-    gpt_size = (t->gpt_max_entries / 4 + 1) * 512;
-    gpt_size = gpt_size / 2048 + !!(gpt_size % 2048);
-    backup_buf = calloc(1, gpt_size * 2048);
+    backup_buf = calloc(1, t->gpt_backup_size * 2048);
     if (backup_buf == NULL)
         return ISO_OUT_OF_MEM;
-    memset(backup_buf, 0, gpt_size * 2048);
+    memset(backup_buf, 0, t->gpt_backup_size * 2048);
 
     /* Check whether GPT header block came through */
     head = t->sys_area_as_written + 512;
@@ -1929,7 +1947,7 @@ tampered_head:;
             goto tampered_head;
 
     /* Patch memorized header block */
-    new_head = backup_buf + gpt_size * 2048 - 512;
+    new_head = backup_buf + t->gpt_backup_size * 2048 - 512;
     memcpy(new_head, head, 512);
     /* Exchange "Location of this header" and "Location of header backup" */
     memcpy(new_head + 24, head + 32, 8);
@@ -1950,14 +1968,14 @@ tampered_head:;
     memcpy(new_head - t->gpt_max_entries * 128,
            entries, t->gpt_max_entries * 128);
               
-    ret = iso_write(t, backup_buf, gpt_size * 2048);
+    ret = iso_write(t, backup_buf, t->gpt_backup_size * 2048);
     free(backup_buf);
     if (ret < 0)
         return ret;
     return ISO_SUCCESS;
 
 write_zeros:;
-    ret = iso_write(t, backup_buf, gpt_size * 2048);
+    ret = iso_write(t, backup_buf, t->gpt_backup_size * 2048);
     free(backup_buf);
     if (ret < 0)
         return ret;

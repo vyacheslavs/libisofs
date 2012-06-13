@@ -405,7 +405,7 @@ static int assess_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         iso_msgs_submit(0,
                    "Too many entries desired for Apple Partition Map. (max 6)",
                    0, "FAILURE", 0);
-        return ISO_ISOLINUX_CANT_PATCH;
+        return ISO_BOOT_TOO_MANY_APM;
     }
     return ISO_SUCCESS;
 }

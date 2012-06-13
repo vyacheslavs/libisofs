@@ -1920,7 +1920,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         target->gpt_req[i] = NULL;
     target->gpt_part_start = 0;
     target->gpt_backup_end = 0;
+    target->gpt_backup_size = 0;
     target->gpt_max_entries = 0;
+    target->gpt_is_computed = 0;
 
     target->filesrc_blocks = 0;
 
@@ -2083,12 +2085,18 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 #endif /* ! Libisofs_gpt_writer_lasT */
 
 
-    /* >>> Should not the checksum writer come before the zero writer ? */
+/* >>> Should not the checksum writer come before the zero writer ?
+*/
+#define Libisofs_checksums_before_paddinG yes
+#ifndef Libisofs_checksums_before_paddinG
 
+    /* >>> ??? Why is this important ? */
     /* IMPORTANT: This must be the last writer before the checksum writer */
     ret = zero_writer_create(target, target->tail_blocks, 1);
     if (ret < 0)
         goto target_cleanup;
+
+#endif /* !Libisofs_checksums_before_paddinG */
 
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         ret = checksum_writer_create(target);
@@ -2096,6 +2104,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
     }
     
+#ifdef Libisofs_checksums_before_paddinG
+
+    ret = zero_writer_create(target, target->tail_blocks, 1);
+    if (ret < 0)
+        goto target_cleanup;
+
+#endif /* Libisofs_checksums_before_paddinG */
+
 #ifdef Libisofs_gpt_writer_lasT
     /* This writer shall be the last one in the list, because it protects the
        image on media which are seen as GPT partitioned.

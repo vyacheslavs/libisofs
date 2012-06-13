@@ -856,7 +856,9 @@ struct ecma119_image
     uint32_t gpt_part_start;
     /* The ISO block number after the backup GPT header , block size 2048 */
     uint32_t gpt_backup_end; 
+    uint32_t gpt_backup_size;
     uint32_t gpt_max_entries;
+    int gpt_is_computed;
 
     /* Message from write_head_part1()/iso_write_system_area() to the
        write_data() methods of the writers.
