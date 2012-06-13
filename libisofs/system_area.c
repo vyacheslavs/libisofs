@@ -1533,6 +1533,8 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         {ret = ISO_SUCCESS; goto ex;}
     always_align = (t->system_area_options >> 8) & 3;
 
+    /* >>> Take into account the other stuff: TAIL GPTB */;
+
     img_blocks = t->curblock + t->tail_blocks;
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
     if (((t->system_area_options & 3) || always_align)
@@ -1997,7 +1999,7 @@ int gpt_tail_writer_create(Ecma119Image *target)
 static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
-    int ret, will_have_gpt = 0;
+    int ret, will_have_gpt = 0, with_chrp = 0;
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
     uint8_t gpt_name[72];
@@ -2012,7 +2014,9 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         return ISO_ASSERT_FAILURE;
     t = writer->target;
 
-    if (t->efi_boot_partition != NULL || t->hfsplus || t->gpt_req_count > 0)
+    with_chrp = ((t->system_area_options & 0x3cff) == 0x0400);
+    if (t->efi_boot_partition != NULL || (t->hfsplus && !with_chrp) ||
+        t->gpt_req_count > 0)
         will_have_gpt = 1;
 
     if (t->efi_boot_partition != NULL) {
@@ -2030,7 +2034,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         t->curblock += t->efi_boot_part_size;
     }
 
-    if ((t->system_area_options & 0x3cff) == 0x0400) {
+    if (with_chrp) {
         /* CHRP is not compatible with any other partition in MBR */
         if (t->prep_partition != NULL || t->fat || will_have_gpt ||
             t->mbr_req_count > 0)
