@@ -8,7 +8,7 @@
  */
 
 /**
- * Declare Joliet related structures.
+ * Declare HFS+ related structures.
  */
 
 #ifndef LIBISO_HFSPLUS_H
@@ -182,8 +182,12 @@ struct hfsplus_catfile_common
 
 #define HFSPLUS_MAX_DECOMPOSE_LEN 4
 
-extern const uint16_t (*hfsplus_decompose_pages[256])[HFSPLUS_MAX_DECOMPOSE_LEN + 1];
-extern const uint16_t *hfsplus_class_pages[256];
+extern uint16_t (*hfsplus_decompose_pages[256])[HFSPLUS_MAX_DECOMPOSE_LEN + 1];
+void make_hfsplus_decompose_pages();
+
+extern uint16_t *hfsplus_class_pages[256];
+void make_hfsplus_class_pages();
+
 extern const uint16_t hfsplus_casefold[];
 
 #endif /* LIBISO_HFSPLUS_H */

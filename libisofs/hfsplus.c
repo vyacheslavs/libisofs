@@ -959,6 +959,9 @@ int hfsplus_writer_create(Ecma119Image *target)
         return ISO_OUT_OF_MEM;
     }
 
+    make_hfsplus_decompose_pages();
+    make_hfsplus_class_pages();
+
     writer->compute_data_blocks = hfsplus_writer_compute_data_blocks;
     writer->write_vol_desc = nop_writer_write_vol_desc;
     writer->write_data = hfsplus_writer_write_data;
