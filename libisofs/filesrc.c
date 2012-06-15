@@ -112,7 +112,12 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
         } else {
             fsrc->nsections = 1;
         }
-        fsrc->sections = calloc(fsrc->nsections, sizeof(struct iso_file_section));
+        fsrc->sections = calloc(fsrc->nsections,
+                                sizeof(struct iso_file_section));
+        if (fsrc->sections == NULL) {
+            free(fsrc);
+            return ISO_OUT_OF_MEM;
+        }
     }
     fsrc->sort_weight = file->sort_weight;
     fsrc->stream = file->stream;
