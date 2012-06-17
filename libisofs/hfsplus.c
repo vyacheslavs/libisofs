@@ -674,8 +674,17 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 	  for (j = 0; j < t->hfsp_levels[level].nodes[i].cnt; j++)
 	    {
 	      iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
-	      iso_msg_debug(t->image->id, "%d out of %d, %s", (int) curnode, t->hfsp_nleafs,
-			    t->hfsp_leafs[curnode].node->name);
+	      if (t->hfsp_leafs[curnode].node->name == NULL)
+		{
+		  iso_msg_debug(t->image->id, "%d out of %d",
+				(int) curnode, t->hfsp_nleafs);
+		}
+	      else
+		{
+		  iso_msg_debug(t->image->id, "%d out of %d, %s",
+				(int) curnode, t->hfsp_nleafs,
+				t->hfsp_leafs[curnode].node->name);
+		}
 
 	      switch (t->hfsp_leafs[curnode].type)
 		{
