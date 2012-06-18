@@ -197,6 +197,12 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
     return ISO_SUCCESS;
 }
 
+
+/* >>> ts B20617
+       This should be HFSPlusNode rather than IsoNode in order to have access
+       to IsoFileSrc.no_write which indicates that the file content will not
+       be in written the range of filesrc_writer.
+*/
 static
 int hfsplus_count_tree(Ecma119Image *t, IsoNode *iso)
 {

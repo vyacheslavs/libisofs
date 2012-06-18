@@ -68,7 +68,7 @@ int iso_file_src_cmp(const void *n1, const void *n2)
 
 int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
 {
-    int ret;
+    int ret, i;
     IsoFileSrc *fsrc;
     unsigned int fs_id;
     dev_t dev_id;
@@ -88,7 +88,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     }
 
     /* fill key and other atts */
-    fsrc->prev_img = file->from_old_session;
+    fsrc->no_write = (file->from_old_session && img->appendable);
     if (file->from_old_session && img->appendable) {
         /*
          * On multisession discs we keep file sections from old image.
@@ -118,6 +118,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
             free(fsrc);
             return ISO_OUT_OF_MEM;
         }
+        for (i = 0; i < fsrc->nsections; i++)
+            fsrc->sections[i].block = 0;
     }
     fsrc->sort_weight = file->sort_weight;
     fsrc->stream = file->stream;
@@ -219,15 +221,15 @@ static int cmp_by_weight(const void *f1, const void *f2)
 }
 
 static
-int is_ms_file(void *arg)
+int shall_be_written(void *arg)
 {
     IsoFileSrc *f = (IsoFileSrc *)arg;
-    return f->prev_img ? 0 : 1;
+    return f->no_write ? 0 : 1;
 }
 
 int filesrc_writer_pre_compute(IsoImageWriter *writer)
 {
-    size_t i, size;
+    size_t i, size, is_external;
     Ecma119Image *t;
     IsoFileSrc **filelist;
     int (*inc_item)(void *);
@@ -247,7 +249,7 @@ int filesrc_writer_pre_compute(IsoImageWriter *writer)
 
     /* on appendable images, ms files shouldn't be included */
     if (t->appendable) {
-        inc_item = is_ms_file;
+        inc_item = shall_be_written;
     } else {
         inc_item = NULL;
     }
@@ -267,8 +269,16 @@ int filesrc_writer_pre_compute(IsoImageWriter *writer)
     for (i = 0; i < size; ++i) {
         int extent = 0;
         IsoFileSrc *file = filelist[i];
+        off_t section_size;
 
-        off_t section_size = iso_stream_get_size(file->stream);
+        /* 0xfffffffe in emerging image means that this is an external
+           partition. Only assess extent sizes but do not count as part
+           of filesrc_writer output.
+        */
+        is_external = (file->no_write == 0 &&
+                       file->sections[0].block == 0xfffffffe);
+
+        section_size = iso_stream_get_size(file->stream);
         for (extent = 0; extent < file->nsections - 1; ++extent) {
             file->sections[extent].block = t->filesrc_blocks + extent *
                         (ISO_EXTENT_SIZE / BLOCK_SIZE);
@@ -293,6 +303,15 @@ int filesrc_writer_pre_compute(IsoImageWriter *writer)
         }
         file->sections[extent].size = (uint32_t)section_size;
 
+        /* 0xfffffffe in emerging image means that this is an external
+           partition. Others will take care of the content data.
+        */
+        if (is_external) {
+            file->sections[0].block = 0xfffffffe;
+            file->no_write = 1; /* Ban for filesrc_writer */
+    continue;
+        }
+
         t->filesrc_blocks += DIV_UP(iso_file_src_get_size(file), BLOCK_SIZE);
     }
 
@@ -316,9 +335,16 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
     filelist = (IsoFileSrc **) writer->data;
 
+    t->filesrc_start = t->curblock;
+
     /* Give all extent addresses their final absolute value */
     i = 0;
     while ((file = filelist[i++]) != NULL) {
+
+       /* Skip external partitions */ 
+       if (file->no_write)
+    continue;
+
        for (extent = 0; extent < file->nsections; ++extent) {
             if (file->sections[extent].block == 0xffffffff)
                 file->sections[extent].block = t->empty_file_block;
@@ -373,25 +399,244 @@ int filesrc_make_md5(Ecma119Image *t, IsoFileSrc *file, char md5[16], int flag)
     return iso_stream_make_md5(file->stream, md5, 0);
 }
 
-static
-int filesrc_writer_write_data(IsoImageWriter *writer)
+/* name must be NULL or offer at least PATH_MAX characters.
+   buffer must be NULL or offer at least BLOCK_SIZE characters.
+*/
+int iso_filesrc_write_data(Ecma119Image *t, IsoFileSrc *file,
+                           char *name, char *buffer, int flag)
 {
     int res, ret, was_error;
-    size_t i, b;
-    Ecma119Image *t = NULL;
-    IsoFileSrc *file;
-    IsoFileSrc **filelist;
-    char *name = NULL;
-    char *buffer = NULL;
+    char *name_data = NULL;
+    char *buffer_data = NULL;
+    size_t b;
     off_t file_size;
     uint32_t nblocks;
     void *ctx= NULL;
     char md5[16], pre_md5[16];
     int pre_md5_valid = 0;
     IsoStream *stream, *inp;
+
 #ifdef Libisofs_with_libjtE
     int jte_begun = 0;
 #endif
+
+    if (name == NULL) {
+        LIBISO_ALLOC_MEM(name_data, char, PATH_MAX);
+        name = name_data;
+    }
+    if (buffer == NULL) {
+        LIBISO_ALLOC_MEM(buffer_data, char, BLOCK_SIZE);
+        buffer = buffer_data;
+    }
+
+    was_error = 0;
+    file_size = iso_file_src_get_size(file);
+    nblocks = DIV_UP(file_size, BLOCK_SIZE);
+    pre_md5_valid = 0; 
+    if (file->checksum_index > 0 && (t->md5_file_checksums & 2)) {
+        /* Obtain an MD5 of content by a first read pass */
+        pre_md5_valid = filesrc_make_md5(t, file, pre_md5, 0);
+    }
+    res = filesrc_open(file);
+
+    /* Get file name from end of filter chain */
+    for (stream = file->stream; ; stream = inp) {
+        inp = iso_stream_get_input_stream(stream, 0);
+        if (inp == NULL)
+    break;
+    }
+    iso_stream_get_file_name(stream, name);
+    if (res < 0) {
+        /*
+         * UPS, very ugly error, the best we can do is just to write
+         * 0's to image
+         */
+        iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
+        was_error = 1;
+        res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
+                  "File \"%s\" can't be opened. Filling with 0s.", name);
+        if (res < 0) {
+            ret = res; /* aborted due to error severity */
+            goto ex;
+        }
+        memset(buffer, 0, BLOCK_SIZE);
+        for (b = 0; b < nblocks; ++b) {
+            res = iso_write(t, buffer, BLOCK_SIZE);
+            if (res < 0) {
+                /* ko, writer error, we need to go out! */
+                ret = res;
+                goto ex;
+            }
+        }
+        ret = ISO_SUCCESS;
+        goto ex;
+    } else if (res > 1) {
+        iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
+        was_error = 1;
+        res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
+                  "Size of file \"%s\" has changed. It will be %s", name,
+                  (res == 2 ? "truncated" : "padded with 0's"));
+        if (res < 0) {
+            filesrc_close(file);
+            ret = res; /* aborted due to error severity */
+            goto ex;
+        }
+    }
+#ifdef LIBISOFS_VERBOSE_DEBUG
+    else {
+        iso_msg_debug(t->image->id, "Writing file %s", name);
+    }
+#endif
+
+#ifdef Libisofs_with_libjtE
+    if (t->libjte_handle != NULL) {
+        res = libjte_begin_data_file(t->libjte_handle, name,
+                                     BLOCK_SIZE, file_size);
+        if (res <= 0) {
+            res = iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+                                    ISO_LIBJTE_FILE_FAILED, 0);
+            if (res < 0) {
+                filesrc_close(file);
+                ret = ISO_LIBJTE_FILE_FAILED;
+                goto ex;
+            }
+        }
+        jte_begun = 1;
+    }
+#endif /* Libisofs_with_libjtE */
+
+    if (file->checksum_index > 0) {
+        /* initialize file checksum */
+        res = iso_md5_start(&ctx);
+        if (res <= 0)
+            file->checksum_index = 0;
+    }
+    /* write file contents to image */
+    for (b = 0; b < nblocks; ++b) {
+        int wres;
+        res = filesrc_read(file, buffer, BLOCK_SIZE);
+        if (res < 0) {
+            /* read error */
+            break;
+        }
+        wres = iso_write(t, buffer, BLOCK_SIZE);
+        if (wres < 0) {
+            /* ko, writer error, we need to go out! */
+            filesrc_close(file);
+            ret = wres;
+            goto ex;
+        }
+        if (file->checksum_index > 0) {
+            /* Add to file checksum */
+            if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
+                res = BLOCK_SIZE;
+            else
+                res = file_size - b * BLOCK_SIZE;
+            res = iso_md5_compute(ctx, buffer, res);
+            if (res <= 0)
+                file->checksum_index = 0;
+        }
+    }
+
+    filesrc_close(file);
+
+    if (b < nblocks) {
+        /* premature end of file, due to error or eof */
+        iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
+        was_error = 1;
+        if (res < 0) {
+            /* error */
+            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
+                           "Read error in file %s.", name);
+        } else {
+            /* eof */
+            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
+                          "Premature end of file %s.", name);
+        }
+
+        if (res < 0) {
+            ret = res; /* aborted due error severity */
+            goto ex;
+        }
+
+        /* fill with 0s */
+        iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
+                       "Filling with 0");
+        memset(buffer, 0, BLOCK_SIZE);
+        while (b++ < nblocks) {
+            res = iso_write(t, buffer, BLOCK_SIZE);
+            if (res < 0) {
+                /* ko, writer error, we need to go out! */
+                ret = res;
+                goto ex;
+            }
+            if (file->checksum_index > 0) {
+                /* Add to file checksum */
+                if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
+                    res = BLOCK_SIZE;
+                else
+                    res = file_size - b * BLOCK_SIZE;
+                res = iso_md5_compute(ctx, buffer, res);
+                if (res <= 0)
+                    file->checksum_index = 0;
+            }
+        }
+    }
+    if (file->checksum_index > 0 &&
+        file->checksum_index <= t->checksum_idx_counter) {
+        /* Obtain checksum and dispose checksum context */
+        res = iso_md5_end(&ctx, md5);
+        if (res <= 0)
+            file->checksum_index = 0;
+        if ((t->md5_file_checksums & 2) && pre_md5_valid > 0 &&
+            !was_error) {
+            if (! iso_md5_match(md5, pre_md5)) {
+                /* Issue MISHAP event */
+                iso_report_errfile(name, ISO_MD5_STREAM_CHANGE, 0, 0);
+                was_error = 1;
+                res = iso_msg_submit(t->image->id, ISO_MD5_STREAM_CHANGE,0,
+       "Content of file '%s' changed while it was written into the image.",
+                                     name);
+                if (res < 0) {
+                    ret = res; /* aborted due to error severity */
+                    goto ex;
+                }
+            }
+        }
+        /* Write md5 into checksum buffer at file->checksum_index */
+        memcpy(t->checksum_buffer + 16 * file->checksum_index, md5, 16);
+    }
+
+    ret = ISO_SUCCESS;
+ex:;
+    if (ctx != NULL) /* avoid any memory leak */
+        iso_md5_end(&ctx, md5);
+
+#ifdef Libisofs_with_libjtE
+    if (jte_begun) {
+        res = libjte_end_data_file(t->libjte_handle);
+        iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+                                ISO_LIBJTE_END_FAILED, 0);
+        if (res <= 0 && ret >= 0)
+            ret = ISO_LIBJTE_FILE_FAILED;
+    }
+#endif /* Libisofs_with_libjtE */
+
+    LIBISO_FREE_MEM(buffer_data);
+    LIBISO_FREE_MEM(name_data);
+    return ret;
+}
+
+static
+int filesrc_writer_write_data(IsoImageWriter *writer)
+{
+    int ret;
+    size_t i;
+    Ecma119Image *t = NULL;
+    IsoFileSrc *file;
+    IsoFileSrc **filelist;
+    char *name = NULL;
+    char *buffer = NULL;
 
     if (writer == NULL) {
         ret = ISO_ASSERT_FAILURE; goto ex;
@@ -416,215 +661,27 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
 
     i = 0;
     while ((file = filelist[i++]) != NULL) {
-        was_error = 0;
-        file_size = iso_file_src_get_size(file);
-        nblocks = DIV_UP(file_size, BLOCK_SIZE);
-        pre_md5_valid = 0; 
-        if (file->checksum_index > 0 && (t->md5_file_checksums & 2)) {
-            /* Obtain an MD5 of content by a first read pass */
-            pre_md5_valid = filesrc_make_md5(t, file, pre_md5, 0);
+        if (file->no_write) {
+            /* Do not write external partitions */
+            iso_msg_debug(t->image->id,
+                          "filesrc_writer: Skipping no_write-src [%.f , %.f]",
+                          (double) file->sections[0].block, 
+                          (double) (file->sections[0].block - 1 +
+                                (file->sections[0].size + 2047) / BLOCK_SIZE));
+    continue;
         }
-        res = filesrc_open(file);
-
-        /* Get file name from end of filter chain */
-        for (stream = file->stream; ; stream = inp) {
-            inp = iso_stream_get_input_stream(stream, 0);
-            if (inp == NULL)
-        break;
-        }
-        iso_stream_get_file_name(stream, name);
-        if (res < 0) {
-            /*
-             * UPS, very ugly error, the best we can do is just to write
-             * 0's to image
-             */
-            iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
-            was_error = 1;
-            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
-                      "File \"%s\" can't be opened. Filling with 0s.", name);
-            if (res < 0) {
-                ret = res; /* aborted due to error severity */
-                goto ex;
-            }
-            memset(buffer, 0, BLOCK_SIZE);
-            for (b = 0; b < nblocks; ++b) {
-                res = iso_write(t, buffer, BLOCK_SIZE);
-                if (res < 0) {
-                    /* ko, writer error, we need to go out! */
-                    ret = res;
-                    goto ex;
-                }
-            }
-            continue;
-        } else if (res > 1) {
-            iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
-            was_error = 1;
-            res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
-                      "Size of file \"%s\" has changed. It will be %s", name,
-                      (res == 2 ? "truncated" : "padded with 0's"));
-            if (res < 0) {
-                filesrc_close(file);
-                ret = res; /* aborted due to error severity */
-                goto ex;
-            }
-        }
-#ifdef LIBISOFS_VERBOSE_DEBUG
-        else {
-            iso_msg_debug(t->image->id, "Writing file %s", name);
-        }
-#endif
-
-#ifdef Libisofs_with_libjtE
-        if (t->libjte_handle != NULL) {
-            res = libjte_begin_data_file(t->libjte_handle, name,
-                                         BLOCK_SIZE, file_size);
-            if (res <= 0) {
-                res = iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
-                                        ISO_LIBJTE_FILE_FAILED, 0);
-                if (res < 0) {
-                    filesrc_close(file);
-                    ret = ISO_LIBJTE_FILE_FAILED;
-                    goto ex;
-                }
-            }
-            jte_begun = 1;
-        }
-#endif /* Libisofs_with_libjtE */
-
-        if (file->checksum_index > 0) {
-            /* initialize file checksum */
-            res = iso_md5_start(&ctx);
-            if (res <= 0)
-                file->checksum_index = 0;
-        }
-        /* write file contents to image */
-        for (b = 0; b < nblocks; ++b) {
-            int wres;
-            res = filesrc_read(file, buffer, BLOCK_SIZE);
-            if (res < 0) {
-                /* read error */
-                break;
-            }
-            wres = iso_write(t, buffer, BLOCK_SIZE);
-            if (wres < 0) {
-                /* ko, writer error, we need to go out! */
-                filesrc_close(file);
-                ret = wres;
-                goto ex;
-            }
-            if (file->checksum_index > 0) {
-                /* Add to file checksum */
-                if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
-                    res = BLOCK_SIZE;
-                else
-                    res = file_size - b * BLOCK_SIZE;
-                res = iso_md5_compute(ctx, buffer, res);
-                if (res <= 0)
-                    file->checksum_index = 0;
-            }
-        }
-
-        filesrc_close(file);
-
-        if (b < nblocks) {
-            /* premature end of file, due to error or eof */
-            iso_report_errfile(name, ISO_FILE_CANT_WRITE, 0, 0);
-            was_error = 1;
-            if (res < 0) {
-                /* error */
-                res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, res,
-                               "Read error in file %s.", name);
-            } else {
-                /* eof */
-                res = iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
-                              "Premature end of file %s.", name);
-            }
-
-            if (res < 0) {
-                ret = res; /* aborted due error severity */
-                goto ex;
-            }
-
-            /* fill with 0s */
-            iso_msg_submit(t->image->id, ISO_FILE_CANT_WRITE, 0,
-                           "Filling with 0");
-            memset(buffer, 0, BLOCK_SIZE);
-            while (b++ < nblocks) {
-                res = iso_write(t, buffer, BLOCK_SIZE);
-                if (res < 0) {
-                    /* ko, writer error, we need to go out! */
-                    ret = res;
-                    goto ex;
-                }
-                if (file->checksum_index > 0) {
-                    /* Add to file checksum */
-                    if (file_size - b * BLOCK_SIZE > BLOCK_SIZE)
-                        res = BLOCK_SIZE;
-                    else
-                        res = file_size - b * BLOCK_SIZE;
-                    res = iso_md5_compute(ctx, buffer, res);
-                    if (res <= 0)
-                        file->checksum_index = 0;
-                }
-            }
-        }
-        if (file->checksum_index > 0 &&
-            file->checksum_index <= t->checksum_idx_counter) {
-            /* Obtain checksum and dispose checksum context */
-            res = iso_md5_end(&ctx, md5);
-            if (res <= 0)
-                file->checksum_index = 0;
-            if ((t->md5_file_checksums & 2) && pre_md5_valid > 0 &&
-                !was_error) {
-                if (! iso_md5_match(md5, pre_md5)) {
-                    /* Issue MISHAP event */
-                    iso_report_errfile(name, ISO_MD5_STREAM_CHANGE, 0, 0);
-                    was_error = 1;
-                    res = iso_msg_submit(t->image->id, ISO_MD5_STREAM_CHANGE,0,
-           "Content of file '%s' changed while it was written into the image.",
-                                         name);
-                    if (res < 0) {
-                        ret = res; /* aborted due to error severity */
-                        goto ex;
-                    }
-                }
-            }
-            /* Write md5 into checksum buffer at file->checksum_index */
-            memcpy(t->checksum_buffer + 16 * file->checksum_index, md5, 16);
-        }
-
-#ifdef Libisofs_with_libjtE
-        if (t->libjte_handle != NULL) {
-            res = libjte_end_data_file(t->libjte_handle);
-            if (res <= 0) {
-                iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
-                                        ISO_LIBJTE_FILE_FAILED, 0);
-                ret = ISO_LIBJTE_FILE_FAILED;
-                goto ex;
-            }
-            jte_begun = 0;
-        }
-#endif /* Libisofs_with_libjtE */
-
+        ret = iso_filesrc_write_data(t, file, name, buffer, 0);
+        if (ret < 0)
+            goto ex;
     }
 
     ret = ISO_SUCCESS;
 ex:;
-    if (ctx != NULL) /* avoid any memory leak */
-        iso_md5_end(&ctx, md5);
-
-#ifdef Libisofs_with_libjtE
-    if (jte_begun && t != NULL) {
-        libjte_end_data_file(t->libjte_handle);
-        iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
-                                ISO_LIBJTE_END_FAILED, 0);
-    }
-#endif /* Libisofs_with_libjtE */
-
     LIBISO_FREE_MEM(buffer);
     LIBISO_FREE_MEM(name);
     return ret;
 }
+
 
 static
 int filesrc_writer_free_data(IsoImageWriter *writer)

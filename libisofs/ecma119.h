@@ -797,6 +797,11 @@ struct ecma119_image
 
 #ifdef Libisofs_with_libjtE
     struct libjte_env *libjte_handle;
+
+    /* Indicates that libjte_begin_data_file() was called and not finished yet
+       by libjte_end_data_file().
+    */
+    int jte_begun;
 #endif /* Libisofs_with_libjtE */
 
     uint32_t tail_blocks;
@@ -848,6 +853,7 @@ struct ecma119_image
 
     char *efi_boot_partition;
     uint32_t efi_boot_part_size;
+    IsoFileSrc *efi_boot_part_filesrc; /* Just a pointer. Do not free. */
 
     /* Messages from gpt_tail_writer_compute_data_blocks() to
        iso_write_system_area().
@@ -869,6 +875,7 @@ struct ecma119_image
        This is available before any IsoImageWriter.compute_data_blocks()
        is called.
     */
+    uint32_t filesrc_start;
     uint32_t filesrc_blocks;
 
 };

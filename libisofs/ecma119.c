@@ -1514,7 +1514,12 @@ void *write_function(void *arg)
 
     if (target->tree_end_block == 1) {
         iso_msgs_submit(0,
-    "Image is most likely damaged. Calculated/written block address mismatch.",
+ "Image is most likely damaged. Calculated/written tree end address mismatch.",
+                        0, "FATAL", 0);
+    }
+    if (target->bytes_written != target->total_size) {
+        iso_msgs_submit(0,
+"Image is most likely damaged. Calculated/written image end address mismatch.",
                         0, "FATAL", 0);
     }
 
@@ -1893,6 +1898,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             return ISO_OUT_OF_MEM;
     }
     target->efi_boot_part_size = 0;
+    target->efi_boot_part_filesrc = NULL;
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         target->appended_partitions[i] = NULL;
         if (opts->appended_partitions[i] != NULL) {
@@ -1924,6 +1930,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->gpt_max_entries = 0;
     target->gpt_is_computed = 0;
 
+    target->filesrc_start = 0;
     target->filesrc_blocks = 0;
 
     /*
@@ -2037,7 +2044,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
      * If PreP or FAT are desired, it creates MBR partition entries and
      * surrounding protecting partition entries.
      * If EFI boot partition is desired, it creates a GPT entry for it.
-     * >>> It shall learn to grab Ecma119Node instead of external disk files.
      */
      ret = partprepend_writer_create(target);
     if (ret < 0)

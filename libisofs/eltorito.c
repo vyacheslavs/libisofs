@@ -1032,7 +1032,7 @@ int el_torito_catalog_file_src_create(Ecma119Image *target, IsoFileSrc **src)
     }
 
     /* fill fields */
-    file->prev_img = 0; /* TODO allow copy of old img catalog???? */
+    file->no_write = 0; /* TODO allow copy of old img catalog???? */
     file->checksum_index = 0;
     file->nsections = 1;
     file->sections = calloc(1, sizeof(struct iso_file_section));
@@ -1221,7 +1221,7 @@ int eltorito_writer_free_data(IsoImageWriter *writer)
 
 int eltorito_writer_create(Ecma119Image *target)
 {
-    int ret, idx;
+    int ret, idx, outsource_efi = 0;
     IsoImageWriter *writer;
     IsoFile *bootimg;
     IsoFileSrc *src;
@@ -1253,6 +1253,9 @@ int eltorito_writer_create(Ecma119Image *target)
         }
     }
 
+    if (target->efi_boot_partition != NULL)
+        if (strcmp(target->efi_boot_partition, "--efi-boot-image") == 0)
+            outsource_efi = 1;
     for (idx = 0; idx < target->catalog->num_bootimages; idx++) {
         bootimg = target->catalog->bootimages[idx]->image;
         ret = iso_file_src_create(target, bootimg, &src);
@@ -1263,12 +1266,35 @@ int eltorito_writer_create(Ecma119Image *target)
 
         /* For patching an image, it needs to be copied always */
         if (target->catalog->bootimages[idx]->isolinux_options & 0x01) {
-            src->prev_img = 0;
+            src->no_write = 0;
+        }
+
+        /* If desired: Recognize first EFI boot image that will be newly
+           written, and mark it as claimed for being a partition.
+        */
+        if (outsource_efi &&
+            target->catalog->bootimages[idx]->platform_id == 0xef &&
+            src->no_write == 0) {
+           target->efi_boot_part_filesrc = src;
+           src->sections[0].block = 0xfffffffe;
+           ((IsoNode *) bootimg)->hidden |=
+                                   LIBISO_HIDE_ON_HFSPLUS | LIBISO_HIDE_ON_FAT;
+           outsource_efi = 0;
         }
     }
 
     /* we need the bootable volume descriptor */
     target->curblock++;
+
+    if (outsource_efi) {
+        /* Disable EFI Boot partition and complain */
+        free(target->efi_boot_partition);
+        target->efi_boot_partition = NULL;
+        iso_msg_submit(target->image->id, ISO_BOOT_NO_EFI_ELTO, 0,
+"No newly added El Torito EFI boot image found for exposure as GPT partition");
+        return ISO_BOOT_NO_EFI_ELTO;
+    }
+
     return ISO_SUCCESS;
 }
 

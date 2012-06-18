@@ -2017,7 +2017,8 @@ int gpt_tail_writer_create(Ecma119Image *target)
 static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
-    int ret, will_have_gpt = 0, with_chrp = 0;
+    IsoFileSrc *src;
+    int ret, will_have_gpt = 0, with_chrp = 0, i;
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
     uint8_t gpt_name[72];
@@ -2038,10 +2039,23 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         will_have_gpt = 1;
 
     if (t->efi_boot_partition != NULL) {
-        ret = compute_partition_size(t->efi_boot_partition,
-                                     &(t->efi_boot_part_size), 0);
-        if (ret < 0)
-            return ret;
+        if (t->efi_boot_part_filesrc != NULL) {
+            /* A file in the emerging ISO image shall store its content
+               as prepended partition.
+               Install absolute block addresses and determine partition size.
+            */
+            src = t->efi_boot_part_filesrc;
+            t->efi_boot_part_size = 0;
+            for (i = 0; i < src->nsections; i++) {
+                src->sections[i].block = t->curblock + t->efi_boot_part_size;
+                t->efi_boot_part_size += (src->sections[i].size + 2047) / 2048;
+            }
+        } else {
+            ret = compute_partition_size(t->efi_boot_partition,
+                                         &(t->efi_boot_part_size), 0);
+            if (ret < 0)
+                return ret;
+        }
         memset(gpt_name, 0, 72);
         strcpy((char *) gpt_name, "EFI boot partition");
         poor_man_s_utf_16le(gpt_name);
@@ -2108,8 +2122,14 @@ static int partprepend_writer_write_data(IsoImageWriter *writer)
     t = writer->target;
 
     if (t->efi_boot_partition != NULL && t->efi_boot_part_size) {
-        ret = iso_write_partition_file(t, t->efi_boot_partition, (uint32_t) 0,
-                                       t->efi_boot_part_size, 0);
+
+        if (t->efi_boot_part_filesrc != NULL) {
+            ret = iso_filesrc_write_data(t, t->efi_boot_part_filesrc,
+                                         NULL, NULL, 0);
+        } else {
+            ret = iso_write_partition_file(t, t->efi_boot_partition,
+                                       (uint32_t) 0, t->efi_boot_part_size, 0);
+        }
         if (ret < 0)
             return ret;
     }

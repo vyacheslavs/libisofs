@@ -300,6 +300,11 @@ enum IsoHideNodeFlag {
     */
     LIBISO_HIDE_ON_HFSPLUS = 1 << 4,
 
+    /** Hide the node in the FAT tree, if that format is enabled.
+        @since 1.2.4
+    */
+    LIBISO_HIDE_ON_FAT = 1 << 5,
+
     /** With IsoNode and IsoBoot: Write data content even if the node is
      *                            not visible in any tree.
      *  With directory nodes    : Write data content of IsoNode and IsoBoot
@@ -7328,6 +7333,10 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 
 /** Attempt to use an MBR partition entry twice (FAILURE, HIGH, -389) */
 #define ISO_BOOT_MBR_COLLISION      0xE830FE7B
+
+/** No suitable El Torito EFI boot image for exposure as GPT partition
+                                                       (FAILURE, HIGH, -390) */
+#define ISO_BOOT_NO_EFI_ELTO        0xE830FE7A
 
 
 

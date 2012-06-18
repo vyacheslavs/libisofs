@@ -22,12 +22,33 @@
 #endif
 #endif
 
+
+/* Abstraction of data file content in the emerging image.
+*/
 struct Iso_File_Src
 {
-    unsigned int prev_img :1; /**< if the file comes from a previous image */
+    /* This marks an IsoFileSrc which shall only expose its extent addresses
+       and sizes but shall not be counted or written by filesrc_writer.
+    */
+    unsigned int no_write :1;
+
     unsigned int checksum_index :31;
 
     /** File Sections of the file in the image */
+    /* Special sections[0].block values while they are relative
+       before filesrc_writer_compute_data_blocks().
+       Valid only with .no_write == 0:
+       0xfffffffe  This Iso_File_Src is claimed as external partition.
+                   Others will take care of the content data.
+                   filesrc_writer shall neither count nor write it.
+                   At write_data time it is already converted to
+                   a fileadress between  Ecma119Image.ms_block  and
+                   Ecma119Image.filesrc_start - 1.
+       0xffffffff  This is the block to which empty files shall point.
+       Normal data files have relative addresses from 0 to 0xffffffdf.
+       They cannot be higher, because mspad_writer forces the absolute
+       filesrc addresses to start at least at 0x20.
+    */
     struct iso_file_section *sections;
     int nsections;
 
@@ -100,6 +121,15 @@ int iso_file_src_writer_create(Ecma119Image *target);
  * filesrc_writer_compute_data_blocks() later makes them absolute.
  */
 int filesrc_writer_pre_compute(IsoImageWriter *writer);
+
+/**
+ * Write the content of file into the output stream of t.
+ * name must be NULL or offer at least PATH_MAX characters of storage.
+ * buffer must be NULL or offer at least BLOCK_SIZE characters of storage.
+ * flag is not used yet, submit 0.
+ */
+int iso_filesrc_write_data(Ecma119Image *t, IsoFileSrc *file,
+                           char *name, char *buffer, int flag);
 
 
 #endif /*LIBISO_FILESRC_H_*/

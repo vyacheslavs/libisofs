@@ -488,6 +488,8 @@ const char *iso_error_to_msg(int errcode)
         return "Overlapping MBR partition entries requested";
     case ISO_BOOT_MBR_COLLISION:
         return "Attempt to use an MBR partition entry twice";
+    case ISO_BOOT_NO_EFI_ELTO:
+        return "No suitable El Torito EFI boot image for exposure as GPT partition";
     default:
         return "Unknown error";
     }
