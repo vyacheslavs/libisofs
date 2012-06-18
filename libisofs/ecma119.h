@@ -797,11 +797,6 @@ struct ecma119_image
 
 #ifdef Libisofs_with_libjtE
     struct libjte_env *libjte_handle;
-
-    /* Indicates that libjte_begin_data_file() was called and not finished yet
-       by libjte_end_data_file().
-    */
-    int jte_begun;
 #endif /* Libisofs_with_libjtE */
 
     uint32_t tail_blocks;
