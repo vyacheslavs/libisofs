@@ -1768,7 +1768,7 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
     for (i = 0; i < 2; i++)
         u[4 + i] = (pid >> (8 * i)) & 0xff;
     u[6] = ((salt >> 8) | (pid >> 16)) & 0xff;
-    rnd = ((0xffffffffff & tv.tv_sec) << 8) |
+    rnd = ((0xffffff & tv.tv_sec) << 8) |
           (((tv.tv_usec >> 16) ^ (salt & 0xf0)) & 0xff);
     u[9] ^= counter & 0xff;
     for (i = 0; i < 4; i++)
