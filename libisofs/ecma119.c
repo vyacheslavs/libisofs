@@ -2184,10 +2184,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     for (i = 0; i < (int) target->nwriters; ++i) {
         IsoImageWriter *writer = target->writers[i];
 
-        /* Delaying boot image patching until new LBA is known */
-        if (i == el_torito_writer_index)
-    continue;
-
         /* Exposing address of data start to IsoWriteOpts and memorizing
            this address for all files which have no block address: 
            symbolic links, device files, empty data files.
@@ -2206,14 +2202,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         }
     }
 
-    /* Now perform delayed image patching and System Area preparations */
-    if (el_torito_writer_index >= 0) {
-        IsoImageWriter *writer = target->writers[el_torito_writer_index];
-        ret = writer->compute_data_blocks(writer);
-        if (ret < 0) {
-            goto target_cleanup;
-        }
-    }
+    ret = iso_patch_eltoritos(target);
+    if (ret < 0)
+        goto target_cleanup;
     if (((target->system_area_options & 0xfc) >> 2) == 2) {
         ret = iso_read_mipsel_elf(target, 0);
         if (ret < 0)

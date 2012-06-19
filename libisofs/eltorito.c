@@ -1102,7 +1102,8 @@ int make_boot_info_table(uint8_t *buf, uint32_t pvd_lba,
  *      1 on success, 0 error (but continue), < 0 error
  */
 static
-int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize, int idx)
+int patch_boot_info_table(uint8_t *buf, Ecma119Image *t,
+                               size_t imgsize, int idx)
 {
     int ret;
 
@@ -1116,27 +1117,15 @@ int patch_boot_image(uint8_t *buf, Ecma119Image *t, size_t imgsize, int idx)
     return ret;
 }
 
-static
-int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
+/* Patch the boot images if indicated */
+int iso_patch_eltoritos(Ecma119Image *t)
 {
-    /*
-     * We have nothing to write, but if we need to patch an isolinux image,
-     * this is a good place to do so.
-     */
-    Ecma119Image *t;
     int ret, idx;
     size_t size;
     uint8_t *buf;
     IsoStream *new = NULL;
     IsoStream *original = NULL;
 
-    if (writer == NULL) {
-        return ISO_NULL_POINTER;
-    }
-
-    t = writer->target;
-
-    /* Patch the boot image info tables if indicated */
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
         if (!(t->catalog->bootimages[idx]->isolinux_options & 0x01))
     continue;
@@ -1162,7 +1151,7 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
         }
 
         /* ok, patch the read buffer */
-        ret = patch_boot_image(buf, t, size, idx);
+        ret = patch_boot_info_table(buf, t, size, idx);
         if (ret < 0) {
             return ret;
         }
@@ -1178,6 +1167,16 @@ int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
     }
     return ISO_SUCCESS;
 }
+
+static
+int eltorito_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    /*
+     * We have nothing to write.
+     */
+    return ISO_SUCCESS;
+}
+
 
 /**
  * Write the Boot Record Volume Descriptor (ECMA-119, 8.2)

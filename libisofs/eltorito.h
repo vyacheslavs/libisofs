@@ -151,5 +151,8 @@ int eltorito_writer_create(Ecma119Image *target);
 int make_boot_info_table(uint8_t *buf, uint32_t pvd_lba,
                          uint32_t boot_lba, uint32_t imgsize);
 
+/* Patch the boot images if indicated.
+*/
+int iso_patch_eltoritos(Ecma119Image *t);
 
 #endif /* LIBISO_ELTORITO_H */
