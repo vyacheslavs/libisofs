@@ -2091,7 +2091,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
             return ret;
     }
     if (t->prep_part_size > 0) {
-        ret = iso_quick_mbr_entry(t, t->curblock, t->prep_part_size, 0x41, 0);
+        ret = iso_quick_mbr_entry(t, t->curblock, t->prep_part_size, 0x42, 0);
         if (ret < 0)
             return ret;
         t->curblock += t->prep_part_size;

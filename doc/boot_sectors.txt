@@ -895,7 +895,7 @@ Sources:
     Mail conversations with Vladimir Serbinenko.
 
 
-PReP boots via a MBR partition containing only raw ELF and having type 0x41.
+PReP boots via a MBR partition containing only raw ELF and having type 0x42.
 
 
 ------------------------------------------------------------------------------
@@ -1376,7 +1376,7 @@ System Area may contain simultaneously:
 
 MBR Partitions:
    0xee from    0 to PREP-1, protective partition, announcing presence of GPT
-   0x41 from PREP to HFAT-1, PreP partition
+   0x42 from PREP to HFAT-1, PreP partition
    0x0c from HFAT to  END-1, FAT partition, bootable bit on
    0x00                      Empty partition
 
