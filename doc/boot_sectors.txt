@@ -527,7 +527,7 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
   72 -  79 | part_start | Partition entries start
            |            | Normally this is 2. But to co-exist with APM, it
                         | might become some other number up to 62.
-  80 -  83 | entry_count| Number of partition entries = 0x80 = 128
+  80 -  83 | entry_count| Number of partition entries
   84 -  87 | entry_size | Size of a partition entry = 0x80 = 128
   88 -  91 | p_arr_crc  | CRC-32 of the partition array
   92 - 511 | reserved   | Must be 0
@@ -1121,6 +1121,8 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
   72 -  79 | part_start | Partition entries start LBA = 0x10 = 16 = byte 0x2000
            |            | (This is unusual. It leaves room for the Apple
            |            |  partition map entries.)
+  80 -  83 | entry_count| Number of partition entries 0x80 = 128
+  84 -  87 | entry_size | Size of a partition entry = 0x80 = 128
 ---------- | ---------- | ----------------------------------------------------
 
 
