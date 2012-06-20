@@ -1126,6 +1126,9 @@ int iso_patch_eltoritos(Ecma119Image *t)
     IsoStream *new = NULL;
     IsoStream *original = NULL;
 
+    if (t->catalog == NULL)
+        return ISO_SUCCESS;
+
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
         if (!(t->catalog->bootimages[idx]->isolinux_options & 0x01))
     continue;
