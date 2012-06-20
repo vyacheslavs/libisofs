@@ -828,6 +828,8 @@ struct ecma119_image
     int apm_req_count;
     /* 512 by default. May be changed to 2048 before writer thread starts. */
     int apm_block_size;
+    /* bit1= Do not fill gaps in Apple Partition Map */
+    int apm_req_flags;
 
     /* MBR partition table description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_mbr_entry().
@@ -845,6 +847,8 @@ struct ecma119_image
     */
     struct iso_gpt_partition_request *gpt_req[ISO_GPT_ENTRIES_MAX];
     int gpt_req_count;
+    /* bit0= GPT partitions may overlap */
+    int gpt_req_flags;
 
     char *efi_boot_partition;
     uint32_t efi_boot_part_size;

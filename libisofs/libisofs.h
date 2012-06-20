@@ -3424,47 +3424,52 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  * @param options
  *        bitmask style flag. The following values are defined:
  *
- *        bit 0 -> 1 to patch the boot info table of the boot image.
- *                 1 does the same as mkisofs option -boot-info-table.
- *                 Needed for ISOLINUX or GRUB boot images with platform ID 0.
- *                 The table is located at byte 8 of the boot image file.
- *                 Its size is 56 bytes. 
- *                 The original boot image file on disk will not be modified.
+ *        bit0= Patch the boot info table of the boot image.
+ *              This does the same as mkisofs option -boot-info-table.
+ *              Needed for ISOLINUX or GRUB boot images with platform ID 0.
+ *              The table is located at byte 8 of the boot image file.
+ *              Its size is 56 bytes. 
+ *              The original boot image file on disk will not be modified.
  *
- *                 One may use el_torito_seems_boot_info_table() for a
- *                 qualified guess whether a boot info table is present in
- *                 the boot image. If the result is 1 then it should get bit0
- *                 set if its content gets copied to a new LBA.
+ *              One may use el_torito_seems_boot_info_table() for a
+ *              qualified guess whether a boot info table is present in
+ *              the boot image. If the result is 1 then it should get bit0
+ *              set if its content gets copied to a new LBA.
  *
- *        bit 1 -> 1 to generate a ISOLINUX isohybrid image with MBR.
- *                 ----------------------------------------------------------
- *                 @deprecated since 31 Mar 2010:
- *                 The author of syslinux, H. Peter Anvin requested that this
- *                 feature shall not be used any more. He intends to cease
- *                 support for the MBR template that is included in libisofs.
- *                 ----------------------------------------------------------
- *                 A hybrid image is a boot image that boots from either
- *                 CD/DVD media or from disk-like media, e.g. USB stick.
- *                 For that you need isolinux.bin from SYSLINUX 3.72 or later.
- *                 IMPORTANT: The application has to take care that the image
- *                            on media gets padded up to the next full MB.
-                              >>> unless a GPT gets created
-
- *  >>> *** Under construction. *** Do not use yet:
- *  >>> bit2-7= Mentioning in isohybrid GPT
- *  >>>         0= do not mention in GPT
- *  >>>         1= mention as EFI partition
- *  >>>            @since 1.2.4
- *  >>>         2= Mention as HFS+ partition
- *  >>>            @since 1.2.4
- *  >>>         Primary GPT and backup GPT get written if at least one 
- *  >>>         ElToritoBootImage shall be mentioned
- *  >>> bit8= Mention in isohybrid Apple partition map
- *  >>>       APM get written if at least one ElToritoBootImage shall be
- *  >>>       mentioned. The ISOLINUX MBR must look suitable or else an error
- *  >>>       event will happen at image generation time.
- *  >>>       @since 1.2.4
-
+ *        bit1= Generate a ISOLINUX isohybrid image with MBR.
+ *              ----------------------------------------------------------
+ *              @deprecated since 31 Mar 2010:
+ *              The author of syslinux, H. Peter Anvin requested that this
+ *              feature shall not be used any more. He intends to cease
+ *              support for the MBR template that is included in libisofs.
+ *              ----------------------------------------------------------
+ *              A hybrid image is a boot image that boots from either
+ *              CD/DVD media or from disk-like media, e.g. USB stick.
+ *              For that you need isolinux.bin from SYSLINUX 3.72 or later.
+ *              IMPORTANT: The application has to take care that the image
+ *                         on media gets padded up to the next full MB.
+ *                         Under seiveral circumstances it might get aligned
+ *                         automatically. But there is no warranty.
+ *        bit2-7= Mentioning in isohybrid GPT
+ *                0= Do not mention in GPT
+ *                1= Mention as Basic Data partition.
+ *                   This cannot be combined with GPT partitions as of
+ *                   iso_write_opts_set_efi_bootp()
+ *                   >>> ts B20620 : and not with iso_write_opts_set_hfsplus()
+ *                   >>>             if it produces GPT entries
+ *                   @since 1.2.4
+ *                2= Mention as HFS+ partition.
+ *                   This cannot be combined with HFS+ production by
+ *                   iso_write_opts_set_hfsplus().
+ *                   @since 1.2.4
+ *                Primary GPT and backup GPT get written if at least one 
+ *                ElToritoBootImage shall be mentioned
+ *                @since 1.2.4
+ *        bit8= Mention in isohybrid Apple partition map
+ *              APM get written if at least one ElToritoBootImage shall be
+ *              mentioned. The ISOLINUX MBR must look suitable or else an error
+ *              event will happen at image generation time.
+ *              @since 1.2.4
  * @param flag
  *        Reserved for future usage, set to 0.
  * @return

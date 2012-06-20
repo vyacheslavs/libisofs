@@ -895,7 +895,7 @@ Sources:
     Mail conversations with Vladimir Serbinenko.
 
 
-PReP boots via a MBR partition containing only raw ELF and having type 0x42.
+PReP boots via a MBR partition containing only raw ELF and having type 0x41.
 
 
 ------------------------------------------------------------------------------
@@ -1006,16 +1006,16 @@ firmware. It disobeys some of the prescriptions in the previous chapter.
    446  -  461 | mbr_entry1 | Partition table entry 1 describing the size of
                |            | the ISO image plus the backup GPT, padded up to
                |            | the next full MiB.
-   462  -  477 | mbr_entry2 | Entry 2 describing the UEFI VFAT boot image.
+   462  -  477 | mbr_entry2 | Entry 2 describing the EFI VFAT boot image.
    478  -  493 | mbr_entry3 | Entry 3 describing the HFS+ boot image.
                |            |
    512 -  1023 | gpt_head   | GPT header describing the GPT partition array.
   1024 -  2047 | unused     |
   2048 -  4095 | apm_entry1 | APM entry 1 describing APM entries 1 to 3.
-  4096 -  6143 | apm_entry2 | APM entry 2 describing the UEFI VFAT boot image.
+  4096 -  6143 | apm_entry2 | APM entry 2 describing the EFI VFAT boot image.
   6144 -  8195 | apm_entry3 | APM entry 3 describing the HFS+ boot image.
   8192 -  8319 | gpt_entry1 | GPT partition entry 1 for the ISO image size.
-  8320 -  8447 | gpt_entry2 | GPT partition entry 2 for UEFI VFAT boot image,
+  8320 -  8447 | gpt_entry2 | GPT partition entry 2 for EFI VFAT boot image,
   8448 -  8575 | gpt_entry3 | GPT partition entry 3 for the HFS+ boot image.
   8576 - 24575 | gtp_empty  | Empty GPT partition entries 4 to 128.
  24576 - 32767 | unused     |
@@ -1376,7 +1376,7 @@ System Area may contain simultaneously:
 
 MBR Partitions:
    0xee from    0 to PREP-1, protective partition, announcing presence of GPT
-   0x42 from PREP to HFAT-1, PreP partition
+   0x41 from PREP to HFAT-1, PreP partition
    0x0c from HFAT to  END-1, FAT partition, bootable bit on
    0x00                      Empty partition
 

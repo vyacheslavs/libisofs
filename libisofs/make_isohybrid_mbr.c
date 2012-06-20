@@ -358,7 +358,10 @@ Main:
 */
 
 
-/* >>> ISOHYBRID : mention the new stuff learned from mjg and isohybrid.c */
+/* The new stuff about GPT and APM which was learned from Matthew Garret
+   and isohybrid.c is described in doc/boot_sectord.txt chapter
+    "SYSLINUX isohybrid for MBR, UEFI and x86-Mac"
+*/
 
 
 static
@@ -385,11 +388,29 @@ int lba512chs_to_buf(char **wpt, off_t lba, int head_count, int sector_count)
 }
 
 
-/* Find out whether GPT and APM are desired */
-static int assess_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
-                          int *apm_count)
+/* Find out whether GPT and APM are desired
+   flag bit0 = register APM and GPT requests in Ecma119Image
+*/
+int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
+                             int *apm_count, int flag)
 {
-    int i, ilx_opts;
+    int i, ilx_opts, j, ret;
+    uint32_t block_count;
+    uint8_t gpt_name[72];
+    static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    static uint8_t basic_data_uuid[16] = {
+        0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
+        0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7
+    };
+    static uint8_t hfs_uuid[16] = {
+        0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
+        0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
+    };
+    uint8_t *uuid;
+    static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
+
+    *gpt_count = 0;
+    *apm_count = 0;
 
     for (i = 0; i < t->catalog->num_bootimages; i++) {
         ilx_opts = t->catalog->bootimages[i]->isolinux_options;
@@ -397,15 +418,57 @@ static int assess_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
             if (*gpt_count < 128)
                 gpt_idx[*gpt_count]= i;
             (*gpt_count)++;
+            if ((flag & 1) && t->bootsrc[i] != NULL) {
+                /* Register GPT entry */
+                memset(gpt_name, 0, 72);
+                sprintf((char *) gpt_name, "ISOHybrid%d", *gpt_count);
+                iso_ascii_utf_16le(gpt_name);
+                if (((ilx_opts >> 2) & 63) == 2)
+                    uuid = hfs_uuid;
+                else
+                    uuid = basic_data_uuid;
+                block_count = 0;
+                for (j = 0; j < t->bootsrc[i]->nsections; j++)
+                     block_count += t->bootsrc[i]->sections[j].size / 2048;
+                ret = iso_quick_gpt_entry(
+                            t, t->bootsrc[i]->sections[0].block,
+                            block_count, uuid, zero_uuid, gpt_flags,
+                            (uint8_t *) gpt_name);
+                if (ret < 0)
+                    return ret;
+            }
         }
-        if (ilx_opts & 256)
+        if (ilx_opts & 256) {
             (*apm_count)++;
+            if ((flag & 1) && t->bootsrc[i] != NULL) {
+                /* Register APM entry */
+                block_count = 0;
+                for (j = 0; j < t->bootsrc[i]->nsections; j++)
+                     block_count += t->bootsrc[i]->sections[j].size / 2048;
+                ret = iso_quick_apm_entry(t, t->bootsrc[i]->sections[0].block,
+                                          block_count, "EFI", "Apple_HFS");
+                if (ret < 0)
+                    return ret;
+                /* Prevent gap filling */
+                t->apm_req_flags |= 2;
+                t->apm_block_size = 2048;
+            }
+        }
     }
-    if (*apm_count > 6) {
-        iso_msgs_submit(0,
-                   "Too many entries desired for Apple Partition Map. (max 6)",
-                   0, "FAILURE", 0);
-        return ISO_BOOT_TOO_MANY_APM;
+    if ((flag & 1) && *gpt_count > 0) {
+        /* Register overall GPT partition */
+        memset(gpt_name, 0, 72);
+        sprintf((char *) gpt_name, "ISOHybrid");
+        iso_ascii_utf_16le(gpt_name);
+        /* Let it be open ended. iso_write_gpt() will truncate it as needed. */
+        block_count = 0xffffffff;
+        ret = iso_quick_gpt_entry(t, (uint32_t) 0, block_count,
+                                  basic_data_uuid, zero_uuid, gpt_flags,
+                                  (uint8_t *) gpt_name);
+        if (ret < 0)
+            return ret;
+        /* Remove ban on GPT overlapping */
+        t->gpt_req_flags |= 1;
     }
     return ISO_SUCCESS;
 }
@@ -433,6 +496,12 @@ static int insert_apm_head(uint8_t *buf, int apm_count)
             if(buf[i] != apm_mbr_start[i])
         break;
         if (i < 32) {
+            /* Maybe it is already patched by apm_head ? */
+            for (i = 0; i < 32; i++)
+                if(buf[i] != apm_head[i])
+            break;
+        }
+        if (i < 32) {
             iso_msgs_submit(0,
                "MBR template file seems not prepared for Apple Partition Map.",
                0, "FAILURE", 0);
@@ -445,7 +514,7 @@ static int insert_apm_head(uint8_t *buf, int apm_count)
 }
 
 
-/* Describe the first three GPT boot images as MBR partitions */
+/* Describe GPT boot images as MBR partitions */
 static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
                                         int gpt_idx[128], int *gpt_cursor)
 {
@@ -480,55 +549,6 @@ static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
 }
 
 
-#ifdef NIX
-
-static int write_gpt_array(Ecma119Image *t, char *buf, uint32_t part_start)
-{
-    static uint8_t basic_data_uuid[16] = {
-        0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
-        0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7
-    };
-    static uint8_t hfs_uuid[16] = {
-        0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
-        0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
-    };
-    uint8_t *uuid;
-    int i, ilx_opts;
-    off_t start_lba, end_lba;
-
-    /* >>> First entry describes overall image , basic_data_uuid
-    start_lba = ;
-    end_lba = ;
-
-    >>> replace write_gpt_entry by iso_quick_gpt_entry
-
-    write_gpt_entry(t, buf + 512 * part_start, basic_data_uuid,
-                           off_t start_lba, off_t end_lba, uint8_t flags[8],
-                           uint8_t name[72])
-    */;
-
-    /* >>> Each marked boot image gets its entry */;
-    for (i= 0; i < t->catalog->num_bootimages; i++) {
-        ilx_opts= (t->catalog->bootimages[i]->isolinux_options >> 2) & 63;
-        if (ilx_opts == 1)
-            uuid = basic_data_uuid;
-        else if (ilx_opts == 1)
-            uuid = hfs_uuid;
-        else
-    continue;
-
-        /* >>>  iso_quick_gpt_entry() */
-
-    }
-
-    /* >>> */;
-
-    return ISO_SUCCESS;
-}
-
-#endif /* NIX */
-
-
 /*
  * @param flag  bit0= make own random MBR Id from current time
  */
@@ -539,7 +559,7 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     uint32_t id, part, nominal_part_size;
     off_t hd_img_blocks, hd_boot_lba;
     char *wpt;
-    uint32_t boot_lba, mbr_id, p_arr_crc = 0, part_start, max_gpt_entries;
+    uint32_t boot_lba, mbr_id;
     int head_count, sector_count, ret;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor;
     /* For generating a weak random number */
@@ -553,24 +573,21 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     head_count = t->partition_heads_per_cyl;
     sector_count = t->partition_secs_per_head;
 
-    ret = assess_gpt_apm(t, &gpt_count, gpt_idx, &apm_count);
-    if (ret < 0)
-        return ret;
-    ret = insert_apm_head(buf, apm_count);
+    ret = assess_isohybrid_gpt_apm(t, &gpt_count, gpt_idx, &apm_count, 0);
     if (ret < 0)
         return ret;
 
+    /* The rest of APM has already been written by iso_write_apm().
+       But the isohybrid APM head differs from the hfsplus_writer APM head.
+    */
+    ret = insert_apm_head(buf, apm_count);
+    if (ret < 0)
+        return ret;
 
     /* Padding of image_size to a multiple of sector_count*head_count
        happens already at compute time and is implemented by
        an appropriate increase of Ecma119Image->tail_blocks.
     */
-
-    if (gpt_count) {
-
-        /* >>> ISOHYBRID : need to make sure that backup GPT fits into tail */;
-
-    }
 
     wpt = (char *) buf + 432;
 
@@ -635,27 +652,6 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     /*  write word 0xaa55            # Offset 510
     */
     lsb_to_buf(&wpt, 0xaa55, 16, 0);
-
-    if (gpt_count) {
-
-        /* >>> ISOHYBRID : write primary GPT and compute p_arr_crc */;
-        part_start = 4 + (apm_count + 1) * 4;
-
-        /* >>> compute max_gpt_entries from number of APM */
-        max_gpt_entries = 128; /* suffices for 6 payload APM entries */
-
-        ret = iso_write_gpt_header_block(t, (uint32_t) *img_blocks,
-                                         buf + 512, max_gpt_entries,
-                                         part_start, p_arr_crc);
-        if (ret < 0)
-            return ret;
-    }
-
-    if (apm_count) {
-
-        /* >>> ISOHYBRID : write APM entry blocks (2K) */;
-
-    }
 
     return(1);
 }

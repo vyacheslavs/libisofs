@@ -1918,12 +1918,17 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             iso_node_ref(target->hfsplus_blessed[i]);
     }
     target->apm_block_size = 512;
+    target->apm_req_count = 0;
+    target->apm_req_flags = 0;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)
         target->apm_req[i] = NULL;
     for (i = 0; i < ISO_MBR_ENTRIES_MAX; i++)
         target->mbr_req[i] = NULL;
+    target->mbr_req_count = 0;
     for (i = 0; i < ISO_GPT_ENTRIES_MAX; i++)
         target->gpt_req[i] = NULL;
+    target->gpt_req_count = 0;
+    target->gpt_req_flags = 0;
     target->gpt_part_start = 0;
     target->gpt_backup_end = 0;
     target->gpt_backup_size = 0;

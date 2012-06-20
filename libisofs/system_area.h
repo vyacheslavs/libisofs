@@ -117,6 +117,8 @@ int iso_quick_mbr_entry(Ecma119Image *t,
    to the final size of the partition map.
    If no such entry is requested, then it will be prepended automatically
    with name "Apple" and type "Apple_partition_map".
+   The requested entries will get sorted and gaps will be filled by more
+   entries.
 */
 struct iso_apm_partition_request {
 
@@ -174,10 +176,14 @@ void iso_random_8byte(Ecma119Image *t, uint8_t result[8]);
    See also the partial GPT description in doc/boot_sectors.txt.
    The list of entries is stored in Ecma119Image.gpt_req.
    The GPT header block at byte 0x200 will get produced automatically.
+   The requested entries will get sorted and gaps will be filled by more
+   entries. Overlapping partitions are allowed only if
+   (Ecma119Image.gpt_req_flags & 1).
+   The block_count will be truncated to the image size before the GPT backup.
+
    The GPT entries will be stored after the Apple Partition Map, if such
    gets generated too. Both partition descriptions must fit into the 32 KiB
    of the ISO 9660 System Area.
-
    GPT can be combined with APM only if (Ecma119Image.apm_block_size > 512).
    Otherwise, block 1 of APM and GPT header block would collide.
    So Ecma119Image.apm_block_size is set automatically to 2048 if at least
@@ -242,5 +248,7 @@ int partprepend_writer_create(Ecma119Image *target);
 */
 int gpt_tail_writer_create(Ecma119Image *target);
 
+/* Only for up to 36 characters ISO-8859-1 (or ASCII) input */
+void iso_ascii_utf_16le(uint8_t gap_name[72]);
 
 #endif /* SYSTEM_AREA_H_ */
