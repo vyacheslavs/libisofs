@@ -776,10 +776,17 @@ int iso_quick_gpt_entry(Ecma119Image *t,
 
 int iso_quick_mbr_entry(Ecma119Image *t,
                         uint32_t start_block, uint32_t block_count,
-                        uint8_t type_byte, uint8_t status_byte)
+                        uint8_t type_byte, uint8_t status_byte,
+                        int desired_slot)
 {
     int ret;
     struct iso_mbr_partition_request *entry;
+
+    ret = iso_mbr_entry_slot_is_free(t, desired_slot);
+    if (ret < 0)
+        desired_slot = 0;
+    else if (ret == 0)
+        return ISO_BOOT_MBR_COLLISION;
 
     entry = calloc(1, sizeof(struct iso_mbr_partition_request));
     if (entry == NULL)
@@ -788,14 +795,30 @@ int iso_quick_mbr_entry(Ecma119Image *t,
     entry->block_count = block_count;
     entry->type_byte = type_byte;
     entry->status_byte = status_byte;
+    entry->desired_slot = desired_slot;
     ret = iso_register_mbr_entry(t, entry, 0);
     free(entry);
     return ret;
 }
 
 
+int iso_mbr_entry_slot_is_free(Ecma119Image *t, int slot)
+{
+    int i;
+
+    if (slot < 0 || slot > ISO_MBR_ENTRIES_MAX)
+        return -1;
+    if (slot == 0)
+        return 1;
+    for (i = 0; i < t->mbr_req_count; i++)
+        if (t->mbr_req[i]->desired_slot == slot)
+            return 0;
+    return 1;
+}
+
+
 /**
- * Compare the start_sectors of two iso_apm_partition_request
+ * Compare the block interval positions of two iso_apm_partition_request
  */
 static
 int cmp_partition_request(const void *f1, const void *f2)
@@ -1067,17 +1090,17 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
 
 static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 {
-    int i, ret;
+    int i, ret, req_of_slot[ISO_MBR_ENTRIES_MAX], q, j;
 
 #ifdef NIX
     /* Disabled */
 
     /* <<< Dummy mock-up */
     if (t->mbr_req_count <= 0) {
-        ret = iso_quick_mbr_entry(t, 0, 0, 0xee, 0);
+        ret = iso_quick_mbr_entry(t, 0, 0, 0xee, 0, 0);
         if (ret < 0)
             return ret;
-        ret = iso_quick_mbr_entry(t, 100, 0, 0x0c, 0x80);
+        ret = iso_quick_mbr_entry(t, 100, 0, 0x0c, 0x80, 1);
         if (ret < 0)
             return ret;
     }
@@ -1110,22 +1133,43 @@ static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
                                          t->mbr_req[i]->start_block;
     }
 
-    /* >>> Permutate ? */
+    /* Assign requested entries to slot numbers */
+    for (i = 0; i < ISO_MBR_ENTRIES_MAX; i++)
+        req_of_slot[i] = -1;
+    for (i = 0; i < t->mbr_req_count; i++) {
+        if (t->mbr_req[i]->desired_slot < 1 ||
+            t->mbr_req[i]->desired_slot > ISO_MBR_ENTRIES_MAX)
+    continue;
+        if (req_of_slot[t->mbr_req[i]->desired_slot - 1] >= 0)
+            return ISO_BOOT_MBR_COLLISION;
+        req_of_slot[t->mbr_req[i]->desired_slot - 1] = i;
+    }
+    for (i = 0; i < t->mbr_req_count; i++) {
+        if (t->mbr_req[i]->desired_slot > 0)
+    continue;
+        for (j = 0; j < ISO_MBR_ENTRIES_MAX; j++)
+             if (req_of_slot[j] < 0)
+        break;
+        if (j >= ISO_MBR_ENTRIES_MAX)
+            return ISO_BOOT_TOO_MANY_MBR;
+        req_of_slot[j] = i;
+    }
 
     /* Write partition slots */
     for (i = 0; i < ISO_MBR_ENTRIES_MAX; i++) {
         memset(buf + 446 + i * 16, 0, 16);
-        if (i >= t->mbr_req_count)
+        q = req_of_slot[i];
+        if (q < 0) 
     continue;
-        if (t->mbr_req[i]->block_count == 0)
+        if (t->mbr_req[q]->block_count == 0)
     continue;
-        ret = write_mbr_partition_entry(i + 1, (int) t->mbr_req[i]->type_byte,
-                  t->mbr_req[i]->start_block, t->mbr_req[i]->block_count,
+        ret = write_mbr_partition_entry(i + 1, (int) t->mbr_req[q]->type_byte,
+                  t->mbr_req[q]->start_block, t->mbr_req[q]->block_count,
                   t->partition_secs_per_head, t->partition_heads_per_cyl,
                   buf, 0);
         if (ret < 0)
             return ret;
-        buf[446 + i * 16] = t->mbr_req[i]->status_byte;
+        buf[446 + i * 16] = t->mbr_req[q]->status_byte;
     }
     return ISO_SUCCESS;
 }
@@ -2152,7 +2196,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         if (t->prep_partition != NULL || t->fat || will_have_gpt ||
             t->mbr_req_count > 0)
             return ISO_BOOT_MBR_OVERLAP;
-        ret = iso_quick_mbr_entry(t, (uint32_t) 0, (uint32_t) 0, 0x96, 0);
+        ret = iso_quick_mbr_entry(t, (uint32_t) 0, (uint32_t) 0, 0x96, 0, 0);
         if (ret < 0)
             return ret;
         return ISO_SUCCESS;
@@ -2167,12 +2211,13 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     if (t->prep_part_size > 0 || t->fat || will_have_gpt) {
         /* Protecting MBR entry for ISO start or whole ISO */
         ret = iso_quick_mbr_entry(t, (uint32_t) t->partition_offset,
-                                 (uint32_t) 0, will_have_gpt ? 0xee : 0xcd, 0);
+                              (uint32_t) 0, will_have_gpt ? 0xee : 0xcd, 0, 0);
         if (ret < 0)
             return ret;
     }
     if (t->prep_part_size > 0) {
-        ret = iso_quick_mbr_entry(t, t->curblock, t->prep_part_size, 0x41, 0);
+        ret = iso_quick_mbr_entry(t, t->curblock, t->prep_part_size, 0x41,
+                                  0, 0);
         if (ret < 0)
             return ret;
         t->curblock += t->prep_part_size;
@@ -2180,7 +2225,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     if (t->prep_part_size > 0 || t->fat) {
         /* FAT partition or protecting MBR entry for ISO end */
         ret = iso_quick_mbr_entry(t, (uint32_t) t->curblock, (uint32_t) 0,
-                                  t->fat ? 0x0c : 0xcd, 0);
+                                  t->fat ? 0x0c : 0xcd, 0, 0);
         if (ret < 0)
             return ret;
     }

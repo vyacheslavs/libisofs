@@ -67,7 +67,9 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag);
 
 /* The parameter struct for production of a single MBR partition entry.
    See also the description of MBR in doc/boot_sectors.txt.
-   No sorting and gap filling is done before the System Area gets written.
+   No sorting by start sector and gap filling is done before the System Area
+   gets written. But the entries may get assigned to a desired slot number
+   in the table. 
    Requested entries with block_count == 0 get expanded to the start of
    the next requested entry resp. to image end, if no entry follows.
    start_block of a follwing entry must be at least a high as the sum of
@@ -90,7 +92,15 @@ struct iso_mbr_partition_request {
     /* 0x80 = bootable */
     uint8_t status_byte;
 
-    /* >>> Is a permutation of entries needed ? */
+    /* If >= 1 && <= 4 : The partition slot number in MBR.
+       If more than one partition desires the same slot, then an error
+       ISO_BOOT_MBR_COLLISION occurs at registration time.
+       Use iso_mbr_entry_slot_is_free() to detect this in advance.
+       If desired_slot is 0, then the partition entry is put into the
+       lowest MBR slot that is not occupied by an entry with desired_slot > 0
+       or by an entry that was registered before this entry.
+    */
+    int desired_slot;
 
 };
 
@@ -106,7 +116,16 @@ int iso_register_mbr_entry(Ecma119Image *t,
 */
 int iso_quick_mbr_entry(Ecma119Image *t, 
                         uint32_t start_block, uint32_t block_count,
-                        uint8_t type_byte, uint8_t status_byte);
+                        uint8_t type_byte, uint8_t status_byte,
+                        int desired_slot);
+
+/* Peek in advance whether a desired slot number is already occupied by a
+   registered MBR entry.
+   Parameter slot may be between 0 and 4. 0 always returns "free".
+   Return value is 0 if occupied, 1 if free, and -1 if the slot number is
+   out of range.
+*/
+int iso_mbr_entry_slot_is_free(Ecma119Image *t, int slot);
 
 
 /* The parameter struct for production of a single Apple Partition Map entry.
