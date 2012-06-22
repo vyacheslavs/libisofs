@@ -2196,7 +2196,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         if (t->prep_partition != NULL || t->fat || will_have_gpt ||
             t->mbr_req_count > 0)
             return ISO_BOOT_MBR_OVERLAP;
-        ret = iso_quick_mbr_entry(t, (uint32_t) 0, (uint32_t) 0, 0x96, 0, 0);
+        ret = iso_quick_mbr_entry(t, (uint32_t) 0, (uint32_t) 0,
+                                  0x96, 0x80, 0);
         if (ret < 0)
             return ret;
         return ISO_SUCCESS;
