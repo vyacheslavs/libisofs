@@ -10,6 +10,17 @@
  * See COPYING file for details.
  */
 
+
+/* Some extra debugging messages for Vladimir Serbinko
+ #define Libisofs_hfsplus_verbose_debuG yes
+*/
+
+/* Some extra debugging messages for Thomas Schmitt
+*/
+#define Libisofs_ts_debuG yes
+
+
+
 #ifdef HAVE_CONFIG_H
 #include "../config.h"
 #endif
@@ -30,14 +41,36 @@
 #include <stdio.h>
 #include <string.h>
 
-#define HFSPLUS_BLOCK_SIZE BLOCK_SIZE
-#define HFSPLUS_CAT_NODE_SIZE (2 * BLOCK_SIZE)
+#define HFSPLUS_BLOCK_SIZE 2048
+#define HFSPLUS_CAT_NODE_SIZE (2 * HFSPLUS_BLOCK_SIZE)
+
+#define HFSPLUS_ISO_BLOCK_FAC (2048 / HFSPLUS_BLOCK_SIZE)
 
 #include <arpa/inet.h>
 /* For these prototypes:
 uint16_t ntohs(uint16_t netshort);
 uint16_t htons(uint16_t hostshort);
 */
+
+
+/* ts B20623: pad up output block to full 2048 bytes */
+static
+int pad_up_block(Ecma119Image *t)
+{
+    int ret;
+    static char buffer[2048], buf_zeroed = 0;
+
+    if (!buf_zeroed) {
+        memset(buffer, 0, 2048);
+        buf_zeroed = 1;
+    }
+    if (t->bytes_written % 2048) {
+	ret = iso_write(t, buffer, 2048 - (t->bytes_written % 2048));
+	if (ret < 0)
+	    return ret;
+    }
+    return 1;
+}
 
 
 static
@@ -275,8 +308,15 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
     cat_id = t->hfsp_cat_id++;
 
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
-      if (t->hfsplus_blessed[i] == iso)
+      if (t->hfsplus_blessed[i] == iso) {
+
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus bless %d to cat_id %u ('%s')",
+                            i, cat_id, iso->name);
+#endif /* Libisofs_ts_debuG */
+
 	t->hfsp_bless_id[i] = cat_id;
+      }
 
     set_hfsplus_name (t, iso->name, &t->hfsp_leafs[t->hfsp_curleaf]);
     t->hfsp_leafs[t->hfsp_curleaf].node = iso;
@@ -382,14 +422,19 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
 {
   Ecma119Image *t;
   uint32_t hfsp_size;
-    
+
   if (writer == NULL) {
     return ISO_OUT_OF_MEM;
   }
 
   t = writer->target;
 
-  hfsp_size = t->curblock - t->hfsp_part_start + 1;
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus tail writer start = %.f",
+              ((double) t->curblock) * 2048.0);
+#endif
+
+  hfsp_size = t->curblock * HFSPLUS_ISO_BLOCK_FAC - t->hfsp_part_start + 1;
 
   /* We need one bit for every block. */
   /* So if we allocate x blocks we have to satisfy:
@@ -398,13 +443,23 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
   */
   t->hfsp_allocation_blocks = hfsp_size
     / (8 * HFSPLUS_BLOCK_SIZE - 1) + 1;
-  t->hfsp_allocation_file_start = t->curblock;
-  t->curblock += t->hfsp_allocation_blocks;
+  t->hfsp_allocation_file_start = t->curblock * HFSPLUS_ISO_BLOCK_FAC;
+  t->curblock += t->hfsp_allocation_blocks / HFSPLUS_ISO_BLOCK_FAC;
+  if (t->hfsp_allocation_blocks % HFSPLUS_ISO_BLOCK_FAC)
+      t->curblock++;
   t->curblock++;
-  t->hfsp_total_blocks = t->curblock - t->hfsp_part_start;
 
-  t->apm_block_size = 0x800;
-  return iso_quick_apm_entry(t, t->hfsp_part_start, t->hfsp_total_blocks,
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus tail writer end = %.f",
+              ((double) t->curblock) * 2048.0);
+#endif
+
+  t->hfsp_total_blocks = t->curblock * HFSPLUS_ISO_BLOCK_FAC
+							- t->hfsp_part_start;
+  t->apm_block_size = HFSPLUS_BLOCK_SIZE;
+  return iso_quick_apm_entry(t, t->hfsp_part_start / HFSPLUS_ISO_BLOCK_FAC,
+			     t->hfsp_total_blocks / HFSPLUS_ISO_BLOCK_FAC +
+			     !!(t->hfsp_total_blocks % HFSPLUS_ISO_BLOCK_FAC),
                             "HFSPLUS_Hybrid", "Apple_HFS");
 }
 
@@ -412,7 +467,7 @@ static
 int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
-    uint32_t i;
+    uint32_t i, link_blocks;
 
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
@@ -421,22 +476,42 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
 
     iso_msg_debug(t->image->id, "(b) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
-    t->hfsp_part_start = t->curblock;
+    t->hfsp_part_start = t->curblock * HFSPLUS_ISO_BLOCK_FAC;
+
     t->curblock++;
 
-    t->hfsp_catalog_file_start = t->curblock;
-    t->curblock += 2 * t->hfsp_nnodes;
+    t->hfsp_catalog_file_start = t->curblock * HFSPLUS_ISO_BLOCK_FAC;
 
-    t->hfsp_extent_file_start = t->curblock;
+/* ts B20623 was:
+    t->curblock += 2 * t->hfsp_nnodes;
+*/
+    t->curblock += (t->hfsp_nnodes * HFSPLUS_CAT_NODE_SIZE + 2047) / 2048;
+
+    t->hfsp_extent_file_start = t->curblock * HFSPLUS_ISO_BLOCK_FAC;
     t->curblock++;
 
     iso_msg_debug(t->image->id, "(d) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
+
+    link_blocks = 0;
     for (i = 0; i < t->hfsp_nleafs; i++)
       if (t->hfsp_leafs[i].unix_type == UNIX_SYMLINK)
 	{
+
+	  /* ts B20623 : was:
 	  t->hfsp_leafs[i].symlink_block = t->curblock;
 	  t->curblock += (t->hfsp_leafs[i].symlink_size + HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE;
+	  */
+
+	  t->hfsp_leafs[i].symlink_block =
+			t->curblock * HFSPLUS_ISO_BLOCK_FAC + link_blocks;
+	  link_blocks += (t->hfsp_leafs[i].symlink_size +
+				  HFSPLUS_BLOCK_SIZE - 1) / HFSPLUS_BLOCK_SIZE;
 	}
+
+    /* ts B20623 */
+    t->curblock += link_blocks / HFSPLUS_ISO_BLOCK_FAC;
+    if (link_blocks % HFSPLUS_ISO_BLOCK_FAC)
+        t->curblock++;
 
     iso_msg_debug(t->image->id, "(a) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
 
@@ -517,7 +592,7 @@ write_sb (Ecma119Image *t)
     set_time (&sb.fsck_time, t->now);
     iso_msb ((uint8_t *) &sb.file_count, t->hfsp_nfiles, 4);
     iso_msb ((uint8_t *) &sb.folder_count, t->hfsp_ndirs - 1, 4);
-    iso_msb ((uint8_t *) &sb.blksize, 0x800, 4);
+    iso_msb ((uint8_t *) &sb.blksize, HFSPLUS_BLOCK_SIZE, 4);
     iso_msb ((uint8_t *) &sb.catalog_node_id, t->hfsp_cat_id, 4);
     iso_msb ((uint8_t *) &sb.rsrc_clumpsize, HFSPLUS_BLOCK_SIZE, 4);
     iso_msb ((uint8_t *) &sb.data_clumpsize, HFSPLUS_BLOCK_SIZE, 4);
@@ -544,13 +619,19 @@ write_sb (Ecma119Image *t)
     iso_msb ((uint8_t *) &sb.catalog_file.extents[0].count, 2 * t->hfsp_nnodes, 4);
     iso_msg_debug(t->image->id, "catalog_file_start = %d\n", (int)t->hfsp_catalog_file_start);
 
-    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
+    for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
      iso_msb ((uint8_t *) (&sb.ppc_bootdir + i
 			   + (i == ISO_HFSPLUS_BLESS_OSX_FOLDER)),
 	      t->hfsp_bless_id[i], 4);
 
-    memcpy (&sb.num_serial, &t->hfsp_serial_number, 8);
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus bless %d written for cat_id %u",
+        i, t->hfsp_bless_id[i]);
+#endif /* Libisofs_ts_debuG */
 
+    }
+
+    memcpy (&sb.num_serial, &t->hfsp_serial_number, 8);
     ret = iso_write(t, &sb, sizeof (sb));
     if (ret < 0)
       return ret;
@@ -610,7 +691,10 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     buffer[HFSPLUS_CAT_NODE_SIZE - 7] = (char) ((HFSPLUS_CAT_NODE_SIZE - 8) & 0xff);
     buffer[HFSPLUS_CAT_NODE_SIZE - 8] = (HFSPLUS_CAT_NODE_SIZE - 8) >> 8;
 
+#ifdef Libisofs_hfsplus_verbose_debuG
     iso_msg_debug(t->image->id, "Write\n");
+#endif
+
     ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
     if (ret < 0)
         return ret;
@@ -649,7 +733,10 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 		curnode++;
 	      }
 	    iso_msb ((uint8_t *) buffer +  HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+
+#ifdef Libisofs_hfsplus_verbose_debuG
 	    iso_msg_debug(t->image->id, "Write\n");
+#endif
 
 	    ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
 
@@ -680,6 +767,9 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 	  for (j = 0; j < t->hfsp_levels[level].nodes[i].cnt; j++)
 	    {
 	      iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+
+#ifdef Libisofs_hfsplus_verbose_debuG
+
 	      if (t->hfsp_leafs[curnode].node->name == NULL)
 		{
 		  iso_msg_debug(t->image->id, "%d out of %d",
@@ -691,6 +781,8 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 				(int) curnode, t->hfsp_nleafs,
 				t->hfsp_leafs[curnode].node->name);
 		}
+
+#endif /* Libisofs_hfsplus_verbose_debuG */
 
 	      switch (t->hfsp_leafs[curnode].type)
 		{
@@ -763,6 +855,24 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 					4);
 				memcpy (common->file_creator,
 					xinfo->creator_code, 4);
+
+#ifdef Libisofs_ts_debuG
+{
+char crtp[14];
+
+crtp[0] = '\'';
+memcpy(crtp+1, xinfo->creator_code, 4);
+strcpy(crtp + 5, "','");
+memcpy(crtp + 8, xinfo->type_code, 4);
+crtp[12] = '\'';
+crtp[13]= 0;
+iso_msg_debug(t->image->id,
+        "hfsplus creator,type %s to '%s/%s'",
+        crtp, ((IsoNode *) t->hfsp_leafs[curnode].node->parent)->name,
+        t->hfsp_leafs[curnode].node->name);
+}
+#endif /* Libisofs_ts_debuG */
+
 			      }
 			    else if (ret < 0)
 			      return ret;
@@ -810,6 +920,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 							 &blk, &sz);
 			    if (ret <= 0)
 			      return ret;
+			    blk *= HFSPLUS_ISO_BLOCK_FAC;
 			  }
 			if (sz == 0)
 			  blk = t->hfsp_part_start;
@@ -829,17 +940,25 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 	      curnode++;
 	    }
 	  iso_msb ((uint8_t *) buffer + HFSPLUS_CAT_NODE_SIZE - j * 2 - 2, curoff, 2);
+
+#ifdef Libisofs_hfsplus_verbose_debuG
 	  iso_msg_debug(t->image->id, "Write\n");
+#endif
+
 	  ret = iso_write(t, buffer, HFSPLUS_CAT_NODE_SIZE);
 	  if (ret < 0)
 	    return ret;
 	}
 	curpos = next_lev;
     }
+    memset (buffer, 0, sizeof (buffer));
+
+    ret = pad_up_block(t);
+    if (ret < 0)
+	return ret;
 
     iso_msg_debug(t->image->id, "real extent_file_start = %d\n", (int)t->bytes_written / 2048);
 
-    memset (buffer, 0, sizeof (buffer));
     node_head = (struct hfsplus_btnode *) buffer;
     node_head->type = 1;
     iso_msb ((uint8_t *) &node_head->count, 3, 2);
@@ -862,6 +981,10 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     if (ret < 0)
         return ret;
 
+    ret = pad_up_block(t);
+    if (ret < 0)
+	return ret;
+
     iso_msg_debug(t->image->id, "(d) %d written", (int) t->bytes_written / 0x800);
     memset (buffer, 0, sizeof (buffer));
     for (i = 0; i < t->hfsp_nleafs; i++)
@@ -879,6 +1002,10 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 	  if (ret < 0)
 	    return ret;
 	}
+
+    ret = pad_up_block(t);
+    if (ret < 0)
+	return ret;
 
     iso_msg_debug(t->image->id, "(a) %d written", (int) t->bytes_written / 0x800);
     return ISO_SUCCESS;
@@ -898,6 +1025,11 @@ int hfsplus_tail_writer_write_data(IsoImageWriter *writer)
     }
 
     t = writer->target;
+
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus tail writer writes at = %.f",
+              (double) t->bytes_written);
+#endif
 
     memset (buffer, -1, sizeof (buffer));
     complete_blocks = (t->hfsp_allocation_size - 1) / HFSPLUS_BLOCK_SIZE;
@@ -928,9 +1060,26 @@ int hfsplus_tail_writer_write_data(IsoImageWriter *writer)
 	  return ret;
       }
 
+    ret = pad_up_block(t);
+    if (ret < 0)
+	return ret;
+
     iso_msg_debug(t->image->id, "%d written", (int) t->bytes_written);
 
-    return write_sb (t);
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus tail writer writes sb at = %.f",
+              (double) t->bytes_written);
+#endif
+
+    ret = write_sb (t);
+
+#ifdef Libisofs_ts_debuG
+iso_msg_debug(t->image->id, "hfsplus tail writer ends at = %.f",
+              (double) t->bytes_written);
+#endif
+
+    return ret;
+
 }
 
 static

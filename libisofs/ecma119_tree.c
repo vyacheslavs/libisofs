@@ -734,8 +734,11 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
                         ret = ISO_OUT_OF_MEM;
                         goto mangle_cleanup;
                     }
+
+#ifdef Libisofs_extra_verbose_debuG
                     iso_msg_debug(img->image->id, "\"%s\" renamed to \"%s\"",
                                   children[k]->iso_name, new);
+#endif
 
                     iso_htable_remove_ptr(table, children[k]->iso_name, NULL);
                     free(children[k]->iso_name);

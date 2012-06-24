@@ -1518,6 +1518,9 @@ void *write_function(void *arg)
                         0, "FATAL", 0);
     }
     if (target->bytes_written != target->total_size) {
+        iso_msg_debug(target->image->id,
+                 "bytes_written = %.f <-> total_size = %.f",
+                 (double) target->bytes_written, (double) target->total_size);
         iso_msgs_submit(0,
 "Image is most likely damaged. Calculated/written image end address mismatch.",
                         0, "FATAL", 0);
