@@ -141,7 +141,7 @@ int iso_mbr_entry_slot_is_free(Ecma119Image *t, int slot);
 */
 struct iso_apm_partition_request {
 
-    /* Always given in blocks of 2 KiB.
+    /* Given in blocks of 2 KiB unless (Ecma119Image.apm_req_flags & 4).
        Written to the ISO image according to Ecma119Image.apm_block_size.
     */
     uint32_t start_block;

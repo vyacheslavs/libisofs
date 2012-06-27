@@ -289,6 +289,7 @@ iso_write_opts_set_efi_bootp;
 iso_write_opts_set_fat;
 iso_write_opts_set_fifo_size;
 iso_write_opts_set_hardlinks;
+iso_write_opts_set_hfsp_block_size;
 iso_write_opts_set_hfsp_serial_number;
 iso_write_opts_set_hfsplus;
 iso_write_opts_set_iso1999;

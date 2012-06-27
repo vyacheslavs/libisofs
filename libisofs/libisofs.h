@@ -1468,6 +1468,27 @@ int iso_write_opts_set_hfsp_serial_number(IsoWriteOpts *opts,
                                           uint8_t serial_number[8]);
 
 /**
+ * Set the block size for Apple Partition Map and for HFS+.
+ *
+ * @param opts
+ *      The option set to be manipulated.
+ * @param hfsp_block_size
+ *      The allocation block size to be used by the HFS+ fileystem.
+ *      0, 512, or 2048
+ * @param hfsp_block_size
+ *      The block size to be used for and within the Apple Partition Map.
+ *      0, 512, or 2048.
+ *      Size 512 is not compatible with options which produce GPT.
+ * @return
+ *      1 success, < 0 error
+ *
+ * @since 1.2.4
+ */
+int iso_write_opts_set_hfsp_block_size(IsoWriteOpts *opts,
+                                     int hfsp_block_size, int apm_block_size);
+
+
+/**
  * Whether to use newer ISO-9660:1999 version.
  *
  * This is the second version of ISO-9660. It allows longer filenames and has
@@ -7343,6 +7364,11 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
                                                        (FAILURE, HIGH, -390) */
 #define ISO_BOOT_NO_EFI_ELTO        0xE830FE7A
 
+/** Not a supported HFS+ or APM block size  (FAILURE, HIGH, -391) */
+#define ISO_BOOT_HFSP_BAD_BSIZE     0xE830FE79
+
+/** APM block size prevents coexistence with GPT  (FAILURE, HIGH, -392) */
+#define ISO_BOOT_APM_GPT_BSIZE      0xE830FE78
 
 
 /* Internal developer note: 

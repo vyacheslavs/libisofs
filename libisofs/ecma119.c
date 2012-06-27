@@ -1920,7 +1920,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (target->hfsplus_blessed[i] != NULL)
             iso_node_ref(target->hfsplus_blessed[i]);
     }
-    target->apm_block_size = 512;
+    target->apm_block_size = opts->apm_block_size;
+    target->hfsp_block_size = opts->hfsp_block_size;
+    target->hfsp_cat_node_size = 0;
+    target->hfsp_iso_block_fac = 0;
     target->apm_req_count = 0;
     target->apm_req_flags = 0;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)
@@ -2356,6 +2359,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     iso_image_free_checksums(target->image, 0);
     image_checksums_mad = 0;
 
+    if (target->apm_block_size == 0) {
+        if (target->gpt_req_count)
+            target->apm_block_size = 2048; /* Combinable with GPT */
+        else
+            target->apm_block_size = 512; /* Mountable on Linux */
+    }
+
     /* ensure the thread is created joinable */
     pthread_attr_init(&(target->th_attr));
     pthread_attr_setdetachstate(&(target->th_attr), PTHREAD_CREATE_JOINABLE);
@@ -2739,6 +2749,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->untranslated_name_len = 0;
     for (i = 0; i < 8; i++)
         wopts->hfsp_serial_number[i] = 0;
+    wopts->apm_block_size = 0;
+    wopts->hfsp_block_size = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -3403,4 +3415,18 @@ int iso_write_opts_set_hfsp_serial_number(IsoWriteOpts *opts,
     memcpy(opts->hfsp_serial_number, serial_number, 8);
     return ISO_SUCCESS;
 }
+ 
+int iso_write_opts_set_hfsp_block_size(IsoWriteOpts *opts, 
+                                     int hfsp_block_size, int apm_block_size)
+{
+    if (hfsp_block_size != 0 && hfsp_block_size != 512 &&
+        hfsp_block_size != 2048)
+        return ISO_BOOT_HFSP_BAD_BSIZE;
+    opts->hfsp_block_size = hfsp_block_size;
+    if (apm_block_size != 0 && apm_block_size != 512 && apm_block_size != 2048)
+        return ISO_BOOT_HFSP_BAD_BSIZE;
+    opts->apm_block_size = apm_block_size;
+    return ISO_SUCCESS;
+}
+
 

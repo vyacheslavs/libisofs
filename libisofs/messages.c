@@ -490,6 +490,10 @@ const char *iso_error_to_msg(int errcode)
         return "Attempt to use an MBR partition entry twice";
     case ISO_BOOT_NO_EFI_ELTO:
         return "No suitable El Torito EFI boot image for exposure as GPT partition";
+    case ISO_BOOT_HFSP_BAD_BSIZE:
+        return "Not a supported HFS+ or APM block size";
+    case ISO_BOOT_APM_GPT_BSIZE:
+        return "APM block size prevents coexistence with GPT";
     default:
         return "Unknown error";
     }

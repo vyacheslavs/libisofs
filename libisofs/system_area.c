@@ -856,12 +856,11 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     uint32_t flags;
     int block_fac;
 
-    if (flag & 1)
+    if ((flag & 1) || (t->apm_req_flags & 4))
         block_fac = 1;
     else
         block_fac = 2048 / apm_block_size;
         
-
     memset(buf, apm_block_size, 0);
     wpt = buf;
 
@@ -916,8 +915,11 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
 static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
 {
     int i, ret, gap_counter = 0, up_to;
-    uint32_t part_end, goal;
+    uint32_t part_end, goal, block_fac = 1;
     char gap_name[33];
+
+    if (t->apm_req_flags & 4)
+        block_fac = 2048 / t->apm_block_size;
 
     /* Find out whether an entry with start_block <= 1 is requested */
     for (i = 0; i < t->apm_req_count; i++) {
@@ -939,12 +941,12 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
         if (i < up_to - 1)
             goal = t->apm_req[i]->start_block;
         else
-            goal = img_blocks;
+            goal = img_blocks * block_fac;
         if (i == 1) {
             /* Description of APM itself */
             /* Actual APM size is not yet known. Protection begins at PVD */
-            part_end = 16;
-            if (goal < 16 && goal> 1)
+            part_end = 16 * block_fac;
+            if (goal < part_end && goal> 1)
                     part_end = goal;
         } else {
             part_end = t->apm_req[i - 1]->start_block +
@@ -983,45 +985,6 @@ static int rectify_apm(Ecma119Image *t)
 {
     int ret;
 
-    if (t->apm_req_count == 0)
-        return 1;
-
-    /* These are the only APM block sizes which can be processed here */
-    if (t->apm_block_size > 1536)
-        t->apm_block_size = 2048;
-    else if (t->apm_block_size > 768)
-        t->apm_block_size = 1024;
-    else
-        t->apm_block_size = 512;
-    if (t->gpt_req_count > 0 &&
-        t->apm_block_size != 2048 && t->apm_req_count > 0) {
-        t->apm_block_size = 2048;
-        iso_msgs_submit(0,
-                 "GPT and APM requested. Had to force APM Block size to 2048.",
-                 0, "DEBUG", 0);
-    }
-    if (t->apm_req_count > 0) {
-        ret = fill_apm_gaps(t, t->curblock);
-        if (ret < 0)
-            return ret;
-    }
-    return 1;
-}
-
-
-/* flag bit0= do not write Block0
-*/
-static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
-                         int flag)
-{
-    int i, ret;
-    /* This is a micro mick-up of an APM Block0
-       and also harmless x86 machine code.
-    */
-    static uint8_t block0_template[8] = {
-        0x45, 0x52, 0x02, 0x00, 0xeb, 0x02, 0xff, 0xff
-    };
-
 #ifdef NIX
     /* Disabled */
 
@@ -1042,6 +1005,42 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
     }
 #endif /* NIX */
 
+    if (t->apm_req_count == 0)
+        return 1;
+
+    if (t->gpt_req_count > 0 &&
+        t->apm_block_size != 2048 && t->apm_req_count > 0) {
+        iso_msgs_submit(0,
+                "GPT and APM requested. APM block size would have to be 2048.",
+                        0, "FAILURE", 0);
+        return ISO_BOOT_APM_GPT_BSIZE;
+    }
+    if (t->apm_req_count > 0) {
+        ret = fill_apm_gaps(t, t->curblock);
+        if (ret < 0)
+            return ret;
+    }
+    return 1;
+}
+
+
+/* flag bit0= do not write Block0
+*/
+static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
+                         int flag)
+{
+    int i, ret;
+    uint32_t block_fac = 1;
+    /* This is a micro mock-up of an APM Block0
+       and also harmless x86 machine code.
+    */
+    static uint8_t block0_template[8] = {
+        0x45, 0x52, 0x02, 0x00, 0xeb, 0x02, 0xff, 0xff
+    };
+
+    if (t->apm_req_flags & 4)
+        block_fac = 2048 / t->apm_block_size;
+
     if (t->apm_req_count <= 0)
         return 2;
 
@@ -1051,7 +1050,7 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
            number of APM partitions was determined.
         */
         t->apm_req[t->apm_req_count - 1]->block_count =
-           img_blocks - t->apm_req[t->apm_req_count - 1]->start_block;
+        img_blocks * block_fac - t->apm_req[t->apm_req_count - 1]->start_block;
         /* If it is still empty, remove it */
         if(t->apm_req[t->apm_req_count - 1]->block_count == 0) {
           free(t->apm_req[t->apm_req_count - 1]);

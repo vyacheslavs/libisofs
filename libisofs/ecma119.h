@@ -477,6 +477,14 @@ struct iso_write_opts {
      */
     uint8_t hfsp_serial_number[8];
 
+    /* Allocation block size of HFS+ : 0= auto , 512, or 2048
+     */
+    int hfsp_block_size;
+
+    /* Block size of and in APM : 0= auto , 512, or 2048
+     */
+    int apm_block_size;
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -819,6 +827,22 @@ struct ecma119_image
     /* See IsoImage and libisofs.h */
     IsoNode *hfsplus_blessed[ISO_HFSPLUS_BLESS_MAX];
 
+    /* Block sizes come from write options.
+       Only change a block size if it is 0. Set only to 512 or 2048.
+       If it stays 0 then it will become 512 or 2048 in time.
+    */
+    /* Blocksize of Apple Partition Map
+       May be defined to 512 or 2048 before writer thread starts.
+    */
+    int apm_block_size;
+
+    /* Allocation block size of HFS+
+       May be defined to 512 or 2048 before hfsplus_writer_create().
+    */
+    int hfsp_block_size;
+    int hfsp_cat_node_size; /* 2 * apm_block_size */
+    int hfsp_iso_block_fac; /* 2048 / apm_block_size */
+
     /* Apple Partition Map description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_apm_entry().
        Make sure that the composing writers get registered before the
@@ -826,9 +850,10 @@ struct ecma119_image
     */
     struct iso_apm_partition_request *apm_req[ISO_APM_ENTRIES_MAX];
     int apm_req_count;
-    /* 512 by default. May be changed to 2048 before writer thread starts. */
-    int apm_block_size;
-    /* bit1= Do not fill gaps in Apple Partition Map */
+    /* bit1= Do not fill gaps in Apple Partition Map 
+       bit2= apm_req entries use apm_block_size in start_block and block_count.
+             Normally these two parameters are counted in 2 KiB blocks.
+    */
     int apm_req_flags;
 
     /* MBR partition table description. To be composed during IsoImageWriter
