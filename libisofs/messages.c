@@ -494,6 +494,8 @@ const char *iso_error_to_msg(int errcode)
         return "Not a supported HFS+ or APM block size";
     case ISO_BOOT_APM_GPT_BSIZE:
         return "APM block size prevents coexistence with GPT";
+    case ISO_HFSP_NO_MANGLE:
+        return "Name collision in HFS+, mangling not possible";
     default:
         return "Unknown error";
     }

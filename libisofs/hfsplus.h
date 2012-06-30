@@ -43,6 +43,9 @@ struct hfsplus_btree_level
 
 struct hfsplus_node
 {
+  /* Note: .type HFSPLUS_DIR_THREAD and HFSPLUS_FILE_THREAD do not own their
+     .name and .cmp_name. They have copies of others, if ever.
+  */
   uint16_t *name; /* Name in UTF-16BE, decomposed. */
   uint16_t *cmp_name; /* Name used for comparing.  */ 
 
@@ -50,7 +53,21 @@ struct hfsplus_node
 
   enum { UNIX_NONE, UNIX_SYMLINK, UNIX_SPECIAL } unix_type;
   uint32_t symlink_block;
+
+#ifdef Libisofs_hfsplus_new_symlinK
+  /* >>> Currently symlinks take their destination string from IsoNode.
+         This will not work after the destination name suffered a
+         case-sensitivity collision.
+         So it is necessary to store the string with the HFS+ node and
+         to adjust it during mangling.
+
+     >>> This is not yet implemented in hfsplus.c
+
+  */
+  char *symlink_dest;
+#else
   uint32_t symlink_size;
+#endif
 
   enum hfsplus_node_type type;
   IsoFileSrc *file;

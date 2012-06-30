@@ -7370,6 +7370,9 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /** APM block size prevents coexistence with GPT  (FAILURE, HIGH, -392) */
 #define ISO_BOOT_APM_GPT_BSIZE      0xE830FE78
 
+/** Name collision in HFS+, mangling not possible  (FAILURE, HIGH, -393) */
+#define ISO_HFSP_NO_MANGLE          0xE830FE77
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

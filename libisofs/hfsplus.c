@@ -30,6 +30,16 @@
  # define Libisofs_apm_flags_bit2 yes
 */
 
+/* A brute force method of mangling to ensure proper sorting after a name
+   change.
+ # define Libisofs_mangle_with_sort yes
+*/
+
+/* A brute force method of mangling which prevents the registration of
+   collisions on the first hand.
+ # define Libisofs_mangle_while_set_hfsplus_namE yes
+*/
+
 
 #ifdef HAVE_CONFIG_H
 #include "../config.h"
@@ -67,6 +77,11 @@
 uint16_t ntohs(uint16_t netshort);
 uint16_t htons(uint16_t hostshort);
 */
+
+
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+static int set_mangled_hfsplus_name(Ecma119Image *t, char *name, uint32_t idx);
+#endif
 
 
 /* ts B20623: pad up output block to full 2048 bytes */
@@ -149,8 +164,8 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
     }
 
     curlen = ucslen (ucs_name);
-    node->name = malloc ((curlen * HFSPLUS_MAX_DECOMPOSE_LEN + 1)
-			 * sizeof (node->name[0]));
+    node->name = calloc ((curlen * HFSPLUS_MAX_DECOMPOSE_LEN + 1),
+			 sizeof (node->name[0]));
     if (!node->name)
       return ISO_OUT_OF_MEM;
 
@@ -221,7 +236,7 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
       }
     while (done);
 
-    node->cmp_name = malloc ((ucslen (node->name) + 1) * sizeof (node->cmp_name[0]));
+    node->cmp_name = calloc ((ucslen (node->name) + 1), sizeof (node->cmp_name[0]));
     if (!node->cmp_name)
       return ISO_OUT_OF_MEM;
 
@@ -334,10 +349,25 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
 	t->hfsp_bless_id[i] = cat_id;
       }
 
-    set_hfsplus_name (t, iso->name, &t->hfsp_leafs[t->hfsp_curleaf]);
     t->hfsp_leafs[t->hfsp_curleaf].node = iso;
-    t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
     t->hfsp_leafs[t->hfsp_curleaf].parent_id = parent_id;
+
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+
+    /* Important: Except for root node, .node and .parent_id need both to be
+                  known in name setter */
+
+    ret = set_mangled_hfsplus_name (t, iso->name, t->hfsp_curleaf);
+
+#else
+
+    ret = set_hfsplus_name (t, iso->name, &t->hfsp_leafs[t->hfsp_curleaf]);
+
+#endif /* ! Libisofs_mangle_while_set_hfsplus_namE */
+
+    if (ret < 0)
+        return ret;
+    t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
     t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_NONE;
 
     switch (iso->type)
@@ -1169,6 +1199,377 @@ int nop_writer_free_data(IsoImageWriter *writer)
     return ISO_SUCCESS;
 }
 
+
+/*
+   ??? : Change this to binary search ?
+         Expected advantage is low except with prefix "MANGLED".
+
+   @param flag bit0= array is unsorted, do not abort on first larger element
+   @return 0 = collision (collider in *new_idx), 1 = insert at *new_idx
+*/
+static
+int search_mangled_pos(Ecma119Image *target, uint32_t idx, uint32_t *new_idx,
+                       uint32_t search_start, uint32_t search_end, int flag)
+{
+    uint32_t i;
+    int rel;
+
+    for (i = search_start; i < search_end; i++) {
+        if (target->hfsp_leafs[i].type == HFSPLUS_DIR_THREAD ||
+            target->hfsp_leafs[i].type == HFSPLUS_FILE_THREAD)
+    continue;
+        rel = cmp_node(&(target->hfsp_leafs[idx]), &(target->hfsp_leafs[i]));
+        if (rel == 0 && idx != i) {
+            *new_idx = i;
+            return 0; /* Collision */
+        }
+        if (rel < 0 && !(flag & 1)) {
+            if (i <= idx)
+                *new_idx = i;
+            else
+                *new_idx = i - 1;
+            return 1;
+        }
+    }
+    *new_idx = search_end - 1;
+    return 1;
+}
+
+static
+void rotate_hfs_list(Ecma119Image *target, uint32_t old_idx, uint32_t new_idx,
+                     int flag)
+{
+    uint32_t i, sz;
+    HFSPlusNode tr;
+
+    if (old_idx == new_idx)
+        return;
+    sz = sizeof(HFSPlusNode);
+    memcpy(&tr, &target->hfsp_leafs[old_idx], sz);
+    if (old_idx > new_idx) {
+        for (i = old_idx; i > new_idx; i--)
+            memcpy(&target->hfsp_leafs[i], &target->hfsp_leafs[i - 1], sz);
+    } else {
+        for (i = old_idx; i < new_idx; i++)
+            memcpy(&target->hfsp_leafs[i], &target->hfsp_leafs[i + 1], sz);
+    }
+    memcpy(&target->hfsp_leafs[new_idx], &tr, sz);
+}
+
+/* Find the other nodes with old_name and switch to new .name
+   One could make assumptions where name-followers are.
+   But then there are still the symbolic links. They can be located anywhere.
+*/
+static
+int update_name_followers(Ecma119Image *target, uint32_t idx,
+                          uint16_t *old_name, uint16_t *old_cmp_name,
+                          uint32_t old_strlen)
+{
+    uint32_t i;
+
+    for (i = 0; i < target->hfsp_nleafs; i++) {
+
+        /* >>> check for symbolic links which point to old_name
+               But hfsplus_writer_write_data() takes the link destination
+               directly from the IsoNode.
+               So Libisofs_hfsplus_new_symlinK must be implemented.
+        */;
+
+        if (target->hfsp_leafs[i].name != old_name)
+    continue;
+        target->hfsp_leafs[i].name = target->hfsp_leafs[idx].name;
+        target->hfsp_leafs[i].strlen = target->hfsp_leafs[idx].strlen;
+        if (target->hfsp_leafs[i].cmp_name == old_cmp_name)
+            target->hfsp_leafs[i].cmp_name = target->hfsp_leafs[idx].cmp_name;
+        if (target->hfsp_leafs[i].strlen > old_strlen)
+            target->hfsp_leafs[i].used_size += (target->hfsp_leafs[i].strlen -
+                                                old_strlen) * 2;
+        else
+            target->hfsp_leafs[i].used_size -= 2 * (old_strlen -
+                                                 target->hfsp_leafs[i].strlen);
+    }
+    return 1;
+}
+
+
+/* @param flag bit0= node is new: do not rotate, do not update followers
+*/
+static
+int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
+               uint32_t search_start, uint32_t search_end,
+               uint32_t *new_idx, char *prefix, int flag)
+{
+    int i, ret = 0;
+    char new_name[256], number[9];
+    uint16_t *old_name, *old_cmp_name;
+    uint32_t old_strlen;
+
+    old_name = target->hfsp_leafs[idx].name;
+    old_cmp_name = target->hfsp_leafs[idx].cmp_name;
+    old_strlen = target->hfsp_leafs[idx].strlen;
+
+    for (i = -1; i < 0x7fffffff; i++) {
+        if (i == -1)
+            number[0] = 0;
+        else
+            sprintf(number, "%X", (unsigned int) i);
+        if (strlen(prefix) + 1 + strlen(number) >= 256) {
+            ret = 0;
+            goto no_success;
+        }
+
+        /* >>> "-" sorts lower than capital letters ,
+               "_" causes longer rotations
+         */
+        sprintf(new_name, "%s_%s", prefix, number);
+
+        /* The original name is kept until the end of the try */
+        if (target->hfsp_leafs[idx].name != old_name)
+            free(target->hfsp_leafs[idx].name);
+        if (target->hfsp_leafs[idx].cmp_name != old_cmp_name)
+            free(target->hfsp_leafs[idx].cmp_name);
+
+
+        ret = set_hfsplus_name(target, new_name, &(target->hfsp_leafs[idx]));
+        if (ret < 0)
+            goto no_success;
+
+        ret = search_mangled_pos(target, idx, new_idx, search_start,
+                                 search_end, (flag & 1));
+        if (ret < 0)
+            goto no_success;
+        if (ret == 0)
+    continue; /* collision */
+
+#ifdef Libisofs_mangle_with_sort
+
+        /* Sorting happens later */
+        *new_idx = idx;
+
+#else
+        if (flag & 1)
+            *new_idx = idx;
+        else
+            rotate_hfs_list(target, idx, *new_idx, 0);
+
+#endif /* Libisofs_mangle_with_sort */
+
+        /* >>> Get full ISO-RR paths of colliding nodes */;
+
+        iso_msg_debug(target->image->id,
+                  "HFS+ name collision with \"%s\" : \"%s\" renamed to \"%s\"",
+                  target->hfsp_leafs[prev_idx].node->name,
+                  target->hfsp_leafs[*new_idx].node->name, new_name);
+
+    break;    
+    }
+    target->hfsp_leafs[*new_idx].used_size +=
+                        (target->hfsp_leafs[*new_idx].strlen - old_strlen) * 2;
+
+    if (!(flag & 1)) {
+        ret = update_name_followers(target, *new_idx,
+                                    old_name, old_cmp_name, old_strlen);
+        if (ret < 0)
+            goto no_success;
+    }
+
+    free(old_name);
+    free(old_cmp_name);
+    return 1;
+
+no_success:;
+    target->hfsp_leafs[idx].name = old_name;
+    target->hfsp_leafs[idx].cmp_name = old_cmp_name;
+    target->hfsp_leafs[idx].strlen = old_strlen;
+    return ret;
+}
+
+static
+int mangle_leafs(Ecma119Image *target, int flag)
+{
+    int ret;
+    uint32_t i, new_idx, prev, first_prev;
+
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+    iso_msg_debug(target->image->id, "%s",
+                  "HFS+ check for name uniqueness started ...");
+#else
+    iso_msg_debug(target->image->id, "%s", "HFS+ mangling started ...");
+#endif
+
+#ifdef Libisofs_mangle_with_sort
+re_start:;
+#endif
+
+    /* Look for the first owner of a name */
+    for (prev = 0; prev < target->hfsp_nleafs; prev++) {
+        if (target->hfsp_leafs[prev].type == HFSPLUS_DIR_THREAD ||
+            target->hfsp_leafs[prev].type == HFSPLUS_FILE_THREAD ||
+            target->hfsp_leafs[prev].node == NULL ||
+            target->hfsp_leafs[prev].name == NULL ||
+            target->hfsp_leafs[prev].cmp_name == NULL)
+    continue;
+        if (target->hfsp_leafs[prev].node->name == NULL)
+    continue;
+    break;
+    }
+
+    first_prev = prev; 
+    for (i = prev + 1; i < target->hfsp_nleafs; i++) {
+        if (target->hfsp_leafs[i].type == HFSPLUS_DIR_THREAD ||
+            target->hfsp_leafs[i].type == HFSPLUS_FILE_THREAD ||
+            target->hfsp_leafs[i].node == NULL ||
+            target->hfsp_leafs[i].name == NULL ||
+            target->hfsp_leafs[i].cmp_name == NULL)
+    continue;
+        if (target->hfsp_leafs[i].node->name == NULL)
+    continue;
+        if (cmp_node(&(target->hfsp_leafs[prev]), &(target->hfsp_leafs[i]))
+            != 0) {
+            prev = i;
+    continue;
+        }
+        target->hfsp_collision_count++;
+
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+        return ISO_HFSP_NO_MANGLE;
+#endif
+
+#ifdef Libisofs_with_mangle_masK
+
+        /* >>> Development sketch: */
+
+        /* >>> define in libisofs.h : enum with LIBISO_NOMANGLE_xyz 
+                                      xinfo function for uint32_t
+        */
+
+        /* >>> inquire xinfo for mangle protection : uint32_t mangle_mask */
+
+        if (mangle_mask & (1 << LIBISO_NOMANGLE_HFSPLUS)) {
+
+            /* >>> Get full ISO-RR paths of colliding nodes and print
+                   error message */;
+
+            return ISO_HFSP_NO_MANGLE;
+        } else {
+
+#else /* Libisofs_with_mangle_masK */
+
+        {
+
+#endif /* ! Libisofs_with_mangle_masK */
+
+
+           ret= try_mangle(target, i, prev, i + 1, target->hfsp_nleafs,
+                           &new_idx, target->hfsp_leafs[i].node->name, 0);
+           if (ret == 0)
+               ret= try_mangle(target, i, prev, 0, target->hfsp_nleafs,
+                               &new_idx, "MANGLED", 0);
+           if (ret < 0)
+               return(ret);
+           if (new_idx > i) {
+               i--; /* an unprocessed candidate has been rotated to i */
+           } else {
+               prev = i; /* advance */
+           }
+
+#ifdef Libisofs_mangle_with_sort
+
+           qsort(target->hfsp_leafs, target->hfsp_nleafs,
+                 sizeof(*target->hfsp_leafs), cmp_node);
+           goto re_start;
+
+#endif
+
+        }
+        
+    }
+
+    if (target->hfsp_collision_count > 0) {
+        /* Mangling cannot be properly performed if the name owners do not
+           stay in sorting order.
+        */
+        prev = first_prev;
+        for (i = prev + 1; i < target->hfsp_nleafs; i++) {
+            if (target->hfsp_leafs[i].type == HFSPLUS_DIR_THREAD ||
+                target->hfsp_leafs[i].type == HFSPLUS_FILE_THREAD ||
+                target->hfsp_leafs[i].node == NULL ||
+                target->hfsp_leafs[i].name == NULL ||
+                target->hfsp_leafs[i].cmp_name == NULL)
+        continue;
+            if (target->hfsp_leafs[i].node->name == NULL)
+        continue;
+            if (cmp_node(&(target->hfsp_leafs[prev]),
+                         &(target->hfsp_leafs[i])) > 0) {
+
+                iso_msg_debug(target->image->id,
+                     "*********** Mangling messed up sorting *************\n");
+
+        break;
+            }
+            prev = i;
+        }
+
+        /* Only the owners of names were considered during mangling.
+           The HFSPLUS_*_THREAD types must get in line by sorting again.
+        */
+        qsort(target->hfsp_leafs, target->hfsp_nleafs,
+              sizeof(*target->hfsp_leafs), cmp_node);
+    }
+
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+    iso_msg_debug(target->image->id,
+                  "HFS+ check for name uniqueness successful.");
+#else
+    iso_msg_debug(target->image->id,
+                  "HFS+ mangling done. Resolved Collisions: %lu",
+                  (unsigned long) target->hfsp_collision_count);
+#endif
+
+    return ISO_SUCCESS;
+}
+
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+
+static
+int set_mangled_hfsplus_name(Ecma119Image *t, char *name, uint32_t idx)
+{
+    uint32_t found_idx, new_idx;
+    int ret;
+
+    ret = set_hfsplus_name(t, name, &t->hfsp_leafs[idx]);
+    if (ret < 0)
+        return ret;
+    ret = search_mangled_pos(t, idx, &found_idx, 0, t->hfsp_curleaf, 1);
+    if (ret != 0)
+        return ISO_SUCCESS; /* no collision */
+    t->hfsp_collision_count++;
+
+    iso_msg_debug(t->image->id,
+                  "HFS+ name collision between '%s' and '%s'",
+                  t->hfsp_leafs[idx].node->name,
+                  t->hfsp_leafs[found_idx].node->name);
+
+    ret= try_mangle(t, idx, found_idx, 0, t->hfsp_curleaf, &new_idx,
+                    t->hfsp_leafs[idx].node->name, 1);
+    if (ret == 0)
+        ret= try_mangle(t, idx, found_idx, 0, t->hfsp_curleaf, &new_idx,
+                        "MANGLED", 1);
+    if (ret < 0)
+        return(ret);
+    if (ret == 0) /* should not happen */
+        return ISO_HFSP_NO_MANGLE;
+
+    /* >>> ??? How to adjust symbolic links ?
+               Especially those which are not yet registered in hfsp_leafs
+     */;
+
+    return ISO_SUCCESS;
+}
+
+#endif /* Libisofs_mangle_while_set_hfsplus_namE */
+
+
 int hfsplus_writer_create(Ecma119Image *target)
 {
     int ret;
@@ -1180,7 +1581,7 @@ int hfsplus_writer_create(Ecma119Image *target)
     int i;
     uint32_t cat_node_size;
 
-    writer = malloc(sizeof(IsoImageWriter));
+    writer = calloc(1, sizeof(IsoImageWriter));
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
     }
@@ -1201,7 +1602,7 @@ int hfsplus_writer_create(Ecma119Image *target)
     writer->data = NULL;
     writer->target = target;
 
-    iso_msg_debug(target->image->id, "Creating low level Hfsplus tree...");
+    iso_msg_debug(target->image->id, "Creating HFS+ tree...");
     target->hfsp_nfiles = 0;
     target->hfsp_ndirs = 0;
     target->hfsp_cat_id = 16;
@@ -1217,12 +1618,25 @@ int hfsplus_writer_create(Ecma119Image *target)
     target->hfsp_nleafs = 2 * (target->hfsp_nfiles + target->hfsp_ndirs);
     target->hfsp_curleaf = 0;
 
-    target->hfsp_leafs = malloc (target->hfsp_nleafs * sizeof (target->hfsp_leafs[0]));
+    target->hfsp_leafs = calloc (target->hfsp_nleafs, sizeof (target->hfsp_leafs[0]));
     if (target->hfsp_leafs == NULL) {
         return ISO_OUT_OF_MEM;
     }
 
-    set_hfsplus_name (target, target->image->volume_id, &target->hfsp_leafs[target->hfsp_curleaf]);
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+
+    ret = set_mangled_hfsplus_name (target, target->image->volume_id,
+                                    target->hfsp_curleaf);
+
+#else
+
+    ret = set_hfsplus_name (target, target->image->volume_id,
+                            &target->hfsp_leafs[target->hfsp_curleaf]);
+
+#endif /* ! Libisofs_mangle_while_set_hfsplus_namE */
+
+    if (ret < 0)
+        return ret;
     target->hfsp_leafs[target->hfsp_curleaf].node = (IsoNode *) target->image->root;
     target->hfsp_leafs[target->hfsp_curleaf].used_size = target->hfsp_leafs[target->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common);
 
@@ -1259,12 +1673,22 @@ int hfsplus_writer_create(Ecma119Image *target)
 	target->hfsp_leafs[0].nchildren++;
       }
 
+#ifdef Libisofs_mangle_while_set_hfsplus_namE
+    iso_msg_debug(target->image->id,
+                  "Resolved HFS+ name collisions: %lu",
+                  (unsigned long) target->hfsp_collision_count);
+#endif
+
     qsort(target->hfsp_leafs, target->hfsp_nleafs,
           sizeof(*target->hfsp_leafs), cmp_node);
 
+    ret = mangle_leafs(target, 0);
+    if (ret < 0)
+        return ret;
+
     for (max_levels = 0; target->hfsp_nleafs >> max_levels; max_levels++);
     max_levels += 2;
-    target->hfsp_levels = malloc (max_levels * sizeof (target->hfsp_levels[0]));
+    target->hfsp_levels = calloc (max_levels, sizeof (target->hfsp_levels[0]));
     if (target->hfsp_levels == NULL) {
         return ISO_OUT_OF_MEM;
     }
@@ -1275,7 +1699,7 @@ int hfsplus_writer_create(Ecma119Image *target)
       uint32_t i;
       unsigned bytes_rem = cat_node_size - sizeof (struct hfsplus_btnode) - 2;
 
-      target->hfsp_levels[level].nodes = malloc ((target->hfsp_nleafs + 1) *  sizeof (target->hfsp_levels[level].nodes[0]));
+      target->hfsp_levels[level].nodes = calloc ((target->hfsp_nleafs + 1),  sizeof (target->hfsp_levels[level].nodes[0]));
       if (!target->hfsp_levels[level].nodes)
 	return ISO_OUT_OF_MEM;
     
@@ -1332,7 +1756,7 @@ int hfsplus_writer_create(Ecma119Image *target)
 
 	level++;
 
-	target->hfsp_levels[level].nodes = malloc (((last_size + 1) / 2) *  sizeof (target->hfsp_levels[level].nodes[0]));
+	target->hfsp_levels[level].nodes = calloc (((last_size + 1) / 2),  sizeof (target->hfsp_levels[level].nodes[0]));
 	if (!target->hfsp_levels[level].nodes)
 	  return ISO_OUT_OF_MEM;
     
@@ -1385,7 +1809,7 @@ int hfsplus_tail_writer_create(Ecma119Image *target)
 {
     IsoImageWriter *writer;
 
-    writer = malloc(sizeof(IsoImageWriter));
+    writer = calloc(1, sizeof(IsoImageWriter));
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
     }
