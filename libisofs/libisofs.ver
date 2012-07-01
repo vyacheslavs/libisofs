@@ -257,6 +257,7 @@ iso_tree_get_node_path;
 iso_tree_get_replace_mode;
 iso_tree_path_to_node;
 iso_tree_remove_exclude;
+iso_tree_resolve_symlink;
 iso_tree_set_follow_symlinks;
 iso_tree_set_ignore_hidden;
 iso_tree_set_ignore_special;

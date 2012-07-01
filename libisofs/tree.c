@@ -1196,3 +1196,84 @@ int iso_tree_clone(IsoNode *node,
     return ret;
 }
 
+
+int iso_tree_resolve_symlink(IsoImage *img, IsoSymlink *sym, IsoNode **res,
+                             int *depth, int flag)
+{
+    IsoDir *cur_dir = NULL;
+    IsoNode *n, *resolved_node;
+    char *dest, *dest_start, *dest_end;
+    int ret = 0;
+    unsigned int comp_len, dest_len;
+
+    dest = sym->dest;
+    dest_len = strlen(dest);
+
+    if (dest[0] == '/') {
+
+        /* >>> ??? How to resolve absolute links without knowing the
+                   path of the future mount point ?
+               ??? Would it be better to throw error ? 
+           I can only assume that it gets mounted at / during some stage
+           of booting.
+        */;
+
+        cur_dir = img->root;
+        dest_end = dest;
+    } else {
+        cur_dir = sym->node.parent;
+        if (cur_dir == NULL)
+            cur_dir = img->root;
+        dest_end = dest - 1;
+    }
+
+    while (dest_end < dest + dest_len) {
+        dest_start = dest_end + 1;
+        dest_end = strchr(dest_start, '/');
+        if (dest_end == NULL)
+            dest_end = dest_start + strlen(dest_start);
+        comp_len = dest_end - dest_start;
+        if (comp_len == 0 || (comp_len == 1 && dest_start[0] == '.'))
+    continue;
+        if (comp_len == 2 && dest_start[0] == '.' && dest_start[1] == '.') {
+            cur_dir = cur_dir->node.parent;
+            if (cur_dir == NULL) /* link shoots over root */
+                return ISO_DEAD_SYMLINK;
+    continue;
+        }
+
+        /* Search node in cur_dir */
+        for (n = cur_dir->children; n != NULL; n = n->next)
+            if (strncmp(dest_start, n->name, comp_len) == 0 &&
+                strlen(n->name) == comp_len)
+        break;
+        if (n == NULL)
+            return ISO_DEAD_SYMLINK;
+
+        if (n->type == LIBISO_DIR) {
+            cur_dir = (IsoDir *) n;
+        } else if (n->type == LIBISO_SYMLINK) {
+            if (*depth >= LIBISO_MAX_LINK_DEPTH)
+                return ISO_DEEP_SYMLINK;
+            (*depth)++;
+            ret = iso_tree_resolve_symlink(img, (IsoSymlink *) n,
+                                           &resolved_node, depth, 0);
+            if (ret < 0)
+                return ret;
+            if (resolved_node->type != LIBISO_DIR) {
+                n = resolved_node;
+                goto leaf_type;
+            }
+            cur_dir = (IsoDir *) resolved_node;
+        } else {
+leaf_type:;
+            if (dest_end < dest + dest_len) /* attempt to dive into file */
+                return ISO_DEAD_SYMLINK;
+            *res = n;
+            return ISO_SUCCESS;
+        }
+    }
+    *res = cur_dir;
+    return ISO_SUCCESS;
+}
+

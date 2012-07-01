@@ -5060,6 +5060,37 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node);
 char *iso_tree_get_node_path(IsoNode *node);
 
 /**
+ * Get the destination node of a symbolic link within the IsoImage.
+ *
+ * @param img
+ *      The image wherein to try resolving the link.
+ * @param sym
+ *      The symbolic link node which to resolve.
+ * @param res
+ *      Will return the found destination node, in case of success.
+ *      Call iso_node_ref() / iso_node_unref() if you intend to use the node
+ *      over API calls which might in any event delete it.
+ * @param depth
+ *      Prevents endless loops. Submit as 0.
+ * @param flag
+ *      Bitfield for control purposes. Submit 0 for now.
+ * @return
+ *      1 on success,
+ *      < 0 on failure, especially ISO_DEEP_SYMLINK and ISO_DEAD_SYMLINK
+ *
+ * @since 1.2.4
+ */
+int iso_tree_resolve_symlink(IsoImage *img, IsoSymlink *sym, IsoNode **res,
+                             int *depth, int flag);
+
+/* Maximum number link resolution steps before ISO_DEEP_SYMLINK gets
+ * returned by iso_tree_resolve_symlink().
+ *
+ * @since 1.2.4
+*/
+#define LIBISO_MAX_LINK_DEPTH 100
+
+/**
  * Increments the reference counting of the given IsoDataSource.
  *
  * @since 0.6.2
@@ -7372,6 +7403,12 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 
 /** Name collision in HFS+, mangling not possible  (FAILURE, HIGH, -393) */
 #define ISO_HFSP_NO_MANGLE          0xE830FE77
+
+/** Symbolic link cannot be resolved               (FAILURE, HIGH, -394) */
+#define ISO_DEAD_SYMLINK            0xE830FE76
+
+/** Too many chained symbolic links                (FAILURE, HIGH, -395) */
+#define ISO_DEEP_SYMLINK            0xE830FE75
 
 
 /* Internal developer note: 

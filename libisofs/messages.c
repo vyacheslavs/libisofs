@@ -496,6 +496,10 @@ const char *iso_error_to_msg(int errcode)
         return "APM block size prevents coexistence with GPT";
     case ISO_HFSP_NO_MANGLE:
         return "Name collision in HFS+, mangling not possible";
+    case ISO_DEAD_SYMLINK:
+        return "Symbolic link cannot be resolved";
+    case ISO_DEEP_SYMLINK:
+        return "Too many chained symbolic links";
     default:
         return "Unknown error";
     }
