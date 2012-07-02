@@ -19,6 +19,7 @@
 
 #define LIBISO_HFSPLUS_NAME_MAX 255
 
+
 enum hfsplus_node_type {
   HFSPLUS_DIR = 1,
   HFSPLUS_FILE = 2,
@@ -53,21 +54,7 @@ struct hfsplus_node
 
   enum { UNIX_NONE, UNIX_SYMLINK, UNIX_SPECIAL } unix_type;
   uint32_t symlink_block;
-
-#ifdef Libisofs_hfsplus_new_symlinK
-  /* >>> Currently symlinks take their destination string from IsoNode.
-         This will not work after the destination name suffered a
-         case-sensitivity collision.
-         So it is necessary to store the string with the HFS+ node and
-         to adjust it during mangling.
-
-     >>> This is not yet implemented in hfsplus.c
-
-  */
   char *symlink_dest;
-#else
-  uint32_t symlink_size;
-#endif
 
   enum hfsplus_node_type type;
   IsoFileSrc *file;

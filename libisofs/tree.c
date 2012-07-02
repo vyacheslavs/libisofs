@@ -1273,7 +1273,7 @@ leaf_type:;
             return ISO_SUCCESS;
         }
     }
-    *res = cur_dir;
+    *res = (IsoNode *) cur_dir;
     return ISO_SUCCESS;
 }
 

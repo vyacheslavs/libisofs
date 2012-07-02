@@ -369,6 +369,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
         return ret;
     t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
     t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_NONE;
+    t->hfsp_leafs[t->hfsp_curleaf].symlink_dest = NULL;
 
     switch (iso->type)
       {
@@ -376,7 +377,9 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
 	{
 	  IsoSymlink *sym = (IsoSymlink*) iso;
 	  t->hfsp_leafs[t->hfsp_curleaf].type = HFSPLUS_FILE;
-	  t->hfsp_leafs[t->hfsp_curleaf].symlink_size = strlen (sym->dest);
+	  t->hfsp_leafs[t->hfsp_curleaf].symlink_dest = strdup(sym->dest);
+	  if (t->hfsp_leafs[t->hfsp_curleaf].symlink_dest == NULL)
+	      return ISO_OUT_OF_MEM;
 	  t->hfsp_leafs[t->hfsp_curleaf].unix_type = UNIX_SYMLINK;
 	  t->hfsp_leafs[t->hfsp_curleaf].used_size = t->hfsp_leafs[t->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common) + 2 * sizeof (struct hfsplus_forkdata);
 	  break;
@@ -590,10 +593,9 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     for (i = 0; i < t->hfsp_nleafs; i++)
       if (t->hfsp_leafs[i].unix_type == UNIX_SYMLINK)
 	{
-
           t->hfsp_leafs[i].symlink_block = hfsp_curblock;
-          hfsp_curblock += (t->hfsp_leafs[i].symlink_size + block_size - 1) / block_size;
-
+          hfsp_curblock += (strlen(t->hfsp_leafs[i].symlink_dest) +
+                            block_size - 1) / block_size;
 	}
 
     t->curblock = hfsp_curblock / block_fac;
@@ -1000,7 +1002,7 @@ iso_msg_debug(t->image->id,
 			if (t->hfsp_leafs[curnode].unix_type == UNIX_SYMLINK)
 			  {
 			    blk = t->hfsp_leafs[curnode].symlink_block;
-			    sz = t->hfsp_leafs[curnode].symlink_size;
+			    sz = strlen(t->hfsp_leafs[curnode].symlink_dest);
 			  }
 			else if (t->hfsp_leafs[curnode].unix_type == UNIX_SPECIAL)
 			  {
@@ -1076,12 +1078,13 @@ iso_msg_debug(t->image->id,
     for (i = 0; i < t->hfsp_nleafs; i++)
       if (t->hfsp_leafs[i].unix_type == UNIX_SYMLINK)
 	{
-	  IsoSymlink *sym = (IsoSymlink*) t->hfsp_leafs[i].node;
 	  int overhead;
-	  ret = iso_write(t, sym->dest, t->hfsp_leafs[i].symlink_size);
+
+	  ret = iso_write(t, t->hfsp_leafs[i].symlink_dest,
+                          strlen(t->hfsp_leafs[i].symlink_dest));
 	  if (ret < 0)
 	    return ret;
-	  overhead = t->hfsp_leafs[i].symlink_size % block_size;
+	  overhead = strlen(t->hfsp_leafs[i].symlink_dest) % block_size;
 	  if (overhead)
 	    overhead = block_size - overhead;
 	  ret = iso_write(t, buffer, overhead);
@@ -1185,6 +1188,8 @@ int hfsplus_writer_free_data(IsoImageWriter *writer)
 	{
 	  free (t->hfsp_leafs[i].name);
 	  free (t->hfsp_leafs[i].cmp_name);
+	  if (t->hfsp_leafs[i].symlink_dest != NULL)
+	      free (t->hfsp_leafs[i].symlink_dest);
 	}
     free(t->hfsp_leafs);
     for (i = 0; i < t->hfsp_nlevels; i++)
@@ -1256,25 +1261,181 @@ void rotate_hfs_list(Ecma119Image *target, uint32_t old_idx, uint32_t new_idx,
     memcpy(&target->hfsp_leafs[new_idx], &tr, sz);
 }
 
+static
+int subst_symlink_dest_comp(Ecma119Image *target, uint32_t idx,
+                            char **dest, unsigned int *dest_len, 
+                            char **comp_start, char **comp_end,
+                            char *new_name, int flag)
+{
+    int new_len;
+    unsigned int new_dest_len;
+    char *new_dest, *wpt;
+
+    new_len = strlen(new_name);
+    new_dest_len =
+               *comp_start - *dest + new_len + *dest_len - (*comp_end - *dest);
+    new_dest = calloc(1, new_dest_len + 1);
+    if (new_dest == NULL)
+        return ISO_OUT_OF_MEM;
+    wpt = new_dest;
+    if (*comp_start - *dest > 0)
+        memcpy(wpt, *dest, *comp_start - *dest);
+    wpt += *comp_start - *dest;
+    memcpy(wpt, new_name, new_len);
+    wpt += new_len;
+    if (*comp_end - *dest < *dest_len)
+        memcpy(wpt, *comp_end, *dest_len - (*comp_end - *dest));
+    wpt += *dest_len - (*comp_end - *dest);
+    *wpt = 0;
+
+    *comp_start = new_dest + (*comp_start - *dest);
+    *comp_end = *comp_start + new_len;
+    target->hfsp_leafs[idx].symlink_dest = new_dest;
+    *dest_len = new_dest_len;
+    free(*dest);
+    *dest = new_dest;
+    return ISO_SUCCESS;
+}
+
+/* A specialized version of API call iso_tree_resolve_symlink().
+   It updates symlink destination components which lead to the
+   HFS+ node [changed_idx] in sync with resolution of the IsoImage
+   destination path.
+   It seems too much prone to weird link loopings if one would let
+   a function underneath iso_tree_resolve_symlink() watch out for
+   the IsoNode in question. Multiple passes through that node are
+   possible.
+   So this function exchanges components when encountered.
+*/
+static
+int update_symlink(Ecma119Image *target, uint32_t changed_idx, char *new_name,
+                   uint32_t link_idx, int *depth, int flag)
+{
+    IsoSymlink *sym;
+    IsoDir *cur_dir = NULL;
+    IsoNode *n, *resolved_node;
+    char *orig_dest, *orig_start, *orig_end;
+    char *hfsp_dest, *hfsp_start, *hfsp_end;
+    int ret = 0;
+    unsigned int comp_len, orig_len, hfsp_len, hfsp_comp_len;
+
+    if (target->hfsp_leafs[link_idx].node->type != LIBISO_SYMLINK)
+        return ISO_SUCCESS;
+    sym = (IsoSymlink *) target->hfsp_leafs[link_idx].node;
+    orig_dest = sym->dest;
+    orig_len = strlen(orig_dest);
+    hfsp_dest = target->hfsp_leafs[link_idx].symlink_dest;
+    hfsp_len = strlen(hfsp_dest);
+
+    if (orig_dest[0] == '/') {
+
+        /* >>> ??? How to salvage absolute links without knowing the
+                   path of the future mount point ?
+               ??? Would it be better to leave them as is ?
+           I can only assume that it gets mounted at / during some stage
+           of booting.
+        */;
+
+        cur_dir = target->image->root;
+        orig_end = orig_dest;
+    } else {
+        cur_dir = sym->node.parent;
+        if (cur_dir == NULL)
+            cur_dir = target->image->root;
+        orig_end = orig_dest - 1;
+    }
+
+    if (hfsp_dest[0] == '/')
+        hfsp_end = hfsp_dest;
+    else
+        hfsp_end = hfsp_dest - 1;
+
+    while (orig_end < orig_dest + orig_len) {
+        orig_start = orig_end + 1;
+        hfsp_start = hfsp_end + 1;
+
+        orig_end = strchr(orig_start, '/');
+        if (orig_end == NULL)
+            orig_end = orig_start + strlen(orig_start);
+        comp_len = orig_end - orig_start;
+        hfsp_end = strchr(hfsp_start, '/');
+        if (hfsp_end == NULL)
+            hfsp_end = hfsp_start + strlen(hfsp_start);
+        hfsp_comp_len = hfsp_end - hfsp_start;
+
+        if (comp_len == 0 || (comp_len == 1 && orig_start[0] == '.'))
+   continue;
+        if (comp_len == 2 && orig_start[0] == '.' && orig_start[1] == '.') {
+            cur_dir = cur_dir->node.parent;
+            if (cur_dir == NULL) /* link shoots over root */
+                return ISO_SUCCESS;
+   continue;
+        }
+
+        /* Search node in cur_dir */
+        for (n = cur_dir->children; n != NULL; n = n->next)
+            if (strncmp(orig_start, n->name, comp_len) == 0 &&
+                strlen(n->name) == comp_len)
+        break;
+        if (n == NULL) /* dead link */
+            return ISO_SUCCESS;
+
+        if (n == target->hfsp_leafs[changed_idx].node) {
+            iso_msg_debug(target->image->id,
+                          "     link path '%s' touches RR '%s', HFS+ '%s'",
+                          orig_dest, (n->name != NULL ? n->name : ""),
+                          new_name);
+
+            /* Exchange HFS+ component by new_name */
+            ret = subst_symlink_dest_comp(target, link_idx,
+                                          &hfsp_dest, &hfsp_len,
+                                          &hfsp_start, &hfsp_end, new_name, 0);
+            if (ret < 0)
+                return ret;
+        }
+
+        if (n->type == LIBISO_DIR) {
+            cur_dir = (IsoDir *) n;
+        } else if (n->type == LIBISO_SYMLINK) {
+            /* Resolve link and check whether it is a directory */
+            if (*depth >= LIBISO_MAX_LINK_DEPTH)
+                return ISO_SUCCESS;
+            (*depth)++;
+            ret = iso_tree_resolve_symlink(target->image, (IsoSymlink *) n,
+                                           &resolved_node, depth, 0);
+            if (ret == (int) ISO_DEAD_SYMLINK || ret == (int) ISO_DEEP_SYMLINK)
+                return ISO_SUCCESS;
+            if (ret < 0)
+                return ret;
+            if (resolved_node->type != LIBISO_DIR)
+                return ISO_SUCCESS;
+            cur_dir = (IsoDir *) resolved_node;
+        } else {
+    break;
+        }
+    }
+    return ISO_SUCCESS;
+}
+
 /* Find the other nodes with old_name and switch to new .name
    One could make assumptions where name-followers are.
    But then there are still the symbolic links. They can be located anywhere.
 */
 static
-int update_name_followers(Ecma119Image *target, uint32_t idx,
+int update_name_followers(Ecma119Image *target, uint32_t idx, char *new_name,
                           uint16_t *old_name, uint16_t *old_cmp_name,
                           uint32_t old_strlen)
 {
     uint32_t i;
+    int ret, link_depth;
 
     for (i = 0; i < target->hfsp_nleafs; i++) {
-
-        /* >>> check for symbolic links which point to old_name
-               But hfsplus_writer_write_data() takes the link destination
-               directly from the IsoNode.
-               So Libisofs_hfsplus_new_symlinK must be implemented.
-        */;
-
+        if (target->hfsp_leafs[i].unix_type == UNIX_SYMLINK) {
+            link_depth = 0;
+            ret = update_symlink(target, idx, new_name, i, &link_depth, 0);
+            if (ret < 0)
+                return ret;
+        }
         if (target->hfsp_leafs[i].name != old_name)
     continue;
         target->hfsp_leafs[i].name = target->hfsp_leafs[idx].name;
@@ -1300,7 +1461,7 @@ int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
                uint32_t *new_idx, char *prefix, int flag)
 {
     int i, ret = 0;
-    char new_name[256], number[9];
+    char new_name[LIBISO_HFSPLUS_NAME_MAX + 1], number[9];
     uint16_t *old_name, *old_cmp_name;
     uint32_t old_strlen;
 
@@ -1313,7 +1474,7 @@ int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
             number[0] = 0;
         else
             sprintf(number, "%X", (unsigned int) i);
-        if (strlen(prefix) + 1 + strlen(number) >= 256) {
+        if (strlen(prefix) + 1 + strlen(number) > LIBISO_HFSPLUS_NAME_MAX) {
             ret = 0;
             goto no_success;
         }
@@ -1355,6 +1516,7 @@ int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
 #endif /* Libisofs_mangle_with_sort */
 
         /* >>> Get full ISO-RR paths of colliding nodes */;
+        /* >>> iso_tree_get_node_path(node); */
 
         iso_msg_debug(target->image->id,
                   "HFS+ name collision with \"%s\" : \"%s\" renamed to \"%s\"",
@@ -1367,7 +1529,7 @@ int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
                         (target->hfsp_leafs[*new_idx].strlen - old_strlen) * 2;
 
     if (!(flag & 1)) {
-        ret = update_name_followers(target, *new_idx,
+        ret = update_name_followers(target, *new_idx, new_name,
                                     old_name, old_cmp_name, old_strlen);
         if (ret < 0)
             goto no_success;
