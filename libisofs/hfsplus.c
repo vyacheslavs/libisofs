@@ -1988,3 +1988,43 @@ int hfsplus_tail_writer_create(Ecma119Image *target)
 
     return ISO_SUCCESS;
 }
+
+
+/* API */
+int iso_hfsplus_xinfo_func(void *data, int flag)
+{
+    if (flag == 1 && data != NULL)
+        free(data);
+    return 1;
+}
+
+/* API */
+struct iso_hfsplus_xinfo_data *iso_hfsplus_xinfo_new(int flag)
+{
+    struct iso_hfsplus_xinfo_data *o;
+
+    o = calloc(1, sizeof(struct iso_hfsplus_xinfo_data));
+    if (o == NULL)
+        return NULL;
+    o->version = 0;
+    return o;
+}
+
+/* The iso_node_xinfo_cloner function which gets associated to
+ * iso_hfsplus_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_node_xinfo_make_clonable()
+ */
+int iso_hfsplus_xinfo_cloner(void *old_data, void **new_data, int flag)
+{
+    *new_data = NULL;
+    if (flag)
+        return ISO_XINFO_NO_CLONE;
+    if (old_data == NULL)
+        return 0;
+    *new_data = iso_hfsplus_xinfo_new(0);
+    if(*new_data == NULL)
+       return ISO_OUT_OF_MEM;
+    memcpy(*new_data, old_data, sizeof(struct iso_hfsplus_xinfo_data));
+    return ISO_SUCCESS;
+}
+
