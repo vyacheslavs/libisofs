@@ -2078,3 +2078,17 @@ void *iso_alloc_mem(size_t size, size_t count, int flag)
 }
 
 
+uint16_t iso_ntohs(uint16_t v)
+{
+    return iso_read_msb((uint8_t *) &v, 2);
+}
+
+uint16_t iso_htons(uint16_t v)
+{
+    uint16_t ret;
+
+    iso_msb((uint8_t *) &ret, (uint32_t) v, 2);
+
+    return ret;
+}   
+

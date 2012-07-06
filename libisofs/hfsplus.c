@@ -72,13 +72,6 @@
 #define HFSPLUS_MAX_BLOCK_SIZE 2048
 
 
-#include <arpa/inet.h>
-/* For these prototypes:
-uint16_t ntohs(uint16_t netshort);
-uint16_t htons(uint16_t hostshort);
-*/
-
-
 #ifdef Libisofs_mangle_while_set_hfsplus_namE
 static int set_mangled_hfsplus_name(Ecma119Image *t, char *name, uint32_t idx);
 #endif
@@ -136,7 +129,7 @@ uint8_t get_class (uint16_t v)
 {
   uint16_t s;
   uint8_t high, low;
-  s = ntohs (v);
+  s = iso_ntohs (v);
   high = s >> 8;
   low = v & 0xff;
   if (!hfsplus_class_pages[high])
@@ -172,13 +165,13 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
     for (iptr = ucs_name, optr = node->name; *iptr; iptr++)
       {
 	const uint16_t *dptr;
-	uint16_t val = ntohs (*iptr);
+	uint16_t val = iso_ntohs (*iptr);
 	uint8_t high = val >> 8;
 	uint8_t low = val & 0xff;
 
 	if (val == ':')
 	  {
-	    *optr++ = htons ('/');
+	    *optr++ = iso_htons ('/');
 	    continue;
 	  }
 
@@ -189,10 +182,10 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 	    l = s / (21 * 28);
 	    v = (s % (21 * 28)) / 28;
 	    t = s % 28;
-	    *optr++ = htons (l + 0x1100);
-	    *optr++ = htons (v + 0x1161);
+	    *optr++ = iso_htons (l + 0x1100);
+	    *optr++ = iso_htons (v + 0x1161);
 	    if (t)
-	      *optr++ = htons (t + 0x11a7);
+	      *optr++ = iso_htons (t + 0x11a7);
 	    continue;
 	  }
 	if (!hfsplus_decompose_pages[high])
@@ -207,7 +200,7 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 	    continue;
 	  }
 	for (; *dptr; dptr++)
-	  *optr++ = htons (*dptr);
+	  *optr++ = iso_htons (*dptr);
       }
     *optr = 0;
 
@@ -251,7 +244,7 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 	  }
 	if (!hfsplus_casefold[hfsplus_casefold[high] + low])
 	  continue;
-	*optr++ = ntohs (hfsplus_casefold[hfsplus_casefold[high] + low]);
+	*optr++ = iso_ntohs (hfsplus_casefold[hfsplus_casefold[high] + low]);
       }
     *optr = 0;
 

@@ -577,4 +577,12 @@ void *iso_alloc_mem(size_t size, size_t count, int flag);
         }
 
 
+/* ------------------------------------------------------------------------- */
+
+
+/* To avoid the need to include more system header files */
+uint16_t iso_ntohs(uint16_t v);
+uint16_t iso_htons(uint16_t v);
+
+
 #endif /*LIBISO_UTIL_H_*/
