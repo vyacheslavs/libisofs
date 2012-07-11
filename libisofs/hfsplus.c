@@ -76,6 +76,9 @@
 static int set_mangled_hfsplus_name(Ecma119Image *t, char *name, uint32_t idx);
 #endif
 
+/* In libisofs/hfsplus_case.c */
+extern uint16_t iso_hfsplus_cichar(uint16_t x);
+
 
 /* ts B20623: pad up output block to full 2048 bytes */
 static
@@ -235,16 +238,9 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 
     for (iptr = node->name, optr = node->cmp_name; *iptr; iptr++)
       {
-	uint8_t high = ((uint8_t *) iptr)[0];
-	uint8_t low = ((uint8_t *) iptr)[1];
-	if (hfsplus_casefold[high] == 0)
-	  {
-	    *optr++ = *iptr;
-	    continue;
-	  }
-	if (!hfsplus_casefold[hfsplus_casefold[high] + low])
-	  continue;
-	*optr++ = iso_ntohs (hfsplus_casefold[hfsplus_casefold[high] + low]);
+	*optr = iso_hfsplus_cichar(*iptr);
+	if (*optr != 0)
+	    optr++;
       }
     *optr = 0;
 
