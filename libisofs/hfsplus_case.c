@@ -12,6 +12,10 @@
  * equivalence class under the relation of HFS+ case-insensitivity.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "libisofs.h"
 
 
