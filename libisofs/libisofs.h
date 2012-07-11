@@ -7627,11 +7627,6 @@ struct burn_source {
 /* currently none being tested */
 
 
-/* Perform the operations promised by iso_write_opts_set_rr_reloc() */
-#define Libisofs_with_rr_reloc_diR yes
-
-
-
 /* ---------------------------- Experiments ---------------------------- */
 
 

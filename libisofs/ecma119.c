@@ -90,14 +90,8 @@ void ecma119_image_free(Ecma119Image *t)
         writer->free_data(writer);
         free(writer);
     }
-
-#ifdef Libisofs_with_rr_reloc_diR 
-
     if (t->rr_reloc_dir != NULL)
         free(t->rr_reloc_dir);
-
-#endif /* Libisofs_with_rr_reloc_diR */
-
     if (t->input_charset != NULL)
         free(t->input_charset);
     if (t->output_charset != NULL)
@@ -1721,9 +1715,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->rrip_1_10_px_ino = opts->rrip_1_10_px_ino;
     target->aaip_susp_1_10 = opts->aaip_susp_1_10;
     target->dir_rec_mtime = opts->dir_rec_mtime;
-
-#ifdef Libisofs_with_rr_reloc_diR
-
     target->rr_reloc_dir = NULL;
     if (opts->rr_reloc_dir != NULL) {
         target->rr_reloc_dir = strdup(opts->rr_reloc_dir);
@@ -1734,9 +1725,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     target->rr_reloc_flags = opts->rr_reloc_flags;
     target->rr_reloc_node = NULL;
-
-#endif /* Libisofs_with_rr_reloc_diR */
-
     target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
@@ -2509,8 +2497,6 @@ int bs_set_size(struct burn_source *bs, off_t size)
     return 1;
 }
 
-#ifdef Libisofs_with_rr_reloc_diR
-
 static
 int dive_to_depth_8(IsoDir *dir, int depth)
 {
@@ -2569,9 +2555,6 @@ int make_reloc_dir_if_needed(IsoImage *img, IsoWriteOpts *opts, int flag)
     return 1;
 }
 
-#endif /* Libisofs_with_rr_reloc_diR */
-
-
 int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
                                  struct burn_source **burn_src)
 {
@@ -2588,8 +2571,6 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
         return ISO_OUT_OF_MEM;
     }
 
-#ifdef Libisofs_with_rr_reloc_diR
-
     if (!opts->allow_deep_paths) { 
         ret = make_reloc_dir_if_needed(image, opts, 0);
         if (ret < 0) {
@@ -2597,8 +2578,6 @@ int iso_image_create_burn_source(IsoImage *image, IsoWriteOpts *opts,
             return ret;
         }
     }
-
-#endif /* Libisofs_with_rr_reloc_diR */
 
     ret = ecma119_image_new(image, opts, &target);
     if (ret < 0) {
@@ -2715,14 +2694,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->fat = 0;
     wopts->fifo_size = 1024; /* 2 MB buffer */
     wopts->sort_files = 1; /* file sorting is always good */
-
-#ifdef Libisofs_with_rr_reloc_diR 
-
     wopts->rr_reloc_dir = NULL;
     wopts->rr_reloc_flags = 0;
-
-#endif /* Libisofs_with_rr_reloc_diR */
-
     wopts->system_area_data = NULL;
     wopts->system_area_options = 0;
     wopts->vol_creation_time = 0;
@@ -2765,14 +2738,8 @@ void iso_write_opts_free(IsoWriteOpts *opts)
         return;
     }
     free(opts->output_charset);
-
-#ifdef Libisofs_with_rr_reloc_diR 
-
     if (opts->rr_reloc_dir != NULL)
         free(opts->rr_reloc_dir);
-
-#endif /* Libisofs_with_rr_reloc_diR */
-
     if (opts->system_area_data != NULL)
         free(opts->system_area_data);
     if (opts->prep_partition != NULL)

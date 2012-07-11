@@ -153,16 +153,10 @@ needs_transl:;
 
 int ecma119_is_dedicated_reloc_dir(Ecma119Image *img, Ecma119Node *node)
 {
-
-#ifdef Libisofs_with_rr_reloc_diR
-
     if (img->rr_reloc_node == node &&
         node != img->root && node != img->partition_root &&
         (img->rr_reloc_flags & 2))
         return 1;
-
-#endif /* Libisofs_with_rr_reloc_diR */
-
     return 0;
 }
 
@@ -474,9 +468,6 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                 if (ret < 0) {
                     goto ex;
                 }
-
-#ifdef Libisofs_with_rr_reloc_diR
-
                 if (depth == 1) { /* root is default */
                     image->rr_reloc_node = node;
                 } else if (depth == 2) {
@@ -486,10 +477,6 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                             strcmp(iso->name, image->rr_reloc_dir) == 0)
                             image->rr_reloc_node = node;
                 }
-
-#endif /* Libisofs_with_rr_reloc_diR */
-
-
             }
             ret = ISO_SUCCESS;
             pos = dir->children;
@@ -962,9 +949,6 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir,
     max_path = pathlen + 1 + max_child_name_len(dir);
 
     if (level > 8 || max_path > 255) {
-
-#ifdef Libisofs_with_rr_reloc_diR
-
         reloc = img->rr_reloc_node;
         if (reloc == NULL) {
             if (img->eff_partition_offset > 0) {
@@ -973,17 +957,6 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir,
                 reloc = img->root;
             }
         }
-
-#else
-
-        if (img->eff_partition_offset > 0) {
-            reloc = img->partition_root;
-        } else {
-            reloc = img->root;
-        }
-
-#endif /* ! Libisofs_with_rr_reloc_diR */
-
         ret = reparent(dir, reloc);
         if (ret < 0) {
             return ret;
@@ -1238,13 +1211,7 @@ int ecma119_tree_create(Ecma119Image *img)
          * above could insert new directories into the relocation directory.
          * Note that recurse = 0, as we don't need to recurse.
          */
-
-#ifdef Libisofs_with_rr_reloc_diR
         ret = mangle_tree(img, img->rr_reloc_node, 0);
-#else
-        ret = mangle_tree(img, NULL, 0);
-#endif
-
         if (ret < 0) {
             return ret;
         }
