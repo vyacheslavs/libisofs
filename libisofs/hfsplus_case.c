@@ -363,7 +363,7 @@ static uint8_t utf16be_transl[] = {
 static int utf16be_transl_count = 329;
 
 /* These are the start indice in utf16be_transl[] for the page numbers 0 to 9
-   as classified by static function what_page() in libisofs/hfsplus.c.
+   as classified by function what_page().
    As soon as the first byte of the input pair in utf16be_transl[] changes,
    the search can be ended and output is equal to input.
    If page -1 is returned by what_page(), then input is equal to output.
