@@ -11,7 +11,7 @@
  */
 
 
-/* Some extra debugging messages for Vladimir Serbinko
+/* Some extra debugging messages for Vladimir Serbinenko
  #define Libisofs_hfsplus_verbose_debuG yes
 */
 

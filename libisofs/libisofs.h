@@ -6076,6 +6076,10 @@ int iso_node_lookup_attr(IsoNode *node, char *name,
  *            I.e. those with a non-empty name which does not begin by "user."
  *            (The empty name is always allowed and governed by bit0.) This
  *            deletes all previously existing attributes if not bit1 is set.
+ *      bit4= Do not affect attributes from namespace "isofs".
+ *            To be combined with bit3 for copying attributes from local
+ *            filesystem to ISO image.
+ *            @since 1.2.4
  * @return
  *      1 = ok
  *    < 0 = error

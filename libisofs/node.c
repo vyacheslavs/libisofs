@@ -1727,6 +1727,7 @@ int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
                         bit2= delete the given names rather than overwrite
                               their content
                         bit4= do not overwrite value of empty name
+                        bit5= do not overwrite isofs attributes 
                         bit15= release memory and return 1
 */
 static
@@ -1775,6 +1776,8 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
             continue;
         if (names[i][0] == 0 && (flag & 16))
             continue;
+        if ((flag & 32) && strncmp(names[i], "isofs.", 6) == 0)
+            continue;
         for (j = 0; j < *m_num_attrs; j++) {
             if ((*m_names)[j] == NULL)
                 continue;
@@ -1819,6 +1822,8 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
             if (names[i] == NULL)
                 continue;
             if (names[i][0] == 0 && (flag & 16))
+                continue;
+            if ((flag & 32) && strncmp(names[i], "isofs.", 6) == 0)
                 continue;
             for (j = 0; j < *m_num_attrs; j++) {
                 if ((*m_names)[j] == NULL)
@@ -1870,13 +1875,13 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
         for (i = 0; i < num_attrs; i++)
             if (strncmp(names[i], "user.", 5) != 0 && names[i][0] != 0) 
                 return ISO_AAIP_NON_USER_NAME;  
-
-    if ((flag & (2 | 4)) || !(flag & 8)) {
+    if ((flag & (2 | 4 | 16)) || !(flag & 8)) {
         /* Merge old and new lists */
         ret = iso_node_merge_xattr(
                   node, num_attrs, names, value_lengths, values,
                   &m_num, &m_names, &m_value_lengths, &m_values,
-                  (flag & 4) | (!(flag & 2)) | ((!(flag & 1)) << 4));
+                  (flag & 4) | (!(flag & 2)) | ((!(flag & 1)) << 4) |
+                  ((flag & 16) << 1));
         if (ret < 0)
             goto ex;
         num_attrs = m_num;
