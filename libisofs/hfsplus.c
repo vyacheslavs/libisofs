@@ -1511,18 +1511,18 @@ int mangle_leafs(Ecma119Image *target, int flag)
 #endif /* ! Libisofs_with_mangle_masK */
 
 
-           ret= try_mangle(target, i, prev, i + 1, target->hfsp_nleafs,
-                           &new_idx, target->hfsp_leafs[i].node->name, 0);
-           if (ret == 0)
-               ret= try_mangle(target, i, prev, 0, target->hfsp_nleafs,
-                               &new_idx, "MANGLED", 0);
-           if (ret < 0)
-               return(ret);
-           if (new_idx > i) {
-               i--; /* an unprocessed candidate has been rotated to i */
-           } else {
-               prev = i; /* advance */
-           }
+            ret= try_mangle(target, i, prev, i + 1, target->hfsp_nleafs,
+                            &new_idx, target->hfsp_leafs[i].node->name, 0);
+            if (ret == 0)
+                ret= try_mangle(target, i, prev, 0, target->hfsp_nleafs,
+                                &new_idx, "MANGLED", 0);
+            if (ret < 0)
+                return(ret);
+            if (new_idx > i) {
+                i--; /* an unprocessed candidate has been rotated to i */
+            } else {
+                prev = i; /* advance */
+            }
         }
     }
 
