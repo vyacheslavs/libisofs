@@ -84,7 +84,7 @@
  */
 #define iso_lib_header_version_major  1
 #define iso_lib_header_version_minor  2
-#define iso_lib_header_version_micro  4
+#define iso_lib_header_version_micro  5
 
 /**
  * Get version of the libisofs library at runtime.
