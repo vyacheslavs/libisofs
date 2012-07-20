@@ -1193,7 +1193,7 @@ int subst_symlink_dest_comp(Ecma119Image *target, uint32_t idx,
     wpt += *comp_start - *dest;
     memcpy(wpt, new_name, new_len);
     wpt += new_len;
-    if (*comp_end - *dest < *dest_len)
+    if ((unsigned int) (*comp_end - *dest) < *dest_len)
         memcpy(wpt, *comp_end, *dest_len - (*comp_end - *dest));
     wpt += *dest_len - (*comp_end - *dest);
     *wpt = 0;
