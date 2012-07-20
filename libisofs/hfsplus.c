@@ -20,27 +20,6 @@
 #define Libisofs_ts_debuG yes
 
 
-/* Do not fill gaps in APM.
-   <<< provisory , rather not
- # define Libisofs_hfsplus_no_gap_filL yes
-*/
-
-/* Avoid ISO block padding in hfsplus_tail_writer
-   <<< provisory , rather not
- # define Libisofs_apm_flags_bit2 yes
-*/
-
-/* A brute force method of mangling to ensure proper sorting after a name
-   change.
- # define Libisofs_mangle_with_sort yes
-*/
-
-/* A brute force method of mangling which prevents the registration of
-   collisions on the first hand.
- # define Libisofs_mangle_while_set_hfsplus_namE yes
-*/
-
-
 #ifdef HAVE_CONFIG_H
 #include "../config.h"
 #endif
@@ -71,10 +50,6 @@
 */
 #define HFSPLUS_MAX_BLOCK_SIZE 2048
 
-
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-static int set_mangled_hfsplus_name(Ecma119Image *t, char *name, uint32_t idx);
-#endif
 
 /* In libisofs/hfsplus_case.c */
 extern uint16_t iso_hfsplus_cichar(uint16_t x);
@@ -340,20 +315,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
 
     t->hfsp_leafs[t->hfsp_curleaf].node = iso;
     t->hfsp_leafs[t->hfsp_curleaf].parent_id = parent_id;
-
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-
-    /* Important: Except for root node, .node and .parent_id need both to be
-                  known in name setter */
-
-    ret = set_mangled_hfsplus_name (t, iso->name, t->hfsp_curleaf);
-
-#else
-
     ret = set_hfsplus_name (t, iso->name, &t->hfsp_leafs[t->hfsp_curleaf]);
-
-#endif /* ! Libisofs_mangle_while_set_hfsplus_namE */
-
     if (ret < 0)
         return ret;
     t->hfsp_leafs[t->hfsp_curleaf].cat_id = cat_id;
@@ -487,18 +449,6 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
   t->hfsp_allocation_file_start = hfsp_curblock;
   hfsp_curblock += t->hfsp_allocation_blocks;
 
-#ifdef Libisofs_apm_flags_bit2
-
-  /* Superblock always occupies 2K */
-  hfsp_curblock += block_fac;
-
-  /* write_data() will need to pad up ISO block after superblock copy */
-  t->curblock = hfsp_curblock / block_fac;
-  if (hfsp_curblock % block_fac)
-      t->curblock++;
-
-#else /* Libisofs_apm_flags_bit2 */
-
   /* write_data() will need to pad up ISO block before superblock copy */
   t->curblock = hfsp_curblock / block_fac;
   if (hfsp_curblock % block_fac)
@@ -509,8 +459,6 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
   hfsp_curblock += block_fac;
   t->curblock++;
 
-#endif /* ! Libisofs_apm_flags_bit4 */
-
 #ifdef Libisofs_ts_debuG
   iso_msg_debug(t->image->id, "hfsplus tail writer end = %.f",
                 ((double) hfsp_curblock) * block_size);
@@ -518,27 +466,10 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
 
   t->hfsp_total_blocks = hfsp_curblock - t->hfsp_part_start;
 
-#ifdef Libisofs_hfsplus_no_gap_filL
-  /* <<< test B20625 : leave out gap filling */
-  t->apm_req_flags |= 2;
-#endif /* Libisofs_hfsplus_no_gap_filL */
-
-#ifdef Libisofs_apm_flags_bit2
-
-  t->apm_req_flags |= 4;
-  return iso_quick_apm_entry(t, t->hfsp_part_start,
-			     t->hfsp_total_blocks,
-                            "HFSPLUS_Hybrid", "Apple_HFS");
-
-#else /* Libisofs_apm_flags_bit2 */
-
   return iso_quick_apm_entry(t, t->hfsp_part_start / block_fac,
 			     t->hfsp_total_blocks / block_fac +
 			     !!(t->hfsp_total_blocks % block_fac),
                             "HFSPLUS_Hybrid", "Apple_HFS");
-
-#endif /* ! Libisofs_apm_flags_bit2 */
-
 }
 
 
@@ -1140,12 +1071,9 @@ int hfsplus_tail_writer_write_data(IsoImageWriter *writer)
 	  return ret;
       }
 
-#ifndef Libisofs_apm_flags_bit2
     ret = pad_up_block(t);
     if (ret < 0)
 	return ret;
-#endif /* ! Libisofs_apm_flags_bit2 */
-
     iso_msg_debug(t->image->id, "%d written", (int) t->bytes_written);
 
     ret = write_sb (t);
@@ -1155,14 +1083,7 @@ int hfsplus_tail_writer_write_data(IsoImageWriter *writer)
                   (double) t->bytes_written);
 #endif
 
-#ifdef Libisofs_apm_flags_bit2
-    ret = pad_up_block(t);
-    if (ret < 0)
-	return ret;
-#endif /* Libisofs_apm_flags_bit2 */
-
     return ret;
-
 }
 
 static
@@ -1490,19 +1411,10 @@ int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
             goto no_success;
         if (ret == 0)
     continue; /* collision */
-
-#ifdef Libisofs_mangle_with_sort
-
-        /* Sorting happens later */
-        *new_idx = idx;
-
-#else
         if (flag & 1)
             *new_idx = idx;
         else
             rotate_hfs_list(target, idx, *new_idx, 0);
-
-#endif /* Libisofs_mangle_with_sort */
 
         /* >>> Get full ISO-RR paths of colliding nodes */;
         /* >>> iso_tree_get_node_path(node); */
@@ -1541,16 +1453,7 @@ int mangle_leafs(Ecma119Image *target, int flag)
     int ret;
     uint32_t i, new_idx, prev, first_prev;
 
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-    iso_msg_debug(target->image->id, "%s",
-                  "HFS+ check for name uniqueness started ...");
-#else
     iso_msg_debug(target->image->id, "%s", "HFS+ mangling started ...");
-#endif
-
-#ifdef Libisofs_mangle_with_sort
-re_start:;
-#endif
 
     /* Look for the first owner of a name */
     for (prev = 0; prev < target->hfsp_nleafs; prev++) {
@@ -1582,9 +1485,6 @@ re_start:;
         }
         target->hfsp_collision_count++;
 
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-        return ISO_HFSP_NO_MANGLE;
-#endif
 
 #ifdef Libisofs_with_mangle_masK
 
@@ -1623,17 +1523,7 @@ re_start:;
            } else {
                prev = i; /* advance */
            }
-
-#ifdef Libisofs_mangle_with_sort
-
-           qsort(target->hfsp_leafs, target->hfsp_nleafs,
-                 sizeof(*target->hfsp_leafs), cmp_node);
-           goto re_start;
-
-#endif
-
         }
-        
     }
 
     if (target->hfsp_collision_count > 0) {
@@ -1667,59 +1557,11 @@ re_start:;
         qsort(target->hfsp_leafs, target->hfsp_nleafs,
               sizeof(*target->hfsp_leafs), cmp_node);
     }
-
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-    iso_msg_debug(target->image->id,
-                  "HFS+ check for name uniqueness successful.");
-#else
     iso_msg_debug(target->image->id,
                   "HFS+ mangling done. Resolved Collisions: %lu",
                   (unsigned long) target->hfsp_collision_count);
-#endif
-
     return ISO_SUCCESS;
 }
-
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-
-static
-int set_mangled_hfsplus_name(Ecma119Image *t, char *name, uint32_t idx)
-{
-    uint32_t found_idx, new_idx;
-    int ret;
-
-    ret = set_hfsplus_name(t, name, &t->hfsp_leafs[idx]);
-    if (ret < 0)
-        return ret;
-    ret = search_mangled_pos(t, idx, &found_idx, 0, t->hfsp_curleaf, 1);
-    if (ret != 0)
-        return ISO_SUCCESS; /* no collision */
-    t->hfsp_collision_count++;
-
-    iso_msg_debug(t->image->id,
-                  "HFS+ name collision between '%s' and '%s'",
-                  t->hfsp_leafs[idx].node->name,
-                  t->hfsp_leafs[found_idx].node->name);
-
-    ret= try_mangle(t, idx, found_idx, 0, t->hfsp_curleaf, &new_idx,
-                    t->hfsp_leafs[idx].node->name, 1);
-    if (ret == 0)
-        ret= try_mangle(t, idx, found_idx, 0, t->hfsp_curleaf, &new_idx,
-                        "MANGLED", 1);
-    if (ret < 0)
-        return(ret);
-    if (ret == 0) /* should not happen */
-        return ISO_HFSP_NO_MANGLE;
-
-    /* >>> ??? How to adjust symbolic links ?
-               Especially those which are not yet registered in hfsp_leafs
-     */;
-
-    return ISO_SUCCESS;
-}
-
-#endif /* Libisofs_mangle_while_set_hfsplus_namE */
-
 
 int hfsplus_writer_create(Ecma119Image *target)
 {
@@ -1773,19 +1615,8 @@ int hfsplus_writer_create(Ecma119Image *target)
     if (target->hfsp_leafs == NULL) {
         return ISO_OUT_OF_MEM;
     }
-
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-
-    ret = set_mangled_hfsplus_name (target, target->image->volume_id,
-                                    target->hfsp_curleaf);
-
-#else
-
     ret = set_hfsplus_name (target, target->image->volume_id,
                             &target->hfsp_leafs[target->hfsp_curleaf]);
-
-#endif /* ! Libisofs_mangle_while_set_hfsplus_namE */
-
     if (ret < 0)
         return ret;
     target->hfsp_leafs[target->hfsp_curleaf].node = (IsoNode *) target->image->root;
@@ -1823,12 +1654,6 @@ int hfsplus_writer_create(Ecma119Image *target)
 	pos = pos->next;
 	target->hfsp_leafs[0].nchildren++;
       }
-
-#ifdef Libisofs_mangle_while_set_hfsplus_namE
-    iso_msg_debug(target->image->id,
-                  "Resolved HFS+ name collisions: %lu",
-                  (unsigned long) target->hfsp_collision_count);
-#endif
 
     qsort(target->hfsp_leafs, target->hfsp_nleafs,
           sizeof(*target->hfsp_leafs), cmp_node);
