@@ -1433,6 +1433,9 @@ int iso_write_opts_set_joliet(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_hfsplus(IsoWriteOpts *opts, int enable);
 
 /**
+ * >>> Production of FAT32 is not implemented yet.
+ * >>> This call exists only as preparation for implementation.
+ *
  * Whether to add a FAT32 filesystem to the image which points to the same
  * file content as the other directory trees.
  *
@@ -2369,7 +2372,7 @@ int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
  *    containing only raw ELF and having type 0x41."
  *
  * This feature is only combinable with system area type 0
- * >>> and currently not combinable with ISOLINUX isohybrid production.
+ * and currently not combinable with ISOLINUX isohybrid production.
  * It overrides --protective-msdos-label. See iso_write_opts_set_system_area().
  * Only partition 4 stays available for iso_write_opts_set_partition_img().
  * It is compatible with HFS+/FAT production by storing the PreP partition
@@ -3476,8 +3479,6 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  *                1= Mention as Basic Data partition.
  *                   This cannot be combined with GPT partitions as of
  *                   iso_write_opts_set_efi_bootp()
- *                   >>> ts B20620 : and not with iso_write_opts_set_hfsplus()
- *                   >>>             if it produces GPT entries
  *                   @since 1.2.4
  *                2= Mention as HFS+ partition.
  *                   This cannot be combined with HFS+ production by

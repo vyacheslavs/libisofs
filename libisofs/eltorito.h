@@ -64,11 +64,11 @@ struct el_torito_boot_image {
      * bit 1 -> whether to put built-in isolinux 3.72 isohybrid-MBR into image
      *          System Area (deprecated)
      *
-     *  >>> bit2-7= Mentioning in isohybrid GPT
-     *  >>>         0= do not mention in GPT
-     *  >>>         1= mention as EFI partition
-     *  >>>         2= Mention as HFS+ partition
-     *  >>> bit8= Mention in isohybrid Apple partition map
+     *  bit2-7= Mentioning in isohybrid GPT
+     *          0= do not mention in GPT
+     *          1= mention as EFI partition
+     *          2= Mention as HFS+ partition
+     *  bit8= Mention in isohybrid Apple partition map
      */
     unsigned int isolinux_options;
     unsigned char type; /**< The type of image */

@@ -1468,8 +1468,8 @@ int try_mangle(Ecma119Image *target, uint32_t idx, uint32_t prev_idx,
             goto no_success;
         }
 
-        /* >>> "-" sorts lower than capital letters ,
-               "_" causes longer rotations
+        /* "-" would sort lower than capital letters ,
+           traditional "_" causes longer rotations
          */
         sprintf(new_name, "%s_%s", prefix, number);
 

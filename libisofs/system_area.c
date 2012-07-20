@@ -1969,7 +1969,7 @@ static int precompute_gpt(Ecma119Image *t)
         /*
         ret = iso_quick_gpt_entry(t, 16, 20, hfs_uuid, zero_uuid,
                                   gpt_flags, gpt_name);
-        / * >>> Caution: Size 90 causes intentional partition overlap error * /
+        / * Caution: Size 90 causes intentional partition overlap error * /
         ret = iso_quick_gpt_entry(t, 30, 90, hfs_uuid, zero_uuid,
                                   gpt_flags, gpt_name);
         */ 

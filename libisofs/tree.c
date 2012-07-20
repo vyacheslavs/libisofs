@@ -1211,9 +1211,9 @@ int iso_tree_resolve_symlink(IsoImage *img, IsoSymlink *sym, IsoNode **res,
 
     if (dest[0] == '/') {
 
-        /* >>> ??? How to resolve absolute links without knowing the
-                   path of the future mount point ?
-               ??? Would it be better to throw error ? 
+        /* ??? How to resolve absolute links without knowing the
+               path of the future mount point ?
+           ??? Would it be better to throw error ? 
            I can only assume that it gets mounted at / during some stage
            of booting.
         */;

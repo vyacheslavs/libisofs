@@ -33,7 +33,7 @@ Common Hardware Reference Platform (CHRP), for IBM PowerPC
 
 Combinations of boot mechanisms:
 - SYSLINUX isohybrid MBR
-- SYSLINUX isohybrid for MBR, UEFI and x86 Mac
+- SYSLINUX isohybrid for MBR, UEFI and x86-Mac
 - GRUB2 grub-mkrescue MBR
 >>> Mac and/or PowerPC bootable GRUB2 image with HFS+/FAT, APM,
     EFI GPT partition, PreP MBR partition, mountable FAT partition
