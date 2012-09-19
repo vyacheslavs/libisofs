@@ -121,10 +121,19 @@ static uint32_t compute_partition_size(char *disk_path, uint32_t *size,
 */
 int iso_compute_append_partitions(Ecma119Image *t, int flag)
 {
-    int ret, i, sa_type;
+    int ret, i, sa_type, cyl_align, cyl_size = 0;
     uint32_t pos, size, add_pos = 0;
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
+    cyl_align = (t->system_area_options >> 8) & 0x3;
+    if (sa_type == 0 && (cyl_align == 1 ||
+                      (cyl_align == 0 && (t->system_area_options & 3) == 2))) {
+        cyl_size = t->partition_heads_per_cyl * t->partition_secs_per_head;
+        if (cyl_size % 4)
+            cyl_size = 0;
+        else
+            cyl_size /= 4;
+    }
     pos = (t->vol_space_size + t->ms_block);
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         if (t->appended_partitions[i] == NULL)
@@ -134,10 +143,20 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
         ret = compute_partition_size(t->appended_partitions[i], &size, 0);
         if (ret < 0)
             return ret;
-        if (sa_type == 3 && (pos % ISO_SUN_CYL_SIZE))
+        add_pos = 0;
+        if (sa_type == 3 && (pos % ISO_SUN_CYL_SIZE)) {
             add_pos = ISO_SUN_CYL_SIZE - (pos % ISO_SUN_CYL_SIZE);
+        } else if (cyl_size > 0 && (pos % cyl_size)) {
+            add_pos = cyl_size - (pos % cyl_size);
+        }
         t->appended_part_prepad[i] = add_pos;
         t->appended_part_start[i] = pos + add_pos;
+
+        if (cyl_size > 0 && (size % cyl_size)) {
+            /* Obey cylinder alignment (missing data will be written as
+               zeros by iso_write_partition_file()) */
+            size += cyl_size - (size % cyl_size);
+        }
         t->appended_part_size[i] = size;
         pos += add_pos + size;
         t->total_size += (add_pos + size) * 2048;
