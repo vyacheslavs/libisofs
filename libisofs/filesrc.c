@@ -335,6 +335,9 @@ int filesrc_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
     filelist = (IsoFileSrc **) writer->data;
 
+    /* >>> HFS: need to align to allocation block size */;
+    /* >>> HFS: ??? how to handle multi-extent files ? */;
+
     t->filesrc_start = t->curblock;
 
     /* Give all extent addresses their final absolute value */
@@ -487,6 +490,8 @@ int iso_filesrc_write_data(Ecma119Image *t, IsoFileSrc *file,
         iso_msg_debug(t->image->id, "Writing file %s", name);
     }
 #endif
+
+    /* >>> HFS: need to align to allocation block size */;
 
 #ifdef Libisofs_with_libjtE
     if (t->libjte_handle != NULL) {

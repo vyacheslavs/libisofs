@@ -713,6 +713,15 @@ struct ecma119_image
      *       0 = auto (align if bit1)
      *       1 = always align to cylinder boundary
      *       2 = never align to cylinder boundary
+     *       3 = always align, additionally pad up and align partitions
+     *           which were appended by iso_write_opts_set_partition_img()
+     * bit10-13= System area sub type
+     *       With type 0 = MBR:
+     *         Gets overridden by bit0 and bit1.
+     *         0 = no particular sub type
+     *         1 = CHRP: A single MBR partition of type 0x96 covers the
+     *                   ISO image. Not compatible with any other feature
+     *                   which needs to have own MBR partition entries.
      */
     int system_area_options;
 

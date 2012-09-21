@@ -2180,6 +2180,9 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                0 = auto (align if bit1)
  *                1 = always align to cylinder boundary
  *                2 = never align to cylinder boundary
+ *                3 = always align, additionally pad up and align partitions
+ *                    which were appended by iso_write_opts_set_partition_img()
+ *                    @since 1.2.6
  *        bit10-13= System area sub type
  *              @since 1.2.4
  *              With type 0 = MBR:
@@ -7464,42 +7467,12 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
     This allows to use arbitrary program code as provider of track input data.
 
     Objects compliant to this interface are either provided by the application
-    or by API calls of libburn: burn_fd_source_new() , burn_file_source_new(),
+    or by API calls of libburn: burn_fd_source_new(), burn_file_source_new(),
     and burn_fifo_source_new().
 
-    The API calls allow to use any file object as data source. Consider to feed
-    an eventual custom data stream asynchronously into a pipe(2) and to let
-    libburn handle the rest. 
-    In this case the following rule applies:
-    Call burn_source_free() exactly once for every source obtained from
-    libburn API. You MUST NOT otherwise use or manipulate its components.
+    libisofs acts as "application" and implements an own class of burn_source.
+    Instances of that class are handed out by iso_image_create_burn_source().
 
-    In general, burn_source objects can be freed as soon as they are attached
-    to track objects. The track objects will keep them alive and dispose them
-    when they are no longer needed. With a fifo burn_source it makes sense to
-    keep the own reference for inquiring its state while burning is in
-    progress.
-
-    ---
-
-    The following description of burn_source applies only to application
-    implemented burn_source objects. You need not to know it for API provided
-    ones.
-
-    If you really implement an own passive data producer by this interface,
-    then beware: it can do anything and it can spoil everything.
-
-    In this case the functions (*read), (*get_size), (*set_size), (*free_data)
-    MUST be implemented by the application and attached to the object at
-    creation time.
-    Function (*read_sub) is allowed to be NULL or it MUST be implemented and
-    attached.
-
-    burn_source.refcount MUST be handled properly: If not exactly as many
-    references are freed as have been obtained, then either memory leaks or
-    corrupted memory are the consequence.
-    All objects which are referred to by *data must be kept existent until
-    (*free_data) is called via burn_source_free() by the last referer.
 */
 struct burn_source {
 

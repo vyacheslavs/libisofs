@@ -126,8 +126,7 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     cyl_align = (t->system_area_options >> 8) & 0x3;
-    if (sa_type == 0 && (cyl_align == 1 ||
-                      (cyl_align == 0 && (t->system_area_options & 3) == 2))) {
+    if (sa_type == 0 && cyl_align == 3) {
         cyl_size = t->partition_heads_per_cyl * t->partition_secs_per_head;
         if (cyl_size % 4)
             cyl_size = 0;
@@ -1682,7 +1681,7 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
         iso_msgs_submit(0, msg, 0, "NOTE", 0);
     }
 
-    if (always_align >= 2)
+    if (always_align == 2)
         {ret = ISO_SUCCESS; goto ex;}
 
     cylsize = 0;
