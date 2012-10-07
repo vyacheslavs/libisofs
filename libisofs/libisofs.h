@@ -3488,7 +3488,11 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  *                   iso_write_opts_set_hfsplus().
  *                   @since 1.2.4
  *                Primary GPT and backup GPT get written if at least one 
- *                ElToritoBootImage shall be mentioned
+ *                ElToritoBootImage shall be mentioned.
+ *                The first three mentioned GPT partitions get mirrored in the
+ *                the partition table of the isohybrid MBR. They get type 0xfe.
+ *                Often it is one of these MBR partitions which actually gets
+ *                used by EFI.
  *                @since 1.2.4
  *        bit8= Mention in isohybrid Apple partition map
  *              APM get written if at least one ElToritoBootImage shall be

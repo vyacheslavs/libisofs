@@ -1578,7 +1578,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         img_blocks = t->curblock;                  /* value might be altered */
         ret = iso_offset_partition_start(img_blocks, t->partition_offset,
                                          t->partition_secs_per_head,
-                                         t->partition_heads_per_cyl, buf, 1);
+                                         t->partition_heads_per_cyl, buf, 0);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
     }
