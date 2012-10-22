@@ -186,10 +186,6 @@ unsigned int iso_crc32_gpt(unsigned char *data, int count, int flag);
 */
 void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16]);
 
-/* Produces a weakly random variation of a hardcoded real random template
-*/
-void iso_random_8byte(Ecma119Image *t, uint8_t result[8]);
-
 
 /* The parameter struct for production of a single GPT entry.
    See also the partial GPT description in doc/boot_sectors.txt.

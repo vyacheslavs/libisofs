@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 /* for gettimeofday() */
 #include <sys/time.h>
@@ -1852,12 +1853,13 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
         0xee, 0x29, 0x9d, 0xfc, 0x65, 0xcc, 0x7c, 0x40,
         0x92, 0x61, 0x5b, 0xcd, 0x6f, 0xed, 0x08, 0x34
     };
+    static uint8_t uuid_urandom[16];
     uint32_t rnd, salt;
     struct timeval tv;
     struct timezone tz;
     pid_t pid;
-    static int counter = 0;
-    int i;
+    static int counter = 0, use_urandom = 0;
+    int i, ret, fd;
 #endif
 
 #ifdef Libisofs_with_uuid_generatE
@@ -1868,6 +1870,32 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
 
 #else
 
+    /* First try /dev/urandom.
+       (Weakening the result by 8 bit saves a lot of pool entropy.)
+    */
+    if ((counter & 0xff) == 0) {
+        fd = open("/dev/urandom", O_RDONLY);
+        if (fd == -1)
+            goto fallback;
+        ret = read(fd, uuid_urandom, 16);
+        if (ret != 16) {
+            close(fd);
+            goto fallback;
+        }
+        /* Mark as UUID version 4 */
+        uuid_urandom[7] = (uuid_urandom[7] & 0x0f) | 0x40;
+        uuid_urandom[8] = (uuid_urandom[8] & 0x3f) | 0x80;
+        close(fd);
+        use_urandom = 1;
+    }
+    if (!use_urandom)
+        goto fallback;
+    memcpy(uuid, uuid_urandom, 16);
+    uuid[9] ^= counter & 0xff;
+    counter++;
+    return;
+
+fallback:;
     pid = getpid();
     salt = iso_crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0) ^ pid; 
 
@@ -1883,7 +1911,7 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
         u[i] = (salt >> (8 * i)) & 0xff;
     for (i = 0; i < 2; i++)
         u[4 + i] = (pid >> (8 * i)) & 0xff;
-    u[6] = ((salt >> 8) | (pid >> 16)) & 0xff;
+    u[6] = ((salt >> 8) ^ (pid >> 16)) & 0xff;
     rnd = ((0xffffff & tv.tv_sec) << 8) |
           (((tv.tv_usec >> 16) ^ (salt & 0xf0)) & 0xff);
     u[9] ^= counter & 0xff;
@@ -1897,21 +1925,6 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
 
 #endif /* ! Libisofs_with_uuid_generatE */    
 
-}
-
-
-void iso_random_8byte(Ecma119Image *t, uint8_t result[8])
-{
-    uint8_t uuid[16];
-    int i;
-    
-    iso_random_uuid(t, uuid);
-    for (i = 0; i < 8; i++) {
-        if (i == 1) 
-            result[i] = uuid[9]; /* The intra-process counter */
-        else 
-            result[i] = uuid[i] ^ uuid[i + 8];
-    }
 }
 
 
