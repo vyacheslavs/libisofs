@@ -394,7 +394,7 @@ int lba512chs_to_buf(char **wpt, off_t lba, int head_count, int sector_count)
 int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                              int *apm_count, int flag)
 {
-    int i, ilx_opts, j, ret;
+    int i, ilx_opts, j, ret, num_img;
     uint32_t block_count;
     uint8_t gpt_name[72];
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -412,7 +412,11 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
     *gpt_count = 0;
     *apm_count = 0;
 
-    for (i = 0; i < t->catalog->num_bootimages; i++) {
+    if (t->catalog != NULL)
+        num_img = t->catalog->num_bootimages;
+    else
+        num_img = 0;
+    for (i = 0; i < num_img; i++) {
         ilx_opts = t->catalog->bootimages[i]->isolinux_options;
         if (((ilx_opts >> 2) & 63) == 1 || ((ilx_opts >> 2) & 63) == 2) {
             if (*gpt_count < 128)
