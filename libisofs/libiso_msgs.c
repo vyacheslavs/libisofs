@@ -288,7 +288,7 @@ int libiso_msgs__sev_to_text(int severity, char **severity_name,
                              int flag)
 {
  if(flag&1) {
-   *severity_name= "NEVER\nABORT\nFATAL\nFAILURE\nMISHAP\nSORRY\nWARNING\nHINT\nNOTE\nUPDATE\nDEBUG\nERRFILE\nALL";
+   *severity_name= "ALL ERRFILE DEBUG UPDATE NOTE HINT WARNING SORRY MISHAP FAILURE FATAL ABORT NEVER";
    return(1);
  }
  *severity_name= "";
