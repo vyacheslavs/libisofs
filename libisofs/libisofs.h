@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2012 Thomas Schmitt
+ * Copyright (c) 2009-2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
