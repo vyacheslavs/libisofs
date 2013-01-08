@@ -1,6 +1,10 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.2.6.tar.gz)
+libisofs-1.2.6.tar.gz Tue Jan 08 2013
 ===============================================================================
-- no novelties yet -
+* Bug fix: Appended partitions did not obey cylinder alignment
+* Bug fix: Non-zero partition offset zeroized the MBR copies of GPT partition
+           table entries
+* Bug fix: Isohybrid production without any boot image led to SIGSEGV by NULL
+* Bug fix: Prevented a memory fault when reading damaged Rock Ridge information
 
 libisofs-1.2.4.tar.gz Fri Jul 20 2012
 ===============================================================================
