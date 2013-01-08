@@ -430,6 +430,8 @@ int ifs_lstat(IsoFileSource *src, struct stat *info)
     }
 
     data = src->data;
+    if (data == NULL)
+        return ISO_NULL_POINTER;
     *info = data->info;
     return ISO_SUCCESS;
 }
