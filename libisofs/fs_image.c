@@ -2857,9 +2857,9 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 {
     int ret, idx, to_copy;
     struct stat info;
-    IsoNode *new;
+    IsoNode *new = NULL;
     IsoBoot *bootcat;
-    char *name;
+    char *name = NULL;
     char *dest = NULL;
     ImageFileSourceData *data;
     _ImageFsData *fsdata;
@@ -2887,7 +2887,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         goto ex;
     }
 
-    new = NULL;
     switch (info.st_mode & S_IFMT) {
     case S_IFREG:
         {
@@ -2901,9 +2900,8 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                                  "More than one catalog node has been found. "
                                  "We can continue, but that could lead to "
                                  "problems");
-                    if (ret < 0) {
+                    if (ret < 0)
                         goto ex;
-                    }
                     iso_node_unref((IsoNode*)image->bootcat->node);
                 }
 
@@ -2911,9 +2909,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                  * a regular file */
                 new = calloc(1, sizeof(IsoBoot));
                 if (new == NULL) {
-                    ret = ISO_OUT_OF_MEM;
-                    free(name);
-                    goto ex;
+                    ret = ISO_OUT_OF_MEM; goto ex;
                 }
                 bootcat = (IsoBoot *) new;
                 bootcat->lba = data->sections[0].block;
@@ -2924,10 +2920,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 if (bootcat->size > 0) {
                     bootcat->content = calloc(1, bootcat->size);
                     if (bootcat->content == NULL) {
-                        ret = ISO_OUT_OF_MEM;
-                        free(name);
-                        free(new);
-                        goto ex;
+                        ret = ISO_OUT_OF_MEM; goto ex;
                     }
                     to_copy = bootcat->size;
                     if (bootcat->size > fsdata->catsize)
@@ -2944,16 +2937,14 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 IsoFile *file;
 
                 ret = iso_file_source_stream_new(src, &stream);
-                if (ret < 0) {
-                    free(name);
+                if (ret < 0)
                     goto ex;
-                }
+
                 /* take a ref to the src, as stream has taken our ref */
                 iso_file_source_ref(src);
 
                 file = calloc(1, sizeof(IsoFile));
                 if (file == NULL) {
-                    free(name);
                     iso_stream_unref(stream);
                     {ret = ISO_OUT_OF_MEM; goto ex;}
                 }
@@ -2977,7 +2968,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                                                data->block_size_log2,
                                                data->uncompressed_size, 0);
                     if (ret < 0) {
-                        free(name);
                         iso_stream_unref(stream);
                         goto ex;
                     }
@@ -3008,7 +2998,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                         ret = iso_msg_submit(image->id, ISO_EL_TORITO_WARN, 0,
              "More than one ISO node has been found for the same boot image.");
                         if (ret < 0) {
-                            free(name);
                             iso_stream_unref(stream);
                             goto ex;
                         }
@@ -3026,7 +3015,6 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             /* source is a directory */
             new = calloc(1, sizeof(IsoDir));
             if (new == NULL) {
-                free(name);
                 {ret = ISO_OUT_OF_MEM; goto ex;}
             }
             new->type = LIBISO_DIR;
@@ -3042,12 +3030,10 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
             ret = iso_file_source_readlink(src, dest, LIBISOFS_NODE_PATH_MAX);
             if (ret < 0) {
-                free(name);
                 goto ex;
             }
             link = calloc(1, sizeof(IsoSymlink));
             if (link == NULL) {
-                free(name);
                 {ret = ISO_OUT_OF_MEM; goto ex;}
             }
             link->dest = strdup(dest);
@@ -3068,8 +3054,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             IsoSpecial *special;
             special = calloc(1, sizeof(IsoSpecial));
             if (special == NULL) {
-                free(name);
-                {ret = ISO_OUT_OF_MEM; goto ex;}
+                ret = ISO_OUT_OF_MEM; goto ex;
             }
             special->dev = info.st_rdev;
             special->node.type = LIBISO_SPECIAL;
@@ -3080,11 +3065,12 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
             new->refcount = 0;
         }
         break;
+    default:
+        ret = ISO_BAD_ISO_FILETYPE; goto ex;
     }
-
     /* fill fields */
     new->refcount++;
-    new->name = name;
+    new->name = name; name = NULL;
     new->mode = info.st_mode;
     new->uid = info.st_uid;
     new->gid = info.st_gid;
@@ -3099,7 +3085,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     ret = src_aa_to_node(src, new, 0);
     if (ret < 0) {
-        goto failure;
+        goto ex;
     }
 
     /* Attach ino as xinfo if valid and no IsoStream is involved */
@@ -3107,18 +3093,17 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
         !fsdata->make_new_ino) {
         ret = iso_node_set_ino(new, info.st_ino, 0);
         if (ret < 0)
-            goto failure;
+            goto ex;
     }
 
-    *node = new;
+    *node = new; new = NULL;
     {ret = ISO_SUCCESS; goto ex;}
 
-failure:;
-    /* todo: stuff any possible memory leak here */
+ex:;
     if (name != NULL)
         free(name);
-    free(new);
-ex:;
+    if (new != NULL)
+        iso_node_unref(new);
     LIBISO_FREE_MEM(dest);
     return ret;
 }

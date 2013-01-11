@@ -500,6 +500,8 @@ const char *iso_error_to_msg(int errcode)
         return "Symbolic link cannot be resolved";
     case ISO_DEEP_SYMLINK:
         return "Too many chained symbolic links";
+    case ISO_BAD_ISO_FILETYPE:
+        return "Unrecognized file type in ISO image";
     default:
         return "Unknown error";
     }

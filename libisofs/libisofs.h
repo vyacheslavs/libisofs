@@ -7424,11 +7424,14 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /** Too many chained symbolic links                (FAILURE, HIGH, -395) */
 #define ISO_DEEP_SYMLINK            0xE830FE75
 
+/** Unrecognized file type in ISO image            (FAILURE, HIGH, -396) */
+#define ISO_BAD_ISO_FILETYPE        0xE830FE74
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 
    Newly introduced errors must get a message entry in
-   libisofs/message.c, function iso_error_to_msg()
+   libisofs/messages.c, function iso_error_to_msg()
 */
 
 /* ! PLACE NEW ERROR CODES ABOVE. NOT AFTER THIS LINE ! */
