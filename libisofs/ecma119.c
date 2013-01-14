@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1613,7 +1613,8 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
                  */;
             } else if (ret == 1 && img->checksum_array == NULL) {
                 /* No checksum array loaded. Delete "isofs.cx" */
-                iso_node_set_attrs(node, (size_t) 1,
+                if (!target->will_cancel)
+                  iso_node_set_attrs(node, (size_t) 1,
                               &cx_names, cx_value_lengths, &cx_valuept, 4 | 8);
                 no_md5 = 1;
             } else if (ret == 1 && value_length == 4) {
@@ -1639,8 +1640,9 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
         }
         /* Equip nodes with provisory isofs.cx numbers: 4 byte, all 0.
            Omit those from old image which will not be copied and have no MD5.
+           Do not alter the nodes if this is only a will_cancel run.
          */
-        if (!no_md5) {
+        if (!(target->will_cancel || no_md5)) {
             ret = iso_file_set_isofscx(file, (unsigned int) 0, 0);
             if (ret < 0)
                 return ret;

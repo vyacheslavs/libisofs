@@ -127,7 +127,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
     if (ret <= 0) {
-        if (ret == 0 && (*src)->checksum_index > 0) {
+        if (ret == 0 && (*src)->checksum_index > 0 && !img->will_cancel) {
             /* Duplicate file source was mapped to previously registered source
             */
             cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
@@ -152,7 +152,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
             no_md5 = 1;
     }
 
-    if ((img->md5_file_checksums & 1) && !no_md5) {
+    if ((img->md5_file_checksums & 1) && !(no_md5 || img->will_cancel)) {
         img->checksum_idx_counter++;
         if (img->checksum_idx_counter < 0x7fffffff) {
             fsrc->checksum_index = img->checksum_idx_counter;

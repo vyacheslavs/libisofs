@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -527,18 +527,25 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
             if (md5_pt == NULL)
                 return 0;
 
-            ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
-                                       &value, 0);
-            if (ret == 1 && value_length == 4) {
-                for (i = 0; i < 4; i++)
-                    idx = (idx << 8) | ((unsigned char *) value)[i];
-                if (idx > 0 && idx <= target->checksum_idx_counter) {
-                    memcpy(target->checksum_buffer + 16 * idx, md5_pt, 16);
+            if (!target->will_cancel) {
+                ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
+                                           &value, 0);
+                if (ret == 1 && value_length == 4) {
+                    for (i = 0; i < 4; i++)
+                        idx = (idx << 8) | ((unsigned char *) value)[i];
+                    if (idx > 0 && idx <= target->checksum_idx_counter) {
+                        memcpy(target->checksum_buffer + 16 * idx, md5_pt, 16);
+                    }
                 }
+                if (value != NULL)
+                    free(value);
+
+                /* ts B30114 : It is unclear why these are removed here.
+                               At least with the opts->will_cancel runs,
+                               this is not appropriate.
+                */
+                iso_node_remove_xinfo(node, checksum_md5_xinfo_func);
             }
-            if (value != NULL)
-                free(value);
-            iso_node_remove_xinfo(node, checksum_md5_xinfo_func);
             iso_node_remove_xinfo(node, checksum_cx_xinfo_func);
         }
     } else if (node->type == LIBISO_DIR) {
