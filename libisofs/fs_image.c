@@ -241,6 +241,10 @@ typedef struct
     char *copyright_file_id;
     char *abstract_file_id;
     char *biblio_file_id;
+    char *creation_time;
+    char *modification_time;
+    char *expiration_time;
+    char *effective_time;
 
     /* extension information */
 
@@ -2089,6 +2093,10 @@ void ifs_fs_free(IsoFilesystem *fs)
     free(data->copyright_file_id);
     free(data->abstract_file_id);
     free(data->biblio_file_id);
+    free(data->creation_time);
+    free(data->modification_time);
+    free(data->expiration_time);
+    free(data->effective_time);
     free(data->input_charset);
     free(data->local_charset);
 
@@ -2317,7 +2325,15 @@ int read_pvm(_ImageFsData *data, uint32_t block)
         data->copyright_file_id[0] = 0;
         data->abstract_file_id[0] = 0;
         data->biblio_file_id[0] = 0;
-    } 
+    }
+    data->creation_time =
+            iso_util_strcopy_untail((char*) pvm->vol_creation_time, 17);
+    data->modification_time =
+            iso_util_strcopy_untail((char*) pvm->vol_modification_time, 17);
+    data->expiration_time =
+            iso_util_strcopy_untail((char*) pvm->vol_expiration_time, 17);
+    data->effective_time =
+            iso_util_strcopy_untail((char*) pvm->vol_effective_time, 17);
 
     data->nblocks = iso_read_bb(pvm->vol_space_size, 4, NULL);
 
@@ -3553,6 +3569,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_image_set_copyright_file_id(image, data->copyright_file_id);
     iso_image_set_abstract_file_id(image, data->abstract_file_id);
     iso_image_set_biblio_file_id(image, data->biblio_file_id);
+    iso_image_set_pvd_times(image, data->creation_time,
+         data->modification_time, data->expiration_time, data->effective_time);
 
     if (features != NULL) {
         *features = malloc(sizeof(IsoReadImageFeatures));

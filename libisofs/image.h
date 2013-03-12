@@ -49,6 +49,10 @@ struct Iso_Image
     char *copyright_file_id;
     char *abstract_file_id;
     char *biblio_file_id;
+    char *creation_time;
+    char *modification_time;
+    char *expiration_time;
+    char *effective_time;
     
     /* el-torito boot catalog */
     struct el_torito_boot_catalog *bootcat;
@@ -233,5 +237,9 @@ int iso_image_set_checksums(IsoImage *image, char *checksum_array,
                             uint32_t start_lba, uint32_t end_lba,
                             uint32_t idx_count, int flag);
 
+
+int iso_image_set_pvd_times(IsoImage *image,
+                            char *creation_time, char *modification_time,
+                            char *expiration_time, char *effective_time);
 
 #endif /*LIBISO_IMAGE_H_*/

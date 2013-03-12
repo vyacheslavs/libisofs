@@ -145,6 +145,10 @@ void iso_image_unref(IsoImage *image)
         free(image->copyright_file_id);
         free(image->abstract_file_id);
         free(image->biblio_file_id);
+        free(image->creation_time);
+        free(image->modification_time);
+        free(image->expiration_time);
+        free(image->effective_time);
         if (image->used_inodes != NULL)
             free(image->used_inodes);
         if (image->system_area_data != NULL)
@@ -333,6 +337,37 @@ const char *iso_image_get_biblio_file_id(const IsoImage *image)
     if (image->biblio_file_id == NULL)
         return "";
     return image->biblio_file_id;
+}
+
+int iso_image_set_pvd_times(IsoImage *image,
+                            char *creation_time, char *modification_time,
+                            char *expiration_time, char *effective_time)
+{
+    if (creation_time == NULL || modification_time == NULL ||
+        expiration_time == NULL || effective_time == NULL)
+        return ISO_NULL_POINTER;
+    image->creation_time = strdup(creation_time);
+    image->modification_time = strdup(modification_time);
+    image->expiration_time = strdup(expiration_time);
+    image->effective_time = strdup(effective_time);
+    if (image->creation_time == NULL || image->modification_time == NULL ||
+        image->expiration_time == NULL || image->effective_time == NULL)
+        return ISO_OUT_OF_MEM;
+    return ISO_SUCCESS;
+}
+
+int iso_image_get_pvd_times(IsoImage *image,
+                            char **creation_time, char **modification_time,
+                            char **expiration_time, char **effective_time)
+{
+    if (image->creation_time == NULL || image->modification_time == NULL ||
+        image->expiration_time == NULL || image->effective_time == NULL)
+        return ISO_NULL_POINTER;
+    *creation_time = image->creation_time;
+    *modification_time = image->modification_time;
+    *expiration_time = image->expiration_time;
+    *effective_time = image->effective_time;
+    return ISO_SUCCESS;
 }
 
 int iso_image_get_msg_id(IsoImage *image)

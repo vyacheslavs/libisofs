@@ -98,6 +98,7 @@ iso_image_get_data_preparer_id;
 iso_image_get_mips_boot_files;
 iso_image_get_msg_id;
 iso_image_get_publisher_id;
+iso_image_get_pvd_times;
 iso_image_get_root;
 iso_image_get_session_md5;
 iso_image_get_system_area;

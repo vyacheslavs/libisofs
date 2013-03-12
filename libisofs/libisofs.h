@@ -3028,6 +3028,36 @@ void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
 const char *iso_image_get_biblio_file_id(const IsoImage *image);
 
 /**
+ * Get the four timestamps from the Primary Volume Descriptor of the imported
+ * ISO image. The timestamps are strings which are either empty or consist
+ * of 17 digits of the form YYYYMMDDhhmmsscc.
+ * None of the returned string pointers shall be used for altering or freeing
+ * data. They are just for reading. 
+ *
+ * @param image
+ *        The image to be inquired.
+ * @param vol_creation_time
+ *        Returns a pointer to the Volume Creation time:
+ *        When "the information in the volume was created."
+ * @param vol_modification_time
+ *        Returns a pointer to Volume Modification time:
+ *        When "the information in the volume was last modified."
+ * @param vol_expiration_time
+ *        Returns a pointer to Volume Expiration time:
+ *        When "the information in the volume may be regarded as obsolete."
+ * @param vol_effective_time
+ *        Returns a pointer to Volume Expiration time:
+ *        When "the information in the volume may be used."
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.2.8
+ */
+int iso_image_get_pvd_times(IsoImage *image,
+                            char **creation_time, char **modification_time,
+                            char **expiration_time, char **effective_time);
+
+/**
  * Create a new set of El-Torito bootable images by adding a boot catalog
  * and the default boot image.
  * Further boot images may then be added by iso_image_add_boot_image().
