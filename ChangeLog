@@ -1,7 +1,9 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.2.8.tar.gz)
+libisofs-1.2.8.tar.gz Mon Mar 18 2013
 ===============================================================================
-- no novelties yet -
-
+* New API call iso_image_get_pvd_times().
+* Bug fix: Image size prediction altered the pointers to MD5 of data files
+           which stem from a previous session.
+* Bug fix: Reading damaged Rock Ridge data could cause SIGSEGV by NULL.
 
 libisofs-1.2.6.tar.gz Tue Jan 08 2013
 ===============================================================================
