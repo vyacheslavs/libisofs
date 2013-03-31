@@ -35,6 +35,22 @@
 #include <stdio.h>
 
 
+/* Enable this and write the correct absolute path into the include statement
+   below in order to test the pending contribution to syslinux:
+     http://www.syslinux.org/archives/2013-March/019755.html
+
+ # def ine Libisofs_syslinux_tesT 1
+
+*/
+#ifdef Libisofs_syslinux_tesT
+#define Isolinux_rockridge_in_libisofS 1
+#include "/reiser/syslinux/core/fs/iso9660/susp_rr.c"
+/*
+ # inc lude "/home/thomas/projekte/cdrskin_dir/libisoburn-develop/test/susp_rr.c"
+*/
+#endif /* Libisofs_syslinux_tesT */
+
+
 /**
  * Options for image reading.
  * There are four kind of options:
@@ -1456,6 +1472,45 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
                                  "Invalid NM entry");
                 }
+
+#ifdef Libisofs_syslinux_tesT
+
+if (name != NULL && !namecont) {
+    struct device syslinux_dev;
+    struct iso_sb_info syslinux_sbi;
+    struct fs_info syslinux_fsi;
+    char *syslinux_name = NULL;
+    int syslinux_name_len;
+
+    syslinux_dev.src = fsdata->src;
+    memset(&(syslinux_sbi.root), 0, 256);
+    syslinux_sbi.do_rr = 1;
+    syslinux_sbi.susp_skip = 0;
+    syslinux_fsi.fs_dev = &syslinux_dev;
+    syslinux_fsi.fs_info = &syslinux_sbi;
+    ret = susp_rr_get_nm(&syslinux_fsi, (char *) record,
+                         &syslinux_name, &syslinux_name_len);
+    if (ret == 1) {
+        if (name == NULL || syslinux_name == NULL)
+          fprintf(stderr, "################ Hoppla. NULL\n");
+        else if(strcmp(syslinux_name, name) != 0)
+          fprintf(stderr,
+                  "################ libisofs '%s' != '%s' susp_rr_get_nm()\n",
+                  name, syslinux_name);
+    } else if (ret == 0) {
+        fprintf(stderr,
+                "################ '%s' not found by susp_rr_get_nm()\n", name);
+    } else {
+        fprintf(stderr, "################ 'susp_rr_get_nm() returned error\n");
+    }
+    if (syslinux_name != NULL)
+        free(syslinux_name);
+
+}
+
+#endif /* Libisofs_syslinux_tesT */
+
+
             } else if (SUSP_SIG(sue, 'S', 'L')) {
                 if (linkdest != NULL && linkdestcont == 0) {
                     /* ups, RR standard violation */
@@ -2130,6 +2185,27 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
 
     /* record will be the "." directory entry for the root record */
     record = (struct ecma119_dir_record *)buffer;
+
+#ifdef Libisofs_syslinux_tesT
+
+{
+    struct device syslinux_dev;
+    struct iso_sb_info syslinux_sbi;
+    struct fs_info syslinux_fsi;
+
+    syslinux_dev.src = data->src;
+    memcpy(&(syslinux_sbi.root), (char *) record, 256);
+    syslinux_sbi.do_rr = 1;
+    syslinux_sbi.susp_skip = 0;
+    syslinux_fsi.fs_dev = &syslinux_dev;
+    syslinux_fsi.fs_info = &syslinux_sbi;
+    
+    ret = susp_rr_check_signatures(&syslinux_fsi, 1);
+    fprintf(stderr, "--------- susp_rr_check_signatures == %d , syslinux_sbi.do_rr == %d\n", ret, syslinux_sbi.do_rr);
+}
+    
+#endif /* Libisofs_syslinux_tesT */
+    
 
     /*
      * TODO #00015 : take care of CD-ROM XA discs when reading SP entry
