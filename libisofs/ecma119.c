@@ -501,13 +501,23 @@ void ecma119_set_voldescr_times(IsoImageWriter *writer,
     else
         iso_datetime_17(vol->vol_modification_time, t->now, t->always_gmt);
 
-    if (t->vol_expiration_time > 0)
+    if (t->vol_expiration_time > 0) {
         iso_datetime_17(vol->vol_expiration_time, t->vol_expiration_time,
                         t->always_gmt);
+    } else {
+       for(i = 0; i < 16; i++)
+           vol->vol_expiration_time[i] = '0';
+       vol->vol_expiration_time[16] = 0;
+    }
 
-    if (t->vol_effective_time > 0)
+    if (t->vol_effective_time > 0) {
         iso_datetime_17(vol->vol_effective_time, t->vol_effective_time,
                         t->always_gmt);
+    } else {
+       for(i = 0; i < 16; i++)
+           vol->vol_effective_time[i] = '0';
+       vol->vol_effective_time[16] = 0;
+    }
 }
 
 /**

@@ -1,6 +1,7 @@
 bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.3.0.tar.gz)
 ===============================================================================
-- no novelties yet -
+* Bug fix: Unspecified Expiration Time and Effective Time of ISO volume was
+           represented by 0-bytes rather than ASCII '0' digits.
 
 
 libisofs-1.2.8.tar.gz Mon Mar 18 2013
