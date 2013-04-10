@@ -344,9 +344,9 @@ const char *iso_error_to_msg(int errcode)
     case ISO_WRONG_PVD:
         return "Wrong or damaged Primary Volume Descriptor";
     case ISO_WRONG_RR:
-        return "Wrong or damaged RR entry";
+        return "Wrong or damaged Rock Ridge entry";
     case ISO_UNSUPPORTED_RR:
-        return "Unsupported RR feature";
+        return "Unsupported Rock Ridge feature";
     case ISO_WRONG_ECMA119:
         return "Wrong or damaged ECMA-119";
     case ISO_UNSUPPORTED_ECMA119:
@@ -360,9 +360,9 @@ const char *iso_error_to_msg(int errcode)
     case ISO_UNSUPPORTED_SUSP:
         return "Unsupported SUSP feature";
     case ISO_WRONG_RR_WARN:
-        return "Error on a RR entry that can be ignored";
+        return "Error on a Rock Ridge entry that can be ignored";
     case ISO_SUSP_UNHANDLED:
-        return "Error on a RR entry that can be ignored";
+        return "Unhandled SUSP entry";
     case ISO_SUSP_MULTIPLE_ER:
         return "Multiple ER SUSP entries found";
     case ISO_UNSUPPORTED_VD:
