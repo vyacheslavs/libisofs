@@ -330,6 +330,30 @@ typedef struct
      */
     int px_ino_status;
 
+    /* Which Rock Ridge error messages already have occured
+       bit0= Invalid PX entry
+       bit1= Invalid TF entry
+       bit2= New NM entry found without previous CONTINUE flag
+       bit3= Invalid NM entry
+       bit4= New SL entry found without previous CONTINUE flag
+       bit5= Invalid SL entry
+       bit6= Invalid SL entry, no child location
+       bit7= Invalid PN entry
+       bit8= Sparse files not supported
+       bit9= SP entry found in a directory entry other than '.' entry of root
+      bit10= ER entry found in a directory entry other than '.' entry of root
+      bit11= Invalid AA entry
+      bit12= Invalid AL entry
+      bit13= Invalid ZF entry
+      bit14= Rock Ridge PX entry is not present or invalid
+      bit15= Incomplete NM
+      bit16= Incomplete SL
+      bit17= Charset conversion error
+      bit18= Link without destination
+    */
+    int rr_err_reported;
+    int rr_err_repeated;
+
 } _ImageFsData;
 
 typedef struct image_fs_data ImageFileSourceData;
@@ -1249,6 +1273,30 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
 }
 
 
+static
+int iso_rr_msg_submit(_ImageFsData *fsdata, int rr_err_bit,
+                      int errcode, int causedby, const char *msg)
+{
+    int ret;
+
+    if ((fsdata->rr_err_reported & (1 << rr_err_bit)) &&
+        (fsdata->rr_err_repeated & (1 << rr_err_bit))) {
+        if (iso_msg_is_abort(errcode))
+            return ISO_CANCELED;
+        return 0;
+    }
+    if (fsdata->rr_err_reported & (1 << rr_err_bit)) {
+        ret = iso_msg_submit(fsdata->msgid, errcode, causedby,
+                             "MORE THAN ONCE : %s", msg);
+        fsdata->rr_err_repeated |= (1 << rr_err_bit);
+    } else {
+        ret = iso_msg_submit(fsdata->msgid, errcode, causedby, "%s", msg);
+        fsdata->rr_err_reported |= (1 << rr_err_bit);
+    }
+    return ret;
+}
+
+
 /**
  *
  * @param src
@@ -1439,8 +1487,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_PX(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                         "Invalid PX entry");
+                    ret = iso_rr_msg_submit(fsdata, 0, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid PX entry");
                     fsdata->px_ino_status |= 8;
                 } if (ret == 2) {
                     if (fsdata->inode_counter < atts.st_ino) 
@@ -1455,13 +1503,13 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_TF(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid TF entry");
+                    ret = iso_rr_msg_submit(fsdata, 1, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid TF entry");
                 }
             } else if (SUSP_SIG(sue, 'N', 'M')) {
                 if (name != NULL && namecont == 0) {
                     /* ups, RR standard violation */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 0,
+                    ret = iso_rr_msg_submit(fsdata, 2, ISO_WRONG_RR_WARN, 0,
                                  "New NM entry found without previous"
                                  "CONTINUE flag. Ignored");
                     continue;
@@ -1469,8 +1517,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                 ret = read_rr_NM(sue, &name, &namecont);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid NM entry");
+                    ret = iso_rr_msg_submit(fsdata, 3, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid NM entry");
                 }
 
 #ifdef Libisofs_syslinux_tesT
@@ -1514,7 +1562,7 @@ if (name != NULL && !namecont) {
             } else if (SUSP_SIG(sue, 'S', 'L')) {
                 if (linkdest != NULL && linkdestcont == 0) {
                     /* ups, RR standard violation */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, 0,
+                    ret = iso_rr_msg_submit(fsdata, 4, ISO_WRONG_RR_WARN, 0,
                                  "New SL entry found without previous"
                                  "CONTINUE flag. Ignored");
                     continue;
@@ -1522,8 +1570,8 @@ if (name != NULL && !namecont) {
                 ret = read_rr_SL(sue, &linkdest, &linkdestcont);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid SL entry");
+                    ret = iso_rr_msg_submit(fsdata, 5, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid SL entry");
                 }
             } else if (SUSP_SIG(sue, 'R', 'E')) {
                 /*
@@ -1543,7 +1591,7 @@ if (name != NULL && !namecont) {
                  */
                 relocated_dir = iso_read_bb(sue->data.CL.child_loc, 4, NULL);
                 if (relocated_dir == 0) {
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
+                    ret = iso_rr_msg_submit(fsdata, 6, ISO_WRONG_RR, 0,
                                   "Invalid SL entry, no child location");
                     break;
                 }
@@ -1551,12 +1599,12 @@ if (name != NULL && !namecont) {
                 ret = read_rr_PN(sue, &atts);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                         "Invalid PN entry");
+                    ret = iso_rr_msg_submit(fsdata, 7, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid PN entry");
                 }
             } else if (SUSP_SIG(sue, 'S', 'F')) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_RR, 0,
-                                     "Sparse files not supported.");
+                ret = iso_rr_msg_submit(fsdata, 8, ISO_UNSUPPORTED_RR, 0,
+                                        "Sparse files not supported.");
                 break;
             } else if (SUSP_SIG(sue, 'R', 'R')) {
                 /* This was an optional flag byte in RRIP 1.09 which told the
@@ -1571,7 +1619,7 @@ if (name != NULL && !namecont) {
                  */
                 if (!(flag & 1)) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
+                    ret = iso_rr_msg_submit(fsdata, 9, ISO_WRONG_RR, 0,
                                   "SP entry found in a directory entry other "
                                   "than '.' entry of root node");
                 }
@@ -1583,7 +1631,7 @@ if (name != NULL && !namecont) {
                  */
                 if (!(flag & 1)) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
+                    ret = iso_rr_msg_submit(fsdata, 10, ISO_WRONG_RR, 0,
                                   "ER entry found in a directory entry other "
                                   "than '.' entry of root node");
                 }
@@ -1598,8 +1646,8 @@ if (name != NULL && !namecont) {
                                    &prev_field, &aa_done, 0);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid AA entry");
+                    ret = iso_rr_msg_submit(fsdata, 11, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid AA entry");
                     continue;
                 }
 
@@ -1609,8 +1657,8 @@ if (name != NULL && !namecont) {
                                    &prev_field, &aa_done, 0);
                 if (ret < 0) {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid AL entry");
+                    ret = iso_rr_msg_submit(fsdata, 12, ISO_WRONG_RR_WARN, ret,
+                                            "Invalid AL entry");
                     continue;
                 }
 
@@ -1622,7 +1670,7 @@ if (name != NULL && !namecont) {
                                      &zisofs_bsl2, &zisofs_usize, 0);
                 if (ret < 0 || zisofs_alg[0] != 'p' || zisofs_alg[1] != 'z') {
                     /* notify and continue */
-                    ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR_WARN, ret,
+                    ret = iso_rr_msg_submit(fsdata, 13, ISO_WRONG_RR_WARN, ret,
                                  "Invalid ZF entry");
                     zisofs_hs4 = 0;
                     continue;
@@ -1648,17 +1696,17 @@ if (name != NULL && !namecont) {
             /* error was already submitted above */
             iso_msg_debug(fsdata->msgid, "Error parsing RR entries");
         } else if (!relocated_dir && atts.st_mode == (mode_t) 0 ) {
-            ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0, "Mandatory "
+            ret = iso_rr_msg_submit(fsdata, 14, ISO_WRONG_RR, 0, "Mandatory "
                                  "Rock Ridge PX entry is not present or it "
                                  "contains invalid values.");
         } else {
             /* ensure both name and link dest are finished */
             if (namecont != 0) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
-                              "Incomplete RR name, last NM entry continues");
+                ret = iso_rr_msg_submit(fsdata, 15, ISO_WRONG_RR, 0,
+                        "Incomplete Rock Ridge name, last NM entry continues");
             }
             if (linkdestcont != 0) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
+                ret = iso_rr_msg_submit(fsdata, 16, ISO_WRONG_RR, 0,
                     "Incomplete link destination, last SL entry continues");
             }
         }
@@ -1672,6 +1720,7 @@ if (name != NULL && !namecont) {
             ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
                                      &cs_value_length, &cs_value, 0);
             if (ret == 1) {
+                LIBISO_FREE_MEM(msg);
                 LIBISO_ALLOC_MEM(msg, char, 160);
                 if (fsdata->auto_input_charset & 1) {
                     if (fsdata->input_charset != NULL)
@@ -1699,10 +1748,13 @@ if (name != NULL && !namecont) {
                           &newname);
             if (ret < 0) {
                 /* its just a hint message */
-                ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
-                                 ret, "Charset conversion error. Cannot "
-                                 "convert from %s to %s",
+                LIBISO_FREE_MEM(msg);
+                LIBISO_ALLOC_MEM(msg, char, 160);
+                sprintf(msg,
+                "Charset conversion error. Cannot convert from %.40s to %.40s",
                                  fsdata->input_charset, fsdata->local_charset);
+                ret = iso_rr_msg_submit(fsdata, 17, ISO_FILENAME_WRONG_CHARSET,
+                                        ret, msg);
                 free(newname);
                 if (ret < 0) {
                     free(name);
@@ -1721,10 +1773,13 @@ if (name != NULL && !namecont) {
             ret = strconv(linkdest, fsdata->input_charset,
                           fsdata->local_charset, &newlinkdest);
             if (ret < 0) {
-                ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET,
-                                 ret, "Charset conversion error. Cannot "
-                                 "convert from %s to %s",
+                LIBISO_FREE_MEM(msg);
+                LIBISO_ALLOC_MEM(msg, char, 160);
+                sprintf(msg,
+                "Charset conversion error. Cannot convert from %.40s to %.40s",
                                  fsdata->input_charset, fsdata->local_charset);
+                ret = iso_rr_msg_submit(fsdata, 17, ISO_FILENAME_WRONG_CHARSET,
+                                     ret, msg);
                 free(newlinkdest);
                 if (ret < 0) {
                     free(name);
@@ -1847,8 +1902,8 @@ if (name != NULL && !namecont) {
 
     /* TODO #00014 : more sanity checks to ensure dir record info is valid */
     if (S_ISLNK(atts.st_mode) && (linkdest == NULL)) {
-        ret = iso_msg_submit(fsdata->msgid, ISO_WRONG_RR, 0,
-                             "Link without destination.");
+        ret = iso_rr_msg_submit(fsdata, 18, ISO_WRONG_RR, 0,
+                                "Link without destination.");
         free(name);
         goto ex;
     }
@@ -2699,6 +2754,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         data->bootblocks[i] = 0;
     data->inode_counter = 0;
     data->px_ino_status = 0;
+    data->rr_err_reported = 0;
+    data->rr_err_repeated = 0;
 
 
     data->local_charset = strdup(iso_get_local_charset(0));
@@ -3603,7 +3660,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             /* warn about hidden images */
             iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
                            "Found hidden El-Torito image. Its size could not "
-                           "be figure out, so image modify or boot image "
+                           "be figured out, so image modify or boot image "
                            "patching may lead to bad results.");
         }
         if (image->bootcat->node == NULL) {
