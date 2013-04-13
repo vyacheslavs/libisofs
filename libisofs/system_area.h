@@ -271,6 +271,6 @@ void iso_ascii_utf_16le(uint8_t gap_name[72]);
    Might later become variables in Ecma119Image
 */
 #define Libisofs_grub2_mbr_patch_poS    0x1b0
-#define Libisofs_grub2_mbr_patch_offsT      3
+#define Libisofs_grub2_mbr_patch_offsT      4
 
 #endif /* SYSTEM_AREA_H_ */
