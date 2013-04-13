@@ -3275,7 +3275,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         memcpy(opts->system_area_data, data, 32768);
     }
     if (!(flag & 4))
-        opts->system_area_options = options & 0x3fff;
+        opts->system_area_options = options & 0x7fff;
     return ISO_SUCCESS;
 }
 

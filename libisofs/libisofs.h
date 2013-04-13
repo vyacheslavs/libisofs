@@ -2191,6 +2191,13 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                1 = CHRP: A single MBR partition of type 0x96 covers the
  *                          ISO image. Not compatible with any other feature
  *                          which needs to have own MBR partition entries.
+ *        bit14= Only with System area type 0 = MBR
+ *              GRUB2 boot provisions:
+ *              @since 1.3.0
+ *              Patch system area at byte 92 to 99 with 512-block address + 1
+ *              of the first boot image file. Little-endian 8-byte.
+ *              Should be combined with options bit0.
+ *              Will not be in effect if options bit1 is set.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
@@ -3465,9 +3472,15 @@ int el_torito_get_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
  * @param bootimg
  *      The image to inquire
  * @param flag
- *        Reserved for future usage, set to 0.
+ *       Bitfield for control purposes:
+ *       bit0 - bit3= mode
+ *       0 = inquire for classic boot info table as described in man mkisofs
+ *           @since 0.6.32
+ *       1 = inquire for GRUB2 boot info as of bit9 of options of
+ *           el_torito_set_isolinux_options()
+ *           @since 1.3.0
  * @return
- *      1 = seems to contain oot info table , 0 = quite surely not
+ *      1 = seems to contain the inquired boot info, 0 = quite surely not
  * @since 0.6.32
  */
 int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
@@ -3531,6 +3544,11 @@ int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag);
  *              mentioned. The ISOLINUX MBR must look suitable or else an error
  *              event will happen at image generation time.
  *              @since 1.2.4
+ *        bit9= GRUB2 boot info
+ *              Patch the boot image file at byte 1012 with the 512-block
+ *              address + 2. Two little endian 32-bit words. Low word first.
+ *              This is combinable with bit0.
+ *              @since 1.3.0
  * @param flag
  *        Reserved for future usage, set to 0.
  * @return

@@ -266,4 +266,11 @@ int gpt_tail_writer_create(Ecma119Image *target);
 /* Only for up to 36 characters ISO-8859-1 (or ASCII) input */
 void iso_ascii_utf_16le(uint8_t gap_name[72]);
 
+
+/* Parameters of MBR patching for GRUB2
+   Might later become variables in Ecma119Image
+*/
+#define Libisofs_grub2_mbr_patch_poS    0x1b0
+#define Libisofs_grub2_mbr_patch_offsT      3
+
 #endif /* SYSTEM_AREA_H_ */

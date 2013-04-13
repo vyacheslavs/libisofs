@@ -58,6 +58,7 @@ struct el_torito_boot_image {
      * Whether the boot image seems to contain a boot_info_table
      */
     unsigned int seems_boot_info_table:1;
+    unsigned int seems_grub2_boot_info:1;
     /**
      * isolinux options
      * bit 0 -> whether to patch image
@@ -154,5 +155,13 @@ int make_boot_info_table(uint8_t *buf, uint32_t pvd_lba,
 /* Patch the boot images if indicated.
 */
 int iso_patch_eltoritos(Ecma119Image *t);
+
+
+/* Parameters for patch_grub2_boot_image()
+   Might later become variables in struct el_torito_boot_image.
+*/
+#define Libisofs_grub2_elto_patch_poS    (512 * 5 - 12)
+#define Libisofs_grub2_elto_patch_offsT  5
+
 
 #endif /* LIBISO_ELTORITO_H */

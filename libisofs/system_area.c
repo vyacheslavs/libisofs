@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2012 Thomas Schmitt
+ * Copyright (c) 2010 - 2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1417,6 +1417,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     int first_partition = 1, last_partition = 4, apm_flag, part_type;
     int gpt_count = 0, gpt_idx[128], apm_count = 0;
     uint32_t img_blocks;
+    uint64_t blk;
+    uint8_t *wpt;
 
     if ((t == NULL) || (buf == NULL)) {
         return ISO_NULL_POINTER;
@@ -1605,6 +1607,15 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
         if (ret < 0)
             return ret;
+    }
+
+    if (sa_type == 0 && (t->system_area_options & 0x4000) && !do_isohybrid) {
+        /* Patch MBR for GRUB2 */
+        blk = t->bootsrc[0]->sections[0].block * 4 +
+                                                Libisofs_grub2_mbr_patch_offsT;
+        wpt = buf + Libisofs_grub2_mbr_patch_poS;
+        for (i = 0; i < 8; i++)
+             wpt[i] = blk >> (i * 8);
     }
 
     return ISO_SUCCESS;

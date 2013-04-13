@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2010 Thomas Schmitt
+ * Copyright (c) 2010 - 2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -160,7 +160,13 @@ int el_torito_get_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20])
 /* API */
 int el_torito_seems_boot_info_table(ElToritoBootImage *bootimg, int flag)
 {
-    return bootimg->seems_boot_info_table;
+    switch (flag & 15) {
+    case 0:
+        return bootimg->seems_boot_info_table;
+    case 1:
+        return bootimg->seems_grub2_boot_info;
+    }
+    return 0;
 }
 
 /**
@@ -197,14 +203,14 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg)
  */
 int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag)
 {
-    bootimg->isolinux_options = (options & 0x01ff);
+    bootimg->isolinux_options = (options & 0x03ff);
     return ISO_SUCCESS;
 }
 
 /* API */
 int el_torito_get_isolinux_options(ElToritoBootImage *bootimg, int flag)
 {
-    return bootimg->isolinux_options & 0x01ff;
+    return bootimg->isolinux_options & 0x03ff;
 }
 
 /* API */
@@ -1096,7 +1102,7 @@ int make_boot_info_table(uint8_t *buf, uint32_t pvd_lba,
 }
 
 /**
- * Patch an isolinux boot image.
+ * Patch an El Torito boot image by a boot info table.
  *
  * @return
  *      1 on success, 0 error (but continue), < 0 error
@@ -1117,6 +1123,27 @@ int patch_boot_info_table(uint8_t *buf, Ecma119Image *t,
     return ret;
 }
 
+
+/**
+ * Patch a GRUB2 El Torito boot image.
+ */
+static
+int patch_grub2_boot_image(uint8_t *buf, Ecma119Image *t,
+                           size_t imgsize, int idx,
+                           size_t pos, int offst)
+{
+    uint64_t blk;
+
+    if (imgsize < pos + 8)
+        return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
+                     "Isolinux image too small for GRUB2. Will not patch it.");
+    blk = ((uint64_t) t->bootsrc[idx]->sections[0].block) * 4 + offst;
+    iso_lsb((buf + pos), blk & 0xffffffff, 4);
+    iso_lsb((buf + pos + 4), blk >> 32, 4);
+    return ISO_SUCCESS;
+}
+
+
 /* Patch the boot images if indicated */
 int iso_patch_eltoritos(Ecma119Image *t)
 {
@@ -1130,7 +1157,7 @@ int iso_patch_eltoritos(Ecma119Image *t)
         return ISO_SUCCESS;
 
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
-        if (!(t->catalog->bootimages[idx]->isolinux_options & 0x01))
+        if (!(t->catalog->bootimages[idx]->isolinux_options & 0x201))
     continue;
         original = t->bootsrc[idx]->stream;
         size = (size_t) iso_stream_get_size(original);
@@ -1154,9 +1181,20 @@ int iso_patch_eltoritos(Ecma119Image *t)
         }
 
         /* ok, patch the read buffer */
-        ret = patch_boot_info_table(buf, t, size, idx);
-        if (ret < 0) {
-            return ret;
+        if (t->catalog->bootimages[idx]->isolinux_options & 0x200) {
+            /* GRUB2 boot provisions */
+            ret = patch_grub2_boot_image(buf, t, size, idx,
+                                         Libisofs_grub2_elto_patch_poS,
+                                         Libisofs_grub2_elto_patch_offsT);
+            if (ret < 0)
+                return ret;
+	}
+        /* Must be done as last patching */
+        if (t->catalog->bootimages[idx]->isolinux_options & 0x01) {
+            /* Boot Info Table */
+            ret = patch_boot_info_table(buf, t, size, idx);
+            if (ret < 0)
+                return ret;
         }
 
         /* replace the original stream with a memory stream that reads from

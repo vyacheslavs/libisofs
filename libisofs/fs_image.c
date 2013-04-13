@@ -3375,13 +3375,14 @@ static
 int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
                          IsoDataSource *src, uint32_t iso_image_size, int flag)
 {
-    int i, ret, section_count, todo, chunk;
+    int i, j, ret, section_count, todo, chunk;
     uint32_t img_lba, img_size, boot_pvd_found, image_pvd, alleged_size;
     struct iso_file_section *sections = NULL;
     struct el_torito_boot_image *boot;
     uint8_t *boot_image_buf = NULL, boot_info_found[16], *buf = NULL;
     IsoStream *stream = NULL;
     IsoFile *boot_file;
+    uint64_t blk;
 
     if (image->bootcat == NULL)
         {ret = ISO_SUCCESS; goto ex;}
@@ -3390,6 +3391,7 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
         boot = image->bootcat->bootimages[i];
         boot_file = boot->image;
         boot->seems_boot_info_table = 0;
+        boot->seems_grub2_boot_info = 0;
         img_size = iso_file_get_size(boot_file);
         if (img_size > Libisofs_boot_image_max_sizE || img_size < 64)
     continue;
@@ -3455,6 +3457,16 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
             goto ex;
         if (memcmp(boot_image_buf + 8, boot_info_found, 16) == 0)
             boot->seems_boot_info_table = 1;
+
+        if (img_size >= Libisofs_grub2_elto_patch_poS + 8) {
+            blk = 0;
+            for (j = Libisofs_grub2_elto_patch_poS + 7;
+                 j >= Libisofs_grub2_elto_patch_poS; j--)
+                blk = (blk << 8) | boot_image_buf[j];
+            if (blk == img_lba * 4 + Libisofs_grub2_elto_patch_offsT)
+                boot->seems_grub2_boot_info = 1;
+        }
+
         free(boot_image_buf);
         boot_image_buf = NULL;
     }
