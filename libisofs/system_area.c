@@ -880,7 +880,7 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     else
         block_fac = 2048 / apm_block_size;
         
-    memset(buf, apm_block_size, 0);
+    memset(buf, 0, apm_block_size);
     wpt = buf;
 
     /* Signature */
