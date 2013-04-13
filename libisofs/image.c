@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -83,6 +83,7 @@ int iso_image_new(const char *name, IsoImage **image)
     img->num_mips_boot_files = 0;
     for (i = 0; i < 15; i++)
          img->mips_boot_file_paths[i] = NULL;
+    img->sparc_core_node = NULL;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
     img->inode_counter = 0;
@@ -136,6 +137,8 @@ void iso_image_unref(IsoImage *image)
         iso_filesystem_unref(image->fs);
         el_torito_boot_catalog_free(image->bootcat);
         iso_image_give_up_mips_boot(image, 0);
+        if (image->sparc_core_node != NULL)
+            iso_node_unref((IsoNode *) image->sparc_core_node);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
@@ -766,4 +769,25 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
     *bless_max = ISO_HFSPLUS_BLESS_MAX;
     return 1;
 }
+
+
+/* API */
+int iso_image_set_sparc_core(IsoImage *img, IsoFile *sparc_core, int flag)
+{
+    if (img->sparc_core_node != NULL)
+        iso_node_unref((IsoNode *) img->sparc_core_node);
+    img->sparc_core_node = sparc_core;
+    if (sparc_core != NULL)
+        iso_node_ref((IsoNode *) sparc_core);
+    return 1;
+}
+
+
+/* API */
+int iso_image_get_sparc_core(IsoImage *img, IsoFile **sparc_core, int flag)
+{
+    *sparc_core = img->sparc_core_node;
+    return 1;
+}
+
 

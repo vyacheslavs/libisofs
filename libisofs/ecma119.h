@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2013 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -824,6 +824,11 @@ struct ecma119_image
     uint32_t mipsel_p_offset;
     uint32_t mipsel_p_vaddr;
     uint32_t mipsel_p_filesz;
+
+    /* A data file of which the position and size shall be written after
+       a SUN Disk Label.
+    */
+    IsoFileSrc *sparc_core_src;
 
     char *appended_partitions[ISO_MAX_PARTITIONS]; 
     uint8_t appended_part_types[ISO_MAX_PARTITIONS];

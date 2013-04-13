@@ -2156,23 +2156,25 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *        bit2-7= System area type
  *              0= with bit0 or bit1: MBR
  *                 else: unspecified type which will be used unaltered.
- *              @since 0.6.38
  *              1= MIPS Big Endian Volume Header
+ *                 @since 0.6.38
  *                 Submit up to 15 MIPS Big Endian boot files by
  *                 iso_image_add_mips_boot_file().
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
  *              2= DEC Boot Block for MIPS Little Endian
+ *                 @since 0.6.38
  *                 The first boot file submitted by
  *                 iso_image_add_mips_boot_file() will be activated.
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
- *              @since 0.6.40
  *              3= SUN Disk Label for SUN SPARC
+ *                 @since 0.6.40
  *                 Submit up to 7 SPARC boot images by
  *                 iso_write_opts_set_partition_img() for partition numbers 2
  *                 to 8.
  *                 This will overwrite the first 512 bytes of the submitted
+ *                 data.
  *        bit8-9= Only with System area type 0 = MBR
  *              @since 1.0.4
  *              Cylinder alignment mode eventually pads the image to make it
@@ -3656,6 +3658,41 @@ int iso_image_get_mips_boot_files(IsoImage *image, char *paths[15], int flag);
  */
 int iso_image_give_up_mips_boot(IsoImage *image, int flag);
 
+/**
+ * Designate a data file in the ISO image of which the position and size
+ * shall be written after the SUN Disk Label. The position is written as
+ * 64-bit big-endian number to byte position 0x228. The size is written
+ * as 32-bit big-endian to 0x230.
+ * This setting has an effect only if system area type is set to 3
+ * with iso_write_opts_set_system_area(). 
+ *
+ * @param img
+ *        The image to be manipulated.
+ * @param sparc_core
+ *        The IsoFile which shall be mentioned after the SUN Disk label.
+ *        NULL is a permissible value. It disables this feature.
+ * @param flag
+ *        Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *        1 is success , <0 means error
+ * @since 1.3.0
+ */
+int iso_image_set_sparc_core(IsoImage *img, IsoFile *sparc_core, int flag);
+
+/**
+ * Obtain the current setting of iso_image_set_sparc_core().
+ *
+ * @param img
+ *        The image to be inquired.
+ * @param sparc_core
+ *        Will return a pointer to the IsoFile (or NULL, which is not an error)
+ * @param flag
+ *        Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *        1 is success , <0 means error
+ * @since 1.3.0
+ */
+int iso_image_get_sparc_core(IsoImage *img, IsoFile **sparc_core, int flag);
 
 /**
  * Increments the reference counting of the given node.

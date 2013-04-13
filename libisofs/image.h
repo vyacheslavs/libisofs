@@ -69,6 +69,10 @@ struct Iso_Image
     int num_mips_boot_files;
     char *mips_boot_file_paths[15]; /* ISO 9660 Rock Ridge Paths */
 
+    /* A data file of which the position and size shall be written after
+       a SUN Disk Label.
+    */
+    IsoFile *sparc_core_node;
 
     /* image identifier, for message origin identifier */
     int id;

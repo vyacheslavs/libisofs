@@ -990,6 +990,14 @@ int ecma119_writer_create(Ecma119Image *target)
         return ret;
     }
 
+    if (target->image->sparc_core_node != NULL) {
+        /* Obtain a duplicate of the IsoFile's Ecma119Node->file */
+        ret = iso_file_src_create(target, target->image->sparc_core_node,
+                                  &target->sparc_core_src);
+        if (ret < 0)
+            return ret;
+    }
+
     if(target->partition_offset > 0) {
         /* Create second tree */
         target->eff_partition_offset = target->partition_offset;
@@ -1881,6 +1889,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->mipsel_p_offset = 0;
     target->mipsel_p_vaddr = 0;
     target->mipsel_p_filesz = 0;
+
+    target->sparc_core_src = NULL;
 
     target->empty_file_block = 0;
     target->tree_end_block = 0;

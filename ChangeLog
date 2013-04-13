@@ -2,6 +2,11 @@ bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.3.0.tar.gz)
 ===============================================================================
 * Bug fix: Unspecified Expiration Time and Effective Time of ISO volume was
            represented by 0-bytes rather than ASCII '0' digits.
+* Bug fix: Reserved and unused fields of APM entries were not zeroed.
+* New option bits with el_torito_set_isolinux_options() and
+  iso_write_opts_set_system_area() to control GRUB2 patching of
+  boot image and MBR.
+* New API calls iso_image_set_sparc_core() and iso_image_get_sparc_core().
 
 
 libisofs-1.2.8.tar.gz Mon Mar 18 2013

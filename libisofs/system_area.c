@@ -691,7 +691,8 @@ static int write_sun_partition_entry(int partition_number,
  */
 static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
 {
-    int ret;
+    int ret, i;
+    uint64_t blk;
 
     /* Bytes 512 to 32767 may come from image or external file */
     memset(buf, 0, 512);
@@ -732,6 +733,16 @@ static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
 
     /* 508 - 509 |     0xdabe | Magic Number */
     iso_msb(buf + 508, 0xdabe, 2);
+
+    if (t->sparc_core_src != NULL) {
+        /* May be used for grub-sparc. */
+        blk= ((uint64_t) t->sparc_core_src->sections[0].block) *
+             (uint64_t) 2048; 
+        for (i = 0; i < 8; i++)
+            buf[Libisofs_grub2_sparc_patch_lba_poS + i] = blk >> ((7 - i) * 8);
+        iso_msb(buf + Libisofs_grub2_sparc_patch_size_poS,
+                t->sparc_core_src->sections[0].size, 4);
+    }
 
     /* Set partition 1 to describe ISO image and compute checksum */
     t->appended_part_start[0] = 0;
