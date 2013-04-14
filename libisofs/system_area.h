@@ -276,7 +276,7 @@ void iso_ascii_utf_16le(uint8_t gap_name[72]);
 /* Parameters of SUN Disk Label patching for GRUB2
    See API iso_image_set_sparc_core().
 */
-#define Libisofs_grub2_sparc_patch_lba_poS    0x228
+#define Libisofs_grub2_sparc_patch_adr_poS    0x228
 #define Libisofs_grub2_sparc_patch_size_poS   0x230    
 
 #endif /* SYSTEM_AREA_H_ */
