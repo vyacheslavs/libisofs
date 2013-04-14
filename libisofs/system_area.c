@@ -739,7 +739,7 @@ static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
         blk= ((uint64_t) t->sparc_core_src->sections[0].block) *
              (uint64_t) 2048; 
         for (i = 0; i < 8; i++)
-            buf[Libisofs_grub2_sparc_patch_lba_poS + i] = blk >> ((7 - i) * 8);
+            buf[Libisofs_grub2_sparc_patch_adr_poS + i] = blk >> ((7 - i) * 8);
         iso_msb(buf + Libisofs_grub2_sparc_patch_size_poS,
                 t->sparc_core_src->sections[0].size, 4);
     }
