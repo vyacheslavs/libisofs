@@ -72,21 +72,25 @@ static int precompute_gpt(Ecma119Image *t);
 /*
  * @param flag bit0= img_blocks is start address rather than end address:
                      do not subtract 1
+               bit1= img_blocks is counted in 512-byte units rather than 2 KiB
  */
 static
-void iso_compute_cyl_head_sec(uint32_t *img_blocks, int hpc, int sph,
+void iso_compute_cyl_head_sec(uint64_t img_blocks, int hpc, int sph,
                               uint32_t *end_lba, uint32_t *end_sec,
                               uint32_t *end_head, uint32_t *end_cyl, int flag)
 {
-    uint32_t secs;
+    uint64_t secs;
 
-    /* Partition table unit is 512 bytes per sector, ECMA-119 unit is 2048 */
-    if (*img_blocks >= 0x40000000)
-      *img_blocks = 0x40000000 - 1;        /* truncate rather than roll over */
-    if (flag & 1)
-        secs = *end_lba = *img_blocks * 4;            /* first valid 512-lba */
+    if(flag & 2)
+        secs = img_blocks;
     else
-        secs = *end_lba = *img_blocks * 4 - 1;         /* last valid 512-lba */
+        secs = img_blocks * 4;
+    if (secs > (uint64_t) 0xfffffffc)
+      secs = 0xfffffffc;                   /* truncate rather than roll over */
+    if (flag & 1)
+        *end_lba = secs;                              /* first valid 512-lba */
+    else
+        secs = *end_lba = secs - 1;                    /* last valid 512-lba */
     *end_cyl = secs / (sph * hpc);
     secs -= *end_cyl * sph * hpc;
     *end_head = secs / sph;
@@ -165,10 +169,12 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 }
 
 
-/* Note: partition_offset and partition_size are counted in 2048 blocks
+/* @param flag
+                bit1= partition_offset and partition_size are counted in
+                      blocks of 512 rather than 2048
  */
 static int write_mbr_partition_entry(int partition_number, int partition_type,
-                  uint32_t partition_offset, uint32_t partition_size,
+                  uint64_t partition_offset, uint64_t partition_size,
                   int sph, int hpc, uint8_t *buf, int flag)
 {
     uint8_t *wpt;
@@ -178,10 +184,12 @@ static int write_mbr_partition_entry(int partition_number, int partition_type,
     int i;
 
     after_end = partition_offset + partition_size;
-    iso_compute_cyl_head_sec(&partition_offset, hpc, sph,
-                           &start_lba, &start_sec, &start_head, &start_cyl, 1);
-    iso_compute_cyl_head_sec(&after_end, hpc, sph,
-                             &end_lba, &end_sec, &end_head, &end_cyl, 0);
+    iso_compute_cyl_head_sec((uint64_t) partition_offset, hpc, sph,
+                             &start_lba, &start_sec, &start_head, &start_cyl,
+                             1 | (flag & 2));
+    iso_compute_cyl_head_sec((uint64_t) after_end, hpc, sph,
+                             &end_lba, &end_sec, &end_head, &end_cyl,
+                             (flag & 2));
     wpt = buf + 446 + (partition_number - 1) * 16;
 
     /* Not bootable */
@@ -244,7 +252,7 @@ int make_grub_msdos_label(uint32_t img_blocks, int sph, int hpc,
     uint32_t end_lba, end_sec, end_head, end_cyl;
     int i;
 
-    iso_compute_cyl_head_sec(&img_blocks, hpc, sph,
+    iso_compute_cyl_head_sec((uint64_t) img_blocks, hpc, sph,
                              &end_lba, &end_sec, &end_head, &end_cyl, 0);
 
     /* 1) Zero-fill 446-510 */
@@ -308,9 +316,9 @@ int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
     uint32_t start_lba, start_sec, start_head, start_cyl;
     int i;
 
-    iso_compute_cyl_head_sec(&partition_offset, hpc, sph,
+    iso_compute_cyl_head_sec((uint64_t) partition_offset, hpc, sph,
                            &start_lba, &start_sec, &start_head, &start_cyl, 1);
-    iso_compute_cyl_head_sec(&img_blocks, hpc, sph,
+    iso_compute_cyl_head_sec((uint64_t) img_blocks, hpc, sph,
                              &end_lba, &end_sec, &end_head, &end_cyl, 0);
     wpt = buf + 446;
 
@@ -805,7 +813,7 @@ int iso_quick_gpt_entry(Ecma119Image *t,
 
 
 int iso_quick_mbr_entry(Ecma119Image *t,
-                        uint32_t start_block, uint32_t block_count,
+                        uint64_t start_block, uint64_t block_count,
                         uint8_t type_byte, uint8_t status_byte,
                         int desired_slot)
 {
@@ -1126,10 +1134,11 @@ static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 
     /* <<< Dummy mock-up */
     if (t->mbr_req_count <= 0) {
-        ret = iso_quick_mbr_entry(t, 0, 0, 0xee, 0, 0);
+        ret = iso_quick_mbr_entry(t, (uint64_t) 0, (uint64_t) 0, 0xee, 0, 0);
         if (ret < 0)
             return ret;
-        ret = iso_quick_mbr_entry(t, 100, 0, 0x0c, 0x80, 1);
+        ret = iso_quick_mbr_entry(t, ((uint64_t) 100) * 4, (uint64_t) 0,
+                                  0x0c, 0x80, 1);
         if (ret < 0)
             return ret;
     }
@@ -1158,7 +1167,7 @@ static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
             t->mbr_req[i]->block_count = t->mbr_req[i + 1]->start_block -
                                          t->mbr_req[i]->start_block;
         else
-            t->mbr_req[i]->block_count = img_blocks -
+            t->mbr_req[i]->block_count = ((uint64_t) img_blocks) * 4 -
                                          t->mbr_req[i]->start_block;
     }
 
@@ -1195,7 +1204,7 @@ static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         ret = write_mbr_partition_entry(i + 1, (int) t->mbr_req[q]->type_byte,
                   t->mbr_req[q]->start_block, t->mbr_req[q]->block_count,
                   t->partition_secs_per_head, t->partition_heads_per_cyl,
-                  buf, 0);
+                  buf, 2);
         if (ret < 0)
             return ret;
         buf[446 + i * 16] = t->mbr_req[q]->status_byte;
@@ -1577,7 +1586,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ISO_ASSERT_FAILURE;
         if (t->partition_offset == 0) {
             /* Re-write partion entry 1 : start at 0, type Linux */
-            ret = write_mbr_partition_entry(1, 0x83, 0, img_blocks,
+            ret = write_mbr_partition_entry(1, 0x83,
+                        (uint64_t) 0, (uint64_t) img_blocks,
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
                         buf, 0);
             if (ret < 0)
@@ -1612,7 +1622,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                         buf, t->appended_partitions[i][0] == 0);
         } else {
             ret = write_mbr_partition_entry(i + 1, t->appended_part_types[i],
-                        t->appended_part_start[i], t->appended_part_size[i],
+                        (uint64_t) t->appended_part_start[i],
+                        (uint64_t) t->appended_part_size[i],
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
                         buf, 0);
         }
@@ -2248,7 +2259,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         if (t->prep_partition != NULL || t->fat || will_have_gpt ||
             t->mbr_req_count > 0)
             return ISO_BOOT_MBR_OVERLAP;
-        ret = iso_quick_mbr_entry(t, (uint32_t) 0, (uint32_t) 0,
+        ret = iso_quick_mbr_entry(t, (uint64_t) 0, (uint64_t) 0,
                                   0x96, 0x80, 0);
         if (ret < 0)
             return ret;
@@ -2263,21 +2274,25 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     }
     if (t->prep_part_size > 0 || t->fat || will_have_gpt) {
         /* Protecting MBR entry for ISO start or whole ISO */
-        ret = iso_quick_mbr_entry(t, (uint32_t) t->partition_offset,
-                              (uint32_t) 0, will_have_gpt ? 0xee : 0xcd, 0, 0);
+        ret = iso_quick_mbr_entry(t, will_have_gpt ? (uint64_t) 1 :
+                                  ((uint64_t) t->partition_offset) * 4,
+                                  (uint64_t) 0,
+                                  will_have_gpt ? 0xee : 0xcd, 0, 0);
         if (ret < 0)
             return ret;
     }
     if (t->prep_part_size > 0) {
-        ret = iso_quick_mbr_entry(t, t->curblock, t->prep_part_size, 0x41,
-                                  0, 0);
+        ret = iso_quick_mbr_entry(t, ((uint64_t) t->curblock) * 4,
+                                  ((uint64_t) t->prep_part_size) * 4,
+                                  0x41, 0, 0);
         if (ret < 0)
             return ret;
         t->curblock += t->prep_part_size;
     }
     if (t->prep_part_size > 0 || t->fat) {
         /* FAT partition or protecting MBR entry for ISO end */
-        ret = iso_quick_mbr_entry(t, (uint32_t) t->curblock, (uint32_t) 0,
+        ret = iso_quick_mbr_entry(t, ((uint64_t) t->curblock) * 4,
+                                  (uint64_t) 0,
                                   t->fat ? 0x0c : 0xcd, 0, 0);
         if (ret < 0)
             return ret;

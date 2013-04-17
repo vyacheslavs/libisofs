@@ -78,13 +78,13 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag);
 */
 struct iso_mbr_partition_request {
 
-    /* Always given in blocks of 2 KiB */
-    uint32_t start_block;
+    /* Always given in blocks of 512 bytes */
+    uint64_t start_block;
 
     /* A block count of 0 means that the partition reaches up to the start of
        the next one.
     */
-    uint32_t block_count;
+    uint64_t block_count;
 
     /* Partition type */
     uint8_t type_byte;
@@ -115,7 +115,7 @@ int iso_register_mbr_entry(Ecma119Image *t,
    name and type are 0-terminated strings, which may get silently truncated.
 */
 int iso_quick_mbr_entry(Ecma119Image *t, 
-                        uint32_t start_block, uint32_t block_count,
+                        uint64_t start_block, uint64_t block_count,
                         uint8_t type_byte, uint8_t status_byte,
                         int desired_slot);
 
