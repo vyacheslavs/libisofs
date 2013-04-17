@@ -1309,7 +1309,7 @@ int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
     }
 
     /* CRC-32 of this header while head_crc is 0 */
-    crc = iso_crc32_gpt((unsigned char *) buf, 512, 0); 
+    crc = iso_crc32_gpt((unsigned char *) buf, 92, 0); 
     wpt = ((char *) buf) + 16;
     iso_lsb_to_buf(&wpt, crc, 4, 0);
 
@@ -2137,7 +2137,7 @@ tampered_head:;
 
     /* Compute new header CRC */
     memset(new_head + 16, 0, 4);
-    crc = iso_crc32_gpt((unsigned char *) new_head, 512, 0); 
+    crc = iso_crc32_gpt((unsigned char *) new_head, 92, 0); 
     iso_lsb(new_head + 16, crc, 4);
 
     /* Copy GPT entries */
