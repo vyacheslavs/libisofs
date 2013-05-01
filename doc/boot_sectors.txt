@@ -906,13 +906,18 @@ PReP boots via a MBR partition containing only raw ELF and having type 0x41.
 
 Sources:
     Mail conversations with Vladimir Serbinenko.
-
+    http://stuff.mit.edu/afs/sipb/contrib/doc/specs/protocol/chrp/chrp1_7a.pdf
 
 CHRP is marked by an MBR partition entry of type 0x96 spanning the whole
 ISO 9660 image.
 
+The specs in chrp1_7a.pdf promise that CHRP also recognizes ISO 9660 file
+systems on unpartitioned disks. (See 11.1.1. Media Layout Format)
+
+Vladimir Serbinenko stated:
 PReP boot may be preferable. At least it can co-exist with other partitions
-in the ISO image.
+in the ISO image [without causing overlapping between partitions].
+
 
 
 ------------------------------------------------------------------------------
