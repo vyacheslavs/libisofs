@@ -83,8 +83,8 @@
  * @since 0.6.2
  */
 #define iso_lib_header_version_major  1
-#define iso_lib_header_version_minor  2
-#define iso_lib_header_version_micro  9
+#define iso_lib_header_version_minor  3
+#define iso_lib_header_version_micro  0
 
 /**
  * Get version of the libisofs library at runtime.
@@ -3594,7 +3594,7 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg);
  * @param img
  *        The image to be inquired.
  * @param data
- *        A byte array of at least 32768 bytesi to take the loaded bytes.
+ *        A byte array of at least 32768 bytes to take the loaded bytes.
  * @param options
  *        The option bits which will be applied if not overridden by
  *        iso_write_opts_set_system_area(). See there.
