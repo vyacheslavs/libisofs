@@ -1,22 +1,21 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.3.0.tar.gz)
+libisofs-1.3.0.tar.gz Fri May 17 2013
 ===============================================================================
+* Bug fix: GPT header CRC was computed from all 512 bytes rather than from 92.
+* Bug fix: Unspecified Expiration Time and Effective Time of ISO volume was
+           represented by 0-bytes rather than ASCII '0' digits.
+* Bug fix: Reserved and unused fields of APM entries were not zeroed.
+* Bug fix: The protective MBR partition for GPT started at block 0 instead of 1.
 * New option bits with el_torito_set_isolinux_options() and
   iso_write_opts_set_system_area() to control GRUB2 patching of
   boot image and MBR.
 * New API calls iso_image_set_sparc_core() and iso_image_get_sparc_core().
-* Bug fix: Unspecified Expiration Time and Effective Time of ISO volume was
-           represented by 0-bytes rather than ASCII '0' digits.
-* Bug fix: Reserved and unused fields of APM entries were not zeroed.
-* Bug fix: GPT header CRC was computed from all 512 bytes rather than from 92.
-* Bug fix: The protective MBR partition for GPT started at block 0 instead of 1.
-
 
 libisofs-1.2.8.tar.gz Mon Mar 18 2013
 ===============================================================================
-* New API call iso_image_get_pvd_times().
 * Bug fix: Image size prediction altered the pointers to MD5 of data files
            which stem from a previous session.
 * Bug fix: Reading damaged Rock Ridge data could cause SIGSEGV by NULL.
+* New API call iso_image_get_pvd_times().
 
 libisofs-1.2.6.tar.gz Tue Jan 08 2013
 ===============================================================================
