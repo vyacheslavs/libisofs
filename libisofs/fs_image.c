@@ -3104,8 +3104,19 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 /*
                  * and we set the sort weight based on the block on image, to
                  * improve performance on image modifying.
+                 *
+                 * This was too obtrusive because it occupied the highest
+                 * possible weight ranks:
+                 *     file->sort_weight = INT_MAX - data->sections[0].block;
+                 *
+                 * So a try to be more nice and rely on caching with tiles
+                 * of at least 16 blocks. This occupies a range within
+                 * the interval of 1 to 2 exp 28 = 268,435,456.
+                 * (Dividing each number separately saves from integer
+                 *  rollover problems.)
                  */
-                file->sort_weight = INT_MAX - data->sections[0].block;
+                file->sort_weight =
+                       fsdata->nblocks / 16 - data->sections[0].block / 16 + 1;
 
                 file->stream = stream;
                 file->node.type = LIBISO_FILE;
