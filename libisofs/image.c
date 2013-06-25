@@ -392,6 +392,14 @@ static
 int dir_update_size(IsoImage *image, IsoDir *dir)
 {
     IsoNode *pos;
+
+#ifdef Libisofs_update_sizes_abortablE
+    char *path= NULL;
+    IsoStream *base_stream;
+    int cancel_ret, ret;
+    uint32_t lba;
+#endif
+
     pos = dir->children;
     while (pos) {
         int ret = 1;
@@ -400,13 +408,51 @@ int dir_update_size(IsoImage *image, IsoDir *dir)
         } else if (pos->type == LIBISO_DIR) {
             /* recurse */
             ret = dir_update_size(image, ISO_DIR(pos));
+
+#ifdef Libisofs_update_sizes_abortablE
+            if (ret == ISO_CANCELED)
+                return ret; /* Message already issued by dir_update_size */
+#endif
+
         }
+
+#ifdef Libisofs_update_sizes_abortablE
+
+        /* This would report error and abort according to severity threshold.
+           But it is desirable to let the update_size crawler continue
+           its work after e.g. a file has vanished from hard disk.
+           So normally this macro case should be disabled.
+        */
+
         if (ret < 0) {
-            ret = iso_msg_submit(image->id, ret, 0, NULL);
-            if (ret < 0) {
-                return ret; /* cancel due error threshold */
+            cancel_ret = iso_msg_submit(image->id, ret, 0, NULL);
+            path = iso_tree_get_node_path(pos);
+            if (path != NULL) {
+                iso_msg_submit(image->id, ret, 0,
+                               "ISO path  : %s", path);
+                free(path);
             }
+            /* Report source path with streams which do not come from
+               the loaded ISO filesystem */
+            if (pos->type == LIBISO_FILE &&
+                iso_node_get_old_image_lba(pos, &lba, 0) == 0) {
+                base_stream = iso_stream_get_input_stream(
+                                                     ISO_FILE(pos)->stream, 1);
+                if (base_stream == NULL)
+                    base_stream = ISO_FILE(pos)->stream;
+                path = iso_stream_get_source_path(base_stream, 0);
+                if (path != NULL) {
+                    iso_msg_submit(image->id, ret, 0,
+                                   "Local path: %s", path);
+                    free(path);
+                }
+            }
+            if (cancel_ret < 0)
+                return cancel_ret; /* cancel due error threshold */
         }
+
+#endif /* Libisofs_update_sizes_abortablE */
+
         pos = pos->next;
     }
     return ISO_SUCCESS;

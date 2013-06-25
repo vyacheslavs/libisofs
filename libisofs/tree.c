@@ -803,6 +803,8 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             ret = iso_file_source_lstat(file, &info);
         }
         if (ret < 0) {
+            ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret,
+                                 "Error when adding file %s", path);
             goto dir_rec_continue;
         }
 

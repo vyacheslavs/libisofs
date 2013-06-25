@@ -890,17 +890,27 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
     }
 }
 
+/* @param flag  bit0= Obtain most fundamental stream */
 IsoStream *iso_stream_get_input_stream(IsoStream *stream, int flag)
 {
     IsoStreamIface* class;
+    IsoStream *result = NULL, *next;
 
     if (stream == NULL) {
         return NULL;
     }
-    class = stream->class;
-    if (class->version < 2)
-        return NULL;
-    return class->get_input_stream(stream, 0);
+    while (1) {
+        class = stream->class;
+        if (class->version < 2)
+            return result;
+        next = class->get_input_stream(stream, 0);
+        if (next == NULL)
+            return result;
+        result = next;
+        if (!(flag & 1))
+            return result;
+        stream = result;
+    }
 }
 
 char *iso_stream_get_source_path(IsoStream *stream, int flag)

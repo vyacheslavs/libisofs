@@ -6421,7 +6421,10 @@ int iso_file_remove_filter(IsoFile *file, int flag);
  * @param stream
  *      The eventual filter stream to be inquired.
  * @param flag
- *      Bitfield for control purposes. Submit 0 for now.
+ *      Bitfield for control purposes.
+ *      bit0= Follow the chain of input streams and return the one at the
+ *            end of the chain. 
+ *            @since 1.3.2
  * @return
  *      The input stream, if one exists. Elsewise NULL.
  *      No extra reference to the stream is taken by this call.
