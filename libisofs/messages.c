@@ -139,6 +139,7 @@ int iso_node_xinfo_dispose_cloners(int flag)
         next = assoc->next;
         free((char *) assoc);
     }
+    iso_xinfo_cloner_list= NULL;
     return(1);
 }
 
