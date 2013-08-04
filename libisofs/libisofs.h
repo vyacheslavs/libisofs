@@ -2895,7 +2895,7 @@ void iso_image_set_volset_id(IsoImage *image, const char *volset_id);
 
 /**
  * Get the volset identifier.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -2911,7 +2911,7 @@ void iso_image_set_volume_id(IsoImage *image, const char *volume_id);
 
 /**
  * Get the volume identifier.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -2927,7 +2927,7 @@ void iso_image_set_publisher_id(IsoImage *image, const char *publisher_id);
 
 /**
  * Get the publisher of a image.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -2944,7 +2944,7 @@ void iso_image_set_data_preparer_id(IsoImage *image,
 
 /**
  * Get the data preparer of a image.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -2960,7 +2960,7 @@ void iso_image_set_system_id(IsoImage *image, const char *system_id);
 
 /**
  * Get the system id of a image.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -2976,7 +2976,7 @@ void iso_image_set_application_id(IsoImage *image, const char *application_id);
 
 /**
  * Get the application id of a image.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -2994,7 +2994,7 @@ void iso_image_set_copyright_file_id(IsoImage *image,
 
 /**
  * Get the copyright information of a image.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -3012,7 +3012,7 @@ void iso_image_set_abstract_file_id(IsoImage *image,
 
 /**
  * Get the abstract information of a image.
- * The returned string is owned by the image and should not be freed nor
+ * The returned string is owned by the image and must not be freed nor
  * changed.
  *
  * @since 0.6.2
@@ -3029,12 +3029,41 @@ void iso_image_set_biblio_file_id(IsoImage *image, const char *biblio_file_id);
 
 /**
  * Get the biblio information of a image.
- * The returned string is owned by the image and should not be freed nor
- * changed.
+ * The returned string is owned by the image and must not be freed or changed.
  *
  * @since 0.6.2
  */
 const char *iso_image_get_biblio_file_id(const IsoImage *image);
+
+/**
+ * Fill Application Use field of the Primary Volume Descriptor.
+ * ECMA-119 8.4.32 Application Use (BP 884 to 1395)
+ * "This field shall be reserved for application use. Its content
+ *  is not specified by this Standard."
+ *
+ * @param image
+ *      The image to manipulate.
+ * @param app_use_data
+ *      Up to 512 bytes of data.
+ * @param count
+ *      The number of bytes in app_use_data. If the number is smaller than 512,
+ *      then the remaining bytes will be set to 0.
+ * @since 1.3.2
+ */
+void iso_image_set_app_use(IsoImage *image, const char *app_use_data,
+                           int count);
+
+/**
+ * Get the current setting for the Application Use field of the Primary Volume
+ * Descriptor.
+ * The returned char array of 512 bytes is owned by the image and must not
+ * be freed or changed.
+ *
+ * @param image 
+ *      The image to inquire
+ * @since 1.3.2
+ */
+const char *iso_image_get_app_use(IsoImage *image);
 
 /**
  * Get the four timestamps from the Primary Volume Descriptor of the imported
@@ -3094,7 +3123,7 @@ int iso_image_get_pvd_times(IsoImage *image,
  *      creation time.
  * @param boot
  *      Location where a pointer to the added boot image will be stored. That
- *      object is owned by the IsoImage and should not be freed by the user,
+ *      object is owned by the IsoImage and must not be freed by the user,
  *      nor dereferenced once the last reference to the IsoImage was disposed
  *      via iso_image_unref(). A NULL value is allowed if you don't need a
  *      reference to the boot image.
@@ -3144,7 +3173,7 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
  * the image and catalog tree nodes. An application would want those, for
  * example, to prevent the user removing it.
  *
- * Both nodes are owned by libisofs and should not be freed. You can get your
+ * Both nodes are owned by libisofs and must not be freed. You can get your
  * own ref with iso_node_ref(). You can also check if the node is already
  * on the tree by getting its parent (note that when reading El-Torito info
  * from a previous image, the nodes might not be on the tree even if you haven't
@@ -3156,7 +3185,7 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
  *      The image from which to get the boot image.
  * @param boot
  *      If not NULL, it will be filled with a pointer to the boot image, if
- *      any. That  object is owned by the IsoImage and should not be freed by
+ *      any. That object is owned by the IsoImage and must not be freed by
  *      the user, nor dereferenced once the last reference to the IsoImage was
  *      disposed via iso_image_unref().
  * @param imgnode
@@ -3924,7 +3953,7 @@ int iso_node_set_name(IsoNode *node, const char *name);
 
 /**
  * Get the name of a node.
- * The returned string belongs to the node and should not be modified nor
+ * The returned string belongs to the node and must not be modified nor
  * freed. Use strdup if you really need your own copy.
  *
  * @since 0.6.2
@@ -4503,7 +4532,7 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
 
 /**
  * Get the destination of a node.
- * The returned string belongs to the node and should not be modified nor
+ * The returned string belongs to the node and must not be modified nor
  * freed. Use strdup if you really need your own copy.
  *
  * @since 0.6.2

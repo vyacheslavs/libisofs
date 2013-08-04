@@ -78,6 +78,7 @@ int iso_image_new(const char *name, IsoImage **image)
         img->volset_id = strdup(name);
         img->volume_id = strdup(name);
     }
+    memset(img->application_use, 0, 512);
     img->system_area_data = NULL;
     img->system_area_options = 0;
     img->num_mips_boot_files = 0;
@@ -371,6 +372,19 @@ int iso_image_get_pvd_times(IsoImage *image,
     *expiration_time = image->expiration_time;
     *effective_time = image->effective_time;
     return ISO_SUCCESS;
+}
+
+void iso_image_set_app_use(IsoImage *image, const char *app_use_data,
+                           int count)
+{
+    if (count < 0)
+        count= 0;
+    else if(count > 512)
+        count= 512;
+    if (count > 0)
+        memcpy(image->application_use, app_use_data, count);
+    if (count < 512)
+        memset(image->application_use + count, 0, 512 - count);
 }
 
 int iso_image_get_msg_id(IsoImage *image)

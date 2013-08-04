@@ -597,6 +597,8 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     ecma119_set_voldescr_times(writer, &vol);
     vol.file_structure_version[0] = 1;
 
+    memcpy(vol.app_use, image->application_use, 512);
+
     free(vol_id);
     free(volset_id);
     free(pub_id);

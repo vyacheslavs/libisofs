@@ -53,6 +53,7 @@ struct Iso_Image
     char *modification_time;
     char *expiration_time;
     char *effective_time;
+    char application_use[512];
     
     /* el-torito boot catalog */
     struct el_torito_boot_catalog *bootcat;
