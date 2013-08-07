@@ -1,8 +1,9 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.3.2.tar.gz)
+libisofs-1.3.2.tar.gz Wed Aug 07 2013
 ===============================================================================
+* Bug fix: iso_finish() left an invalid global pointer, which a subsequent 
+           call of iso_init() would try to dereference.
 * The sort weight of data files loaded from ISO image is now 2 exp 28 to 1
   rather than 2 exp 31 - 1 to - 2 exp 31
-
 
 libisofs-1.3.0.tar.gz Fri May 17 2013
 ===============================================================================
