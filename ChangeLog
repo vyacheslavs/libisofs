@@ -1,3 +1,8 @@
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.3.4.tar.gz)
+===============================================================================
+- no novelties yet -
+
+
 libisofs-1.3.2.tar.gz Wed Aug 07 2013
 ===============================================================================
 * Bug fix: iso_finish() left an invalid global pointer, which a subsequent 
