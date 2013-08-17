@@ -109,8 +109,6 @@ Each Component Record shall have the following format:
   [B] "BP 2 - Component Length (LEN_CP)" shall specify as an 8-bit number the
       number of component bytes in the Component Record. This length shall not
       include the first two bytes of the Component Record.
-      If any of the bit positions 1-3 is set, the value of this field shall be
-      set to ZERO and no Component Content shall be recorded.
       This field shall be recorded according to ISO 9660 Format section 7.1.1.
 
   [C] "BP 3 to 2 + LEN_CP - Component Content" shall contain the component
@@ -445,7 +443,7 @@ Program mkisofs emits entry XA
 -------------------------------------------------------------------------------
 
 This text is under
-Copyright (c) 2009 - 2010 Thomas Schmitt <scdbackup@gmx.net>
+Copyright (c) 2009 - 2013 Thomas Schmitt <scdbackup@gmx.net>
 It shall only be modified in sync with libisofs and other software which
 makes use of AAIP. Please mail change requests to mailing list
 <libburn-hackers@pykix.org> or to the copyright holder in private.
