@@ -158,7 +158,7 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
             fsrc->checksum_index = img->checksum_idx_counter;
         } else {
             fsrc->checksum_index= 0;
-            img->checksum_idx_counter= 0x7fffffff; /* keep from rolling over */
+            img->checksum_idx_counter= 0x7ffffffe; /* keep from rolling over */
         }
         cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
         if (cret < 0)
