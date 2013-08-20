@@ -2756,6 +2756,8 @@ int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag)
 }
 
 
+/* @param flag bit0= delete isofs.cx rather than setting it
+*/
 int iso_file_set_isofscx(IsoFile *file, unsigned int checksum_index,
                          int flag)
 {
@@ -2765,9 +2767,14 @@ int iso_file_set_isofscx(IsoFile *file, unsigned int checksum_index,
     char *valuept;
     int i, ret;
 
+    valuept= (char *) value;
+    if (flag & 1) {
+        ret = iso_node_set_attrs((IsoNode *) file, (size_t) 1,
+                             &names, value_lengths, &valuept, 4 | 8);
+        return ret;
+    }
     for(i = 0; i < 4; i++)
         value[3 - i] = (checksum_index >> (8 * i)) & 0xff;
-    valuept= (char *) value;
     ret = iso_node_set_attrs((IsoNode *) file, (size_t) 1,
                              &names, value_lengths, &valuept, 2 | 8);
     return ret;

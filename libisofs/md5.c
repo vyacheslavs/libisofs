@@ -540,13 +540,12 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
                 if (value != NULL)
                     free(value);
 
-                /* ts B30114 : It is unclear why these are removed here.
-                               At least with the opts->will_cancel runs,
-                               this is not appropriate.
+                /* >>> ts B30114 : It is unclear why these are removed here.
+                                   At least with the opts->will_cancel runs,
+                                   this is not appropriate.
                 */
                 iso_node_remove_xinfo(node, checksum_md5_xinfo_func);
             }
-            iso_node_remove_xinfo(node, checksum_cx_xinfo_func);
         }
     } else if (node->type == LIBISO_DIR) {
         for (pos = ((IsoDir *) node)->children; pos != NULL; pos = pos->next) {

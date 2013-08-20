@@ -1230,6 +1230,48 @@ int zero_writer_create(Ecma119Image *target, uint32_t num_blocks, int flag)
     return ISO_SUCCESS;
 }
 
+
+/* @param flag bit0= restore preserved cx (else dispose them)
+*/
+static
+int process_preserved_cx(IsoDir *dir, int flag)
+{
+    int ret, i;
+    unsigned int cx_value;
+    void *xipt;
+    IsoNode *pos;
+
+    pos = dir->children;
+    for (pos = dir->children; pos != NULL; pos = pos->next) {
+        if (pos->type == LIBISO_FILE) {
+            if (flag & 1) {
+                /* Restore preserved cx state of nodes */
+                ret = iso_node_get_xinfo(pos, checksum_cx_xinfo_func,
+                                         &xipt);
+                if (ret == 1) {
+                    /* xipt is an int disguised as void pointer */
+                    cx_value = 0;
+                    for (i = 0; i < 4; i++)
+                        cx_value =
+                            (cx_value << 8) | ((unsigned char *) &xipt)[i];
+                    ret = iso_file_set_isofscx((IsoFile *) pos, cx_value, 0);
+                    if (ret < 0)
+                        return ret;
+                } else if (ret == 0) {
+                    /* Node had no cx before the write run. Delete cx. */
+                    iso_file_set_isofscx((IsoFile *) pos, 0, 1);
+                }
+            }
+            iso_node_remove_xinfo(pos, checksum_cx_xinfo_func);
+        } else if (pos->type == LIBISO_DIR) {
+            ret = process_preserved_cx((IsoDir *) pos, flag);
+            if (ret != 0)
+                return ret;
+        }
+    }
+    return 0;
+}
+
 static
 int transplant_checksum_buffer(Ecma119Image *target, int flag)
 {
@@ -1240,6 +1282,10 @@ int transplant_checksum_buffer(Ecma119Image *target, int flag)
                             target->checksum_idx_counter + 2, 0);
     target->checksum_buffer = NULL;
     target->checksum_idx_counter = 0;
+
+    /* Delete recorded cx xinfo */
+    process_preserved_cx(target->image->root, 0);
+
     return 1;
 }
 
@@ -1546,7 +1592,7 @@ void *write_function(void *arg)
     return NULL;
 #endif
 
-    write_error: ;
+write_error: ;
     if (res != (int) ISO_LIBJTE_END_FAILED)
         finish_libjte(target);
     target->eff_partition_offset = 0;
@@ -1562,11 +1608,9 @@ void *write_function(void *arg)
     }
     iso_ring_buffer_writer_close(target->buffer, 1);
 
-    /* Transplant checksum buffer away from Ecma119Image */
-    transplant_checksum_buffer(target, 0);
-    /* Invalidate the transplanted checksum buffer in IsoImage */
-    iso_image_free_checksums(target->image, 0);
-
+    /* Re-activate recorded cx xinfo */
+    process_preserved_cx(target->image->root, 1);
+    
     target->image->generator_is_running = 0;
 
     /* Give up reference claim made in ecma119_image_new().
@@ -1605,82 +1649,88 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
     IsoNode *pos;
     IsoFile *file;
     IsoImage *img;
-    int ret, i, no_md5 = 0, has_xinfo = 0;
-    size_t value_length;
+    int ret, i, no_md5 = 0, has_xinfo = 0, has_attr = 0;
+    size_t old_cx_value_length = 0;
     unsigned int idx = 0;
-    char *value= NULL;
+    char *old_cx_value= NULL;
     void *xipt = NULL;
-    static char *cx_names = "isofs.cx";
-    static size_t cx_value_lengths[1] = {0};
-    char *cx_valuept = "";
 
     img= target->image;
 
     if (node->type == LIBISO_FILE) {
         file = (IsoFile *) node;
+        if (file->from_old_session) {
+            /* Record attribute isofs.cx as xinfo before it can get overwritten
+               for the emerging image.
+               The recorded index will be used to retrieve the loaded MD5
+               and it will be brought back into effect if cancellation of
+               image production prevents that the old MD5 array gets replaced
+               by the new one.
+            */
+            has_attr = iso_node_lookup_attr(node, "isofs.cx",
+                                       &old_cx_value_length, &old_cx_value, 0);
+            if (has_attr == 1 && old_cx_value_length == 4) {
+                for (i = 0; i < 4; i++)
+                    idx = (idx << 8) | ((unsigned char *) old_cx_value)[i];
+                if (idx > 0 && idx < 0x8000000) {
+                    /* xipt is an int disguised as void pointer */
+                    for (i = 0; i < 4; i++)
+                        ((char *) &xipt)[i] = old_cx_value[i];
+                    ret = iso_node_add_xinfo(node, checksum_cx_xinfo_func,
+                                             xipt);
+                    if (ret < 0)
+                        goto ex;
+                } else
+                    no_md5 = 1;
+            }
+        }
         if (file->from_old_session && target->appendable) {
             /* Save MD5 data of files from old image which will not
                be copied and have an MD5 recorded in the old image. */
             has_xinfo = iso_node_get_xinfo(node, checksum_md5_xinfo_func,
                                            &xipt);
-            if (has_xinfo <= 0) {
-                ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
-                                           &value, 0);
-            }
             if (has_xinfo > 0) {
                 /* xinfo MD5 overrides everything else unless data get copied
                    and checksummed during that copying
                  */;
-            } else if (ret == 1 && img->checksum_array == NULL) {
+            } else if (has_attr == 1 && img->checksum_array == NULL) {
                 /* No checksum array loaded. Delete "isofs.cx" */
                 if (!target->will_cancel)
-                  iso_node_set_attrs(node, (size_t) 1,
-                              &cx_names, cx_value_lengths, &cx_valuept, 4 | 8);
+                  iso_file_set_isofscx((IsoFile *) node, 0, 1);
                 no_md5 = 1;
-            } else if (ret == 1 && value_length == 4) {
-                for (i = 0; i < 4; i++)
-                    idx = (idx << 8) | ((unsigned char *) value)[i];
-                if (idx > 0 && idx < 0x8000000) {
-                    /* xipt is an int disguised as void pointer */
-                    for (i = 0; i < 4; i++)
-                        ((char *) &xipt)[i] = value[i];
-                    ret = iso_node_add_xinfo(node, checksum_cx_xinfo_func,
-                                             xipt);
-                    if (ret < 0)
-                        return ret;
-                } else
-                    no_md5 = 1;
-            } else {
+            } else if (!(has_attr == 1 && old_cx_value_length == 4)) {
                 no_md5 = 1;
-            }
-            if (value != NULL) {
-                free(value);
-                value= NULL;
             }
         }
+
         /* Equip nodes with provisory isofs.cx numbers: 4 byte, all 0.
            Omit those from old image which will not be copied and have no MD5.
            Do not alter the nodes if this is only a will_cancel run.
          */
         if (!(target->will_cancel || no_md5)) {
+            /* Record provisory new index */
             ret = iso_file_set_isofscx(file, (unsigned int) 0, 0);
             if (ret < 0)
-                return ret;
+                goto ex;
         }
     } else if (node->type == LIBISO_DIR) {
         for (pos = ((IsoDir *) node)->children; pos != NULL; pos = pos->next) {
             ret = checksum_prepare_nodes(target, pos, 1);
             if (ret < 0)
-                return ret;
+                goto ex;
         }
     }
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    if (old_cx_value != NULL)
+        free(old_cx_value);
+    return ret;
 }
 
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 {
-    int ret, i, voldesc_size, nwriters, image_checksums_mad = 0, tag_pos;
+    int ret, i, voldesc_size, nwriters, tag_pos;
     int sa_type;
     Ecma119Image *target;
     IsoImageWriter *writer;
@@ -1994,9 +2044,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     nwriters++; /* Tail padding writer */
     if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
         nwriters++;
-        image_checksums_mad = 1; /* from here on the loaded checksums are
-                                    not consistent with isofs.cx any more.
-                                  */
         ret = checksum_prepare_image(src, 0);
         if (ret < 0)
             goto target_cleanup;
@@ -2367,10 +2414,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (ret < 0)
             goto target_cleanup;
     }
-    /* Dispose old image checksum buffer. The one of target is supposed to
-       get attached at the end of write_function(). */
-    iso_image_free_checksums(target->image, 0);
-    image_checksums_mad = 0;
 
     if (target->apm_block_size == 0) {
         if (target->gpt_req_count)
@@ -2418,9 +2461,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     *img = target;
     return ISO_SUCCESS;
 
-    target_cleanup: ;
-    if(image_checksums_mad) /* No checksums is better than mad checksums */
-      iso_image_free_checksums(target->image, 0);
+target_cleanup: ;
     target->image->generator_is_running = 0;
     ecma119_image_free(target);
     return ret;
