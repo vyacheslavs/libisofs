@@ -477,8 +477,8 @@ static
 int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
-    uint32_t i, link_blocks, hfsp_curblock;
-    uint32_t block_fac, cat_node_size, block_size;
+    uint32_t i, hfsp_curblock;
+    uint32_t block_fac, block_size;
 
     if (writer == NULL) {
         return ISO_OUT_OF_MEM;
@@ -487,7 +487,6 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
     block_size = t->hfsp_block_size;
     block_fac = t->hfsp_iso_block_fac;
-    cat_node_size = t->hfsp_cat_node_size;
 
     iso_msg_debug(t->image->id, "(b) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
     t->hfsp_part_start = t->curblock * block_fac;
@@ -500,7 +499,7 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     t->hfsp_catalog_file_start = hfsp_curblock;
 
 /* 
-    hfsp_curblock += (t->hfsp_nnodes * cat_node_size + block_size - 1) / block_size;
+    hfsp_curblock += (t->hfsp_nnodes * t->hfsp_cat_node_size + block_size - 1) / block_size;
 */
     hfsp_curblock += 2 * t->hfsp_nnodes;
 
@@ -509,7 +508,6 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
 
     iso_msg_debug(t->image->id, "(d) hfsp_curblock=%d, nodes =%d", hfsp_curblock, t->hfsp_nnodes);
 
-    link_blocks = 0;
     for (i = 0; i < t->hfsp_nleafs; i++)
       if (t->hfsp_leafs[i].unix_type == UNIX_SYMLINK)
 	{
@@ -1227,7 +1225,7 @@ int update_symlink(Ecma119Image *target, uint32_t changed_idx, char *new_name,
     char *orig_dest, *orig_start, *orig_end;
     char *hfsp_dest, *hfsp_start, *hfsp_end;
     int ret = 0;
-    unsigned int comp_len, orig_len, hfsp_len, hfsp_comp_len;
+    unsigned int comp_len, orig_len, hfsp_len;
 
     if (target->hfsp_leafs[link_idx].node->type != LIBISO_SYMLINK)
         return ISO_SUCCESS;
@@ -1271,7 +1269,6 @@ int update_symlink(Ecma119Image *target, uint32_t changed_idx, char *new_name,
         hfsp_end = strchr(hfsp_start, '/');
         if (hfsp_end == NULL)
             hfsp_end = hfsp_start + strlen(hfsp_start);
-        hfsp_comp_len = hfsp_end - hfsp_start;
 
         if (comp_len == 0 || (comp_len == 1 && orig_start[0] == '.'))
    continue;

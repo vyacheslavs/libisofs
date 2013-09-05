@@ -563,7 +563,7 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     uint32_t id, part, nominal_part_size;
     off_t hd_img_blocks, hd_boot_lba;
     char *wpt;
-    uint32_t boot_lba, mbr_id;
+    uint32_t boot_lba;
     int head_count, sector_count, ret;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor;
     /* For generating a weak random number */
@@ -573,7 +573,6 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
     hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4;
 
     boot_lba = t->bootsrc[0]->sections[0].block;
-    mbr_id = 0;
     head_count = t->partition_heads_per_cyl;
     sector_count = t->partition_secs_per_head;
 
@@ -608,6 +607,8 @@ int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
         gettimeofday(&tv, &tz);
         id = 0xffffffff & (tv.tv_sec ^ (tv.tv_usec * 2000));
         lsb_to_buf(&wpt, id, 32, 0);
+    } else {
+        wpt+= 4;
     }
 
     /* write word 0                    # Offset 444

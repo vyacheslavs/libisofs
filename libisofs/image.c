@@ -406,6 +406,7 @@ static
 int dir_update_size(IsoImage *image, IsoDir *dir)
 {
     IsoNode *pos;
+    int ret;
 
 #ifdef Libisofs_update_sizes_abortablE
     char *path= NULL;
@@ -416,7 +417,6 @@ int dir_update_size(IsoImage *image, IsoDir *dir)
 
     pos = dir->children;
     while (pos) {
-        int ret = 1;
         if (pos->type == LIBISO_FILE) {
             ret = iso_stream_update_size(ISO_FILE(pos)->stream);
         } else if (pos->type == LIBISO_DIR) {
@@ -428,6 +428,8 @@ int dir_update_size(IsoImage *image, IsoDir *dir)
                 return ret; /* Message already issued by dir_update_size */
 #endif
 
+        } else {
+            ret = 1;
         }
 
 #ifdef Libisofs_update_sizes_abortablE
@@ -465,7 +467,12 @@ int dir_update_size(IsoImage *image, IsoDir *dir)
                 return cancel_ret; /* cancel due error threshold */
         }
 
-#endif /* Libisofs_update_sizes_abortablE */
+#else
+
+        if (ret < 0)
+            ret = 1; /* ignore error */
+
+#endif /* ! Libisofs_update_sizes_abortablE */
 
         pos = pos->next;
     }

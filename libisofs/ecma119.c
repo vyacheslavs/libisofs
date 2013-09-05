@@ -1734,7 +1734,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     int sa_type;
     Ecma119Image *target;
     IsoImageWriter *writer;
-    int el_torito_writer_index = -1, file_src_writer_index = -1;
+    int file_src_writer_index = -1;
     int system_area_options = 0;
     char *system_area = NULL;
     int write_count = 0, write_count_mem;
@@ -2073,7 +2073,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         if (ret < 0) {
             goto target_cleanup;
         }
-        el_torito_writer_index = target->nwriters - 1;
     }
 
     /* create writer for Joliet structure */
