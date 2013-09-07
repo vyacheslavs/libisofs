@@ -1048,6 +1048,7 @@ void iso_node_set_sort_weight(IsoNode *node, int w)
         }
     } else if (node->type == LIBISO_FILE) {
         ((IsoFile*)node)->sort_weight = w;
+        ((IsoFile*)node)->explicit_weight = 1;
     }
 }
 
@@ -1430,6 +1431,8 @@ int iso_node_new_file(char *name, IsoStream *stream, IsoFile **file)
     new->node.type = LIBISO_FILE;
     new->node.name = name;
     new->node.mode = S_IFREG;
+    new->from_old_session = 0;
+    new->explicit_weight = 0;
     new->sort_weight = 0;
     new->stream = stream;
 

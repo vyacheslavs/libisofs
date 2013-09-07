@@ -149,7 +149,14 @@ struct Iso_File
 {
     IsoNode node;
 
+    /* 1 = The node was loaded from an existing ISO image and still refers
+           to its data content there.
+    */
     unsigned int from_old_session : 1;
+
+    /* 1 = The node got attributed a weight by iso_node_set_sort_weight().
+    */
+    unsigned int explicit_weight : 1;
 
     /**
      * It sorts the order in which the file data is written to the CD image.

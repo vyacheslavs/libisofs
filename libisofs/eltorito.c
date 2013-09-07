@@ -312,7 +312,8 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
 static
 int create_image(IsoImage *image, const char *image_path,
                  enum eltorito_boot_media_type type,
-                 struct el_torito_boot_image **bootimg)
+                 struct el_torito_boot_image **bootimg,
+                 IsoFile **bootnode)
 {
     int ret;
     struct el_torito_boot_image *boot;
@@ -323,6 +324,7 @@ int create_image(IsoImage *image, const char *image_path,
     IsoNode *imgfile;
     IsoStream *stream;
 
+    *bootnode = NULL;
     ret = iso_tree_path_to_node(image, image_path, &imgfile);
     if (ret < 0) {
         return ret;
@@ -337,6 +339,7 @@ int create_image(IsoImage *image, const char *image_path,
     if (imgfile->type != LIBISO_FILE) {
         return ISO_BOOT_IMAGE_NOT_VALID;
     }
+    *bootnode = (IsoFile *) imgfile;
 
     stream = ((IsoFile*)imgfile)->stream;
 
@@ -461,6 +464,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     struct el_torito_boot_catalog *catalog;
     ElToritoBootImage *boot_image= NULL;
     IsoBoot *cat_node= NULL;
+    IsoFile *boot_node;
 
     if (image == NULL || image_path == NULL || catalog_path == NULL) {
         return ISO_NULL_POINTER;
@@ -513,7 +517,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     }
 
     /* create the boot image */
-    ret = create_image(image, image_path, type, &boot_image);
+    ret = create_image(image, image_path, type, &boot_image, &boot_node);
     if (ret < 0) {
         goto boot_image_cleanup;
     }
@@ -530,6 +534,8 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
         catalog->bootimages[i] = NULL;
     catalog->node = cat_node;
     catalog->sort_weight = 1000;                            /* slightly high */
+    if (!boot_node->explicit_weight)
+        boot_node->sort_weight = 2;
     iso_node_ref((IsoNode*)cat_node);
     image->bootcat = catalog;
 
@@ -700,14 +706,17 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
     int ret;
     struct el_torito_boot_catalog *catalog = image->bootcat;
     ElToritoBootImage *boot_img;
+    IsoFile *boot_node;
 
     if(catalog == NULL)
       return ISO_BOOT_NO_CATALOG;
     if (catalog->num_bootimages >= Libisofs_max_boot_imageS)
         return ISO_BOOT_IMAGE_OVERFLOW;
-    ret = create_image(image, image_path, type, &boot_img);
+    ret = create_image(image, image_path, type, &boot_img, &boot_node);
     if (ret < 0) 
         return ret;
+    if (!boot_node->explicit_weight)
+        boot_node->sort_weight = 2;
     catalog->bootimages[catalog->num_bootimages] = boot_img;
     catalog->num_bootimages++;
     if (boot != NULL)
