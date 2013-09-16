@@ -2065,7 +2065,7 @@ int aaip_decode_acl(unsigned char *data, size_t num_data, size_t *consumed,
  unsigned char *rpt;
  char perm_text[4], *wpt, *name= NULL;
  int type, qualifier= 0, perm, ret, cnt, name_size= 1024;
- size_t w_size, name_fill= 0, i;
+ size_t w_size= 0, name_fill= 0, i;
  uid_t uid;
  gid_t gid;
  struct passwd *pwd;

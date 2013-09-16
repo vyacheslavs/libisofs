@@ -308,7 +308,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
     int ret;
     int i, nchildren;
     Iso1999Node **children;
-    IsoHTable *table;
+    IsoHTable *table = NULL;
     int need_sort = 0;
     char *full_name = NULL, *tmp = NULL;
 

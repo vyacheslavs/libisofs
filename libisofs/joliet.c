@@ -349,7 +349,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     int ret;
     int i, nchildren, maxchar = 64;
     JolietNode **children;
-    IsoHTable *table;
+    IsoHTable *table = NULL;
     int need_sort = 0;
     uint16_t *full_name = NULL;
     uint16_t *tmp = NULL;
