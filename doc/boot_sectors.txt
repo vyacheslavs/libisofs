@@ -15,6 +15,8 @@ specifications, some is just rumor which happens to work (maybe not even that).
 
 EL Torito CD booting, for PC-BIOS x86, PowerPC, (old) Mac, EFI.
 
+Boot Info Table and GRUB2 Boot Info
+
 Master Boot Record (MBR), for PC-BIOS x86 from (pseudo-) hard disk
 
 Apple Partition Map (APM), for more modern Mac
@@ -48,7 +50,6 @@ Sources:
     El Torito, Bootable CD-ROM Format Specification, Version 1.0, 1995
     which refers to ECMA-119, the standard for ISO 9660 filesystems.
     libisofs/eltorito.[ch] by Vreixo Formoso.
-    man mkisofs by Joerg Schilling.
 
 
 ECMA-119 prescribes that the first 32 kB of an ISO 9660 image are System Area
@@ -237,10 +238,22 @@ Byte Range | Value      | Meaning
   12 -  31 |   sel_crit | "Vendor unique selection criteria."
 ---------- | ---------- | ----------------------------------------------------
 
+------------------------------------------------------------------------------
+
+
+                      Boot Info Table and GRUB2 Boot Info
+
+Sources:
+    man mkisofs by Joerg Schilling
+    Mail conversations with Vladimir Serbinenko.
+
 
 The boot image file content is mostly opaque to the ISO 9660 image generator.
 Nevertheless there is a tradition named "Boot Info Table" which prescribes
 to write information into byte fields of the boot image file content.
+Recent versions of GRUB2 expect a similar patching which has no name yet.
+For now let's call it "GRUB2 Boot Info"
+ 
 There are no general means known how a producer of ISO 9660 images could
 detect the need for Boot Info Table production.
 It rather needs a hint from the user who has to know whether the boot image
@@ -249,18 +262,30 @@ The Boot Info Table begins at byte 8 of the boot image content.
 
 Byte Range | Value      | Meaning
 ---------- | ---------- | ----------------------------------------------------
-   8 -  11 |    pvd_lba | Block address of the Primary Volume Descriptor
+   8 -  11 |    pvd_lba | Block address of the Primary Volume Descriptor.
            |            | This is the session start LBA + 16.
            |            |
   12 -  15 |   file_lba | Block address of the start of the boot image file
-           |            | content.
+           |            | content. Block size is 2048.
            |            |
   16 -  19 |   file_len | Number of bytes in boot image file content.
            |            |
-  20 -  23 |   checksum | Little-endian: The sum of all 32-bit words of the
-           |            | file content from byte 64 to file end.
+  20 -  23 |   checksum | The sum of all 32-bit words of the file content
+           |            | from byte 64 to file end.
            |            |
   24 -  63 |          0 | Reserved
+---------- | ---------- | ----------------------------------------------------
+All numbers are stored little-endian.
+
+GRUB2 Boot Info represents a particular block address inside the boot image.
+It may well be combined with Boot Info Table. See GRUB2 script grub-mkrescue
+use of xorrisofs options -boot-info-table and --grub2-boot-info.
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+2548 -2555 |  grub2_adr | Block address of the start of the boot image file
+           |            | content plus 5. Block size is 512.
+           |            | 64 bit Little-endian.
 ---------- | ---------- | ----------------------------------------------------
 
 ------------------------------------------------------------------------------
