@@ -1351,12 +1351,21 @@ Sources:
     Mailing list conversations with Vladimir Serbinenko.
 
 
-The MBR file that is used with GRUB2 script grub-mkrescue needs only a
-partition table entry which describes the image size.
+The MBR file that is used with older versions of GRUB2 script grub-mkrescue
+needs only a partition table entry which describes the image size.
+Newer versions get patched by the block address of the content of the first
+El Torito boot image. See grub-mkrescue use of xorrisofs option --grub2-mbr.
 
 Byte Range | Value      | Meaning
 ---------- | ---------- | ----------------------------------------------------
-   0 - 445 | = opaque = | GRUB2 machine code provided by MBR template
+   0 - 431 | = opaque = | GRUB2 machine code provided by MBR template
+           |            |
+ 432 - 439 | bootimg_adr| With newer versions of grub-mkrescue:
+           |            | Block address of the start of the boot image file
+           |            | content plus 4. Block size is 512.
+           |            | 64 bit Little-endian.
+           |            |
+ 440 - 445 | = opaque = | provided by MBR template
            |            |
  446 - 509 | ========== | Partition table
            |            |
