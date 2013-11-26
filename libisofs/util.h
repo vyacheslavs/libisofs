@@ -89,6 +89,22 @@ int str2ascii(const char *icharset, const char *input, char **output);
 int str2ucs(const char *icharset, const char *input, uint16_t **output);
 
 /**
+ * Convert a given string from any input charset to UTF-16BE charset,
+ * used for HFS+ file identifiers.
+ * (UTF-16 differs from older UCS-2 by having multi word characters.)
+ * 
+ * @param icharset
+ *      Input charset. Must be supported by iconv
+ * @param input
+ *      Input string
+ * @param output
+ *      Location where the pointer to the ouput string will be stored
+ * @return
+ *      1 on success, < 0 on error
+ */
+int str2utf16be(const char *icharset, const char *input, uint16_t **output);
+
+/**
  * Create a level 1 directory identifier.
  * 
  * @param src

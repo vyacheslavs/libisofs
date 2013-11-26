@@ -667,6 +667,123 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output)
     return ISO_SUCCESS;
 }
 
+int str2utf16be(const char *icharset, const char *input, uint16_t **output)
+{
+    int result;
+    wchar_t *wsrc_ = NULL;
+    char *src;
+    char *ret = NULL;
+    char *ret_ = NULL;
+    struct iso_iconv_handle conv;
+    int conv_ret = 0;
+    int direct_conv = 0;
+    size_t loop_counter = 0, loop_limit = 3;
+    size_t numchars;
+    size_t outbytes;
+    size_t inbytes;
+    size_t n;
+
+    if (icharset == NULL || input == NULL || output == NULL) {
+        return ISO_NULL_POINTER;
+    }
+
+    /* 
+      Try the direct conversion.
+    */ 
+    conv_ret = iso_iconv_open(&conv, "UTF-16BE", (char *) icharset, 0);
+    if (conv_ret > 0) {
+        direct_conv = 1;
+        src = (char *) input;
+        inbytes = strlen(input);
+        loop_limit = inbytes + 3;
+        outbytes = (2 * inbytes + 1) * sizeof(uint16_t);
+        ret_ = malloc(outbytes);
+        if (ret_ == NULL)
+            return ISO_OUT_OF_MEM;
+        ret = ret_;
+    }  else {
+        /* Try via intermediate character set WCHAR_T.
+        */
+        result = str2wchar(icharset, input, &wsrc_);
+        if (result == (int) ISO_SUCCESS) {
+            src = (char *)wsrc_;
+            numchars = wcslen(wsrc_);
+
+            inbytes = numchars * sizeof(wchar_t);
+            loop_limit = inbytes + 3;
+
+            ret_ = malloc((2 * numchars+1) * sizeof(uint16_t));
+            if (ret_ == NULL)
+                return ISO_OUT_OF_MEM;
+            outbytes = 2 * numchars * sizeof(uint16_t);
+            ret = ret_;
+
+            /* initialize iconv */
+            conv_ret = iso_iconv_open(&conv, "UTF-16BE", "WCHAR_T", 0);
+            if (conv_ret <= 0) {
+                free(wsrc_);
+                free(ret_);
+            }
+        } else if (result != (int) ISO_CHARSET_CONV_ERROR)
+            return result;
+    }
+
+    if (conv_ret <= 0) {
+        return ISO_CHARSET_CONV_ERROR;
+    }
+
+    n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
+    while (n == (size_t) -1) {
+        /* The destination buffer is too small. Stops here. */
+        if (errno == E2BIG)
+            break;
+
+        /* An incomplete multi bytes sequence was found. We 
+         * can't do anything here. That's quite unlikely. */
+        if (errno == EINVAL)
+            break;
+
+        /* The last possible error is an invalid multi bytes
+         * sequence. Just replace the character with a "_". 
+         * Probably the character doesn't exist in UCS */
+        set_ucsbe((uint16_t*) ret, '_');
+        ret += sizeof(uint16_t);
+        outbytes -= sizeof(uint16_t);
+
+        if (!outbytes)
+            break;
+
+        /* There was an error with one character but some other remain
+         * to be converted. That's probably a multibyte character.
+         * See above comment. */
+        if (direct_conv) {
+            src++;
+            inbytes--;
+        } else {
+            src += sizeof(wchar_t);
+            inbytes -= sizeof(wchar_t);
+        }
+
+        if (!inbytes)
+            break;
+
+        /* Just to appease my remorse about unclear loop ends */
+        loop_counter++;
+        if (loop_counter > loop_limit)
+            break;
+        n = iso_iconv(&conv, &src, &inbytes, &ret, &outbytes, 0);
+    }
+    iso_iconv_close(&conv, 0);
+
+    /* close the UTF-16 string */
+    set_ucsbe((uint16_t*) ret, '\0');
+    if (wsrc_ != NULL)
+        free(wsrc_);
+
+    *output = (uint16_t*)ret_;
+    return ISO_SUCCESS;
+}
+
 static int valid_d_char(char c)
 {
     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c == '_');

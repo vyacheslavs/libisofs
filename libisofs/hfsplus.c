@@ -128,7 +128,7 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
         return ISO_SUCCESS;
     }
 
-    ret = str2ucs(t->input_charset, name, &ucs_name);
+    ret = str2utf16be(t->input_charset, name, &ucs_name);
     if (ret < 0) {
         iso_msg_debug(t->image->id, "Can't convert %s", name);
         return ret;
