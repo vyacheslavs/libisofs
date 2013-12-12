@@ -2569,6 +2569,7 @@ int iso_node_set_ino(IsoNode *node, ino_t ino, int flag)
         ret = iso_stream_set_image_ino(file->stream, ino, 0);
         if (ret < 0 || ret == 1)
             return ret;
+        /* ret == 0 means that the stream is not from loaded ISO image */
 
     } else if (node->type == LIBISO_SYMLINK) {
         symlink = (IsoSymlink *) node;
