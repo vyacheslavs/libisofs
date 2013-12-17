@@ -303,6 +303,7 @@ iso_write_opts_set_iso_level;
 iso_write_opts_set_joliet;
 iso_write_opts_set_joliet_long_names;
 iso_write_opts_set_joliet_longer_paths;
+iso_write_opts_set_joliet_utf16;
 iso_write_opts_set_max_37_char_filenames;
 iso_write_opts_set_ms_block;
 iso_write_opts_set_no_force_dots;

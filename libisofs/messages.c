@@ -503,6 +503,8 @@ const char *iso_error_to_msg(int errcode)
         return "Too many chained symbolic links";
     case ISO_BAD_ISO_FILETYPE:
         return "Unrecognized file type in ISO image";
+    case ISO_NAME_NOT_UCS2:
+         return "Filename not suitable for character set UCS-2";
     default:
         return "Unknown error";
     }

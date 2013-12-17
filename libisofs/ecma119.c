@@ -1511,6 +1511,21 @@ ex:;
 
 
 static
+void issue_write_warning_summary(Ecma119Image *target)
+{
+    if (target->joliet_ucs2_failures > ISO_JOLIET_UCS2_WARN_MAX) {
+        iso_msg_submit(-1, ISO_NAME_NOT_UCS2, 0,
+                      "More filenames found which were not suitable for Joliet character set UCS-2");
+    }
+    if (target->joliet_ucs2_failures > 0) {
+        iso_msg_submit(-1, ISO_NAME_NOT_UCS2, 0,
+           "Sum of filenames not suitable for Joliet character set UCS-2: %.f",
+                       (double) target->joliet_ucs2_failures);
+    }
+}
+
+
+static
 void *write_function(void *arg)
 {
     int res, first_partition = 1, last_partition = 0, sa_type;
@@ -1565,6 +1580,8 @@ void *write_function(void *arg)
     res = finish_libjte(target);
     if (res <= 0)
         goto write_error;
+
+    issue_write_warning_summary(target);
 
     target->image->generator_is_running = 0;
 
@@ -1783,6 +1800,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->relaxed_vol_atts = opts->relaxed_vol_atts;
     target->joliet_longer_paths = opts->joliet_longer_paths;
     target->joliet_long_names = opts->joliet_long_names;
+    target->joliet_utf16 = opts->joliet_utf16;
     target->rrip_version_1_10 = opts->rrip_version_1_10;
     target->rrip_1_10_px_ino = opts->rrip_1_10_px_ino;
     target->aaip_susp_1_10 = opts->aaip_susp_1_10;
@@ -2006,6 +2024,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->filesrc_start = 0;
     target->filesrc_blocks = 0;
+
+    target->joliet_ucs2_failures = 0;
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -2758,6 +2778,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->fat = 0;
     wopts->fifo_size = 1024; /* 2 MB buffer */
     wopts->sort_files = 1; /* file sorting is always good */
+    wopts->joliet_utf16 = 0;
     wopts->rr_reloc_dir = NULL;
     wopts->rr_reloc_flags = 0;
     wopts->system_area_data = NULL;
@@ -3032,6 +3053,15 @@ int iso_write_opts_set_joliet_long_names(IsoWriteOpts *opts, int allow)
         return ISO_NULL_POINTER;
     }
     opts->joliet_long_names = allow ? 1 : 0;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_joliet_utf16(IsoWriteOpts *opts, int allow)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->joliet_utf16 = allow ? 1 : 0;
     return ISO_SUCCESS;
 }
 

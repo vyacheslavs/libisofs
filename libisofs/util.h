@@ -237,6 +237,12 @@ uint16_t *ucscpy(uint16_t *dest, const uint16_t *src);
 uint16_t *ucsncpy(uint16_t *dest, const uint16_t *src, size_t n);
 
 /**
+ * Check whether utf_word is the first surrogate word of a pair.
+ * If so, change it to UTF-16 character '_'.
+ */
+void iso_handle_split_utf16(uint16_t *utf_word);
+
+/**
  * Convert a given input string to d-chars.
  * @return
  *      1 on succes, < 0 error, 0 if input was null (output is set to null)

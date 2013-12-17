@@ -87,6 +87,12 @@
 #define ISO_GPT_ENTRIES_MAX 248
 
 
+/* How many warnings to issue about writing Joliet names which cannot be
+   properly represented in UCS-2 and thus had to be defaultet to '_'.
+*/
+#define ISO_JOLIET_UCS2_WARN_MAX 3
+
+
 /**
  * Holds the options for the image generation.
  */
@@ -191,6 +197,11 @@ struct iso_write_opts {
      * Allow Joliet names up to 103 characters rather than 64.
      */
     unsigned int joliet_long_names :1;
+
+    /**
+     * Use UTF-16BE rather than its subset UCS-2
+     */
+    unsigned int joliet_utf16 :1;
 
     /**
      * Write Rock Ridge info as of specification RRIP-1.10 rather than
@@ -540,6 +551,9 @@ struct ecma119_image
     /** Allow Joliet names up to 103 characters rather than 64  */
     unsigned int joliet_long_names :1;
 
+    /** Use UTF-16BE rather than its subset UCS-2 */
+    unsigned int joliet_utf16 :1;
+
     /** Write old fashioned RRIP-1.10 rather than RRIP-1.12 */
     unsigned int rrip_version_1_10 :1;
 
@@ -642,6 +656,7 @@ struct ecma119_image
     uint32_t joliet_path_table_size;
     uint32_t joliet_l_path_table_pos;
     uint32_t joliet_m_path_table_pos;
+    size_t joliet_ucs2_failures;
 
     /*
      * HFS+ related information

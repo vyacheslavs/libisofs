@@ -31,19 +31,41 @@
 static
 int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
 {
-    int ret;
-    uint16_t *ucs_name;
+    int ret = ISO_SUCCESS;
+    uint16_t *ucs_name = NULL, *utf16_name = NULL;
     uint16_t *jname = NULL;
 
     if (iso->name == NULL) {
         /* it is not necessarily an error, it can be the root */
+        *name = NULL;
         return ISO_SUCCESS;
     }
 
-    ret = str2ucs(t->input_charset, iso->name, &ucs_name);
-    if (ret < 0) {
-        iso_msg_debug(t->image->id, "Can't convert %s", iso->name);
-        return ret;
+    if (t->joliet_utf16) {
+        ret = str2utf16be(t->input_charset, iso->name, &ucs_name);
+        if (ret < 0) {
+            iso_msg_debug(t->image->id, "Cannot convert to UTF-16 : \"%s\"",
+                          iso->name);
+            goto ex;
+        }
+    } else {
+        ret = str2ucs(t->input_charset, iso->name, &ucs_name);
+        if (ret < 0) {
+            iso_msg_debug(t->image->id, "Cannot convert to UCS-2 : \"%s\"",
+                          iso->name);
+            goto ex;
+        }
+        ret = str2utf16be(t->input_charset, iso->name, &utf16_name);
+        if (ret == ISO_SUCCESS) {
+            if (ucscmp(ucs_name, utf16_name) != 0) {
+                t->joliet_ucs2_failures++;
+                if (t->joliet_ucs2_failures <= ISO_JOLIET_UCS2_WARN_MAX) {
+                    iso_msg_submit(t->image->id, ISO_NAME_NOT_UCS2, 0,
+               "Filename not suitable for Joliet character set UCS-2 : \"%s\"",
+                                   iso->name);
+                }
+            }
+        }
     }
     if (iso->type == LIBISO_DIR) {
         jname = iso_j_dir_id(ucs_name, t->joliet_long_names << 1);
@@ -51,8 +73,17 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
         jname = iso_j_file_id(ucs_name,
                        (t->joliet_long_names << 1) | !!(t->no_force_dots & 2));
     }
-    free(ucs_name);
-    if (jname != NULL) {
+    ret = ISO_SUCCESS;
+ex:;
+    if (ucs_name != NULL)
+        free(ucs_name);
+    if (utf16_name != NULL)
+        free(utf16_name);
+    if (ret != ISO_SUCCESS) {
+        if (jname != NULL)
+            free(jname);
+        return ret;
+    } else if (jname != NULL) {
         *name = jname;
         return ISO_SUCCESS;
     } else {
@@ -828,18 +859,22 @@ void ucsncpy_pad(uint16_t *dest, const uint16_t *src, size_t max)
     csrc = (char*)src;
 
     if (src != NULL) {
-        len = MIN(ucslen(src) * 2, max);
+        len = MIN(ucslen(src) * 2, max - (max % 2));
     } else {
         len = 0;
     }
 
     for (i = 0; i < len; ++i)
         cdest[i] = csrc[i];
+    if (len >= 2)
+        iso_handle_split_utf16(dest + (len / 2 - 1));
 
-    for (i = len; i < max; i += 2) {
+    for (i = len; i + 1 < max; i += 2) {
         cdest[i] = '\0';
         cdest[i + 1] = ' ';
     }
+    if (max % 2)
+        cdest[max - 1] = 0;
 }
 
 int joliet_writer_write_vol_desc(IsoImageWriter *writer)

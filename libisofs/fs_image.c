@@ -1252,7 +1252,7 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
             return name;
         } else {
             ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET, ret,
-                "Charset conversion error. Cannot convert from %s to %s",
+                "Cannot convert from charset %s to %s",
                 fsdata->input_charset, fsdata->local_charset);
             if (ret < 0) {
                 return NULL; /* aborted */
@@ -1751,7 +1751,7 @@ if (name != NULL && !namecont) {
                 LIBISO_FREE_MEM(msg);
                 LIBISO_ALLOC_MEM(msg, char, 160);
                 sprintf(msg,
-                "Charset conversion error. Cannot convert from %.40s to %.40s",
+                "Cannot convert from charset %.40s to %.40s",
                                  fsdata->input_charset, fsdata->local_charset);
                 ret = iso_rr_msg_submit(fsdata, 17, ISO_FILENAME_WRONG_CHARSET,
                                         ret, msg);
@@ -2906,7 +2906,10 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         if (!opts->nojoliet && opts->preferjoliet && data->joliet) {
             /* if user prefers joliet, that is used */
             iso_msg_debug(data->msgid, "Reading Joliet extensions.");
-            data->input_charset = strdup("UCS-2BE");
+            /* Although Joliet prescribes UCS-2BE, interpret names by its
+               superset UTF-16BE in order to avoid conversion failures.
+            */
+            data->input_charset = strdup("UTF-16BE");
             data->rr = RR_EXT_NO;
             data->iso_root_block = data->svd_root_block;
         } else {
@@ -2919,7 +2922,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         if (!opts->nojoliet && data->joliet) {
             /* joliet will be used */
             iso_msg_debug(data->msgid, "Reading Joliet extensions.");
-            data->input_charset = strdup("UCS-2BE");
+            data->input_charset = strdup("UTF-16BE");
             data->iso_root_block = data->svd_root_block;
         } else if (!opts->noiso1999 && data->iso1999) {
             /* we will read ISO 9660:1999 */

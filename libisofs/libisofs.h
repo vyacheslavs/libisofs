@@ -1772,6 +1772,16 @@ int iso_write_opts_set_joliet_longer_paths(IsoWriteOpts *opts, int allow);
 int iso_write_opts_set_joliet_long_names(IsoWriteOpts *opts, int allow);
 
 /**
+ * Use character set UTF-16BE with Joliet, which is a superset of the
+ * actually prescribed character set UCS-2.
+ * This breaks Joliet specification with exotic characters which would
+ * elsewise be mapped to underscore '_'. Use with caution.
+ *
+ * @since 1.3.6
+ */
+int iso_write_opts_set_joliet_utf16(IsoWriteOpts *opts, int allow);
+
+/**
  * Write Rock Ridge info as of specification RRIP-1.10 rather than RRIP-1.12:
  * signature "RRIP_1991A" rather than "IEEE_1282", field PX without file
  * serial number.
@@ -7543,6 +7553,9 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 
 /** Unrecognized file type in ISO image            (FAILURE, HIGH, -396) */
 #define ISO_BAD_ISO_FILETYPE        0xE830FE74
+
+/** Filename not suitable for character set UCS-2  (WARNING, HIGH, -397) */
+#define ISO_NAME_NOT_UCS2           0xD030FE73
 
 
 /* Internal developer note: 

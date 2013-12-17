@@ -1197,7 +1197,7 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
 {
     uint16_t *dot, *retval = NULL;
     size_t lname, lext, lnname, lnext, pos, i, maxchar = 64;
-    uint16_t *dest = NULL;
+    uint16_t *dest = NULL, c;
 
     LIBISO_ALLOC_MEM_VOID(dest, uint16_t, LIBISO_JOLIET_NAME_MAX);
                                /* was: 66 = 64 (name + ext) + 1 (.) + 1 (\0) */
@@ -1237,7 +1237,7 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
 
     /* Convert up to lnname characters of the filename. */
     for (i = 0; i < lnname; i++) {
-        uint16_t c = src[i];
+        c = src[i];
         if (valid_j_char(c)) {
             dest[pos++] = c;
         } else {
@@ -1245,6 +1245,7 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
             pos++;
         }
     }
+    iso_handle_split_utf16(dest + (pos - 1));
 
     if ((flag & 1) && lnext <= 0)
         goto is_done;
@@ -1262,6 +1263,7 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
             pos++;
         }
     }
+    iso_handle_split_utf16(dest + (pos - 1));
 
 is_done:;
     set_ucsbe(dest + pos, '\0');
@@ -1298,6 +1300,7 @@ uint16_t *iso_j_dir_id(const uint16_t *src, int flag)
             set_ucsbe(dest + i, '_');
         }
     }
+    iso_handle_split_utf16(dest + (len - 1));
     set_ucsbe(dest + len, '\0');
     retval = ucsdup(dest);
 ex:
@@ -1379,6 +1382,8 @@ uint16_t *ucsncpy(uint16_t *dest, const uint16_t *src, size_t n)
 {
     n = MIN(n, ucslen(src) + 1);
     memcpy(dest, src, n*2);
+    if (n >= 2)
+        iso_handle_split_utf16(dest + (n - 2));
     return dest;
 }
 
@@ -2208,4 +2213,17 @@ uint16_t iso_htons(uint16_t v)
 
     return ret;
 }   
+
+
+/* If an UTF-16 surrogate pair was split : Change to UTF-16 '_'.
+   (UCS-2 is promised to reserve 0xd800 to 0xdbff for UTF-16).
+*/
+void iso_handle_split_utf16(uint16_t *utf_word)
+{
+    unsigned char *hb;
+
+    hb = (unsigned char *) utf_word;
+    if ((hb[0] & 0xfc) == 0xd8)
+        set_ucsbe(utf_word, '_');
+}
 
