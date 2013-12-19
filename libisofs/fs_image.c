@@ -1258,6 +1258,9 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
                 return NULL; /* aborted */
             }
             /* fallback */
+
+            /* >>> create a hopefully unique name */;
+
         }
     }
 

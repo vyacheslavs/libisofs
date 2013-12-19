@@ -3492,3 +3492,102 @@ int iso_write_opts_set_hfsp_block_size(IsoWriteOpts *opts,
 }
 
 
+/*
+ * @param flag
+ *      Bitfield for control purposes.
+ *        bit0-bit7= Name space
+ *                   0= generic (to_charset is valid, no reserved characters,
+ *                               no length limits)
+ *                   1= Rock Ridge (to_charset is valid)
+ *                   2= Joliet (to_charset gets overriden by UCS-2 or UTF-16)
+ *                   3= ECMA-119 (dull ISO 9660 character set)
+ *                   4= HFS+ (to_charset gets overridden by UTF-16BE) 
+ *        bit15= Reverse operation (best to be done only with results of
+ *               previous conversions)
+ */
+int iso_conv_name_chars(IsoWriteOpts *opts, char *in_name, size_t name_len,
+                        char **result, size_t *result_len, int flag)
+{
+    int name_space, ret, reverse;
+    size_t i;
+    char *from_charset, *to_charset, *conved = NULL, *smashed = NULL, *name;
+    char *tr;
+    size_t conved_len;
+    uint16_t *ucs;
+
+    name = in_name;
+    from_charset = iso_get_local_charset(0);
+    name_space = flag & 0xff;
+    reverse = !!(flag & (1 << 15));
+    if (name_space == 0) { /* generic */
+        to_charset = opts->output_charset;
+
+    } else if (name_space == 1) { /* Rock Ridge */
+        to_charset = opts->output_charset;
+        if (!reverse) {
+            LIBISO_ALLOC_MEM(smashed, char, name_len + 1);
+            memcpy(smashed, name, name_len);
+            smashed[name_len] = 0;
+            for (i = 0; i < name_len; i++)
+                 if (smashed[i] == '/')
+                     smashed[i] = '_';
+            name = smashed;
+
+            /* >>> ??? truncate to 255 chars */
+         }
+
+    } else if (name_space == 2) { /* Joliet */
+        if (opts->joliet_utf16)
+            to_charset = "UTF-16BE";
+        else
+            to_charset = "UCS-2BE";
+        /* ( Smashing happens after conversion ) */
+
+    } else if (name_space == 3) { /* ECMA-119 */
+        to_charset = "ASCII";
+
+        /* >>> ??? Use an  IsoWriteOpts+char of get_iso_name() */
+
+    } else if (name_space == 4) { /* HFS+ */
+        to_charset= "UTF-16BE";
+
+        /* >>> ??? any other conversions for HFS+ ? */;
+
+    } else {
+        ret = ISO_WRONG_ARG_VALUE;
+        goto ex;
+    }
+    if (reverse) {
+        tr = from_charset;
+        from_charset = to_charset;
+        to_charset = tr;
+    }
+
+    ret = strnconvl(name, from_charset, to_charset, name_len,
+                    &conved, &conved_len);
+    if (ret != ISO_SUCCESS)
+        goto ex;
+
+    if (name_space == 2 && !reverse) { /* Joliet */
+
+        /* >>> ??? Rather use iso_j_dir_id()/iso_j_file_id()
+               ??? Or even an IsoWriteOpts version of get_joliet_name() ?
+        */
+
+        ucs = (uint16_t *) conved;
+        iso_smash_chars_for_joliet(ucs);
+    } else if (name_space == 3 && !reverse) { /* ECMA-119 */
+
+        /* >>> smash all forbidden characters ? (or use get_iso_name() ) */;
+
+    }
+
+    *result = conved;
+    *result_len = conved_len;
+    return ISO_SUCCESS;
+ex:
+    LIBISO_FREE_MEM(smashed);
+    return ret;
+}
+
+

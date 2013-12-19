@@ -19,6 +19,7 @@ el_torito_set_load_seg;
 el_torito_set_load_size;
 el_torito_set_no_bootable;
 el_torito_set_selection_crit;
+iso_conv_name_chars;
 iso_data_source_new_from_file;
 iso_data_source_ref;
 iso_data_source_unref;

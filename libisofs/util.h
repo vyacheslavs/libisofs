@@ -56,8 +56,15 @@ int iso_init_locale(int flag);
 int strconv(const char *input, const char *icharset, const char *ocharset,
             char **output);
 
+/* Like strconv but processing len input bytes rather than strlen(input)
+ */
 int strnconv(const char *str, const char *icharset, const char *ocharset,
              size_t len, char **output);
+
+/* Like strnconv but also returning the number of bytes in *output.
+ */
+int strnconvl(const char *str, const char *icharset, const char *ocharset,
+              size_t len, char **output, size_t *out_len);
 
 /**
  * Convert a given string from any input charset to ASCII
@@ -203,6 +210,11 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag);
  *        NULL if the original name and extension both are of length 0.
  */
 uint16_t *iso_j_dir_id(const uint16_t *src, int flag);
+
+/**
+ * Maps forbidden Joliet characters to UCS-2 '_'
+ */
+void iso_smash_chars_for_joliet(uint16_t *name);
 
 /**
  * Like strlen, but for Joliet strings.

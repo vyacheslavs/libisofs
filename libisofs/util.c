@@ -241,8 +241,8 @@ ex:;
     return retval;
 }
 
-int strnconv(const char *str, const char *icharset, const char *ocharset,
-             size_t len, char **output)
+int strnconvl(const char *str, const char *icharset, const char *ocharset,
+              size_t len, char **output, size_t *out_len)
 {
     size_t inbytes;
     size_t outbytes;
@@ -290,6 +290,15 @@ ex:;
         free(out);
     return retval;
 }
+
+int strnconv(const char *str, const char *icharset, const char *ocharset,
+             size_t len, char **output)
+{
+    size_t l;
+
+    return strnconvl(str, icharset, ocharset, len, output, &l);
+}
+
 
 /**
  * Convert a str in a specified codeset to WCHAR_T. 
@@ -2225,5 +2234,15 @@ void iso_handle_split_utf16(uint16_t *utf_word)
     hb = (unsigned char *) utf_word;
     if ((hb[0] & 0xfc) == 0xd8)
         set_ucsbe(utf_word, '_');
+}
+
+
+void iso_smash_chars_for_joliet(uint16_t *name)
+{
+    size_t i;
+
+    for (i = 0; name[i] != 0; i++)
+        if (! valid_j_char(name[i]))
+            set_ucsbe(name + i, '_');
 }
 
