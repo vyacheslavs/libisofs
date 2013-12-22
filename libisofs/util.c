@@ -1254,7 +1254,8 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag)
             pos++;
         }
     }
-    iso_handle_split_utf16(dest + (pos - 1));
+    if (pos > 0)
+        iso_handle_split_utf16(dest + (pos - 1));
 
     if ((flag & 1) && lnext <= 0)
         goto is_done;
