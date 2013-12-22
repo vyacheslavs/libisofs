@@ -1126,7 +1126,7 @@ int patch_boot_info_table(uint8_t *buf, Ecma119Image *t,
         return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
             "Isolinux image too small. We won't patch it.");
     }
-    ret = make_boot_info_table(buf, t->ms_block + (uint32_t) 16,
+    ret = make_boot_info_table(buf, t->opts->ms_block + (uint32_t) 16,
                                t->bootsrc[idx]->sections[0].block,
                                (uint32_t) imgsize);
     return ret;
@@ -1302,8 +1302,8 @@ int eltorito_writer_create(Ecma119Image *target)
         }
     }
 
-    if (target->efi_boot_partition != NULL)
-        if (strcmp(target->efi_boot_partition, "--efi-boot-image") == 0)
+    if (target->opts->efi_boot_partition != NULL)
+        if (strcmp(target->opts->efi_boot_partition, "--efi-boot-image") == 0)
             outsource_efi = 1;
     for (idx = 0; idx < target->catalog->num_bootimages; idx++) {
         bootimg = target->catalog->bootimages[idx]->image;
@@ -1337,8 +1337,8 @@ int eltorito_writer_create(Ecma119Image *target)
 
     if (outsource_efi) {
         /* Disable EFI Boot partition and complain */
-        free(target->efi_boot_partition);
-        target->efi_boot_partition = NULL;
+        free(target->opts->efi_boot_partition);
+        target->opts->efi_boot_partition = NULL;
         iso_msg_submit(target->image->id, ISO_BOOT_NO_EFI_ELTO, 0,
 "No newly added El Torito EFI boot image found for exposure as GPT partition");
         return ISO_BOOT_NO_EFI_ELTO;

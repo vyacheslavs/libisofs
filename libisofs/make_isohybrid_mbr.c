@@ -455,7 +455,7 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                     return ret;
                 /* Prevent gap filling */
                 t->apm_req_flags |= 2;
-                t->apm_block_size = 2048;
+                t->opts->apm_block_size = 2048;
             }
         }
     }

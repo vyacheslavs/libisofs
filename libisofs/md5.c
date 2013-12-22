@@ -497,7 +497,7 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
 
     if (node->type == LIBISO_FILE) {
         file = (IsoFile *) node;
-        if (file->from_old_session && target->appendable) {
+        if (file->from_old_session && target->opts->appendable) {
             /* Look for checksums at various places */
 
             /* Try checksum directly stored with node */
@@ -527,7 +527,7 @@ int checksum_copy_old_nodes(Ecma119Image *target, IsoNode *node, int flag)
             if (md5_pt == NULL)
                 return 0;
 
-            if (!target->will_cancel) {
+            if (!target->opts->will_cancel) {
                 ret = iso_node_lookup_attr(node, "isofs.cx", &value_length,
                                            &value, 0);
                 if (ret == 1 && value_length == 4) {
@@ -571,8 +571,8 @@ int checksum_writer_compute_data_blocks(IsoImageWriter *writer)
     t = writer->target;
 
     t->checksum_array_pos = t->curblock;
-                               /* (t->curblock already contains t->ms_block) */ 
-    t->checksum_range_start = t->ms_block;
+                         /* (t->curblock already contains t->opts->ms_block) */ 
+    t->checksum_range_start = t->opts->ms_block;
     size = (t->checksum_idx_counter + 2) / 128;
     if (size * 128 < t->checksum_idx_counter + 2)
         size++;
@@ -712,7 +712,7 @@ int checksum_writer_create(Ecma119Image *target)
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
     /* Account for superblock checksum tag */
-    if (target->md5_session_checksum) {
+    if (target->opts->md5_session_checksum) {
         target->checksum_sb_tag_pos = target->curblock;
         target->curblock++;
     }
@@ -742,7 +742,7 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
                                     (unsigned int) (pos % 1000000000));
     else
         sprintf(postext, "%u", (unsigned int) pos);
-    sprintf(record, "%s %s ", t->scdbackup_tag_parm, postext);
+    sprintf(record, "%s %s ", t->opts->scdbackup_tag_parm, postext);
     record_len = strlen(record);
     for (i = 0; i < 16; i++)
          sprintf(record + record_len + 2 * i,
@@ -764,8 +764,8 @@ int iso_md5_write_scdbackup_tag(Ecma119Image *t, char *tag_block, int flag)
     block_len+= 32;
     tag_block[block_len++]= '\n';
 
-    if (t->scdbackup_tag_written != NULL)
-    	strncpy(t->scdbackup_tag_written, tag_block + line_start,
+    if (t->opts->scdbackup_tag_written != NULL)
+    	strncpy(t->opts->scdbackup_tag_written, tag_block + line_start,
                 block_len - line_start);
     ret = ISO_SUCCESS;
 ex:;
@@ -827,7 +827,7 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
     } else if (mode == 3) {
         sprintf(tag_block + l, " next=%u", t->checksum_tag_pos);
     } else if (mode == 4) {
-        sprintf(tag_block + l, " session_start=%u", t->ms_block);
+        sprintf(tag_block + l, " session_start=%u", t->opts->ms_block);
     }
     strcat(tag_block + l, " md5=");
     l = strlen(tag_block);
@@ -848,8 +848,8 @@ int iso_md5_write_tag(Ecma119Image *t, int flag)
     }
     tag_block[l + 32] = '\n';
 
-    if (mode == 1 && t->scdbackup_tag_parm[0]) {
-        if (t->ms_block > 0) {
+    if (mode == 1 && t->opts->scdbackup_tag_parm[0]) {
+        if (t->opts->ms_block > 0) {
             iso_msg_submit(t->image->id, ISO_SCDBACKUP_TAG_NOT_0, 0, NULL);
         } else {
             ret = iso_md5_write_scdbackup_tag(t, tag_block, 0);

@@ -611,6 +611,15 @@ void *iso_alloc_mem(size_t size, size_t count, int flag);
         }
 
 
+/*
+   @param in    Valid memory or NULL
+   @param out   Returns valid memory or NULL
+   @param size  Number of bytes to copy. 0 means strlen(in)+1 if not NULL.
+   @return      1 or ISO_OUT_OF_MEM
+*/
+int iso_clone_mem(char *in, char **out, size_t size);
+
+
 /* ------------------------------------------------------------------------- */
 
 

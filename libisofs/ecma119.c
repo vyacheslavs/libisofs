@@ -56,6 +56,10 @@
 
 #endif /* ! Xorriso_standalonE */
 
+
+int iso_write_opts_clone(IsoWriteOpts *in, IsoWriteOpts **out, int flag);
+
+
 /*
  * TODO #00011 : guard against bad path table usage with more than 65535 dirs
  * image with more than 65535 directories have path_table related problems
@@ -78,6 +82,8 @@ void ecma119_image_free(Ecma119Image *t)
 
     if (t->root != NULL)
         ecma119_node_free(t->root);
+    if (t->opts != NULL)
+        iso_write_opts_free(t->opts);
     if (t->image != NULL)
         iso_image_unref(t->image);
     if (t->files != NULL)
@@ -90,8 +96,6 @@ void ecma119_image_free(Ecma119Image *t)
         writer->free_data(writer);
         free(writer);
     }
-    if (t->rr_reloc_dir != NULL)
-        free(t->rr_reloc_dir);
     if (t->input_charset != NULL)
         free(t->input_charset);
     if (t->output_charset != NULL)
@@ -110,13 +114,6 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->writers);
     if (t->partition_root != NULL)
         ecma119_node_free(t->partition_root);
-    if (t->prep_partition != NULL)
-        free(t->prep_partition);
-    if (t->efi_boot_partition != NULL)
-        free(t->efi_boot_partition);
-    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
-        if (t->appended_partitions[i] != NULL)
-            free(t->appended_partitions[i]);
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
         if (t->hfsplus_blessed[i] != NULL)
             iso_node_unref(t->hfsplus_blessed[i]);
@@ -140,11 +137,11 @@ static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
 
     int ret;
 
-    if (target->libjte_handle == NULL)
+    if (target->opts->libjte_handle == NULL)
         return ISO_SUCCESS;
-    ret = libjte_show_data_chunk(target->libjte_handle, buf, count, 1); 
+    ret = libjte_show_data_chunk(target->opts->libjte_handle, buf, count, 1); 
     if (ret <= 0) {
-        iso_libjte_forward_msgs(target->libjte_handle,
+        iso_libjte_forward_msgs(target->opts->libjte_handle,
                                 target->image->id, ISO_LIBJTE_FILE_FAILED, 0);
         return ISO_LIBJTE_FILE_FAILED;
     }
@@ -160,7 +157,8 @@ static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
 static
 int need_version_number(Ecma119Image *t, Ecma119Node *n)
 {
-    if ((t->omit_version_numbers & 1) || t->untranslated_name_len > 0) {
+    if ((t->opts->omit_version_numbers & 1) ||
+        t->opts->max_37_char_filenames || t->opts->untranslated_name_len > 0) {
         return 0;
     }
     if (n->type == ECMA119_DIR || n->type == ECMA119_PLACEHOLDER) {
@@ -206,7 +204,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
 
     /* size of "." and ".." entries */
     len = 34 + 34;
-    if (t->rockridge) {
+    if (t->opts->rockridge) {
         len += rrip_calc_len(t, dir, 1, 34, &ce_len);
         *ce += ce_len;
         len += rrip_calc_len(t, dir, 2, 34, &ce_len);
@@ -221,7 +219,7 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         nsections = (child->type == ECMA119_FILE) ? child->info.file->nsections : 1;
         for (section = 0; section < nsections; ++section) {
             size_t dirent_len = calc_dirent_len(t, child);
-            if (t->rockridge) {
+            if (t->opts->rockridge) {
                 dirent_len += rrip_calc_len(t, child, 0, dirent_len, &ce_len);
                 *ce += ce_len;
             }
@@ -257,7 +255,7 @@ void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
     dir->info.dir->block = t->curblock;
     len = calc_dir_size(t, dir, &ce_len);
     t->curblock += DIV_UP(len, BLOCK_SIZE);
-    if (t->rockridge) {
+    if (t->opts->rockridge) {
         t->curblock += DIV_UP(ce_len, BLOCK_SIZE);
     }
     for (i = 0; i < dir->info.dir->nchildren; i++) {
@@ -321,13 +319,13 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     target->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     target->path_table_size = path_table_size;
 
-    if (target->md5_session_checksum) {
+    if (target->opts->md5_session_checksum) {
         /* Account for first tree checksum tag */
         target->checksum_tree_tag_pos = target->curblock;
         target->curblock++;
     }
 
-    if (target->partition_offset > 0) {
+    if (target->opts->partition_offset > 0) {
         /* Take into respect the second directory tree */
         ndirs = target->ndirs;
         target->ndirs = 0;
@@ -406,7 +404,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
          * the content block address to a dummy value.
          */
         len = 0;
-        if (! t->old_empty)
+        if (! t->opts->old_empty)
             block = t->empty_file_block;
         else
             block = 0;
@@ -421,13 +419,13 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
     rec->len_dr[0] = len_dr + (info != NULL ? info->suf_len : 0);
     iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
-    if (t->dir_rec_mtime & 1) {
+    if (t->opts->dir_rec_mtime & 1) {
         iso= node->node;
         iso_datetime_7(rec->recording_time,
                        t->replace_timestamps ? t->timestamp : iso->mtime,
-                       t->always_gmt);
+                       t->opts->always_gmt);
     } else {
-        iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+        iso_datetime_7(rec->recording_time, t->now, t->opts->always_gmt);
     }
     rec->flags[0] = ((node->type == ECMA119_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, (uint32_t) 1, 2);
@@ -469,50 +467,52 @@ void ecma119_set_voldescr_times(IsoImageWriter *writer,
                                 struct ecma119_pri_vol_desc *vol)
 {
     Ecma119Image *t = writer->target;
+    IsoWriteOpts *o;
     int i;
 
-    if (t->vol_uuid[0]) {
+    o = t->opts;
+    if (o->vol_uuid[0]) {
         for(i = 0; i < 16; i++)
-            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
+            if(o->vol_uuid[i] < '0' || o->vol_uuid[i] > '9')
         break;
             else
-                vol->vol_creation_time[i] = t->vol_uuid[i];
+                vol->vol_creation_time[i] = o->vol_uuid[i];
        for(; i < 16; i++)
            vol->vol_creation_time[i] = '1';
        vol->vol_creation_time[16] = 0;
-    } else if (t->vol_creation_time > 0)
-        iso_datetime_17(vol->vol_creation_time, t->vol_creation_time,
-                        t->always_gmt);
+    } else if (o->vol_creation_time > 0)
+        iso_datetime_17(vol->vol_creation_time, o->vol_creation_time,
+                        o->always_gmt);
     else
-        iso_datetime_17(vol->vol_creation_time, t->now, t->always_gmt);
+        iso_datetime_17(vol->vol_creation_time, t->now, o->always_gmt);
 
-    if (t->vol_uuid[0]) {
+    if (o->vol_uuid[0]) {
         for(i = 0; i < 16; i++)
-            if(t->vol_uuid[i] < '0' || t->vol_uuid[i] > '9')
+            if(o->vol_uuid[i] < '0' || o->vol_uuid[i] > '9')
         break;
             else
-                vol->vol_modification_time[i] = t->vol_uuid[i];
+                vol->vol_modification_time[i] = o->vol_uuid[i];
        for(; i < 16; i++)
            vol->vol_modification_time[i] = '1';
        vol->vol_modification_time[16] = 0;
-    } else if (t->vol_modification_time > 0)
-        iso_datetime_17(vol->vol_modification_time, t->vol_modification_time,
-                        t->always_gmt);
+    } else if (o->vol_modification_time > 0)
+        iso_datetime_17(vol->vol_modification_time, o->vol_modification_time,
+                        o->always_gmt);
     else
-        iso_datetime_17(vol->vol_modification_time, t->now, t->always_gmt);
+        iso_datetime_17(vol->vol_modification_time, t->now, o->always_gmt);
 
-    if (t->vol_expiration_time > 0) {
-        iso_datetime_17(vol->vol_expiration_time, t->vol_expiration_time,
-                        t->always_gmt);
+    if (o->vol_expiration_time > 0) {
+        iso_datetime_17(vol->vol_expiration_time, o->vol_expiration_time,
+                        o->always_gmt);
     } else {
        for(i = 0; i < 16; i++)
            vol->vol_expiration_time[i] = '0';
        vol->vol_expiration_time[16] = 0;
     }
 
-    if (t->vol_effective_time > 0) {
-        iso_datetime_17(vol->vol_effective_time, t->vol_effective_time,
-                        t->always_gmt);
+    if (o->vol_effective_time > 0) {
+        iso_datetime_17(vol->vol_effective_time, o->vol_effective_time,
+                        o->always_gmt);
     } else {
        for(i = 0; i < 16; i++)
            vol->vol_effective_time[i] = '0';
@@ -544,7 +544,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
 
     memset(&vol, 0, sizeof(struct ecma119_pri_vol_desc));
 
-    if (t->relaxed_vol_atts) {
+    if (t->opts->relaxed_vol_atts) {
         vol_id = get_relaxed_vol_id(t, image->volume_id);
         volset_id = get_relaxed_vol_id(t, image->volset_id);
     } else {
@@ -633,14 +633,14 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
      * RR is very similar
      */
     memset(&info, 0, sizeof(struct susp_info));
-    if (t->rockridge) {
+    if (t->opts->rockridge) {
         /* initialize the ce_block, it might be needed */
         info.ce_block = dir->info.dir->block + DIV_UP(dir->info.dir->len,
                                                       BLOCK_SIZE);
     }
 
     /* write the "." and ".." entries first */
-    if (t->rockridge) {
+    if (t->opts->rockridge) {
         ret = rrip_get_susp_fields(t, dir, 1, 34, &info);
         if (ret < 0) {
             goto ex;
@@ -650,7 +650,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
     write_one_dir_record(t, dir, 0, buf, 1, &info, 0);
     buf += len;
 
-    if (t->rockridge) {
+    if (t->opts->rockridge) {
         ret = rrip_get_susp_fields(t, dir, 2, 34, &info);
         if (ret < 0) {
             goto ex;
@@ -676,7 +676,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
             }
 
             /* get the SUSP fields if rockridge is enabled */
-            if (t->rockridge) {
+            if (t->opts->rockridge) {
                 ret = rrip_get_susp_fields(t, child, 0, len, &info);
                 if (ret < 0) {
                     goto ex;
@@ -862,7 +862,8 @@ int ecma119_writer_write_dirs(IsoImageWriter *writer)
     if (t->eff_partition_offset > 0) {
         root = t->partition_root;
 
-        if ((t->md5_file_checksums & 1) || t->md5_session_checksum) {
+        if ((t->opts->md5_file_checksums & 1) ||
+            t->opts->md5_session_checksum) {
             /* Take into respect the address offset in "isofs.ca" */
             ret = iso_node_lookup_attr((IsoNode *) t->image->root, "isofs.ca",
                                        &value_length, &value, 0);
@@ -891,7 +892,7 @@ int ecma119_writer_write_dirs(IsoImageWriter *writer)
     ret = write_path_tables(t);
     if (ret < 0)
         return ret;
-    if (t->md5_session_checksum) {
+    if (t->opts->md5_session_checksum) {
         /* Write tree checksum tag */
         if (t->eff_partition_offset > 0) {
             /* >>> TWINTREE: >>> For now, tags are only for the
@@ -934,15 +935,15 @@ int ecma119_writer_write_data(IsoImageWriter *writer)
     if (ret < 0)
         goto ex;
 
-    if (t->partition_offset > 0) {
-        t->eff_partition_offset = t->partition_offset;
+    if (t->opts->partition_offset > 0) {
+        t->eff_partition_offset = t->opts->partition_offset;
         ret = ecma119_writer_write_dirs(writer);
         t->eff_partition_offset = 0;
         if (ret < 0) 
             goto ex;
     }
 
-    curblock = (t->bytes_written / 2048) + t->ms_block;
+    curblock = (t->bytes_written / 2048) + t->opts->ms_block;
     if (curblock != t->tree_end_block) {
         LIBISO_ALLOC_MEM(msg, char, 100);
         sprintf(msg,
@@ -1000,9 +1001,9 @@ int ecma119_writer_create(Ecma119Image *target)
             return ret;
     }
 
-    if(target->partition_offset > 0) {
+    if(target->opts->partition_offset > 0) {
         /* Create second tree */
-        target->eff_partition_offset = target->partition_offset;
+        target->eff_partition_offset = target->opts->partition_offset;
         ret = ecma119_tree_create(target);
         target->eff_partition_offset = 0;
         if (ret < 0)
@@ -1025,7 +1026,7 @@ int mspad_writer_compute_data_blocks(IsoImageWriter *writer)
         return ISO_ASSERT_FAILURE;
     }
     target = writer->target;
-    min_size = 32 + target->partition_offset;
+    min_size = 32 + target->opts->partition_offset;
     if (target->curblock < min_size) {
         target->mspad_blocks = min_size - target->curblock;
         target->curblock = min_size;
@@ -1181,13 +1182,13 @@ int tail_writer_compute_data_blocks(IsoImageWriter *writer)
     if (ret < 0)
         return ret;
     data = (struct iso_zero_writer_data_struct *) writer->data;
-    if (data->num_blocks != target->tail_blocks) {
+    if (data->num_blocks != target->opts->tail_blocks) {
         sprintf(msg, "Aligned image size to cylinder size by %d blocks",
-                     target->tail_blocks - data->num_blocks);
+                     target->opts->tail_blocks - data->num_blocks);
         iso_msgs_submit(0, msg, 0, "NOTE", 0);
-        data->num_blocks = target->tail_blocks;
+        data->num_blocks = target->opts->tail_blocks;
     }
-    if (target->tail_blocks <= 0)
+    if (target->opts->tail_blocks <= 0)
         return ISO_SUCCESS;
     ret = zero_writer_compute_data_blocks(writer);
     return ret;
@@ -1371,12 +1372,12 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     uint8_t *buf = NULL;
     IsoImageWriter *writer;
 
-    if (target->partition_offset <= 0)
+    if (target->opts->partition_offset <= 0)
         {ret = ISO_SUCCESS; goto ex;}
 
-    /* Write multi-session padding up to target->partition_offset + 16 */
+    /* Write multi-session padding up to target->opts->partition_offset + 16 */
     LIBISO_ALLOC_MEM(buf, uint8_t, BLOCK_SIZE);
-    for(; *write_count < (int) target->partition_offset + 16;
+    for(; *write_count < (int) target->opts->partition_offset + 16;
         (*write_count)++) {
         ret = iso_write(target, buf, BLOCK_SIZE);
         if (ret < 0)
@@ -1386,7 +1387,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     /* Write volume descriptors subtracting
       target->partiton_offset from any LBA pointer.
     */
-    target->eff_partition_offset = target->partition_offset;
+    target->eff_partition_offset = target->opts->partition_offset;
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         /* Not all writers have an entry in the partion volume descriptor set.
@@ -1430,7 +1431,7 @@ int write_head_part(Ecma119Image *target, int flag)
         return res;
 
     /* Write superblock checksum tag */
-    if (target->md5_session_checksum && target->checksum_ctx != NULL) {
+    if (target->opts->md5_session_checksum && target->checksum_ctx != NULL) {
         res = iso_md5_write_tag(target, 2);
         if (res < 0)
             return res;
@@ -1452,10 +1453,10 @@ static int finish_libjte(Ecma119Image *target)
 
     int ret;
 
-    if (target->libjte_handle != NULL) {
-        ret = libjte_write_footer(target->libjte_handle);
+    if (target->opts->libjte_handle != NULL) {
+        ret = libjte_write_footer(target->opts->libjte_handle);
         if (ret <= 0) {
-            iso_libjte_forward_msgs(target->libjte_handle, 
+            iso_libjte_forward_msgs(target->opts->libjte_handle, 
                                 target->image->id, ISO_LIBJTE_END_FAILED, 0);
             return ISO_LIBJTE_END_FAILED;
         }
@@ -1561,11 +1562,12 @@ void *write_function(void *arg)
         last_partition = 8;
     }
     for (i = first_partition - 1; i <= last_partition - 1; i++) {
-        if (target->appended_partitions[i] == NULL)
+        if (target->opts->appended_partitions[i] == NULL)
     continue;
-        if (target->appended_partitions[i][0] == 0)
+        if (target->opts->appended_partitions[i][0] == 0)
     continue;
-        res = iso_write_partition_file(target, target->appended_partitions[i],
+        res = iso_write_partition_file(target,
+                                       target->opts->appended_partitions[i],
                                        target->appended_part_prepad[i],
                                        target->appended_part_size[i], 0);
         if (res < 0)
@@ -1615,7 +1617,7 @@ write_error: ;
     target->eff_partition_offset = 0;
     if (res == (int) ISO_CANCELED) {
         /* canceled */
-        if (!target->will_cancel)
+        if (!target->opts->will_cancel)
             iso_msg_submit(target->image->id, ISO_IMAGE_WRITE_CANCELED,
                            0, NULL);
     } else {
@@ -1701,7 +1703,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
                     no_md5 = 1;
             }
         }
-        if (file->from_old_session && target->appendable) {
+        if (file->from_old_session && target->opts->appendable) {
             /* Save MD5 data of files from old image which will not
                be copied and have an MD5 recorded in the old image. */
             has_xinfo = iso_node_get_xinfo(node, checksum_md5_xinfo_func,
@@ -1712,7 +1714,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
                  */;
             } else if (has_attr == 1 && img->checksum_array == NULL) {
                 /* No checksum array loaded. Delete "isofs.cx" */
-                if (!target->will_cancel)
+                if (!target->opts->will_cancel)
                   iso_file_set_isofscx((IsoFile *) node, 0, 1);
                 no_md5 = 1;
             } else if (!(has_attr == 1 && old_cx_value_length == 4)) {
@@ -1724,7 +1726,7 @@ int checksum_prepare_nodes(Ecma119Image *target, IsoNode *node, int flag)
            Omit those from old image which will not be copied and have no MD5.
            Do not alter the nodes if this is only a will_cancel run.
          */
-        if (!(target->will_cancel || no_md5)) {
+        if (!(target->opts->will_cancel || no_md5)) {
             /* Record provisory new index */
             ret = iso_file_set_isofscx(file, (unsigned int) 0, 0);
             if (ret < 0)
@@ -1745,18 +1747,19 @@ ex:;
 }
 
 static
-int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
+int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters, tag_pos;
     int sa_type;
     Ecma119Image *target;
+    IsoWriteOpts *opts;
     IsoImageWriter *writer;
     int file_src_writer_index = -1;
     int system_area_options = 0;
     char *system_area = NULL;
     int write_count = 0, write_count_mem;
 
-    /* 1. Allocate target and copy opts there */
+    /* 1. Allocate target and attach a copy of in_opts there */
     target = calloc(1, sizeof(Ecma119Image));
     if (target == NULL) {
         return ISO_OUT_OF_MEM;
@@ -1765,6 +1768,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
        bs_free_data.
     */
     target->refcount = 1;
+    target->opts = NULL;
+
+    /* Record a copy of in_opts.
+       It is a copy because in_opts is prone to manipulations from the
+       application thread while the image production thread is running.
+    */ 
+    ret = iso_write_opts_clone(in_opts, &(target->opts), 0);
+    if (ret != ISO_SUCCESS)
+        goto target_cleanup;
+    opts = target->opts;
 
     /* create the tree for file caching */
     ret = iso_rbtree_new(iso_file_src_cmp, &(target->files));
@@ -1775,47 +1788,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->image = src;
     iso_image_ref(src);
 
-    target->will_cancel = opts->will_cancel;
-    target->iso_level = opts->level;
-    target->rockridge = opts->rockridge;
-    target->joliet = opts->joliet;
-    target->hfsplus = opts->hfsplus;
-    target->fat = opts->fat;
-    target->iso1999 = opts->iso1999;
-    target->hardlinks = opts->hardlinks;
-    target->aaip = opts->aaip;
-    target->always_gmt = opts->always_gmt;
-    target->old_empty = opts->old_empty;
-    target->untranslated_name_len = opts->untranslated_name_len;
-    target->allow_dir_id_ext = opts->allow_dir_id_ext;
-    target->omit_version_numbers = opts->omit_version_numbers
-                                 | opts->max_37_char_filenames;
-    target->allow_deep_paths = opts->allow_deep_paths;
-    target->allow_longer_paths = opts->allow_longer_paths;
-    target->max_37_char_filenames = opts->max_37_char_filenames;
-    target->no_force_dots = opts->no_force_dots;
-    target->allow_lowercase = opts->allow_lowercase;
-    target->allow_full_ascii = opts->allow_full_ascii;
-    target->allow_7bit_ascii = opts->allow_7bit_ascii;
-    target->relaxed_vol_atts = opts->relaxed_vol_atts;
-    target->joliet_longer_paths = opts->joliet_longer_paths;
-    target->joliet_long_names = opts->joliet_long_names;
-    target->joliet_utf16 = opts->joliet_utf16;
-    target->rrip_version_1_10 = opts->rrip_version_1_10;
-    target->rrip_1_10_px_ino = opts->rrip_1_10_px_ino;
-    target->aaip_susp_1_10 = opts->aaip_susp_1_10;
-    target->dir_rec_mtime = opts->dir_rec_mtime;
-    target->rr_reloc_dir = NULL;
-    if (opts->rr_reloc_dir != NULL) {
-        target->rr_reloc_dir = strdup(opts->rr_reloc_dir);
-        if (target->rr_reloc_dir == NULL) {
-            ret = ISO_OUT_OF_MEM;
-            goto target_cleanup;
-        }
-    }
-    target->rr_reloc_flags = opts->rr_reloc_flags;
     target->rr_reloc_node = NULL;
-    target->sort_files = opts->sort_files;
 
     target->replace_uid = opts->replace_uid ? 1 : 0;
     target->replace_gid = opts->replace_gid ? 1 : 0;
@@ -1828,8 +1801,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     target->file_mode = opts->replace_file_mode == 2 ? opts->file_mode : 0444;
 
     target->now = time(NULL);
-    target->ms_block = opts->ms_block;
-    target->appendable = opts->appendable;
 
     target->replace_timestamps = opts->replace_timestamps ? 1 : 0;
     target->timestamp = opts->replace_timestamps == 2 ?
@@ -1881,13 +1852,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     target->system_area_options = system_area_options;
 
-    target->vol_creation_time = opts->vol_creation_time;
-    target->vol_modification_time = opts->vol_modification_time;
-    target->vol_expiration_time = opts->vol_expiration_time;
-    target->vol_effective_time = opts->vol_effective_time;
-    strcpy(target->vol_uuid, opts->vol_uuid);
-
-    target->partition_offset = opts->partition_offset;
     target->partition_secs_per_head = opts->partition_secs_per_head;
     target->partition_heads_per_cyl = opts->partition_heads_per_cyl;
     if (target->partition_secs_per_head == 0)
@@ -1917,12 +1881,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
     }
 
-    memcpy(target->hfsp_serial_number, opts->hfsp_serial_number, 8);
-
-    target->md5_file_checksums = opts->md5_file_checksums;
-    target->md5_session_checksum = opts->md5_session_checksum;
-    strcpy(target->scdbackup_tag_parm, opts->scdbackup_tag_parm);
-    target->scdbackup_tag_written = opts->scdbackup_tag_written;
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;
     target->checksum_counter = 0;
@@ -1939,12 +1897,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 #ifdef Libisofs_with_libjtE
 
     /* Eventually start Jigdo Template Extraction */
-    target->libjte_handle = NULL;
     if (opts->libjte_handle != NULL) {
-        target->libjte_handle = opts->libjte_handle;
-        ret = libjte_write_header(target->libjte_handle);
+        ret = libjte_write_header(opts->libjte_handle);
         if (ret <= 0) {
-            iso_libjte_forward_msgs(target->libjte_handle, 
+            iso_libjte_forward_msgs(opts->libjte_handle, 
                                 target->image->id, ISO_LIBJTE_START_FAILED, 0);
             ret = ISO_LIBJTE_START_FAILED;
             goto target_cleanup;
@@ -1952,8 +1908,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
     
 #endif /* Libisofs_with_libjtE */
-
-    target->tail_blocks = opts->tail_blocks;
 
     target->mipsel_e_entry = 0;
     target->mipsel_p_offset = 0;
@@ -1967,41 +1921,18 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     target->wthread_is_running = 0;
 
-    target->prep_partition = NULL;
-    if (opts->prep_partition != NULL) {
-        target->prep_partition = strdup(opts->prep_partition);
-        if (target->prep_partition == NULL)
-            return ISO_OUT_OF_MEM;
-    }
     target->prep_part_size = 0;
-    target->efi_boot_partition = NULL;
-    if (opts->efi_boot_partition != NULL) {
-        target->efi_boot_partition = strdup(opts->efi_boot_partition);
-        if (target->efi_boot_partition == NULL)
-            return ISO_OUT_OF_MEM;
-    }
     target->efi_boot_part_size = 0;
     target->efi_boot_part_filesrc = NULL;
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
-        target->appended_partitions[i] = NULL;
-        if (opts->appended_partitions[i] != NULL) {
-            target->appended_partitions[i] =
-                                          strdup(opts->appended_partitions[i]);
-            if (target->appended_partitions[i] == NULL)
-                return ISO_OUT_OF_MEM;
-            target->appended_part_types[i] = opts->appended_part_types[i];
-        }
         target->appended_part_prepad[i] = 0;
         target->appended_part_start[i] = target->appended_part_size[i] = 0;
     }
-    strcpy(target->ascii_disc_label, opts->ascii_disc_label);
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
         target->hfsplus_blessed[i] = src->hfsplus_blessed[i];
         if (target->hfsplus_blessed[i] != NULL)
             iso_node_ref(target->hfsplus_blessed[i]);
     }
-    target->apm_block_size = opts->apm_block_size;
-    target->hfsp_block_size = opts->hfsp_block_size;
     target->hfsp_cat_node_size = 0;
     target->hfsp_iso_block_fac = 0;
     target->hfsp_collision_count = 0;
@@ -2035,10 +1966,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
      * current block.
      * Finally, create Writer for files.
      */
-    target->curblock = target->ms_block + 16;
+    target->curblock = opts->ms_block + 16;
 
-    if (opts->overwrite != NULL && target->ms_block != 0 &&
-        target->ms_block < target->partition_offset + 32) {
+    if (opts->overwrite != NULL && opts->ms_block != 0 &&
+        opts->ms_block < opts->partition_offset + 32) {
         /* Not enough room for superblock relocation */
         ret = ISO_OVWRT_MS_TOO_SMALL;
         goto target_cleanup;
@@ -2050,24 +1981,24 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     if (target->eltorito) {
         nwriters++;
     }
-    if (target->joliet) {
+    if (opts->joliet) {
         nwriters++;
     }
-    if (target->iso1999) {
+    if (opts->iso1999) {
         nwriters++;
     }
     nwriters++; /* Partition Prepend writer */
-    if (target->hfsplus || target->fat) {
+    if (opts->hfsplus || opts->fat) {
         nwriters+= 2;
     }
     nwriters++; /* GPT backup tail writer */
     nwriters++; /* Tail padding writer */
-    if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
+    if ((opts->md5_file_checksums & 1) || opts->md5_session_checksum) {
         nwriters++;
         ret = checksum_prepare_image(src, 0);
         if (ret < 0)
             goto target_cleanup;
-        if (target->appendable) {
+        if (opts->appendable) {
             ret = checksum_prepare_nodes(target, (IsoNode *) src->root, 0);
             if (ret < 0)
                 goto target_cleanup;
@@ -2096,7 +2027,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
 
     /* create writer for Joliet structure */
-    if (target->joliet) {
+    if (opts->joliet) {
         ret = joliet_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
@@ -2104,14 +2035,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
 
     /* create writer for ISO 9660:1999 structure */
-    if (target->iso1999) {
+    if (opts->iso1999) {
         ret = iso1999_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
         }
     }
 
-    voldesc_size = target->curblock - target->ms_block - 16;
+    voldesc_size = target->curblock - opts->ms_block - 16;
 
     /* Volume Descriptor Set Terminator */
     target->curblock++;
@@ -2142,7 +2073,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     /* create writer for HFS+/FAT structure */
     /* Impotant: It must be created directly before iso_file_src_writer_create.
     */
-    if (target->hfsplus || target->fat) {
+    if (opts->hfsplus || opts->fat) {
         ret = hfsplus_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
@@ -2157,7 +2088,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     file_src_writer_index = target->nwriters - 1;
 
     /* create writer for HFS+ structure */
-    if (target->hfsplus || target->fat) {
+    if (opts->hfsplus || opts->fat) {
         ret = hfsplus_tail_writer_create(target);
         if (ret < 0) {
             goto target_cleanup;
@@ -2188,13 +2119,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* >>> ??? Why is this important ? */
     /* IMPORTANT: This must be the last writer before the checksum writer */
-    ret = zero_writer_create(target, target->tail_blocks, 1);
+    ret = zero_writer_create(target, opts->tail_blocks, 1);
     if (ret < 0)
         goto target_cleanup;
 
 #endif /* !Libisofs_checksums_before_paddinG */
 
-    if ((target->md5_file_checksums & 1) || target->md5_session_checksum) {
+    if ((opts->md5_file_checksums & 1) || opts->md5_session_checksum) {
         ret = checksum_writer_create(target);
         if (ret < 0)
             goto target_cleanup;
@@ -2202,7 +2133,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     
 #ifdef Libisofs_checksums_before_paddinG
 
-    ret = zero_writer_create(target, target->tail_blocks, 1);
+    ret = zero_writer_create(target, opts->tail_blocks, 1);
     if (ret < 0)
         goto target_cleanup;
 
@@ -2223,17 +2154,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
         goto target_cleanup;
 #endif /* Libisofs_gpt_writer_lasT */
 
-    if (target->partition_offset > 0) {
+    if (opts->partition_offset > 0) {
         /* After volume descriptors and superblock tag are accounted for:
            account for second volset
         */
-        if (target->ms_block + target->partition_offset + 16
-            < target->curblock) {
+        if (opts->ms_block + opts->partition_offset + 16 < target->curblock) {
             /* Overflow of partition system area */
             ret = ISO_PART_OFFST_TOO_SMALL;
             goto target_cleanup;
         }
-        target->curblock = target->ms_block + target->partition_offset + 16;
+        target->curblock = opts->ms_block + opts->partition_offset + 16;
 
         /* Account for partition tree volume descriptors */
         for (i = 0; i < (int) target->nwriters; ++i) {
@@ -2281,9 +2211,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
            will account resp. write this single block. 
         */
         if (i == file_src_writer_index) {
-            if (! target->old_empty)
+            if (! opts->old_empty)
                 target->empty_file_block = target->curblock;
-            opts->data_start_lba = target->curblock;
+            in_opts->data_start_lba = opts->data_start_lba = target->curblock;
         }
 
         ret = writer->compute_data_blocks(writer);
@@ -2305,7 +2235,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
      * The volume space size is just the size of the last session, in
      * case of ms images.
      */
-    target->vol_space_size = target->curblock - target->ms_block;
+    target->vol_space_size = target->curblock - opts->ms_block;
     target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
     /* Add sizes of eventually appended partitions */
@@ -2315,7 +2245,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
     /* create the ring buffer */
     if (opts->overwrite != NULL &&
-        opts->fifo_size < 32 + target->partition_offset) {
+        opts->fifo_size < 32 + opts->partition_offset) {
         /* The ring buffer must be large enough to take opts->overwrite
         */
         ret = ISO_OVWRT_FIFO_TOO_SMALL;
@@ -2359,7 +2289,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
         /* Write relocated superblock checksum tag */
         tag_pos = voldesc_size / BLOCK_SIZE + 16 + 1;
-        if (target->md5_session_checksum) {
+        if (opts->md5_session_checksum) {
             target->checksum_rlsb_tag_pos = tag_pos;
             if (target->checksum_rlsb_tag_pos < 32) {
                 ret = iso_md5_start(&(target->checksum_ctx));
@@ -2408,7 +2338,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
     }
 
     /* This was possibly altered by above overwrite buffer production */
-    target->vol_space_size = target->curblock - target->ms_block;
+    target->vol_space_size = target->curblock - opts->ms_block;
 
 /*
 */
@@ -2425,7 +2355,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
 
 
     /* 4. Create and start writing thread */
-    if (target->md5_session_checksum) {
+    if (opts->md5_session_checksum) {
         /* After any fake writes are done: Initialize image checksum context */
         if (target->checksum_ctx != NULL)
             iso_md5_end(&(target->checksum_ctx), target->image_md5);
@@ -2434,11 +2364,11 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *opts, Ecma119Image **img)
             goto target_cleanup;
     }
 
-    if (target->apm_block_size == 0) {
+    if (opts->apm_block_size == 0) {
         if (target->gpt_req_count)
-            target->apm_block_size = 2048; /* Combinable with GPT */
+            opts->apm_block_size = 2048; /* Combinable with GPT */
         else
-            target->apm_block_size = 512; /* Mountable on Linux */
+            opts->apm_block_size = 512; /* Mountable on Linux */
     }
 
     /* ensure the thread is created joinable */
@@ -2751,14 +2681,14 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 
     switch (profile) {
     case 0:
-        wopts->level = 1;
+        wopts->iso_level = 1;
         break;
     case 1:
-        wopts->level = 3;
+        wopts->iso_level = 3;
         wopts->rockridge = 1;
         break;
     case 2:
-        wopts->level = 2;
+        wopts->iso_level = 2;
         wopts->rockridge = 1;
         wopts->joliet = 1;
         wopts->replace_dir_mode = 1;
@@ -2782,6 +2712,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->rr_reloc_dir = NULL;
     wopts->rr_reloc_flags = 0;
     wopts->system_area_data = NULL;
+    wopts->system_area_size = 0;
     wopts->system_area_options = 0;
     wopts->vol_creation_time = 0;
     wopts->vol_modification_time = 0;
@@ -2813,6 +2744,54 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 
     *opts = wopts;
     return ISO_SUCCESS;
+}
+
+int iso_write_opts_clone(IsoWriteOpts *in, IsoWriteOpts **out, int flag)
+{
+    int ret, i;
+    IsoWriteOpts *o = NULL;
+
+    ret = iso_write_opts_new(&o, 0);
+    if (ret != 1)
+        return ret;
+    *out = o;
+
+    /* Provisory copy of all values and un-managed pointers */
+    memcpy(o, in, sizeof(IsoWriteOpts));
+
+    /* Set managed pointers to NULL */
+    o->output_charset = NULL;
+    o->rr_reloc_dir = NULL;
+    o->system_area_data = NULL;
+    o->prep_partition = NULL;
+    o->efi_boot_partition = NULL;
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
+        o->appended_partitions[i] = NULL;
+
+    /* Clone managed objects */
+    if (iso_clone_mem(in->output_charset, &(o->output_charset), 0) != 1)
+        goto out_of_mem;
+    if (iso_clone_mem(in->rr_reloc_dir, &(o->rr_reloc_dir), 0) != 1)
+        goto out_of_mem;
+    if (iso_clone_mem(in->system_area_data, &(o->system_area_data),
+                      in->system_area_size) != 1)
+        goto out_of_mem;
+    if (iso_clone_mem(in->prep_partition, &(o->prep_partition), 0) != 1)
+        goto out_of_mem;
+    if (iso_clone_mem(in->efi_boot_partition, &(o->efi_boot_partition), 0)
+        != 1)
+        goto out_of_mem;
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
+        if (iso_clone_mem(in->appended_partitions[i],
+                          &(o->appended_partitions[i]), 0) != 1)
+            goto out_of_mem;
+
+    return ISO_SUCCESS;
+
+out_of_mem:;
+    if (o != NULL)
+        iso_write_opts_free(o);
+    return ISO_OUT_OF_MEM;
 }
 
 void iso_write_opts_free(IsoWriteOpts *opts)
@@ -2855,7 +2834,7 @@ int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level)
     if (level != 1 && level != 2 && level != 3) {
         return ISO_WRONG_ARG_VALUE;
     }
-    opts->level = level;
+    opts->iso_level = level;
     return ISO_SUCCESS;
 }
 
@@ -3348,6 +3327,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         if (opts->system_area_data != NULL)
             free(opts->system_area_data);
         opts->system_area_data = NULL;
+        opts->system_area_size = 0;
     } else if (!(flag & 2)) {
         if (opts->system_area_data == NULL) {
             opts->system_area_data = calloc(32768, 1);
@@ -3355,6 +3335,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
                 return ISO_OUT_OF_MEM;
         }
         memcpy(opts->system_area_data, data, 32768);
+        opts->system_area_size = 32768;
     }
     if (!(flag & 4))
         opts->system_area_options = options & 0x7fff;

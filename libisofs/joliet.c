@@ -41,7 +41,7 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
         return ISO_SUCCESS;
     }
 
-    if (t->joliet_utf16) {
+    if (t->opts->joliet_utf16) {
         ret = str2utf16be(t->input_charset, iso->name, &ucs_name);
         if (ret < 0) {
             iso_msg_debug(t->image->id, "Cannot convert to UTF-16 : \"%s\"",
@@ -68,10 +68,10 @@ int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
         }
     }
     if (iso->type == LIBISO_DIR) {
-        jname = iso_j_dir_id(ucs_name, t->joliet_long_names << 1);
+        jname = iso_j_dir_id(ucs_name, t->opts->joliet_long_names << 1);
     } else {
         jname = iso_j_file_id(ucs_name,
-                       (t->joliet_long_names << 1) | !!(t->no_force_dots & 2));
+           (t->opts->joliet_long_names << 1) | !!(t->opts->no_force_dots & 2));
     }
     ret = ISO_SUCCESS;
 ex:;
@@ -151,7 +151,8 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
         IsoFile *file = (IsoFile*) iso;
 
         size = iso_stream_get_size(file->stream);
-        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && t->iso_level != 3) {
+        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE &&
+            t->opts->iso_level != 3) {
             char *ipath = iso_tree_get_node_path(iso);
             free(joliet);
             ret = iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
@@ -219,7 +220,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         return ret;
     }
     max_path = pathlen + 1 + (jname ? ucslen(jname) * 2 : 0);
-    if (!t->joliet_longer_paths && max_path > 240) {
+    if (!t->opts->joliet_longer_paths && max_path > 240) {
         char *ipath = iso_tree_get_node_path(iso);
         /*
          * Wow!! Joliet is even more restrictive than plain ISO-9660,
@@ -280,7 +281,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         {
             char *ipath = iso_tree_get_node_path(iso);
             ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                 "Can't add %s to Joliet tree. %s can only be added to a "
+                 "Cannot add %s to Joliet tree. %s can only be added to a "
                  "Rock Ridge tree.", ipath, (iso->type == LIBISO_SYMLINK ?
                                              "Symlinks" : "Special files"));
             free(ipath);
@@ -390,7 +391,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
 
-    if (t->joliet_long_names)
+    if (t->opts->joliet_long_names)
         maxchar = 103;
 
     /* a hash table will temporary hold the names, for fast searching */
@@ -629,7 +630,7 @@ size_t calc_dirent_len(Ecma119Image *t, JolietNode *n)
 {
     /* note than name len is always even, so we always need the pad byte */
     int ret = n->name ? ucslen(n->name) * 2 + 34 : 34;
-    if (n->type == JOLIET_FILE && !(t->omit_version_numbers & 3)) {
+    if (n->type == JOLIET_FILE && !(t->opts->omit_version_numbers & 3)) {
         /* take into account version numbers */
         ret += 4;
     }
@@ -748,7 +749,7 @@ int joliet_writer_compute_data_blocks(IsoImageWriter *writer)
     t->curblock += DIV_UP(path_table_size, BLOCK_SIZE);
     t->joliet_path_table_size = path_table_size;
 
-    if (t->partition_offset > 0) {
+    if (t->opts->partition_offset > 0) {
         /* Take into respect second directory tree */
         ndirs = t->joliet_ndirs;
         t->joliet_ndirs = 0;
@@ -797,7 +798,7 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
 
     memcpy(rec->file_id, name, len_fi);
 
-    if (node->type == JOLIET_FILE && !(t->omit_version_numbers & 3)) {
+    if (node->type == JOLIET_FILE && !(t->opts->omit_version_numbers & 3)) {
         len_dr += 4;
         rec->file_id[len_fi++] = 0;
         rec->file_id[len_fi++] = ';';
@@ -832,13 +833,13 @@ void write_one_dir_record(Ecma119Image *t, JolietNode *node, int file_id,
     iso_bb(rec->block, block - t->eff_partition_offset, 4);
     iso_bb(rec->length, len, 4);
 
-    /* was: iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+    /* was: iso_datetime_7(rec->recording_time, t->now, t->opts->always_gmt);
     */
     iso= node->node;
     iso_datetime_7(rec->recording_time, 
-                   (t->dir_rec_mtime & 2) ? ( t->replace_timestamps ?
-                                              t->timestamp : iso->mtime )
-                                          : t->now, t->always_gmt);
+                   (t->opts->dir_rec_mtime & 2) ? ( t->replace_timestamps ?
+                                                    t->timestamp : iso->mtime )
+                                                : t->now, t->opts->always_gmt);
 
     rec->flags[0] = ((node->type == JOLIET_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, (uint32_t) 1, 2);
@@ -993,7 +994,8 @@ int write_one_dir(Ecma119Image *t, JolietNode *dir)
         /* compute len of directory entry */
         fi_len = ucslen(child->name) * 2;
         len = fi_len + 34;
-        if (child->type == JOLIET_FILE && !(t->omit_version_numbers & 3)) {
+        if (child->type == JOLIET_FILE &&
+            !(t->opts->omit_version_numbers & 3)) {
             len += 4;
         }
 
@@ -1195,8 +1197,8 @@ int joliet_writer_write_data(IsoImageWriter *writer)
     if (ret < 0)
         return ret;
 
-    if (t->partition_offset > 0) {
-        t->eff_partition_offset = t->partition_offset;
+    if (t->opts->partition_offset > 0) {
+        t->eff_partition_offset = t->opts->partition_offset;
         ret = joliet_writer_write_dirs(writer);
         t->eff_partition_offset = 0;
         if (ret < 0)
@@ -1244,9 +1246,9 @@ int joliet_writer_create(Ecma119Image *target)
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
 
-    if(target->partition_offset > 0) {
+    if(target->opts->partition_offset > 0) {
         /* Create second tree */
-        target->eff_partition_offset = target->partition_offset;
+        target->eff_partition_offset = target->opts->partition_offset;
         ret = joliet_tree_create(target);
         if (ret < 0) {
             return ret;

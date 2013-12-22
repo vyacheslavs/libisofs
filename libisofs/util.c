@@ -2246,3 +2246,20 @@ void iso_smash_chars_for_joliet(uint16_t *name)
             set_ucsbe(name + i, '_');
 }
 
+
+int iso_clone_mem(char *in, char **out, size_t size)
+{
+    if (in == NULL) {
+        *out = NULL;
+        return 1;
+    }
+    if (size == 0)
+        size = strlen(in) + 1;
+    *out = calloc(1, size);
+    if (*out == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(*out, in, size);
+    return 1;
+}
+    
+

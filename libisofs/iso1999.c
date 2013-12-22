@@ -125,7 +125,7 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
         IsoFile *file = (IsoFile*) iso;
 
         size = iso_stream_get_size(file->stream);
-        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && t->iso_level != 3) {
+        if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && t->opts->iso_level != 3) {
             char *ipath = iso_tree_get_node_path(iso);
             ret = iso_msg_submit(t->image->id, ISO_FILE_TOO_BIG, 0,
                          "File \"%s\" can't be added to image because is "
@@ -194,7 +194,7 @@ int create_tree(Ecma119Image *t, IsoNode *iso, Iso1999Node **tree, int pathlen)
     }
 
     max_path = pathlen + 1 + (iso_name ? strlen(iso_name): 0);
-    if (!t->allow_longer_paths && max_path > 255) {
+    if (!t->opts->allow_longer_paths && max_path > 255) {
         char *ipath = iso_tree_get_node_path(iso);
         ret = iso_msg_submit(t->image->id, ISO_FILE_IMGPATH_WRONG, 0,
                      "File \"%s\" can't be added to ISO 9660:1999 tree, "
@@ -722,13 +722,13 @@ void write_one_dir_record(Ecma119Image *t, Iso1999Node *node, int file_id,
     iso_bb(rec->block, block, 4);
     iso_bb(rec->length, len, 4);
 
-    /* was: iso_datetime_7(rec->recording_time, t->now, t->always_gmt);
+    /* was: iso_datetime_7(rec->recording_time, t->now, t->opts->always_gmt);
     */
     iso= node->node;
     iso_datetime_7(rec->recording_time, 
-                   (t->dir_rec_mtime & 4) ? ( t->replace_timestamps ?
-                                              t->timestamp : iso->mtime )
-                                          : t->now, t->always_gmt);
+                   (t->opts->dir_rec_mtime & 4) ? ( t->replace_timestamps ?
+                                                    t->timestamp : iso->mtime )
+                                                : t->now, t->opts->always_gmt);
 
     rec->flags[0] = ((node->type == ISO1999_DIR) ? 2 : 0) | (multi_extend ? 0x80 : 0);
     iso_bb(rec->vol_seq_number, (uint32_t) 1, 2);

@@ -429,7 +429,7 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
   }
 
   t = writer->target;
-  block_size = t->hfsp_block_size;
+  block_size = t->opts->hfsp_block_size;
   block_fac = t->hfsp_iso_block_fac;
 
 #ifdef Libisofs_ts_debuG
@@ -485,7 +485,7 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
     }
 
     t = writer->target;
-    block_size = t->hfsp_block_size;
+    block_size = t->opts->hfsp_block_size;
     block_fac = t->hfsp_iso_block_fac;
 
     iso_msg_debug(t->image->id, "(b) curblock=%d, nodes =%d", t->curblock, t->hfsp_nnodes);
@@ -582,7 +582,7 @@ write_sb (Ecma119Image *t)
 
     iso_msg_debug(t->image->id, "Write HFS+ superblock");
 
-    block_size = t->hfsp_block_size;
+    block_size = t->opts->hfsp_block_size;
 
     memset (buffer, 0, sizeof (buffer));
     ret = iso_write(t, buffer, 1024);
@@ -642,7 +642,7 @@ write_sb (Ecma119Image *t)
 
     }
 
-    memcpy (&sb.num_serial, &t->hfsp_serial_number, 8);
+    memcpy (&sb.num_serial, &t->opts->hfsp_serial_number, 8);
     ret = iso_write(t, &sb, sizeof (sb));
     if (ret < 0)
       return ret;
@@ -665,7 +665,7 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
     }
 
     t = writer->target;
-    block_size = t->hfsp_block_size;
+    block_size = t->opts->hfsp_block_size;
     block_fac = t->hfsp_iso_block_fac;
     cat_node_size = t->hfsp_cat_node_size;
 
@@ -1033,7 +1033,7 @@ int hfsplus_tail_writer_write_data(IsoImageWriter *writer)
     }
 
     t = writer->target;
-    block_size = t->hfsp_block_size;
+    block_size = t->opts->hfsp_block_size;
 
 #ifdef Libisofs_ts_debuG
     iso_msg_debug(t->image->id, "hfsplus tail writer writes at = %.f",
@@ -1579,10 +1579,10 @@ int hfsplus_writer_create(Ecma119Image *target)
     make_hfsplus_decompose_pages();
     make_hfsplus_class_pages();
 
-    if (target->hfsp_block_size == 0)
-        target->hfsp_block_size = HFSPLUS_DEFAULT_BLOCK_SIZE;
-    target->hfsp_cat_node_size = 2 * target->hfsp_block_size;
-    target->hfsp_iso_block_fac = 2048 / target->hfsp_block_size;
+    if (target->opts->hfsp_block_size == 0)
+        target->opts->hfsp_block_size = HFSPLUS_DEFAULT_BLOCK_SIZE;
+    target->hfsp_cat_node_size = 2 * target->opts->hfsp_block_size;
+    target->hfsp_iso_block_fac = 2048 / target->opts->hfsp_block_size;
     cat_node_size = target->hfsp_cat_node_size;
 
     writer->compute_data_blocks = hfsplus_writer_compute_data_blocks;

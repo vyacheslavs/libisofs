@@ -115,7 +115,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 
     PX[0] = 'P';
     PX[1] = 'X';
-    if (t->rrip_1_10_px_ino || !t->rrip_version_1_10 ) {
+    if (t->opts->rrip_1_10_px_ino || !t->opts->rrip_version_1_10 ) {
         PX[2] = 44;
     } else {
         PX[2] = 36;
@@ -125,7 +125,7 @@ int rrip_add_PX(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     iso_bb(&PX[12], (uint32_t) n->nlink, 4);
     iso_bb(&PX[20], (uint32_t) px_get_uid(t, n), 4);
     iso_bb(&PX[28], (uint32_t) px_get_gid(t, n), 4);
-    if (t->rrip_1_10_px_ino || !t->rrip_version_1_10) {
+    if (t->opts->rrip_1_10_px_ino || !t->opts->rrip_version_1_10) {
         iso_bb(&PX[36], (uint32_t) n->ino, 4);
     }
 
@@ -153,11 +153,11 @@ int rrip_add_TF(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
     
     iso = n->node;
     iso_datetime_7(&TF[5], t->replace_timestamps ? t->timestamp : iso->mtime,
-                   t->always_gmt);
+                   t->opts->always_gmt);
     iso_datetime_7(&TF[12], t->replace_timestamps ? t->timestamp : iso->atime,
-                   t->always_gmt);
+                   t->opts->always_gmt);
     iso_datetime_7(&TF[19], t->replace_timestamps ? t->timestamp : iso->ctime,
-                   t->always_gmt);
+                   t->opts->always_gmt);
     return susp_append(t, susp, TF);
 }
 
@@ -542,7 +542,7 @@ int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
     int ret, done = 0, len, es_extra = 0;
     uint8_t *aapt, *cpt;
 
-    if (!t->aaip_susp_1_10)
+    if (!t->opts->aaip_susp_1_10)
         es_extra = 5;
     if (*sua_free < num_data + es_extra || *ce_len > 0) {
         *ce_len += num_data + es_extra;
@@ -553,7 +553,7 @@ int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
         return ISO_SUCCESS;
 
     /* If AAIP enabled and announced by ER : Write ES field to announce AAIP */
-    if (t->aaip && !t->aaip_susp_1_10) {
+    if (t->opts->aaip && !t->opts->aaip_susp_1_10) {
         ret = susp_add_ES(t, susp, (*ce_len > 0), 1);
         if (ret < 0)
             return ret;
@@ -606,7 +606,7 @@ int rrip_add_ER(Ecma119Image *t, struct susp_info *susp)
 {
     unsigned char *ER;
 
-    if (!t->rrip_version_1_10) {
+    if (!t->opts->rrip_version_1_10) {
         /*
         According to RRIP 1.12 this is the future form:
         4.3 "Specification of the ER System Use Entry Values for RRIP"
@@ -851,7 +851,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
                                         zisofs file header when inquired)
     */
 
-    if (t->appendable && file->from_old_session) 
+    if (t->opts->appendable && file->from_old_session) 
         will_copy = 0;
 
     first_filter = first_stream = last_stream = iso_file_get_stream(file);
@@ -1124,7 +1124,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     /* obtain num_aapt from node */
     xipt = NULL;
     num_aapt = 0;
-    if (t->aaip) {
+    if (t->opts->aaip) {
         ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
         if (ret == 1) {
             num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
@@ -1160,7 +1160,7 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     void *xipt;
     size_t num_aapt= 0;
 
-    if (!t->aaip)
+    if (!t->opts->aaip)
         return 1;
 
     ret = iso_node_get_xinfo(n->node, aaip_xinfo_func, &xipt);
@@ -1221,7 +1221,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
     su_size = 0;
 
     /* If AAIP enabled and announced by ER : account for 5 bytes of ES */;
-    if (t->aaip && !t->aaip_susp_1_10)
+    if (t->opts->aaip && !t->opts->aaip_susp_1_10)
         su_size += 5;
 
 #ifdef Libisofs_with_rrip_rR
@@ -1230,7 +1230,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
 #endif
 
     /* PX and TF, we are sure they always fit in SUA */
-    if (t->rrip_1_10_px_ino || !t->rrip_version_1_10) {
+    if (t->opts->rrip_1_10_px_ino || !t->opts->rrip_version_1_10) {
         su_size += 44 + 26;
     } else {
         su_size += 36 + 26;
@@ -1247,7 +1247,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
                 su_size += 4;
             }
         } else if(ecma119_is_dedicated_reloc_dir(t, n) &&
-                  (t->rr_reloc_flags & 1)) {
+                  (t->opts->rr_reloc_flags & 1)) {
             /* The dedicated relocation directory shall be marked by RE */
             su_size += 4;
         }
@@ -1274,7 +1274,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
 
         /* "." or ".." entry */
 
-        if (!t->rrip_version_1_10)
+        if (!t->opts->rrip_version_1_10)
             su_size += 5; /* NM field */
 
         if (type == 1 && n->parent == NULL) {
@@ -1285,12 +1285,12 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
              */
             su_size += 7 + 28; /* SP + CE */
             /* ER of RRIP */
-            if (t->rrip_version_1_10) {
+            if (t->opts->rrip_version_1_10) {
                 *ce = 237;
             } else {
                 *ce = 182;
             }
-            if (t->aaip && !t->aaip_susp_1_10) {
+            if (t->opts->aaip && !t->opts->aaip_susp_1_10) {
                 *ce += 160; /* ER of AAIP */
             }
             /* Compute length of AAIP string of root node */
@@ -1394,7 +1394,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     }
 
     /* If AAIP enabled and announced by ER : Announce RRIP by ES */
-    if (t->aaip && !t->aaip_susp_1_10) {
+    if (t->opts->aaip && !t->opts->aaip_susp_1_10) {
         ret = susp_add_ES(t, info, 0, 0);
         if (ret < 0)
             goto add_susp_cleanup;
@@ -1437,7 +1437,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 }
             }
         } else if(ecma119_is_dedicated_reloc_dir(t, n) &&
-                  (t->rr_reloc_flags & 1)) {
+                  (t->opts->rr_reloc_flags & 1)) {
             /* The dedicated relocation directory shall be marked by RE */
             ret = rrip_add_RE(t, node, info);
             if (ret < 0)
@@ -1740,7 +1740,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         /* "." or ".." entry */
 
         /* write the NM entry */
-        if (t->rrip_version_1_10) {
+        if (t->opts->rrip_version_1_10) {
             /* RRIP-1.10:
                "NM" System Use Fields recorded for the ISO 9660 directory
                 records with names (00) and (01), used to designate the
@@ -1780,12 +1780,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
              * Note that SP entry was already added above
              */
 
-            if (t->rrip_version_1_10) {
+            if (t->opts->rrip_version_1_10) {
                 rrip_er_len = 237;
             } else {
                 rrip_er_len = 182;
             }
-            if (t->aaip && !t->aaip_susp_1_10) {
+            if (t->opts->aaip && !t->opts->aaip_susp_1_10) {
                 aaip_er_len = 160;
             }
 
@@ -1804,7 +1804,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             if (ret < 0) {
                 goto add_susp_cleanup;
             }
-            if (t->aaip && !t->aaip_susp_1_10) {
+            if (t->opts->aaip && !t->opts->aaip_susp_1_10) {
                 ret = aaip_add_ER(t, info, 0);
                 if (ret < 0) {
                     goto add_susp_cleanup;

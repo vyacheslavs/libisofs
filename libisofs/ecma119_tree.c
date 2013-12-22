@@ -32,16 +32,17 @@
 static
 int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
 {
-    int ret, relaxed, free_ascii_name= 0, force_dots = 0;
+    int ret, relaxed, free_ascii_name = 0, force_dots = 0;
     char *ascii_name;
-    char *isoname= NULL;
+    char *isoname = NULL;
+    IsoWriteOpts *opts = img->opts;
 
     if (iso->name == NULL) {
         /* it is not necessarily an error, it can be the root */
         return ISO_SUCCESS;
     }
 
-    if (img->untranslated_name_len > 0) {
+    if (opts->untranslated_name_len > 0) {
         ascii_name = iso->name;
         ret = 1;
     } else {
@@ -54,27 +55,27 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
         return ret;
     }
 
-    if (img->allow_full_ascii) {
+    if (opts->allow_full_ascii) {
         relaxed = 2;
     } else {
-        relaxed = (int)img->allow_lowercase;
+        relaxed = (int)opts->allow_lowercase;
     }
-    if (img->allow_7bit_ascii)
+    if (opts->allow_7bit_ascii)
         relaxed |= 4;
-    if (iso->type == LIBISO_DIR && !(img->allow_dir_id_ext)) {
-        if (img->untranslated_name_len > 0) {
-            if (strlen(ascii_name) > img->untranslated_name_len) {
+    if (iso->type == LIBISO_DIR && !(opts->allow_dir_id_ext)) {
+        if (opts->untranslated_name_len > 0) {
+            if (strlen(ascii_name) > opts->untranslated_name_len) {
 needs_transl:;
                 iso_msg_submit(img->image->id, ISO_NAME_NEEDS_TRANSL, 0,
               "File name too long (%d > %d) for untranslated recording:  '%s'",
-                               strlen(ascii_name), img->untranslated_name_len,
-                               ascii_name);
+                          strlen(ascii_name), opts->untranslated_name_len,
+                          ascii_name);
                 return ISO_NAME_NEEDS_TRANSL;
             }
             isoname = strdup(ascii_name);
-        } else if (img->max_37_char_filenames) {
+        } else if (opts->max_37_char_filenames) {
             isoname = iso_r_dirid(ascii_name, 37, relaxed);
-        } else if (img->iso_level == 1) {
+        } else if (opts->iso_level == 1) {
 
 #ifdef Libisofs_old_ecma119_nameS
 
@@ -99,14 +100,15 @@ needs_transl:;
             }
         }
     } else {
-        force_dots = !((img->no_force_dots & 1) || iso->type == LIBISO_DIR);
-        if (img->untranslated_name_len > 0) {
-            if (strlen(ascii_name) > img->untranslated_name_len)
+        force_dots = !((opts->no_force_dots & 1) ||
+                       iso->type == LIBISO_DIR);
+        if (opts->untranslated_name_len > 0) {
+            if (strlen(ascii_name) > opts->untranslated_name_len)
                 goto needs_transl;
             isoname = strdup(ascii_name);
-        } else if (img->max_37_char_filenames) {
+        } else if (opts->max_37_char_filenames) {
             isoname = iso_r_fileid(ascii_name, 36, relaxed, force_dots);
-        } else if (img->iso_level == 1) {
+        } else if (opts->iso_level == 1) {
 
 #ifdef Libisofs_old_ecma119_nameS
 
@@ -155,7 +157,7 @@ int ecma119_is_dedicated_reloc_dir(Ecma119Image *img, Ecma119Node *node)
 {
     if (img->rr_reloc_node == node &&
         node != img->root && node != img->partition_root &&
-        (img->rr_reloc_flags & 2))
+        (img->opts->rr_reloc_flags & 2))
         return 1;
     return 0;
 }
@@ -220,7 +222,7 @@ int create_file_src(Ecma119Image *img, IsoFile *iso, IsoFileSrc **src)
     off_t size;
 
     size = iso_stream_get_size(iso->stream);
-    if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && img->iso_level != 3) {
+    if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && img->opts->iso_level != 3) {
         char *ipath = iso_tree_get_node_path(ISO_NODE(iso));
         ret = iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
                               "File \"%s\" can't be added to image because "
@@ -361,6 +363,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     int max_path;
     char *iso_name= NULL, *ipath = NULL;
     IsoFileSrc *src = NULL;
+    IsoWriteOpts *opts = image->opts;
 
     if (image == NULL || iso == NULL || tree == NULL) {
         return ISO_NULL_POINTER;
@@ -385,16 +388,16 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             goto ex;
         }
         max_path = pathlen + 1 + (iso_name ? strlen(iso_name) : 0);
-        if (!image->rockridge) {
+        if (!opts->rockridge) {
             if ((iso->type == LIBISO_DIR && depth > 8) &&
-                !image->allow_deep_paths) {
-	        ipath = iso_tree_get_node_path(iso);
+                !opts->allow_deep_paths) {
+                ipath = iso_tree_get_node_path(iso);
                 ret = iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG,
                                      0, "File \"%s\" can't be added, "
                                      "because directory depth "
                                      "is greater than 8.", ipath);
                 goto ex;
-            } else if (max_path > 255 && !image->allow_longer_paths) {
+            } else if (max_path > 255 && !opts->allow_longer_paths) {
                 ipath = iso_tree_get_node_path(iso);
                 ret = iso_msg_submit(image->image->id, ISO_FILE_IMGPATH_WRONG,
                                      0, "File \"%s\" can't be added, "
@@ -418,7 +421,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = 0; /* Hidden means non-existing */
             goto ex;
         }
-        if (image->rockridge) {
+        if (opts->rockridge) {
             ret = create_symlink(image, (IsoSymlink*)iso, &node);
         } else {
             /* symlinks are only supported when RR is enabled */
@@ -434,7 +437,7 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
             ret = 0; /* Hidden means non-existing */
             goto ex;
         }
-        if (image->rockridge) {
+        if (opts->rockridge) {
             ret = create_special(image, (IsoSpecial*)iso, &node);
         } else {
             /* special files are only supported when RR is enabled */
@@ -472,9 +475,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
                     image->rr_reloc_node = node;
                 } else if (depth == 2) {
                     /* Directories in root may be used as relocation dir */
-                    if (image->rr_reloc_dir != NULL)
-                        if (image->rr_reloc_dir[0] != 0 &&
-                            strcmp(iso->name, image->rr_reloc_dir) == 0)
+                    if (opts->rr_reloc_dir != NULL)
+                        if (opts->rr_reloc_dir[0] != 0 &&
+                            strcmp(iso->name, opts->rr_reloc_dir) == 0)
                             image->rr_reloc_node = node;
                 }
             }
@@ -606,7 +609,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
             continue;
         }
 
-        if (img->untranslated_name_len) {
+        if (img->opts->untranslated_name_len) {
             /* This should not happen because no two IsoNode names should be
                identical and only unaltered IsoNode names should be seen here.
                Thus the Ema119Node names should be unique.
@@ -635,7 +638,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
             /* compute name and extension */
             dot = strrchr(full_name, '.');
             if (dot != NULL &&
-                (children[i]->type != ECMA119_DIR || img->allow_dir_id_ext)) {
+                (children[i]->type != ECMA119_DIR ||
+                 img->opts->allow_dir_id_ext)) {
 
                 /*
                  * File (normally not dir) with extension
@@ -801,11 +805,11 @@ int mangle_tree(Ecma119Image *img, Ecma119Node *dir, int recurse)
     int max_file, max_dir;
     Ecma119Node *root;
 
-    if (img->untranslated_name_len > 0) {
-        max_file = max_dir = img->untranslated_name_len;
-    } else if (img->max_37_char_filenames) {
+    if (img->opts->untranslated_name_len > 0) {
+        max_file = max_dir = img->opts->untranslated_name_len;
+    } else if (img->opts->max_37_char_filenames) {
         max_file = max_dir = 37;
-    } else if (img->iso_level == 1) {
+    } else if (img->opts->iso_level == 1) {
         max_file = 12; /* 8 + 3 + 1 */
         max_dir = 8;
     } else {
@@ -973,9 +977,9 @@ int reorder_tree(Ecma119Image *img, Ecma119Node *dir,
         /* dir is now the relocated Ecma119Node */
         pathlen = 37 + 1; /* The dir name might get longer by mangling */
         level = 2;
-        if (img->rr_reloc_dir != NULL) {
+        if (img->opts->rr_reloc_dir != NULL) {
             pathlen += strlen(img->rr_reloc_node->iso_name) + 1;
-            if(img->rr_reloc_dir[0] != 0)
+            if(img->opts->rr_reloc_dir[0] != 0)
               level = 3;
         }
     }
@@ -1128,7 +1132,7 @@ int match_hardlinks(Ecma119Image *img, Ecma119Node *dir, int flag)
         goto ex;
 
     /* Sort according to id tuples, IsoFileSrc identity, properties, xattr. */
-    if (img->hardlinks)
+    if (img->opts->hardlinks)
         qsort(nodes, node_count, sizeof(Ecma119Node *), ecma119_node_cmp_hard);
     else
         qsort(nodes, node_count, sizeof(Ecma119Node *),
@@ -1198,7 +1202,7 @@ int ecma119_tree_create(Ecma119Image *img)
         return ret;
     }
 
-    if (img->rockridge && !img->allow_deep_paths) {
+    if (img->opts->rockridge && !img->opts->allow_deep_paths) {
 
         /* Relocate deep directories, acording to RRIP, 4.1.5 */
         ret = reorder_tree(img, root, 1, 0);

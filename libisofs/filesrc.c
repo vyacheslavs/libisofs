@@ -88,8 +88,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     }
 
     /* fill key and other atts */
-    fsrc->no_write = (file->from_old_session && img->appendable);
-    if (file->from_old_session && img->appendable) {
+    fsrc->no_write = (file->from_old_session && img->opts->appendable);
+    if (file->from_old_session && img->opts->appendable) {
         /*
          * On multisession discs we keep file sections from old image.
          */
@@ -127,7 +127,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     /* insert the filesrc in the tree */
     ret = iso_rbtree_insert(img->files, fsrc, (void**)src);
     if (ret <= 0) {
-        if (ret == 0 && (*src)->checksum_index > 0 && !img->will_cancel) {
+        if (ret == 0 && (*src)->checksum_index > 0 &&
+            !img->opts->will_cancel) {
             /* Duplicate file source was mapped to previously registered source
             */
             cret = iso_file_set_isofscx(file, (*src)->checksum_index, 0);
@@ -140,8 +141,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
     }
     iso_stream_ref(fsrc->stream);
 
-    if ((img->md5_file_checksums & 1) &&
-        file->from_old_session && img->appendable) {
+    if ((img->opts->md5_file_checksums & 1) &&
+        file->from_old_session && img->opts->appendable) {
         ret = iso_node_get_xinfo((IsoNode *) file, checksum_md5_xinfo_func,
                                   &xipt);
         if (ret <= 0)
@@ -152,7 +153,8 @@ int iso_file_src_create(Ecma119Image *img, IsoFile *file, IsoFileSrc **src)
             no_md5 = 1;
     }
 
-    if ((img->md5_file_checksums & 1) && !(no_md5 || img->will_cancel)) {
+    if ((img->opts->md5_file_checksums & 1) &&
+        !(no_md5 || img->opts->will_cancel)) {
         img->checksum_idx_counter++;
         if (img->checksum_idx_counter < 0x7fffffff) {
             fsrc->checksum_index = img->checksum_idx_counter;
@@ -244,11 +246,11 @@ int filesrc_writer_pre_compute(IsoImageWriter *writer)
     /* Normally reserve a single zeroed block for all files which have
        no block address: symbolic links, device files, empty data files.
     */
-    if (! t->old_empty)
+    if (! t->opts->old_empty)
         t->filesrc_blocks++;
 
     /* on appendable images, ms files shouldn't be included */
-    if (t->appendable) {
+    if (t->opts->appendable) {
         inc_item = shall_be_written;
     } else {
         inc_item = NULL;
@@ -261,7 +263,7 @@ int filesrc_writer_pre_compute(IsoImageWriter *writer)
     }
 
     /* sort files by weight, if needed */
-    if (t->sort_files) {
+    if (t->opts->sort_files) {
         qsort(filelist, size, sizeof(void*), cmp_by_weight);
     }
 
@@ -436,7 +438,7 @@ int iso_filesrc_write_data(Ecma119Image *t, IsoFileSrc *file,
     file_size = iso_file_src_get_size(file);
     nblocks = DIV_UP(file_size, BLOCK_SIZE);
     pre_md5_valid = 0; 
-    if (file->checksum_index > 0 && (t->md5_file_checksums & 2)) {
+    if (file->checksum_index > 0 && (t->opts->md5_file_checksums & 2)) {
         /* Obtain an MD5 of content by a first read pass */
         pre_md5_valid = filesrc_make_md5(t, file, pre_md5, 0);
     }
@@ -494,11 +496,11 @@ int iso_filesrc_write_data(Ecma119Image *t, IsoFileSrc *file,
     /* >>> HFS: need to align to allocation block size */;
 
 #ifdef Libisofs_with_libjtE
-    if (t->libjte_handle != NULL) {
-        res = libjte_begin_data_file(t->libjte_handle, name,
+    if (t->opts->libjte_handle != NULL) {
+        res = libjte_begin_data_file(t->opts->libjte_handle, name,
                                      BLOCK_SIZE, file_size);
         if (res <= 0) {
-            res = iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+            res = iso_libjte_forward_msgs(t->opts->libjte_handle, t->image->id,
                                     ISO_LIBJTE_FILE_FAILED, 0);
             if (res < 0) {
                 filesrc_close(file);
@@ -593,7 +595,7 @@ int iso_filesrc_write_data(Ecma119Image *t, IsoFileSrc *file,
         res = iso_md5_end(&ctx, md5);
         if (res <= 0)
             file->checksum_index = 0;
-        if ((t->md5_file_checksums & 2) && pre_md5_valid > 0 &&
+        if ((t->opts->md5_file_checksums & 2) && pre_md5_valid > 0 &&
             !was_error) {
             if (! iso_md5_match(md5, pre_md5)) {
                 /* Issue MISHAP event */
@@ -619,8 +621,8 @@ ex:;
 
 #ifdef Libisofs_with_libjtE
     if (jte_begun) {
-        res = libjte_end_data_file(t->libjte_handle);
-        iso_libjte_forward_msgs(t->libjte_handle, t->image->id,
+        res = libjte_end_data_file(t->opts->libjte_handle);
+        iso_libjte_forward_msgs(t->opts->libjte_handle, t->image->id,
                                 ISO_LIBJTE_END_FAILED, 0);
         if (res <= 0 && ret >= 0)
             ret = ISO_LIBJTE_FILE_FAILED;
@@ -658,7 +660,7 @@ int filesrc_writer_write_data(IsoImageWriter *writer)
        files which have no block address:
        symbolic links, device files, empty data files.
     */
-    if (! t->old_empty) {
+    if (! t->opts->old_empty) {
         ret = iso_write(t, buffer, BLOCK_SIZE);
         if (ret < 0)
             goto ex;
