@@ -957,8 +957,11 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
     uint32_t part_end, goal, block_fac = 1;
     char gap_name[33];
 
-    if (t->apm_req_flags & 4)
+    if (t->apm_req_flags & 4) {
+        if (t->opts->apm_block_size == 0)
+            t->opts->apm_block_size = 2048;
         block_fac = 2048 / t->opts->apm_block_size;
+    }
 
     /* Find out whether an entry with start_block <= 1 is requested */
     for (i = 0; i < t->apm_req_count; i++) {
@@ -1077,11 +1080,19 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
         0x45, 0x52, 0x02, 0x00, 0xeb, 0x02, 0xff, 0xff
     };
 
-    if (t->apm_req_flags & 4)
-        block_fac = 2048 / t->opts->apm_block_size;
-
     if (t->apm_req_count <= 0)
         return 2;
+
+    if (t->opts->apm_block_size == 0) {
+        /* One cannot be sure that all GPT partitions are registered
+           already. So it is necessary to choose the block size which is
+           combinable with GPT but not mountable on Linux.
+        */
+        t->opts->apm_block_size = 2048;
+    }
+
+    if (t->apm_req_flags & 4)
+        block_fac = 2048 / t->opts->apm_block_size;
 
     if (!(t->apm_req_flags & 2)) {
         /* Gaps have been filled. Care for the final one */
@@ -2062,9 +2073,12 @@ static int precompute_gpt(Ecma119Image *t)
 
     /* Determine GPT partition start in System Area, */
     gpt_part_start = 0;
-    if (t->apm_req_count > 0) 
+    if (t->apm_req_count > 0) {
+        if (t->opts->apm_block_size == 0)
+            t->opts->apm_block_size = 2048;
         gpt_part_start = (t->apm_req_count + 1) *
                          (t->opts->apm_block_size / 512);
+    }
     if (gpt_part_start < 2)
         gpt_part_start = 2; 
     else if (gpt_part_start >= 64)
