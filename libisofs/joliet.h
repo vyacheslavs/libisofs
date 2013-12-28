@@ -63,5 +63,13 @@ int joliet_writer_create(Ecma119Image *target);
 */
 int joliet_writer_write_vol_desc(IsoImageWriter *writer);
 
+/**
+ * Determine the Joliet name from node name.
+ * @param flag   bit0=  Do not issue error messages
+ */
+int iso_get_joliet_name(IsoWriteOpts *opts, char *input_charset, int imgid,
+                        char *node_name, enum IsoNodeType node_type,
+                        size_t *joliet_ucs2_failures,
+                        uint16_t **name, int flag);
 
 #endif /* LIBISO_JOLIET_H */

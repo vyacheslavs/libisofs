@@ -155,13 +155,13 @@ static int show_chunk_to_jte(Ecma119Image *target, char *buf, int count)
  * Check if we should add version number ";" to the given node name.
  */
 static
-int need_version_number(Ecma119Image *t, Ecma119Node *n)
+int need_version_number(IsoWriteOpts *opts, enum ecma119_node_type node_type)
 {
-    if ((t->opts->omit_version_numbers & 1) ||
-        t->opts->max_37_char_filenames || t->opts->untranslated_name_len > 0) {
+    if ((opts->omit_version_numbers & 1) ||
+        opts->max_37_char_filenames || opts->untranslated_name_len > 0) {
         return 0;
     }
-    if (n->type == ECMA119_DIR || n->type == ECMA119_PLACEHOLDER) {
+    if (node_type == ECMA119_DIR || node_type == ECMA119_PLACEHOLDER) {
         return 0;
     } else {
         return 1;
@@ -175,7 +175,7 @@ static
 size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
 {
     int ret = n->iso_name ? strlen(n->iso_name) + 33 : 34;
-    if (need_version_number(t, n)) {
+    if (need_version_number(t->opts, n->type)) {
         ret += 2; /* take into account version numbers */
     }
     if (ret % 2)
@@ -384,7 +384,7 @@ void write_one_dir_record(Ecma119Image *t, Ecma119Node *node, int file_id,
 
     memcpy(rec->file_id, name, len_fi);
 
-    if (need_version_number(t, node)) {
+    if (need_version_number(t->opts, node->type)) {
         len_dr += 2;
         rec->file_id[len_fi++] = ';';
         rec->file_id[len_fi++] = '1';
@@ -671,7 +671,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
 
             /* compute len of directory entry */
             len = fi_len + 33 + ((fi_len % 2) ? 0 : 1);
-            if (need_version_number(t, child)) {
+            if (need_version_number(t->opts, child->type)) {
                 len += 2;
             }
 
@@ -3483,6 +3483,9 @@ int iso_write_opts_set_hfsp_block_size(IsoWriteOpts *opts,
  *                   2= Joliet (to_charset gets overriden by UCS-2 or UTF-16)
  *                   3= ECMA-119 (dull ISO 9660 character set)
  *                   4= HFS+ (to_charset gets overridden by UTF-16BE) 
+ *        bit8=  Treat input text as directory name
+ *               (matters for Joliet and ECMA-119)
+ *        bit9=  Do not issue error messages
  *        bit15= Reverse operation (best to be done only with results of
  *               previous conversions)
  */
@@ -3491,20 +3494,30 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *in_name, size_t name_len,
 {
     int name_space, ret, reverse;
     size_t i;
-    char *from_charset, *to_charset, *conved = NULL, *smashed = NULL, *name;
-    char *tr;
+    size_t joliet_ucs2_failures = ISO_JOLIET_UCS2_WARN_MAX + 1;/* no warning */
     size_t conved_len;
-    uint16_t *ucs;
+    char *from_charset, *to_charset, *conved, *smashed = NULL, *name;
+    char *tr, *with_version = NULL;
+    uint16_t *ucs = NULL, *hfspcmp = NULL;
+    uint32_t ucs_len;
+    enum IsoNodeType node_type;
+
+    *result = NULL;
+    *result_len = 0;
 
     name = in_name;
-    from_charset = iso_get_local_charset(0);
     name_space = flag & 0xff;
     reverse = !!(flag & (1 << 15));
-    if (name_space == 0) { /* generic */
-        to_charset = opts->output_charset;
+    node_type = (flag & 256) ? LIBISO_DIR : LIBISO_FILE;
+    from_charset = iso_get_local_charset(0);
 
-    } else if (name_space == 1) { /* Rock Ridge */
+    /* Note: Joliet, ECMA-119, HFS+ actually use to_charset only for the
+             reverse conversion case */
+    if (opts->output_charset != NULL)
         to_charset = opts->output_charset;
+    else
+        to_charset = from_charset;
+    if (name_space == 1) { /* Rock Ridge */
         if (!reverse) {
             LIBISO_ALLOC_MEM(smashed, char, name_len + 1);
             memcpy(smashed, name, name_len);
@@ -3516,27 +3529,15 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *in_name, size_t name_len,
 
             /* >>> ??? truncate to 255 chars */
          }
-
     } else if (name_space == 2) { /* Joliet */
         if (opts->joliet_utf16)
             to_charset = "UTF-16BE";
         else
             to_charset = "UCS-2BE";
-        /* ( Smashing happens after conversion ) */
-
     } else if (name_space == 3) { /* ECMA-119 */
         to_charset = "ASCII";
-
-        /* >>> ??? Use an  IsoWriteOpts+char of get_iso_name() */
-
     } else if (name_space == 4) { /* HFS+ */
         to_charset= "UTF-16BE";
-
-        /* >>> ??? any other conversions for HFS+ ? */;
-
-    } else {
-        ret = ISO_WRONG_ARG_VALUE;
-        goto ex;
     }
     if (reverse) {
         tr = from_charset;
@@ -3544,30 +3545,76 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *in_name, size_t name_len,
         to_charset = tr;
     }
 
-    ret = strnconvl(name, from_charset, to_charset, name_len,
-                    &conved, &conved_len);
-    if (ret != ISO_SUCCESS)
+    if (name_space == 0 || reverse) {
+        ret = strnconvl(name, from_charset, to_charset, name_len,
+                        &conved, &conved_len);
+        if (ret != ISO_SUCCESS)
+            goto ex;
+
+    } else if (name_space == 1) { /* Rock Ridge */
+        ret = iso_get_rr_name(opts, from_charset, to_charset, -1, name,
+                              &conved, !!(flag & 512));
+        if (ret != ISO_SUCCESS)
+            goto ex;
+        conved_len = strlen(conved);
+
+    } else if (name_space == 2) { /* Joliet */
+        ret = iso_get_joliet_name(opts, from_charset, -1, name, node_type,
+                                  &joliet_ucs2_failures, &ucs, !!(flag & 512));
+        if (ret != ISO_SUCCESS)
+            goto ex;
+        conved_len = ucslen(ucs) * 2;
+        conved = (char *) ucs; ucs = NULL;
+        if (node_type != LIBISO_DIR && !(opts->omit_version_numbers & 3)) {
+            LIBISO_ALLOC_MEM(with_version, char, conved_len + 6);
+            memcpy(with_version, conved, conved_len);
+            with_version[conved_len++] = 0;
+            with_version[conved_len++] = ';';
+            with_version[conved_len++] = 0;
+            with_version[conved_len++] = '1';
+            with_version[conved_len] = 0;
+            with_version[conved_len + 1] = 0;
+            free(conved);
+            conved = with_version; with_version = NULL;
+        }
+
+    } else if (name_space == 3) { /* ECMA-119 */
+        ret = iso_get_ecma119_name(opts, from_charset, -1, name, node_type,
+                                   &conved, !!(flag & 512)); 
+        if (ret != ISO_SUCCESS)
+            goto ex;
+        conved_len = strlen(conved);
+        if (need_version_number(opts, node_type == LIBISO_DIR ?
+                                                 ECMA119_DIR : ECMA119_FILE)) {
+            LIBISO_ALLOC_MEM(with_version, char, conved_len + 3);
+            memcpy(with_version, conved, conved_len + 1);
+            strcat(with_version, ";1");
+            free(conved);
+            conved = with_version; with_version = NULL;
+            conved_len += 2;
+        }
+
+    } else if (name_space == 4) { /* HFS+ */
+        ret = iso_get_hfsplus_name(from_charset, -1, name, &ucs, &ucs_len,
+                                   &hfspcmp);
+        if (ret != ISO_SUCCESS)
+            goto ex;
+        conved = (char *) ucs; ucs = NULL;
+        conved_len = ucs_len * 2;
+
+    } else {
+        ret = ISO_WRONG_ARG_VALUE;
         goto ex;
-
-    if (name_space == 2 && !reverse) { /* Joliet */
-
-        /* >>> ??? Rather use iso_j_dir_id()/iso_j_file_id()
-               ??? Or even an IsoWriteOpts version of get_joliet_name() ?
-        */
-
-        ucs = (uint16_t *) conved;
-        iso_smash_chars_for_joliet(ucs);
-    } else if (name_space == 3 && !reverse) { /* ECMA-119 */
-
-        /* >>> smash all forbidden characters ? (or use get_iso_name() ) */;
-
     }
 
     *result = conved;
     *result_len = conved_len;
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
 ex:
+    LIBISO_FREE_MEM(with_version);
     LIBISO_FREE_MEM(smashed);
+    LIBISO_FREE_MEM(ucs);
+    LIBISO_FREE_MEM(hfspcmp);
     return ret;
 }
 

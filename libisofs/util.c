@@ -278,7 +278,8 @@ int strnconvl(const char *str, const char *icharset, const char *ocharset,
     *ret = '\0';
     iso_iconv_close(&conv, 0);
 
-    *output = malloc(ret - out + 1);
+    *out_len = ret - out;
+    *output = malloc(*out_len + 1);
     if (*output == NULL) {
         retval = ISO_OUT_OF_MEM;
         goto ex;
@@ -2235,16 +2236,6 @@ void iso_handle_split_utf16(uint16_t *utf_word)
     hb = (unsigned char *) utf_word;
     if ((hb[0] & 0xfc) == 0xd8)
         set_ucsbe(utf_word, '_');
-}
-
-
-void iso_smash_chars_for_joliet(uint16_t *name)
-{
-    size_t i;
-
-    for (i = 0; name[i] != 0; i++)
-        if (! valid_j_char(name[i]))
-            set_ucsbe(name + i, '_');
 }
 
 

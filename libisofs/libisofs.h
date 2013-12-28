@@ -7112,21 +7112,23 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
 /* ----------------------------- Character sets ---------------------------- */
 
 /**
- * >>>              *** NOT COMPLETELY IMPLEMENTED YET ***
- * >>> Convert the characters in name from local charset to another charset or
- * >>> to the representation of a particular ISO image name space.
- * >>> In the latter case it is assumed that the conversion result does not
- * >>> collide with any other converted name in the same directory.
- * >>> I.e. this function does not take into respect possible name changes
- * >>> due to collision handling.
+ * Convert the characters in name from local charset to another charset or
+ * convert name to the representation of a particular ISO image name space.
+ * In the latter case it is assumed that the conversion result does not
+ * collide with any other converted name in the same directory.
+ * I.e. this function does not take into respect possible name changes
+ * due to collision handling.
  *
  * @param opts
  *      Defines output charset, UCS-2 versus UTF-16 for Joliet,
  *      and naming restrictions.
  * @param name
  *      The input text which shall be converted.
+ * @param name_len
+ *      The number of bytes in input text.
  * @param result
- *      Will return the conversion result. Terminated by a trailing zero byte.
+ *      Will return the conversion result in case of success. Terminated by
+ *      a trailing zero byte.
  *      Use free() to dispose it when no longer needed.
  * @param result_len
  *      Will return the number of bytes in result (excluding trailing zero)
@@ -7137,11 +7139,12 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
  *                               no reserved characters, no length limits)
  *                   1= Rock Ridge (to_charset is valid)
  *                   2= Joliet (to_charset gets overridden by UCS-2 or UTF-16)
- *                   3= ECMA-119 (to_charset gets overridden by 
+ *                   3= ECMA-119 (to_charset gets overridden by the
  *                                dull ISO 9660 subset of ASCII)
  *                   4= HFS+ (to_charset gets overridden by UTF-16BE)
- *        bit8=  Input text is a directory name
+ *        bit8=  Treat input text as directory name
  *               (matters for Joliet and ECMA-119)
+ *        bit9=  Do not issue error messages
  *        bit15= Reverse operation (best to be done only with results of
  *               previous conversions)
  * @return

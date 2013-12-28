@@ -212,11 +212,6 @@ uint16_t *iso_j_file_id(const uint16_t *src, int flag);
 uint16_t *iso_j_dir_id(const uint16_t *src, int flag);
 
 /**
- * Maps forbidden Joliet characters to UCS-2 '_'
- */
-void iso_smash_chars_for_joliet(uint16_t *name);
-
-/**
  * Like strlen, but for Joliet strings.
  */
 size_t ucslen(const uint16_t *str);

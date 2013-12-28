@@ -294,29 +294,44 @@ int rrip_add_CL(Ecma119Image *t, Ecma119Node *n, struct susp_info *susp)
 /**
  * Convert a RR filename to the requested charset. On any conversion error, 
  * the original name will be used.
+ * @param flag   bit0= do not issue error messages
  */
-static
-char *get_rr_fname(Ecma119Image *t, const char *str)
+int iso_get_rr_name(IsoWriteOpts *opts, char *input_charset,
+                    char *output_charset, int imgid,
+                    char *str, char **name, int flag)
 {
     int ret;
-    char *name;
 
-    if (!strcmp(t->input_charset, t->output_charset)) {
+    if (!strcmp(input_charset, output_charset)) {
         /* no conversion needed */
-        return strdup(str);
+        ret = iso_clone_mem(str, name, 0);
+        return ret;
     }
 
-    ret = strconv(str, t->input_charset, t->output_charset, &name);
+    ret = strconv(str, input_charset, output_charset, name);
     if (ret < 0) {
         /* TODO we should check for possible cancelation */
-        iso_msg_submit(t->image->id, ISO_FILENAME_WRONG_CHARSET, ret,
-                  "Charset conversion error. Can't convert %s from %s to %s",
-                  str, t->input_charset, t->output_charset);
+        if (!(flag & 1))
+            iso_msg_submit(imgid, ISO_FILENAME_WRONG_CHARSET, ret,
+                   "Charset conversion error. Cannot convert %s from %s to %s",
+                   str, input_charset, output_charset);
 
         /* use the original name, it's the best we can do */
-        name = strdup(str);
+        ret = iso_clone_mem(str, name, 0);
+        return ISO_FILENAME_WRONG_CHARSET;
     }
 
+    return ISO_SUCCESS;
+}
+
+static
+char *get_rr_fname(Ecma119Image *t, char *str)
+{
+    int ret;
+    char *name = NULL;
+
+    ret = iso_get_rr_name(t->opts, t->input_charset, t->output_charset,
+                          t->image->id, str, &name, 0);
     return name;
 }
 

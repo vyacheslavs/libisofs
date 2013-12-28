@@ -115,8 +115,8 @@ uint8_t get_class (uint16_t v)
   return hfsplus_class_pages[high][low];
 }
 
-static
-int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
+int iso_get_hfsplus_name(char *input_charset, int imgid, char *name,
+                  uint16_t **result, uint32_t *result_len, uint16_t **cmp_name)
 {
     int ret;
     uint16_t *ucs_name, *iptr, *optr;
@@ -128,19 +128,19 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
         return ISO_SUCCESS;
     }
 
-    ret = str2utf16be(t->input_charset, name, &ucs_name);
+    ret = str2utf16be(input_charset, name, &ucs_name);
     if (ret < 0) {
-        iso_msg_debug(t->image->id, "Can't convert %s", name);
+        iso_msg_debug(imgid, "Cannot convert '%s'", name);
         return ret;
     }
 
     curlen = ucslen (ucs_name);
-    node->name = calloc ((curlen * HFSPLUS_MAX_DECOMPOSE_LEN + 1),
-			 sizeof (node->name[0]));
-    if (!node->name)
-      return ISO_OUT_OF_MEM;
+    *result = calloc ((curlen * HFSPLUS_MAX_DECOMPOSE_LEN + 1),
+                     sizeof (uint16_t));
+    if (*result == NULL)
+        return ISO_OUT_OF_MEM;
 
-    for (iptr = ucs_name, optr = node->name; *iptr; iptr++)
+    for (iptr = ucs_name, optr = *result; *iptr; iptr++)
       {
 	const uint16_t *dptr;
 	uint16_t val = iso_ntohs (*iptr);
@@ -189,7 +189,7 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 	if (!ucs_name[0])
 	  break;
 	last_class = get_class (ucs_name[0]);
-	for (optr = node->name + 1; *optr; optr++)
+	for (optr = *result + 1; *optr; optr++)
 	  {
 	    uint8_t new_class = get_class (*optr);
 
@@ -207,11 +207,11 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
       }
     while (done);
 
-    node->cmp_name = calloc ((ucslen (node->name) + 1), sizeof (node->cmp_name[0]));
-    if (!node->cmp_name)
+    *cmp_name = calloc ((ucslen (*result) + 1), sizeof (uint16_t));
+    if (*cmp_name == NULL)
       return ISO_OUT_OF_MEM;
 
-    for (iptr = node->name, optr = node->cmp_name; *iptr; iptr++)
+    for (iptr = *result, optr = *cmp_name; *iptr; iptr++)
       {
 	*optr = iso_hfsplus_cichar(*iptr);
 	if (*optr != 0)
@@ -221,10 +221,19 @@ int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
 
     free (ucs_name);
 
-    node->strlen = ucslen (node->name);
+    *result_len = ucslen (*result);
     return ISO_SUCCESS;
 }
 
+static
+int set_hfsplus_name(Ecma119Image *t, char *name, HFSPlusNode *node)
+{
+    int ret;
+
+    ret = iso_get_hfsplus_name(t->input_charset, t->image->id, name,
+                            &(node->name), &(node->strlen), &(node->cmp_name));
+    return ret;
+}
 
 /* >>> ts B20617
        This should be HFSPlusNode rather than IsoNode in order to have access

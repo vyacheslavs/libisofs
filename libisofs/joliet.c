@@ -28,50 +28,57 @@
 #include <stdio.h>
 #include <string.h>
 
-static
-int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
+/* @param flag   bit0=  Do not issue error messages
+*/
+int iso_get_joliet_name(IsoWriteOpts *opts, char *input_charset, int imgid,
+                        char *node_name, enum IsoNodeType node_type,
+                        size_t *joliet_ucs2_failures,
+                        uint16_t **name, int flag)
 {
     int ret = ISO_SUCCESS;
     uint16_t *ucs_name = NULL, *utf16_name = NULL;
     uint16_t *jname = NULL;
 
-    if (iso->name == NULL) {
+    if (node_name == NULL) {
         /* it is not necessarily an error, it can be the root */
         *name = NULL;
         return ISO_SUCCESS;
     }
 
-    if (t->opts->joliet_utf16) {
-        ret = str2utf16be(t->input_charset, iso->name, &ucs_name);
+    if (opts->joliet_utf16) {
+        ret = str2utf16be(input_charset, node_name, &ucs_name);
         if (ret < 0) {
-            iso_msg_debug(t->image->id, "Cannot convert to UTF-16 : \"%s\"",
-                          iso->name);
+            if (!(flag & 512))
+                iso_msg_debug(imgid, "Cannot convert to UTF-16 : \"%s\"",
+                              node_name);
             goto ex;
         }
     } else {
-        ret = str2ucs(t->input_charset, iso->name, &ucs_name);
+        ret = str2ucs(input_charset, node_name, &ucs_name);
         if (ret < 0) {
-            iso_msg_debug(t->image->id, "Cannot convert to UCS-2 : \"%s\"",
-                          iso->name);
+            if (!(flag & 512))
+                iso_msg_debug(imgid, "Cannot convert to UCS-2 : \"%s\"",
+                              node_name);
             goto ex;
         }
-        ret = str2utf16be(t->input_charset, iso->name, &utf16_name);
+        ret = str2utf16be(input_charset, node_name, &utf16_name);
         if (ret == ISO_SUCCESS) {
             if (ucscmp(ucs_name, utf16_name) != 0) {
-                t->joliet_ucs2_failures++;
-                if (t->joliet_ucs2_failures <= ISO_JOLIET_UCS2_WARN_MAX) {
-                    iso_msg_submit(t->image->id, ISO_NAME_NOT_UCS2, 0,
+                (*joliet_ucs2_failures)++;
+                if (*joliet_ucs2_failures <= ISO_JOLIET_UCS2_WARN_MAX &&
+                    !(flag & 512)) {
+                    iso_msg_submit(imgid, ISO_NAME_NOT_UCS2, 0,
                "Filename not suitable for Joliet character set UCS-2 : \"%s\"",
-                                   iso->name);
+                                   node_name);
                 }
             }
         }
     }
-    if (iso->type == LIBISO_DIR) {
-        jname = iso_j_dir_id(ucs_name, t->opts->joliet_long_names << 1);
+    if (node_type == LIBISO_DIR) {
+        jname = iso_j_dir_id(ucs_name, opts->joliet_long_names << 1);
     } else {
         jname = iso_j_file_id(ucs_name,
-           (t->opts->joliet_long_names << 1) | !!(t->opts->no_force_dots & 2));
+                 (opts->joliet_long_names << 1) | !!(opts->no_force_dots & 2));
     }
     ret = ISO_SUCCESS;
 ex:;
@@ -94,6 +101,19 @@ ex:;
         return ISO_OUT_OF_MEM;
     }
 }
+
+static
+int get_joliet_name(Ecma119Image *t, IsoNode *iso, uint16_t **name)
+{
+    int ret;
+
+    ret = iso_get_joliet_name(t->opts, t->input_charset, t->image->id,
+                              iso->name, iso->type, &(t->joliet_ucs2_failures),
+                              name, 0);
+
+    return ret;
+}
+
 
 static
 void joliet_node_free(JolietNode *node)

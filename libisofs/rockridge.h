@@ -346,4 +346,13 @@ int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
                    uint8_t *header_size_div4, uint8_t *block_size_log2,
                    uint32_t *uncompressed_size, int flag);
 
+/**
+ * Convert a RR filename to the requested charset. On any conversion error,
+ * the original name will be used.
+ * @param flag   bit0= do not issue error messages
+ */
+int iso_get_rr_name(IsoWriteOpts *opts, char *input_charset,
+                    char *output_charset, int imgid,
+                    char *str, char **name, int flag);
+
 #endif /* LIBISO_ROCKRIDGE_H */

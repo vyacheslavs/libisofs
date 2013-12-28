@@ -29,29 +29,32 @@
 #include <string.h>
 #include <stdio.h>
 
-static
-int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
+/* @param flag   bit0=  Do not issue error messages
+*/
+int iso_get_ecma119_name(IsoWriteOpts *opts, char *input_charset, int imgid,
+                         char *node_name, enum IsoNodeType node_type,
+                         char **name, int flag)
 {
     int ret, relaxed, free_ascii_name = 0, force_dots = 0;
     char *ascii_name;
     char *isoname = NULL;
-    IsoWriteOpts *opts = img->opts;
 
-    if (iso->name == NULL) {
+    if (node_name == NULL) {
         /* it is not necessarily an error, it can be the root */
         return ISO_SUCCESS;
     }
 
     if (opts->untranslated_name_len > 0) {
-        ascii_name = iso->name;
+        ascii_name = node_name;
         ret = 1;
     } else {
-        ret = str2ascii(img->input_charset, iso->name, &ascii_name);
+        ret = str2ascii(input_charset, node_name, &ascii_name);
         free_ascii_name = 1;
     }
     if (ret < 0) {
-        iso_msg_submit(img->image->id, ret, 0,
-                       "Cannot convert name '%s' to ASCII", iso->name);
+        if (!(flag & 512))
+            iso_msg_submit(imgid, ret, 0,
+                           "Cannot convert name '%s' to ASCII", node_name);
         return ret;
     }
 
@@ -62,11 +65,12 @@ int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
     }
     if (opts->allow_7bit_ascii)
         relaxed |= 4;
-    if (iso->type == LIBISO_DIR && !(opts->allow_dir_id_ext)) {
+    if (node_type == LIBISO_DIR && !(opts->allow_dir_id_ext)) {
         if (opts->untranslated_name_len > 0) {
             if (strlen(ascii_name) > opts->untranslated_name_len) {
 needs_transl:;
-                iso_msg_submit(img->image->id, ISO_NAME_NEEDS_TRANSL, 0,
+                if (!(flag & 512))
+                    iso_msg_submit(imgid, ISO_NAME_NEEDS_TRANSL, 0,
               "File name too long (%d > %d) for untranslated recording:  '%s'",
                           strlen(ascii_name), opts->untranslated_name_len,
                           ascii_name);
@@ -101,7 +105,7 @@ needs_transl:;
         }
     } else {
         force_dots = !((opts->no_force_dots & 1) ||
-                       iso->type == LIBISO_DIR);
+                       node_type == LIBISO_DIR);
         if (opts->untranslated_name_len > 0) {
             if (strlen(ascii_name) > opts->untranslated_name_len)
                 goto needs_transl;
@@ -151,6 +155,16 @@ needs_transl:;
          */
         return ISO_OUT_OF_MEM;
     }
+}
+
+static
+int get_iso_name(Ecma119Image *img, IsoNode *iso, char **name)
+{
+    int ret;
+
+    ret = iso_get_ecma119_name(img->opts, img->input_charset, img->image->id,
+                               iso->name, iso->type, name, 0);
+    return ret;
 }
 
 int ecma119_is_dedicated_reloc_dir(Ecma119Image *img, Ecma119Node *node)

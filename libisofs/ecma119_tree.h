@@ -103,5 +103,13 @@ Ecma119Node *ecma119_search_iso_node(Ecma119Image *img, IsoNode *node);
  */
 int ecma119_is_dedicated_reloc_dir(Ecma119Image *img, Ecma119Node *node);
 
+/**
+ * Determines the ECMA-119 name from node name.
+ * @param flag   bit0=  Do not issue error messages
+ */
+int iso_get_ecma119_name(IsoWriteOpts *opts, char *input_charset, int imgid,
+                         char *node_name, enum IsoNodeType node_type,
+                         char **name, int flag);
+
 
 #endif /*LIBISO_ECMA119_TREE_H_*/

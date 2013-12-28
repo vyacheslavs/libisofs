@@ -194,4 +194,8 @@ void make_hfsplus_class_pages();
 
 extern const uint16_t hfsplus_casefold[];
 
+int iso_get_hfsplus_name(char *input_charset, int imgid, char *name,
+                 uint16_t **result, uint32_t *result_len, uint16_t **cmp_name);
+
+
 #endif /* LIBISO_HFSPLUS_H */
