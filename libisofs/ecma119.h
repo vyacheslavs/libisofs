@@ -965,4 +965,7 @@ void ecma119_set_voldescr_times(IsoImageWriter *writer,
 int iso_write_partition_file(Ecma119Image *target, char *path,
                              uint32_t prepad, uint32_t blocks, int flag);
 
+void issue_ucs2_warning_summary(size_t failures);
+
+
 #endif /*LIBISO_ECMA119_H_*/

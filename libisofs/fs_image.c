@@ -354,6 +354,8 @@ typedef struct
     int rr_err_reported;
     int rr_err_repeated;
 
+    size_t joliet_ucs2_failures;
+
 } _ImageFsData;
 
 typedef struct image_fs_data ImageFileSourceData;
@@ -1243,12 +1245,30 @@ static
 char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
 {
     int ret;
-    char *name = NULL;
+    char *name = NULL, *from_ucs = NULL;
     if (strcmp(fsdata->local_charset, fsdata->input_charset)) {
         /* charset conversion needed */
         ret = strnconv(str, fsdata->input_charset, fsdata->local_charset, len,
                        &name);
         if (ret == 1) {
+            if (fsdata->iso_root_block == fsdata->svd_root_block) {
+                /* Reading from Joliet : Check whether UTF-16 was needed */
+                ret = strnconv(str, "UCS-2BE", fsdata->local_charset,
+                               len, &from_ucs);
+                if (ret == 1)
+                    ret = (strcmp(name, from_ucs) == 0);
+                if (ret != 1) {
+                    fsdata->joliet_ucs2_failures++;
+                    if (fsdata->joliet_ucs2_failures <=
+                                                     ISO_JOLIET_UCS2_WARN_MAX)
+                        iso_msg_submit(-1, ISO_NAME_NOT_UCS2, 0,
+               "Joliet filename valid only with character set UTF-16 : \"%s\"",
+                                       name);
+
+                }
+                if (from_ucs != NULL)
+                    free(from_ucs);
+            }
             return name;
         } else {
             ret = iso_msg_submit(fsdata->msgid, ISO_FILENAME_WRONG_CHARSET, ret,
@@ -2759,6 +2779,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->px_ino_status = 0;
     data->rr_err_reported = 0;
     data->rr_err_repeated = 0;
+    data->joliet_ucs2_failures = 0;
 
 
     data->local_charset = strdup(iso_get_local_charset(0));
@@ -3640,12 +3661,12 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
     /* recursively add image */
     ret = iso_add_dir_src_rec(image, image->root, newroot);
-
-    /* error during recursive image addition? */
     if (ret < 0) {
+        /* error during recursive image addition */
         iso_node_builder_unref(image->builder);
         goto import_revert;
     }
+    issue_ucs2_warning_summary(data->joliet_ucs2_failures);
 
     /* Take over inode management from IsoImageFilesystem.
        data->inode_counter is supposed to hold the maximum PX inode number.

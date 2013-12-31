@@ -1511,17 +1511,16 @@ ex:;
 }
 
 
-static
-void issue_write_warning_summary(Ecma119Image *target)
+void issue_ucs2_warning_summary(size_t failures)
 {
-    if (target->joliet_ucs2_failures > ISO_JOLIET_UCS2_WARN_MAX) {
+    if (failures > ISO_JOLIET_UCS2_WARN_MAX) {
         iso_msg_submit(-1, ISO_NAME_NOT_UCS2, 0,
-                      "More filenames found which were not suitable for Joliet character set UCS-2");
+                       "More filenames found which were not suitable for Joliet character set UCS-2");
     }
-    if (target->joliet_ucs2_failures > 0) {
+    if (failures > 0) {
         iso_msg_submit(-1, ISO_NAME_NOT_UCS2, 0,
            "Sum of filenames not suitable for Joliet character set UCS-2: %.f",
-                       (double) target->joliet_ucs2_failures);
+                       (double) failures);
     }
 }
 
@@ -1583,7 +1582,7 @@ void *write_function(void *arg)
     if (res <= 0)
         goto write_error;
 
-    issue_write_warning_summary(target);
+    issue_ucs2_warning_summary(target->joliet_ucs2_failures);
 
     target->image->generator_is_running = 0;
 
