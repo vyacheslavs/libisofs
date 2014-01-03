@@ -787,20 +787,24 @@ int make_really_unique_name(IsoDir *parent, char **name, char **unique_name,
     char *dpt;
 
     len = strlen(*name);
-    if (len < 8) {
+    if (len < 7) {
+        /* There may be up to pow(2.0,32.0)*2048/33 = 266548273400 files
+           The set of increment result characters has 63 elements.
+           pow(63.0,7.0) is nearly 15 times larger than 266548273400.
+        */
         /* Insert underscores before last dot */
-        LIBISO_ALLOC_MEM(*unique_name, char, 8 + 1);
+        LIBISO_ALLOC_MEM(*unique_name, char, 7 + 1);
         first = len;
         dpt = strrchr(*name, '.');
         if (dpt != NULL)
             first = (dpt - *name);
         if (first > 0)
             memcpy(*unique_name, *name, first);
-        memset(*unique_name + first, '_', 8 - len);
+        memset(*unique_name + first, '_', 7 - len);
         if (len > first)
-            memcpy(*unique_name + (8 - (len - first)), *name + first,
+            memcpy(*unique_name + (7 - (len - first)), *name + first,
                    len - first);
-        len = 8;
+        len = 7;
         pre_check = 1; /* It might now already be unique */
     } else {
         LIBISO_ALLOC_MEM(*unique_name, char, len + 1);
