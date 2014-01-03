@@ -745,6 +745,7 @@ void ascii_increment(char *name, int pos)
      int c, len;
 
      len = strlen(name);
+again:;
      if (pos < 0 || pos >= len)
          pos = len - 1;
      c = name[pos];
@@ -763,7 +764,10 @@ void ascii_increment(char *name, int pos)
      } else if (c == 'z') {
          c = '0';
          name[pos] = c;
-         ascii_increment(name, pos - 1);
+         pos--;
+         if (pos >= 0 ||
+             strchr(name, '.') != NULL) /* Do not get caged before last dot */
+             goto again;
          return;
      } else {
          if (pos == len - 1 || name[pos + 1] == '.')
