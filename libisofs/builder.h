@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2014 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -47,6 +48,7 @@ struct Iso_Node_Builder
      * Create a new IsoNode from a IsoFileSource. The type of the node to be
      * created is determined from the type of the file source. Name,
      * permissions and other attributes are taken from source file.
+     * But name may be overridden by parameter name if it is not NULL.
      * 
      * Note that the src is never unref, so you need to free it.
      * 
@@ -54,7 +56,7 @@ struct Iso_Node_Builder
      *    1 on success, < 0 on error
      */
     int (*create_node)(IsoNodeBuilder *builder, IsoImage *image,
-                       IsoFileSource *src, IsoNode **node);
+                       IsoFileSource *src, char *name, IsoNode **node);
 
     /**
      * Free implementation specific data. Should never be called by user.

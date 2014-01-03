@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2011 Thomas Schmitt
+ * Copyright (c) 2011 - 2014 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -23,6 +23,7 @@
 #include "builder.h"
 #include "messages.h"
 #include "tree.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -521,7 +522,7 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
         return ISO_NODE_NAME_NOT_UNIQUE;
     }
 
-    result = builder->create_node(builder, image, src, &new);
+    result = builder->create_node(builder, image, src, name, &new);
     if (result < 0) {
         return result;
     }
@@ -587,7 +588,8 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
         return result;
     }
 
-    result = image->builder->create_node(image->builder, image, file, &new);
+    result = image->builder->create_node(image->builder, image, file,
+                                         (char *) name, &new);
     
     /* free the file */
     iso_file_source_unref(file);
@@ -596,12 +598,6 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
         return result;
     }
     
-    result = iso_node_set_name(new, name);
-    if (result < 0) {
-        iso_node_unref(new);
-        return result;
-    }
-
     if (node) {
         *node = new;
     }
@@ -742,6 +738,97 @@ int check_special(IsoImage *image, mode_t mode)
     return 0;
 }
 
+
+static
+void ascii_increment(char *name, int pos)
+{
+     int c, len;
+
+     len = strlen(name);
+     if (pos < 0 || pos >= len)
+         pos = len - 1;
+     c = name[pos];
+     if (c >= '0' && c < '9') {
+         c++;
+     } else if (c == '9') {
+         c = 'A';
+     } else if (c >= 'A' && c < 'Z') {
+         c++;
+     } else if (c == 'Z') {
+         c = '_';
+     } else if (c == '_') {
+         c = 'a';
+     } else if (c >= 'a' && c < 'z') {
+         c++;
+     } else if (c == 'z') {
+         c = '0';
+         name[pos] = c;
+         ascii_increment(name, pos - 1);
+         return;
+     } else {
+         if (pos == len - 1 || name[pos + 1] == '.')
+             c = '_'; /* Make first change less riddling */
+         else
+             c = '0'; /* But else use the full range of valid characters */
+     }
+     name[pos] = c;
+}
+
+
+static
+int make_really_unique_name(IsoDir *parent, char **name, char **unique_name,
+                            IsoNode ***pos, int flag)
+{
+    int len, ret, pre_check = 0, ascii_idx = -1, first;
+    char *dpt;
+
+    len = strlen(*name);
+    if (len < 8) {
+        /* Insert underscores before last dot */
+        LIBISO_ALLOC_MEM(*unique_name, char, 8 + 1);
+        first = len;
+        dpt = strrchr(*name, '.');
+        if (dpt != NULL)
+            first = (dpt - *name);
+        if (first > 0)
+            memcpy(*unique_name, *name, first);
+        memset(*unique_name + first, '_', 8 - len);
+        if (len > 0)
+            memcpy(*unique_name + (8 - (len - first)), *name + first,
+                   len - first);
+        len = 8;
+        pre_check = 1; /* It might now already be unique */
+    } else {
+        LIBISO_ALLOC_MEM(*unique_name, char, len + 1);
+        memcpy(*unique_name, *name, len);
+    }
+    (*unique_name)[len] = 0;
+
+    dpt = strrchr(*unique_name, '.');
+    if (dpt != NULL)
+        ascii_idx = (dpt - *unique_name) - 1; /* Begin before last dot */
+    while (1) {
+        if (!pre_check)
+            ascii_increment(*unique_name, ascii_idx);
+        else
+            pre_check = 0;
+        ret = iso_dir_exists(parent, *unique_name, pos);
+        if (ret < 0)
+            goto ex;
+        if (ret == 0)
+    break;
+    }
+    *name = *unique_name;
+    ret = ISO_SUCCESS;
+ex:;
+    if (ret < 0) {
+        LIBISO_FREE_MEM(*unique_name);
+        *unique_name = NULL;
+    }
+    return ret;
+}
+
+
 /**
  * Recursively add a given directory to the image tree.
  * 
@@ -750,12 +837,12 @@ int check_special(IsoImage *image, mode_t mode)
  */
 int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 {
-    int ret;
+    int ret, dir_is_open = 0;
     IsoNodeBuilder *builder;
     IsoFileSource *file;
     IsoNode **pos;
     struct stat info;
-    char *name, *path;
+    char *name, *path, *allocated_name = NULL;
     IsoNode *new;
     enum iso_replace_mode replace;
 
@@ -771,8 +858,9 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             ret = iso_msg_submit(image->id, ISO_NULL_POINTER, ret,
                            "Can't open dir. NULL pointer caught as dir name");
         }
-        return ret;
+        goto ex;
     }
+    dir_is_open = 1;
 
     builder = image->builder;
     
@@ -785,15 +873,16 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             if (ret < 0) {
                 /* error reading dir */
                 ret = iso_msg_submit(image->id, ret, ret, "Error reading dir");
+                goto ex;
             }
-            break;
+    break; /* End of directory */
         }
 
         path = iso_file_source_get_path(file);
         if (path == NULL) {
             ret = iso_msg_submit(image->id, ISO_NULL_POINTER, ret, 
                                  "NULL pointer caught as file path");
-            return ret;
+            goto ex;
         }
         name = strrchr(path, '/') + 1;
 
@@ -827,19 +916,25 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
 
         /* find place where to insert */
         ret = iso_dir_exists(parent, name, &pos);
-        /* TODO
-         * if (ret && replace == ISO_REPLACE_ASK) {
-         *    replace = /....
-         * }
-         */
-        
-        /* chek if we must insert or not */
-        /* TODO check for other replace behavior */
-        if (ret && (replace == ISO_REPLACE_NEVER)) { 
-            /* skip file */
-            goto dir_rec_continue;
+        if (ret) {
+            /* Resolve name collision
+               e.g. caused by fs_image.c:make_hopefully_unique_name() 
+            */
+            LIBISO_FREE_MEM(allocated_name); allocated_name = NULL;
+            ret = make_really_unique_name(parent, &name, &allocated_name, &pos,
+                                          0);
+            if (ret < 0)
+                goto ex;
+            image->collision_warnings++;
+            if (image->collision_warnings < ISO_IMPORT_COLL_WARN_MAX) {
+                ret = iso_msg_submit(image->id, ISO_IMPORT_COLLISION, 0, 
+                         "File name collision resolved with %s . Now: %s",
+                         path, name);
+                if (ret < 0)
+                    goto ex;
+            }
         }
-        
+
         /* if we are here we must insert. Give user a chance for cancel */
         if (image->report) {
             int r = image->report(image, file);
@@ -848,7 +943,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
                 goto dir_rec_continue;
             }
         }
-        ret = builder->create_node(builder, image, file, &new);
+        ret = builder->create_node(builder, image, file, name, &new);
         if (ret < 0) {
             ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret,
                          "Error when adding file %s", path);
@@ -884,14 +979,17 @@ dir_rec_continue:;
         /* check for error severity to decide what to do */
         if (ret < 0) {
             ret = iso_msg_submit(image->id, ret, 0, NULL);
-            if (ret < 0) {
-                break;
-            }
+            if (ret < 0)
+                goto ex;
         }
     } /* while */
 
-    iso_file_source_close(dir);
-    return ret < 0 ? ret : ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    if (dir_is_open)
+        iso_file_source_close(dir);
+    LIBISO_FREE_MEM(allocated_name);
+    return ret;
 }
 
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir)

@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2013 Thomas Schmitt
+ * Copyright (c) 2009-2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -328,7 +328,7 @@ enum eltorito_boot_media_type {
 };
 
 /**
- * Replace mode used when addding a node to a file.
+ * Replace mode used when addding a node to a directory.
  * This controls how libisofs will act when you tried to add to a dir a file
  * with the same name that an existing file.
  *
@@ -7604,6 +7604,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Filename not suitable for character set UCS-2  (WARNING, HIGH, -397) */
 #define ISO_NAME_NOT_UCS2           0xD030FE73
+
+/** File name collision during ISO image import    (WARNING, HIGH, -398) */
+#define ISO_IMPORT_COLLISION        0xD030FE72
 
 
 /* Internal developer note: 

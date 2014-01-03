@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -505,6 +505,8 @@ const char *iso_error_to_msg(int errcode)
         return "Unrecognized file type in ISO image";
     case ISO_NAME_NOT_UCS2:
          return "Filename not suitable for character set UCS-2";
+    case ISO_IMPORT_COLLISION:
+         return "File name collision during ISO image import";
     default:
         return "Unknown error";
     }

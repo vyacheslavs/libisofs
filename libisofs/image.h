@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2014 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -22,6 +22,9 @@
 */
 #define ISO_USED_INODE_RANGE (1 << 18)
 
+/* How many warnings to issue about name collisions during iso_image_import()
+*/
+#define ISO_IMPORT_COLL_WARN_MAX 10
 
 /*
  * Image is a context for image manipulation.
@@ -195,6 +198,9 @@ struct Iso_Image
      * See libisofs.h
      */
     IsoNode *hfsplus_blessed[ISO_HFSPLUS_BLESS_MAX];
+
+    /* Counts the name collisions while iso_image_import() */
+    size_t collision_warnings;
 
 };
 

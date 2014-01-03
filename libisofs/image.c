@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2013 Thomas Schmitt
+ * Copyright (c) 2009 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -97,6 +97,7 @@ int iso_image_new(const char *name, IsoImage **image)
     img->generator_is_running = 0;
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
         img->hfsplus_blessed[i] = NULL;
+    img->collision_warnings = 0;
 
     *image = img;
     return ISO_SUCCESS;

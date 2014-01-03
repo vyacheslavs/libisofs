@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1237,15 +1237,67 @@ int iso_ifs_source_get_zf(IsoFileSource *src, int *header_size_div4,
 }     
 
 
+static
+int make_hopefully_unique_name(_ImageFsData *fsdata,
+                               char *str, size_t len, char **name)
+{
+    int ret, name_len, i;
+    char c, *smashed = NULL, md5[16];
+    void *md5_context = NULL;
+
+    /* Shorten so that 32 characters of MD5 fit.
+       If shorter than 8, pad up to 8 by '_'.
+       Smash characters to [0-9A-Za-z_.].
+       Append MD5 of original str as hex digits.
+    */
+    name_len = len > 223 ? 223 : len;
+    LIBISO_ALLOC_MEM(smashed, char, (name_len >= 8 ? name_len : 8) + 32 + 1);
+    memcpy(smashed, str, name_len);
+    for (; name_len < 8; name_len++)
+        smashed[name_len] = '_';
+    smashed[name_len] = 0;
+    for (i = 0; i < name_len; i++) {
+        c = smashed[i];
+        if (c == '.' || (c >= '0' && c <= '9') ||
+            c == '_' || (c >= 'a' && c <= 'z'))
+    continue;
+        smashed[i] = '_';
+    }
+    ret = iso_md5_start(&md5_context);
+    if (ret != 1)
+        goto ex;
+    ret = iso_md5_compute(md5_context, str, len);
+    if (ret != 1)
+        goto ex;
+    ret = iso_md5_end(&md5_context, md5);
+    if (ret != 1)
+        goto ex;
+    for (i = 0; i < 16; i++)
+        sprintf(smashed + i * 2 + name_len, "%2.2x",
+                                            ((unsigned char *) md5)[i]);
+    name_len += 32;
+    smashed[name_len] = 0;
+    *name = smashed; smashed = NULL;
+ 
+    ret = ISO_SUCCESS;
+ex:
+    LIBISO_FREE_MEM(smashed);
+    if (md5_context != NULL)
+        iso_md5_end(&md5_context, md5);
+    return ret;
+}
+
+
 /**
  * Read a file name from a directory record, doing the needed charset
  * conversion
  */
 static
-char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
+char *get_name(_ImageFsData *fsdata, char *str, size_t len)
 {
     int ret;
     char *name = NULL, *from_ucs = NULL;
+
     if (strcmp(fsdata->local_charset, fsdata->input_charset)) {
         /* charset conversion needed */
         ret = strnconv(str, fsdata->input_charset, fsdata->local_charset, len,
@@ -1278,13 +1330,14 @@ char *get_name(_ImageFsData *fsdata, const char *str, size_t len)
                 return NULL; /* aborted */
             }
             /* fallback */
-
-            /* >>> create a hopefully unique name */;
-
+            ret = make_hopefully_unique_name(fsdata, str, len, &name);
+            if (ret == ISO_SUCCESS)
+                return name;
+            return NULL;
         }
     }
 
-    /* we reach here when the charset conversion is not needed or has failed */
+    /* we reach here when the charset conversion is not needed */
 
     name = malloc(len + 1);
     if (name == NULL) {
@@ -3029,7 +3082,8 @@ int src_aa_to_node(IsoFileSource *src, IsoNode *node, int flag)
 
 static
 int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
-                              IsoFileSource *src, IsoNode **node)
+                              IsoFileSource *src, char *in_name,
+                              IsoNode **node)
 {
     int ret, idx, to_copy;
     struct stat info;
@@ -3055,7 +3109,14 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     data = (ImageFileSourceData*)src->data;
     fsdata = data->fs->data;
 
-    name = iso_file_source_get_name(src);
+    if (in_name == NULL) {
+        name = iso_file_source_get_name(src);
+    } else {
+        name = strdup(in_name);
+        if (name == NULL) {
+            ret = ISO_OUT_OF_MEM; goto ex;
+        }
+    }
 
     /* get info about source */
     ret = iso_file_source_lstat(src, &info);
@@ -3518,6 +3579,22 @@ ex:;
     return ret;
 }
 
+
+static
+void issue_collision_warning_summary(size_t failures)
+{
+    if (failures > ISO_IMPORT_COLL_WARN_MAX) {
+        iso_msg_submit(-1, ISO_IMPORT_COLLISION, 0,
+                       "More file name collisions had to be resolved");
+    }
+    if (failures > 0) {
+        iso_msg_submit(-1, ISO_IMPORT_COLLISION, 0,
+                       "Sum of resolved file name collisions: %.f",
+                       (double) failures);
+    }
+}
+
+
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
                      IsoReadImageFeatures **features)
@@ -3667,6 +3744,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         goto import_revert;
     }
     issue_ucs2_warning_summary(data->joliet_ucs2_failures);
+    issue_collision_warning_summary(image->collision_warnings);
 
     /* Take over inode management from IsoImageFilesystem.
        data->inode_counter is supposed to hold the maximum PX inode number.
@@ -3700,7 +3778,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 goto import_revert;
             }
             ret = image_builder_create_node(image->builder, image, boot_src,
-                                            &node);
+                                            NULL, &node);
             if (ret < 0) {
                 iso_node_builder_unref(image->builder);
                 goto import_revert;

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2014 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -96,7 +96,7 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
 
 static
 int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
-                        IsoFileSource *src, IsoNode **node)
+                        IsoFileSource *src, char *in_name, IsoNode **node)
 {
     int ret;
     struct stat info;
@@ -122,7 +122,15 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         goto ex;
     }
 
-    name = iso_file_source_get_name(src);
+    if (in_name == NULL) {
+        name = iso_file_source_get_name(src);
+    } else {
+        name = strdup(in_name);
+        if (name == NULL) {
+            ret = ISO_OUT_OF_MEM; goto ex;
+        }
+    }
+
     if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
         name[LIBISOFS_NODE_NAME_MAX] = 0;
     fs = iso_file_source_get_filesystem(src);
