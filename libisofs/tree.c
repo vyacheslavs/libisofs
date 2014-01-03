@@ -793,7 +793,7 @@ int make_really_unique_name(IsoDir *parent, char **name, char **unique_name,
         if (first > 0)
             memcpy(*unique_name, *name, first);
         memset(*unique_name + first, '_', 8 - len);
-        if (len > 0)
+        if (len > first)
             memcpy(*unique_name + (8 - (len - first)), *name + first,
                    len - first);
         len = 8;
