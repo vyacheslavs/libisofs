@@ -740,11 +740,10 @@ int check_special(IsoImage *image, mode_t mode)
 
 
 static
-void ascii_increment(char *name, int pos)
+void ascii_increment(char *name, int len, int pos, int rollover_carry)
 {
-     int c, len;
+     int c;
 
-     len = strlen(name);
 again:;
      if (pos < 0 || pos >= len)
          pos = len - 1;
@@ -765,8 +764,7 @@ again:;
          c = '0';
          name[pos] = c;
          pos--;
-         if (pos >= 0 ||
-             strchr(name, '.') != NULL) /* Do not get caged before last dot */
+         if (pos >= 0 || rollover_carry)
              goto again;
          return;
      } else {
@@ -778,46 +776,120 @@ again:;
      name[pos] = c;
 }
 
+static
+int insert_underscores(char *name, int *len, int *at_pos, int count,
+                       char **new_name)
+{
+    int ret;
+
+    LIBISO_ALLOC_MEM(*new_name, char, count + *len + 1);
+    if (*at_pos > 0)
+        memcpy(*new_name, name, *at_pos);
+    if (count > 0)
+        memset(*new_name + *at_pos, '_', count);
+    if (*len > *at_pos)
+        memcpy(*new_name + *at_pos + count, name + *at_pos, *len - *at_pos);
+    (*new_name)[count + *len] = 0;
+    *len += count;
+    *at_pos += count;
+    ret= ISO_SUCCESS;
+ex:;
+    return ret;
+}
+
+static
+int make_incrementable_name(char **name, char **unique_name, int *low_pos,
+                            int *rollover_carry, int *pre_check) 
+{
+    char *dpt, *npt;
+    int first, len, ret;
+    
+    /* The incrementable part of the file shall have at least 7 characters.
+       There may be up to pow(2.0,32.0)*2048/33 = 266548273400 files.
+       The set of increment result characters has 63 elements.
+       pow(63.0,7.0) is nearly 15 times larger than 266548273400.
+    */
+    static int min_incr = 7;
+
+    /* At most two suffixes of total length up to 12, like .tar.bz2,
+       shall be preserved. The incrementable part will eventually be
+       padded up.
+       Incrementing begins before the last suffix in any case. But when this
+       rolls over on short prefixes, then long last suffixes will get used
+       as high characters of the incremental part. This is indicated by
+       *rollover_carry which corresponds to the parameter of ascii_increment()
+       with the same name.
+    */
+    static int max_suffix = 12;
+
+    *rollover_carry = 0;
+    *pre_check = 0;
+
+    len = strlen(*name);
+
+    /* Check if the part before the first dot is long enough.
+       If not, then preserve the last two short suffixes.
+    */
+    dpt = strchr(*name, '.');
+    if (dpt != NULL)
+        if ((dpt - *name) < min_incr)
+            dpt = strrchr(*name, '.');
+    if (dpt != NULL) {
+        first= (dpt - *name);
+        if (dpt > *name && len - first < max_suffix) {
+            for(npt = dpt - 1; npt >= *name && *npt != '.'; npt--);
+            if (npt >= *name) {
+                if (len - (npt - *name) <= max_suffix) {
+                    first= (npt - *name);
+                    dpt = npt;
+                }
+            }
+        }
+    } else
+        first= len;
+    if (first < min_incr && (len - first) <= max_suffix) {
+        ret = insert_underscores(*name, &len, &first, min_incr - first,
+                                 unique_name);
+        if (ret < 0)
+            goto ex;
+        *pre_check = 1; /* It might now already be unique */
+
+    } else if (len < 64) {
+        /* Insert an underscore to preserve the original name at least for the
+           first few increments
+        */
+        ret = insert_underscores(*name, &len, &first, 1, unique_name);
+        if (ret < 0)
+            goto ex;
+        *pre_check = 1;
+
+    } else {
+        LIBISO_ALLOC_MEM(*unique_name, char, len + 1);
+        memcpy(*unique_name, *name, len);
+        if (first < min_incr)
+            *rollover_carry = 1; /* Do not get caged before the dots */
+    }
+    (*unique_name)[len] = 0;
+    *low_pos = first - 1;
+    ret = 1;
+ex:;
+    return(ret);
+}
 
 static
 int make_really_unique_name(IsoDir *parent, char **name, char **unique_name,
                             IsoNode ***pos, int flag)
 {
-    int len, ret, pre_check = 0, ascii_idx = -1, first;
-    char *dpt;
+    int ret, rollover_carry = 0, pre_check = 0, ascii_idx = -1, len;
 
-    len = strlen(*name);
-    if (len < 7) {
-        /* There may be up to pow(2.0,32.0)*2048/33 = 266548273400 files
-           The set of increment result characters has 63 elements.
-           pow(63.0,7.0) is nearly 15 times larger than 266548273400.
-        */
-        /* Insert underscores before last dot */
-        LIBISO_ALLOC_MEM(*unique_name, char, 7 + 1);
-        first = len;
-        dpt = strrchr(*name, '.');
-        if (dpt != NULL)
-            first = (dpt - *name);
-        if (first > 0)
-            memcpy(*unique_name, *name, first);
-        memset(*unique_name + first, '_', 7 - len);
-        if (len > first)
-            memcpy(*unique_name + (7 - (len - first)), *name + first,
-                   len - first);
-        len = 7;
-        pre_check = 1; /* It might now already be unique */
-    } else {
-        LIBISO_ALLOC_MEM(*unique_name, char, len + 1);
-        memcpy(*unique_name, *name, len);
-    }
-    (*unique_name)[len] = 0;
-
-    dpt = strrchr(*unique_name, '.');
-    if (dpt != NULL)
-        ascii_idx = (dpt - *unique_name) - 1; /* Begin before last dot */
+    ret = make_incrementable_name(name, unique_name, &ascii_idx,
+                                  &rollover_carry, &pre_check);
+    if (ret < 0)
+        goto ex;
+    len = strlen(*unique_name);
     while (1) {
         if (!pre_check)
-            ascii_increment(*unique_name, ascii_idx);
+            ascii_increment(*unique_name, len, ascii_idx, !!rollover_carry);
         else
             pre_check = 0;
         ret = iso_dir_exists(parent, *unique_name, pos);
@@ -835,7 +907,6 @@ ex:;
     }
     return ret;
 }
-
 
 /**
  * Recursively add a given directory to the image tree.
