@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2013 Thomas Schmitt
+ * Copyright (c) 2010 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -761,6 +761,115 @@ static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
                   ISO_SUN_CYL_SIZE, buf, 0);
     if (ret < 0)
         return ret;
+    return ISO_SUCCESS;
+}
+
+
+static int hppa_palo_get_filepar(Ecma119Image *t, char *path,
+                                 uint32_t *adr, uint32_t *len, int flag)
+{
+    int ret;
+    IsoNode *iso_node;
+    Ecma119Node *ecma_node;
+    off_t adr64;
+
+    ret = boot_nodes_from_iso_path(t, path,
+                             &iso_node, &ecma_node, "HP-PA PALO boot file", 0);
+    if (ret < 0)
+        return ret;
+    if (iso_node_get_type(iso_node) != LIBISO_FILE) {
+        iso_msg_submit(t->image->id, ISO_HPPA_PALO_NOTREG, 0,
+                       "HP-PA PALO file is not a data file");
+        return ISO_HPPA_PALO_NOTREG;
+    }
+    adr64 = ((off_t) 2048) * (off_t) ecma_node->info.file->sections[0].block;
+    if (adr64 > 0xffffffff) {
+        iso_msg_submit(t->image->id, ISO_HPPA_PALO_OFLOW, 0,
+                       "HP-PA PALO boot address exceeds 32 bit");
+        return ISO_HPPA_PALO_OFLOW;
+    }
+    *adr = adr64;
+    *len = ecma_node->info.file->sections[0].size;
+    return ISO_SUCCESS;
+}
+
+
+/**
+ * Write HP-PA PALO boot sector. See doc/boot_sectors.txt
+ *
+ * learned from  cdrkit-1.1.10/genisoimage/boot-hppa.c
+ * by Steve McIntyre <steve@einval.com>
+ * who states "Heavily inspired by palo"
+ */
+static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int flag)
+{
+    int ret;
+    IsoImage *img;
+    uint32_t adr, len;
+    
+    /* Bytes 256 to 32767 may come from image or external file */
+    memset(buf, 0, 256);
+
+    img = t->image;
+    if (img->hppa_cmdline == NULL && img->hppa_bootloader == NULL &&
+        img->hppa_kernel_32 == NULL && img->hppa_kernel_64 && 
+        img->hppa_ramdisk == NULL)
+        return ISO_SUCCESS;
+    if (img->hppa_cmdline == NULL || img->hppa_bootloader == NULL ||
+        img->hppa_kernel_32 == NULL || img->hppa_kernel_64 == NULL || 
+        img->hppa_ramdisk == NULL) {
+        iso_msg_submit(img->id, ISO_HPPA_PALO_INCOMPL, 0,
+                       "Incomplete HP-PA PALO boot parameters");
+        return ISO_HPPA_PALO_INCOMPL;
+    }
+
+    /* Magic */
+    iso_msb(buf + 0, 0x8000, 2);
+    /* Name of boot loader */
+    memcpy(buf + 2, "PALO", 4);
+    /* Version */
+    iso_msb(buf + 6, 0x0004, 2);
+
+    /* Byte address and byte count of the "HPPA 32-bit kernel" file
+    */
+    ret = hppa_palo_get_filepar(t, img->hppa_kernel_32, &adr, &len, 0);
+    if (ret < 0)
+        return ret;
+    iso_msb(buf +  8, adr, 4);
+    iso_msb(buf + 12, len, 4);
+
+    /* Byte address and byte count of the "HPPA ramdisk" file
+    */
+    ret = hppa_palo_get_filepar(t, img->hppa_ramdisk, &adr, &len, 0);
+    if (ret < 0)
+        return ret;
+    iso_msb(buf + 16, adr, 4);
+    iso_msb(buf + 20, len, 4);
+
+    /* "Command line" */
+    if (strlen(img->hppa_cmdline) > 127) {
+        iso_msg_submit(img->id, ISO_HPPA_PALO_CMDLEN, 0,
+                       "HP-PA PALO command line too long");
+        return ISO_HPPA_PALO_CMDLEN;
+    }
+    memcpy(buf + 24, img->hppa_cmdline, strlen(img->hppa_cmdline) + 1);
+
+    /* Byte address and byte count of the "HPPA 64-bit kernel" file
+    */
+    ret = hppa_palo_get_filepar(t, img->hppa_kernel_64, &adr, &len, 0);
+    if (ret < 0)
+        return ret;
+    iso_msb(buf + 232, adr, 4);
+    iso_msb(buf + 236, len, 4);
+
+    /* Byte address and byte count of the "HPPA bootloader" file
+    */
+    ret = hppa_palo_get_filepar(t, img->hppa_bootloader, &adr, &len, 0);
+    if (ret < 0)
+        return ret;
+    iso_msb(buf + 240, adr, 4);
+    iso_msb(buf + 244, len, 4);
+
     return ISO_SUCCESS;
 }
 
@@ -1587,6 +1696,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ret;
     } else if (sa_type == 3) {
         ret = make_sun_disk_label(t, buf, 0);
+        if (ret != ISO_SUCCESS)
+            return ret;
+    } else if (sa_type == 4) {
+        ret = make_hppa_palo_sector(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
     } else if ((t->opts->partition_offset > 0 || will_append) &&

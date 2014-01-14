@@ -2185,6 +2185,10 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 to 8.
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
+ *              4= HP-PA PALO boot sector for HP PA-RISC
+ *                 @since 1.3.6
+ *                 Submit all five parameters of iso_image_set_hppa_palo():
+ *                   cmdline, bootloader, kernel_32, kernel_64, ramdisk
  *        bit8-9= Only with System area type 0 = MBR
  *              @since 1.0.4
  *              Cylinder alignment mode eventually pads the image to make it
@@ -3733,6 +3737,63 @@ int iso_image_set_sparc_core(IsoImage *img, IsoFile *sparc_core, int flag);
  */
 int iso_image_get_sparc_core(IsoImage *img, IsoFile **sparc_core, int flag);
 
+
+/**
+ * Define a command line and submit the paths of four mandatory files for
+ * production of a HP-PA PALO boot sector for PA-RISC machines.
+ * The paths must lead to already existing data files in the ISO image
+ * which stay with these paths until image production.
+ *
+ * @param img
+ *        The image to be manipulated.
+ * @param cmdline
+ *        Up to 127 characters of command line.
+ * @param bootloader
+ *        Absolute path of a data file in the ISO image.
+ * @param kernel_32
+ *        Absolute path of a data file in the ISO image which serves as
+ *        32 bit kernel.
+ * @param kernel_64
+ *        Absolute path of a data file in the ISO image which serves as
+ *        64 bit kernel.
+ * @param ramdisk
+ *        Absolute path of a data file in the ISO image.
+ * @param flag
+ *        Bitfield for control purposes
+ *         bit0= Let NULL parameters free the corresponding image properties.
+ *               Else only the non-NULL parameters of this call have an effect
+ * @return
+ *        1 is success , <0 means error
+ * @since 1.3.6
+ */
+int iso_image_set_hppa_palo(IsoImage *img, char *cmdline, char *bootloader,
+                            char *kernel_32, char *kernel_64, char *ramdisk,
+                            int flag);
+
+/**
+ * Inquire the current settings of iso_image_set_hppa_palo().
+ * Do not free() the returned pointers.
+ *
+ * @param img
+ *        The image to be inquired.
+ * @param cmdline
+ *        Will return the command line.
+ * @param bootloader
+ *        Will return the absolute path of the bootloader file.
+ * @param kernel_32
+ *        Will return the absolute path of the 32 bit kernel file.
+ * @param kernel_64
+ *        Will return the absolute path of the 64 bit kernel file.
+ * @param ramdisk
+ *        Will return the absolute path of the RAM disk file.
+ * @return
+ *        1 is success , <0 means error
+ * @since 1.3.6
+ */
+int iso_image_get_hppa_palo(IsoImage *img, char **cmdline, char **bootloader,
+                            char **kernel_32, char **kernel_64, char **ramdisk);
+
+
 /**
  * Increments the reference counting of the given node.
  *
@@ -4116,7 +4177,7 @@ int iso_node_get_hidden(IsoNode *node);
  * @param n2
  *     The second node to compare.
  * @return
- *     -1 if s1 is smaller s2 , 0 if s1 matches s2 , 1 if s1 is larger s2
+ *     -1 if n1 is smaller n2 , 0 if n1 matches n2 , 1 if n1 is larger n2
  * @param flag
  *     Bitfield for control purposes, unused yet, submit 0
  * @since 0.6.20
@@ -7607,6 +7668,18 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** File name collision during ISO image import    (WARNING, HIGH, -398) */
 #define ISO_IMPORT_COLLISION        0xD030FE72
+
+/** Incomplete HP-PA PALO boot parameters          (FAILURE, HIGH, -399) */
+#define ISO_HPPA_PALO_INCOMPL       0xE830FE71
+
+/** HP-PA PALO boot address exceeds 32 bit         (FAILURE, HIGH, -400) */
+#define ISO_HPPA_PALO_OFLOW         0xE830FE70
+
+/** HP-PA PALO file is not a data file             (FAILURE, HIGH, -401) */
+#define ISO_HPPA_PALO_NOTREG        0xE830FE6F
+
+/** HP-PA PALO command line too long               (FAILURE, HIGH, -402) */
+#define ISO_HPPA_PALO_CMDLEN        0xE830FE6E
 
 
 /* Internal developer note: 

@@ -614,6 +614,10 @@ void *iso_alloc_mem(size_t size, size_t count, int flag);
 */
 int iso_clone_mem(char *in, char **out, size_t size);
 
+/* Like iso_clone_mem but first freeing *out if not NULL
+*/
+int iso_clone_mgtd_mem(char *in, char **out, size_t size);
+
 
 /* ------------------------------------------------------------------------- */
 

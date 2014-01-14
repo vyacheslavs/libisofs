@@ -2255,3 +2255,10 @@ int iso_clone_mem(char *in, char **out, size_t size)
 }
     
 
+int iso_clone_mgtd_mem(char *in, char **out, size_t size)
+{
+    if (*out != NULL)
+        free(*out);
+    return iso_clone_mem(in, out, size);
+}
+

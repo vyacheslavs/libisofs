@@ -78,6 +78,16 @@ struct Iso_Image
     */
     IsoFile *sparc_core_node;
 
+    /*
+     * Parameters for HP-PA PALO boot sector. cmdline is a string. The other
+     * four are absolute paths to data files in the ISO image.
+     */
+    char *hppa_cmdline;
+    char *hppa_bootloader;
+    char *hppa_kernel_32;
+    char *hppa_kernel_64;
+    char *hppa_ramdisk;
+
     /* image identifier, for message origin identifier */
     int id;
 

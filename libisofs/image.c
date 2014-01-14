@@ -85,6 +85,11 @@ int iso_image_new(const char *name, IsoImage **image)
     for (i = 0; i < 15; i++)
          img->mips_boot_file_paths[i] = NULL;
     img->sparc_core_node = NULL;
+    img->hppa_cmdline= NULL;
+    img->hppa_bootloader= NULL;
+    img->hppa_kernel_32= NULL;
+    img->hppa_kernel_64= NULL;
+    img->hppa_ramdisk= NULL;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
     img->inode_counter = 0;
@@ -141,6 +146,7 @@ void iso_image_unref(IsoImage *image)
         iso_image_give_up_mips_boot(image, 0);
         if (image->sparc_core_node != NULL)
             iso_node_unref((IsoNode *) image->sparc_core_node);
+        iso_image_set_hppa_palo(image, NULL, NULL, NULL, NULL, NULL, 1);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
@@ -856,6 +862,88 @@ int iso_image_get_sparc_core(IsoImage *img, IsoFile **sparc_core, int flag)
 {
     *sparc_core = img->sparc_core_node;
     return 1;
+}
+
+
+/* @param flag
+           bit0= Let NULL parameters free the corresponding image properties.
+                 Else only the non-NULL parameters of this call have an effect.
+*/
+static int hppa_palo_set_path(IsoImage *img, char *path, char **target,
+                              int flag)
+{
+    int ret;
+    IsoNode *node;
+    IsoFile *file;
+
+    if (path == NULL && !(flag & 1))
+        return ISO_SUCCESS;
+    if (iso_clone_mgtd_mem(path, target, 0) < 0)
+        return ISO_OUT_OF_MEM;
+    if (path == NULL)
+        return ISO_SUCCESS;
+    ret = iso_tree_path_to_node(img, path, &node);
+    if (ret < 0)
+        return ret;
+    if (ret == 0) {
+        iso_msg_submit(img->id, ISO_BOOT_FILE_MISSING, 0,
+                       "Cannot find in ISO image: HP-PA file '%s'", path);
+        return ISO_BOOT_FILE_MISSING;
+    }
+    if (iso_node_get_type(node) != LIBISO_FILE) {
+        iso_msg_submit(img->id, ISO_HPPA_PALO_NOTREG, 0,
+                       "HP-PA PALO file is not a data file: '%s'", path);
+        return ISO_HPPA_PALO_NOTREG;
+    }
+    file = (IsoFile *) node;
+    if (!file->explicit_weight)
+        file->sort_weight = 2;
+    return ISO_SUCCESS;
+}
+
+
+/* API */
+/* @param flag
+          Bitfield for control purposes
+           bit0= Let NULL parameters free the corresponding image properties.
+                 Else only the non-NULL parameters of this call have an effect.
+*/
+int iso_image_set_hppa_palo(IsoImage *img, char *cmdline, char *bootloader,
+                            char *kernel_32, char *kernel_64, char *ramdisk,
+                            int flag)
+{
+    int ret;
+
+    if (cmdline != NULL || (flag & 1))
+        if (iso_clone_mgtd_mem(cmdline, &(img->hppa_cmdline), 0) < 0)
+            return ISO_OUT_OF_MEM;
+    ret = hppa_palo_set_path(img, bootloader, &(img->hppa_bootloader),
+                             flag & 1);
+    if (ret < 0)
+        return ret;
+    ret = hppa_palo_set_path(img, kernel_32, &(img->hppa_kernel_32), flag & 1);
+    if (ret < 0)
+        return ret;
+    ret = hppa_palo_set_path(img, kernel_64, &(img->hppa_kernel_64), flag & 1);
+    if (ret < 0)
+        return ret;
+    ret = hppa_palo_set_path(img, ramdisk, &(img->hppa_ramdisk), flag & 1);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+
+/* API */
+int iso_image_get_hppa_palo(IsoImage *img, char **cmdline, char **bootloader,
+                            char **kernel_32, char **kernel_64, char **ramdisk)
+{
+    *cmdline = img->hppa_cmdline;
+    *bootloader = img->hppa_bootloader;
+    *kernel_32 = img->hppa_kernel_32;
+    *kernel_64 = img->hppa_kernel_64;
+    *ramdisk  = img->hppa_ramdisk;
+    return ISO_SUCCESS;
 }
 
 

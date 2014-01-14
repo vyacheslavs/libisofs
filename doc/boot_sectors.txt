@@ -33,6 +33,8 @@ PowerPC Reference Platform (PReP), for IBM PowerPC
 
 Common Hardware Reference Platform (CHRP), for IBM PowerPC
 
+HP-PA via PALO
+
 Combinations of boot mechanisms:
 - SYSLINUX isohybrid MBR
 - SYSLINUX isohybrid for MBR, UEFI and x86-Mac
@@ -947,7 +949,52 @@ in the ISO image [without causing overlapping between partitions].
 
 ------------------------------------------------------------------------------
 
->>> ??? HP-PA
+                              HP-PA via PALO
+                              for HP PA-RISC  
+
+Sources:
+   cdrkit-1.1.10/genisoimage/boot-hppa.c
+   by Steve McIntyre <steve@einval.com>
+   who states "Heavily inspired by palo"
+
+There are five parameters which get encoded into the first 248 bytes of the
+System Area: cmdline, bootloader, 32-bit kernel, 64-bit kernel, and ramdisk.
+They are all mandatory.
+While cmdline is simply a string of at most 127 characters, the other four
+point to data files inside the ISO image.
+
+All numbers are recorded big endian.
+
+Boot sector components:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   1 |     0x8000 | Magic
+   2 -   5 |     "PALO" |
+   6 -   7 |     0x0004 | Version
+           |            |
+   8 -  11 | kern32_adr | Byte address of the "HPPA 32-bit kernel" file
+           |            | genisoimage option -hppa-kernel-32
+  12 -  15 | kern32_len | Byte count of the "HPPA 32-bit kernel" file
+           |            |
+  16 -  19 | ramdsk_adr | Byte address of the "HPPA ramdisk" file
+           |            | genisoimage option -hppa-ramdisk
+  20 -  23 | ramdsk_len | Byte count of the "HPPA ramdisk" file
+           |            |
+  24 - 141 |    cmdline | "Command line"
+           |            | genisoimage option -hppa-cmdline
+           |            |
+ 232 - 235 | kern64_adr | Byte address of the "HPPA 64-bit kernel" file
+           |            | genisoimage option -hppa-kernel-64
+ 236 - 239 | kern64_len | Byte count of the "HPPA 64-bit kernel" file
+           |            |
+ 240 - 243 | bootld_adr | Byte address of the "HPPA bootloader" file
+           |            | genisoimage option -hppa-bootloader
+ 244 - 247 | bootld_len | Byte count of the "HPPA bootloader" file
+           |            |
+---------- | ---------- | ----------------------------------------------------
+
+
 
 ------------------------------------------------------------------------------
 

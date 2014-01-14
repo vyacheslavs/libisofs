@@ -504,9 +504,17 @@ const char *iso_error_to_msg(int errcode)
     case ISO_BAD_ISO_FILETYPE:
         return "Unrecognized file type in ISO image";
     case ISO_NAME_NOT_UCS2:
-         return "Filename not suitable for character set UCS-2";
+        return "Filename not suitable for character set UCS-2";
     case ISO_IMPORT_COLLISION:
-         return "File name collision during ISO image import";
+        return "File name collision during ISO image import";
+    case ISO_HPPA_PALO_INCOMPL:
+        return "Incomplete HP-PA PALO boot parameters";
+    case ISO_HPPA_PALO_OFLOW:
+        return "HP-PA PALO boot address exceeds 32 bit";
+    case ISO_HPPA_PALO_NOTREG:
+        return "HP-PA PALO file is not a data file";
+    case ISO_HPPA_PALO_CMDLEN:
+        return "HP-PA PALO command line too long";
     default:
         return "Unknown error";
     }
