@@ -783,9 +783,9 @@ static int hppa_palo_get_filepar(Ecma119Image *t, char *path,
         return ISO_HPPA_PALO_NOTREG;
     }
     adr64 = ((off_t) 2048) * (off_t) ecma_node->info.file->sections[0].block;
-    if (adr64 > 0xffffffff) {
+    if (adr64 > 0x7fffffff) {
         iso_msg_submit(t->image->id, ISO_HPPA_PALO_OFLOW, 0,
-                       "HP-PA PALO boot address exceeds 32 bit");
+                       "HP-PA PALO boot address exceeds 2 GB");
         return ISO_HPPA_PALO_OFLOW;
     }
     *adr = adr64;
@@ -800,15 +800,18 @@ static int hppa_palo_get_filepar(Ecma119Image *t, char *path,
  * learned from  cdrkit-1.1.10/genisoimage/boot-hppa.c
  * by Steve McIntyre <steve@einval.com>
  * who states "Heavily inspired by palo"
+ * Public mail conversations with Helge Deller, beginning with
+ *    https://lists.debian.org/debian-hppa/2014/01/msg00016.html
+ * http://git.kernel.org/cgit/linux/kernel/git/deller/palo.git/tree/lib/
+ *    (especially struct firstblock in common.h and struct partition in part.h)
+ *
  */
-static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int flag)
+static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int hdrversion,
+                                 int flag)
 {
     int ret;
     IsoImage *img;
     uint32_t adr, len;
-    
-    /* Bytes 256 to 32767 may come from image or external file */
-    memset(buf, 0, 256);
 
     img = t->image;
     if (img->hppa_cmdline == NULL && img->hppa_bootloader == NULL &&
@@ -822,13 +825,25 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int flag)
                        "Incomplete HP-PA PALO boot parameters");
         return ISO_HPPA_PALO_INCOMPL;
     }
+    if (hdrversion == 4) {
+        /* Bytes 256 to 32767 may come from loaded ISO image or external file */
+        memset(buf, 0, 256);
+    } else if(hdrversion == 5) {
+        memset(buf, 0, 512);
+        memset(buf + 1024, 0, 1024);
+    } else {
+        iso_msg_submit(img->id, ISO_WRONG_ARG_VALUE, 0,
+                    "Unsupported HP-PA PALO header version %d (can do 4 or 5)",
+                       hdrversion);
+        return ISO_WRONG_ARG_VALUE;
+    }
 
     /* Magic */
     iso_msb(buf + 0, 0x8000, 2);
     /* Name of boot loader */
-    memcpy(buf + 2, "PALO", 4);
+    memcpy(buf + 2, "PALO", 5);
     /* Version */
-    iso_msb(buf + 6, 0x0004, 2);
+    buf[7] = hdrversion;
 
     /* Byte address and byte count of the "HPPA 32-bit kernel" file
     */
@@ -846,13 +861,15 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int flag)
     iso_msb(buf + 16, adr, 4);
     iso_msb(buf + 20, len, 4);
 
-    /* "Command line" */
-    if (strlen(img->hppa_cmdline) > 127) {
-        iso_msg_submit(img->id, ISO_HPPA_PALO_CMDLEN, 0,
-                       "HP-PA PALO command line too long");
-        return ISO_HPPA_PALO_CMDLEN;
+    if (hdrversion == 4) {
+        /* "Command line" */
+        if (strlen(img->hppa_cmdline) > 127) {
+            iso_msg_submit(img->id, ISO_HPPA_PALO_CMDLEN, 0,
+                           "HP-PA PALO command line too long");
+            return ISO_HPPA_PALO_CMDLEN;
+        }
+        memcpy(buf + 24, img->hppa_cmdline, strlen(img->hppa_cmdline) + 1);
     }
-    memcpy(buf + 24, img->hppa_cmdline, strlen(img->hppa_cmdline) + 1);
 
     /* Byte address and byte count of the "HPPA 64-bit kernel" file
     */
@@ -870,6 +887,16 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int flag)
     iso_msb(buf + 240, adr, 4);
     iso_msb(buf + 244, len, 4);
 
+    /* >>> ??? iso_msb(buf + 248, ipl_entry, 4); */
+
+    if (hdrversion == 5) {
+        if (strlen(img->hppa_cmdline) > 1023) {
+            iso_msg_submit(img->id, ISO_HPPA_PALO_CMDLEN, 0,
+                           "HP-PA PALO command line too long");
+            return ISO_HPPA_PALO_CMDLEN;
+        }
+        memcpy(buf + 1024, img->hppa_cmdline, strlen(img->hppa_cmdline) + 1);
+    }
     return ISO_SUCCESS;
 }
 
@@ -1698,8 +1725,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         ret = make_sun_disk_label(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
-    } else if (sa_type == 4) {
-        ret = make_hppa_palo_sector(t, buf, 0);
+    } else if (sa_type == 4 || sa_type == 5) {
+        /* (By coincidence, sa_type and PALO header versions match) */
+        ret = make_hppa_palo_sector(t, buf, sa_type, 0);
         if (ret != ISO_SUCCESS)
             return ret;
     } else if ((t->opts->partition_offset > 0 || will_append) &&

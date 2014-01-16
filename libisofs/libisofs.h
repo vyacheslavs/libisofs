@@ -2185,8 +2185,14 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 to 8.
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
- *              4= HP-PA PALO boot sector for HP PA-RISC
+ *              4= HP-PA PALO boot sector version 4 for HP PA-RISC
  *                 @since 1.3.6
+ *                 Suitable for older PALO of e.g. Debian 4 and 5. 
+ *                 Submit all five parameters of iso_image_set_hppa_palo():
+ *                   cmdline, bootloader, kernel_32, kernel_64, ramdisk
+ *              5= HP-PA PALO boot sector version 5 for HP PA-RISC
+ *                 Suitable for newer PALO, where PALOHDRVERSION in
+ *                 lib/common.h is defined as 5.
  *                 Submit all five parameters of iso_image_set_hppa_palo():
  *                   cmdline, bootloader, kernel_32, kernel_64, ramdisk
  *        bit8-9= Only with System area type 0 = MBR
@@ -7672,7 +7678,7 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** Incomplete HP-PA PALO boot parameters          (FAILURE, HIGH, -399) */
 #define ISO_HPPA_PALO_INCOMPL       0xE830FE71
 
-/** HP-PA PALO boot address exceeds 32 bit         (FAILURE, HIGH, -400) */
+/** HP-PA PALO boot address exceeds 2 GB           (FAILURE, HIGH, -400) */
 #define ISO_HPPA_PALO_OFLOW         0xE830FE70
 
 /** HP-PA PALO file is not a data file             (FAILURE, HIGH, -401) */

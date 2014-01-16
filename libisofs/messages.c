@@ -510,7 +510,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_HPPA_PALO_INCOMPL:
         return "Incomplete HP-PA PALO boot parameters";
     case ISO_HPPA_PALO_OFLOW:
-        return "HP-PA PALO boot address exceeds 32 bit";
+        return "HP-PA PALO boot address exceeds 2 GB";
     case ISO_HPPA_PALO_NOTREG:
         return "HP-PA PALO file is not a data file";
     case ISO_HPPA_PALO_CMDLEN:

@@ -33,7 +33,8 @@ PowerPC Reference Platform (PReP), for IBM PowerPC
 
 Common Hardware Reference Platform (CHRP), for IBM PowerPC
 
-HP-PA via PALO
+HP-PA via PALO header version 4
+HP-PA via PALO header version 5
 
 Combinations of boot mechanisms:
 - SYSLINUX isohybrid MBR
@@ -949,7 +950,7 @@ in the ISO image [without causing overlapping between partitions].
 
 ------------------------------------------------------------------------------
 
-                              HP-PA via PALO
+                      HP-PA via PALO header version 4
                               for HP PA-RISC  
 
 Sources:
@@ -970,8 +971,10 @@ Boot sector components:
 Byte Range | Value      | Meaning
 ---------- | ---------- | ----------------------------------------------------
    0 -   1 |     0x8000 | Magic
-   2 -   5 |     "PALO" |
-   6 -   7 |     0x0004 | Version
+           |            |
+   2 -   6 |     "PALO" | Zero terminated string
+           |            |
+   7 -   7 |          4 | Version
            |            |
    8 -  11 | kern32_adr | Byte address of the "HPPA 32-bit kernel" file
            |            | genisoimage option -hppa-kernel-32
@@ -994,6 +997,116 @@ Byte Range | Value      | Meaning
            |            |
 ---------- | ---------- | ----------------------------------------------------
 
+
+------------------------------------------------------------------------------
+
+                      HP-PA via PALO header version 5
+                              for HP PA-RISC  
+
+Sources:
+   Public mail conversations with Helge Deller, beginning with
+      https://lists.debian.org/debian-hppa/2014/01/msg00016.html
+   http://git.kernel.org/cgit/linux/kernel/git/deller/palo.git/tree/lib/
+      (especially struct firstblock in common.h and struct partition in part.h)
+
+There are five parameters which get encoded into the first 248 bytes of the
+System Area: cmdline, bootloader, 32-bit kernel, 64-bit kernel, and ramdisk.
+They are all mandatory.
+While cmdline is simply a string of at most 1023 characters, the other four
+point to data files inside the ISO image.
+
+Several fields of the firstblock shall be hardcoded to 0, on advise of
+Helge Deller. Their description is shown in round brackets.
+
+The partition table format is the same as with MBR.
+>>> ??? what block range gets marked in which partition ?
+>>> If this is only for CD/DVD/BD images, then no partitioning is needed.
+
+All numbers are recorded big endian.
+Except flags, all 4-byte integers are signed.
+
+Boot sector components:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   1 |     0x8000 | Magic
+           |            |
+   2 -   6 |     "PALO" | Zero terminated string
+           |            |
+   7 -   7 |          5 | Version
+           |            |
+   8 -  11 | kern32_adr | Byte address of the 32-bit kernel file
+           |            |
+  12 -  15 | kern32_len | Byte count of the 32-bit kernel file
+           |            |
+  16 -  19 | ramdsk_adr | Byte address of the ramdisk file
+           |            |
+  20 -  23 | ramdsk_len | Byte count of the ramdisk file
+           |            |
+  24 - 141 |          0 | All 0s. Old command line of version 4.
+           |            |
+           |            |
+ 220 - 223 |          0 | (Length of uncompressed 32-bit kernel)
+           |            |
+ 224 - 227 |          0 | (Length of uncompressed 64-bit kernel)
+           |            |
+ 228 - 231 |          0 | (flags)
+           |            |
+ 232 - 235 | kern64_adr | Byte address of the 64-bit kernel file
+           |            |
+ 236 - 239 | kern64_len | Byte count of the 64-bit kernel file
+           |            |
+ 240 - 243 |    ipl_adr | Byte address of the bootloader file
+           |            |
+ 244 - 247 |    ipl_len | Byte count of the bootloader file
+           |            |
+ 248 - 251 |  ipl_entry | >>> Meaning unclear
+           |            |
+           |            |
+ 446 - 461 | ========== | MBR/DOS Partition Table Entry for partition 1
+           |            |
+ 446 - 446 |     status | Governs bootability:
+           |            | 0x80 = bootable/active , 0x00 non-bootable/inactive
+           |            |
+ 447 - 449 | ========== | C/H/S address of partition start
+ 447 - 447 | start_head | Heads part of start address.
+ 448 - 448 |  start_c_s | Bits 0 to 5 : Sectors part of start address.
+           |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
+ 449 - 449 |  start_cyl | Lower 8 bits of cylinders part of start address
+           |            |
+ 450 - 450 |  part_type | Partition type indicates the purpose or kind of
+           |            | filesystem in the partition.
+           |            |
+ 451 - 453 | ========== | C/H/S address of last absolute sector in partition
+ 451 - 451 |   end_head | Heads part of end address.
+ 452 - 452 |    end_c_s | Bits 0 to 5 : Sectors part of end address.
+                        |               Values: 1 to 63, not 0.
+           |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
+ 453 - 453 |    end_cyl | Lower 8 bits of cylinders part of end address
+           |            |
+ 454 - 457 |  start_lba | LBA of first absolute sector in partiton. 
+           |            | Block size is 512. Counting starts at 0.
+           |            |
+ 458 - 461 | num_blocks | Number of sectors in partition.
+           |            |
+ 462 - 477 | ========== | Partition Table Entry for partition 2
+           | part_entr2 | 16 bytes. Format as with partition 1.
+           |            | All 0 means that partition is unused/undefined.
+           |            |
+ 478 - 493 | ========== | Partition Table Entry for partition 3
+           | part_entr3 | 16 bytes. See above.
+           |            |
+ 494 - 509 | ========== | Partition Table Entry for partition 4
+           | part_entr4 | 16 bytes. See above.
+           |            |
+ 510 - 510 |       0x55 | MBR signature
+ 511 - 511 |       0xaa | MBR signature
+           |            |
+           |            |
+1024 -2047 |    cmdline | Zero terminated command line of up to
+           |            | 1023 characters
+           |            |
+---------- | ---------- | ----------------------------------------------------
 
 
 ------------------------------------------------------------------------------
