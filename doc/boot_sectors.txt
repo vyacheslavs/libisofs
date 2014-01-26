@@ -956,7 +956,7 @@ in the ISO image [without causing overlapping between partitions].
 Sources:
    cdrkit-1.1.10/genisoimage/boot-hppa.c
    by Steve McIntyre <steve@einval.com>
-   who states "Heavily inspired by palo"
+      who states "Heavily inspired by palo"
 
 There are five parameters which get encoded into the first 248 bytes of the
 System Area: cmdline, bootloader, 32-bit kernel, 64-bit kernel, and ramdisk.

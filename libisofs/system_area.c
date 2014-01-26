@@ -799,7 +799,7 @@ static int hppa_palo_get_filepar(Ecma119Image *t, char *path,
  *
  * learned from  cdrkit-1.1.10/genisoimage/boot-hppa.c
  * by Steve McIntyre <steve@einval.com>
- * who states "Heavily inspired by palo"
+ *    who states "Heavily inspired by palo"
  * Public mail conversations with Helge Deller, beginning with
  *    https://lists.debian.org/debian-hppa/2014/01/msg00016.html
  * http://git.kernel.org/cgit/linux/kernel/git/deller/palo.git/tree/lib/
@@ -815,7 +815,7 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int hdrversion,
 
     img = t->image;
     if (img->hppa_cmdline == NULL && img->hppa_bootloader == NULL &&
-        img->hppa_kernel_32 == NULL && img->hppa_kernel_64 && 
+        img->hppa_kernel_32 == NULL && img->hppa_kernel_64 == NULL && 
         img->hppa_ramdisk == NULL)
         return ISO_SUCCESS;
     if (img->hppa_cmdline == NULL || img->hppa_bootloader == NULL ||
