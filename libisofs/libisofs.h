@@ -2277,7 +2277,8 @@ int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label);
  *        as timezone.
  *        Other than with vol_*_time the resulting string in the ISO image
  *        is fully predictable and free of timezone pitfalls.
- *        It should express a reasonable time in form  YYYYMMDDhhmmsscc
+ *        It should express a reasonable time in form  YYYYMMDDhhmmsscc.
+ *        The timezone will always be recorded as GMT.
  *        E.g.:  "2010040711405800" = 7 Apr 2010 11:40:58 (+0 centiseconds)
  * @return
  *        ISO_SUCCESS or error
@@ -3088,7 +3089,8 @@ const char *iso_image_get_app_use(IsoImage *image);
 /**
  * Get the four timestamps from the Primary Volume Descriptor of the imported
  * ISO image. The timestamps are strings which are either empty or consist
- * of 17 digits of the form YYYYMMDDhhmmsscc.
+ * of 16 digits of the form YYYYMMDDhhmmsscc, plus a signed byte in the range
+ * of -48 to +52, which gives the timezone offset in steps of 15 minutes.
  * None of the returned string pointers shall be used for altering or freeing
  * data. They are just for reading. 
  *
