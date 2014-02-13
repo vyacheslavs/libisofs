@@ -357,13 +357,18 @@ int iso_image_set_pvd_times(IsoImage *image,
     if (creation_time == NULL || modification_time == NULL ||
         expiration_time == NULL || effective_time == NULL)
         return ISO_NULL_POINTER;
-    image->creation_time = strdup(creation_time);
-    image->modification_time = strdup(modification_time);
-    image->expiration_time = strdup(expiration_time);
-    image->effective_time = strdup(effective_time);
+    image->creation_time = calloc(18, 1);   /* Surely including a trailing 0 */
+    image->modification_time = calloc(18, 1);
+    image->expiration_time = calloc(18, 1);
+    image->effective_time = calloc(18, 1);
     if (image->creation_time == NULL || image->modification_time == NULL ||
         image->expiration_time == NULL || image->effective_time == NULL)
         return ISO_OUT_OF_MEM;
+    /* (If the string is too short, a non-zero timezone will not be stored) */
+    strncpy(image->creation_time, creation_time, 17);
+    strncpy(image->modification_time, modification_time, 17);
+    strncpy(image->expiration_time, expiration_time, 17);
+    strncpy(image->effective_time, effective_time, 17);
     return ISO_SUCCESS;
 }
 
