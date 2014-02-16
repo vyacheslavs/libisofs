@@ -95,7 +95,8 @@ tree_print_dir(IsoDir *dir, int level)
         sp[i+1] = ' ';
     }
     
-    sp[level * 2-1] = '-';
+    if (level > 0)
+        sp[level * 2 - 1] = '-';
     sp[level * 2] = '\0';
     
     iso_dir_get_children(dir, &iter);
