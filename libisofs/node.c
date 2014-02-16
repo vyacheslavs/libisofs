@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1173,20 +1173,27 @@ int iso_node_is_valid_name(const char *name)
 
     /* guard against the empty string or big names... */
     if (name[0] == '\0')
-        return ISO_RR_NAME_RESERVED;
+        goto rr_reserved;
     if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
         return ISO_RR_NAME_TOO_LONG;
 
     /* ...against "." and ".." names... */
-    if (!strcmp(name, ".") || !strcmp(name, "..")) {
-        return ISO_RR_NAME_RESERVED;
-    }
+    if (!strcmp(name, ".") || !strcmp(name, ".."))
+        goto rr_reserved;
 
     /* ...and against names with '/' */
-    if (strchr(name, '/') != NULL) {
-        return ISO_RR_NAME_RESERVED;
-    }
+    if (strchr(name, '/') != NULL)
+        goto rr_reserved;
+
     return 1;
+
+rr_reserved:;
+/* # define Libisofs_debug_rr_reserveD */
+#ifdef Libisofs_debug_rr_reserveD
+    fprintf(stderr, "libisofs_DEBUG: ISO_RR_NAME_RESERVED with '%s'\n", name);
+#endif
+    
+    return ISO_RR_NAME_RESERVED;
 }
 
 /**
@@ -1206,8 +1213,12 @@ int iso_node_is_valid_link_dest(const char *dest)
     }
 
     /* guard against the empty string or big dest... */
-    if (dest[0] == '\0')
+    if (dest[0] == '\0') {
+#ifdef Libisofs_debug_rr_reserveD
+        fprintf(stderr, "libisofs_DEBUG: ISO_RR_NAME_RESERVED by empty link target\n");
+#endif
         return ISO_RR_NAME_RESERVED;
+    }
     if (strlen(dest) > LIBISOFS_NODE_PATH_MAX)
         return ISO_RR_PATH_TOO_LONG;
 
