@@ -503,10 +503,10 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
     int result;
     IsoNode *new;
     IsoNode **pos;
-    char *name;
+    char *name = NULL;
 
     if (parent == NULL || src == NULL || builder == NULL) {
-        return ISO_NULL_POINTER;
+        result = ISO_NULL_POINTER; goto ex;
     }
     if (node) {
         *node = NULL;
@@ -516,23 +516,25 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
 
     /* find place where to insert */
     result = iso_dir_exists(parent, name, &pos);
-    free(name);
     if (result) {
         /* a node with same name already exists */
-        return ISO_NODE_NAME_NOT_UNIQUE;
+        result = ISO_NODE_NAME_NOT_UNIQUE; goto ex;
     }
 
     result = builder->create_node(builder, image, src, name, &new);
-    if (result < 0) {
-        return result;
-    }
+    if (result < 0)
+        goto ex;
 
     if (node) {
         *node = new;
     }
 
     /* finally, add node to parent */
-    return iso_dir_insert(parent, (IsoNode*)new, pos, ISO_REPLACE_NEVER);
+    result = iso_dir_insert(parent, (IsoNode*)new, pos, ISO_REPLACE_NEVER);
+ex:
+    if (name != NULL)
+        free(name);
+    return result;
 }
 
 int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
