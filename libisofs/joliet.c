@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2011-2012 Thomas Schmitt
+ * Copyright (c) 2011-2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -126,7 +126,8 @@ void joliet_node_free(JolietNode *node)
         for (i = 0; i < node->info.dir->nchildren; i++) {
             joliet_node_free(node->info.dir->children[i]);
         }
-        free(node->info.dir->children);
+        if (node->info.dir->children != NULL)
+            free(node->info.dir->children);
         free(node->info.dir);
     }
     iso_node_unref(node->node);
@@ -157,11 +158,14 @@ int create_node(Ecma119Image *t, IsoNode *iso, JolietNode **node)
             free(joliet);
             return ISO_OUT_OF_MEM;
         }
-        joliet->info.dir->children = calloc(sizeof(void*), dir->nchildren);
-        if (joliet->info.dir->children == NULL) {
-            free(joliet->info.dir);
-            free(joliet);
-            return ISO_OUT_OF_MEM;
+        joliet->info.dir->children = NULL;
+        if (dir->nchildren > 0) {
+            joliet->info.dir->children = calloc(sizeof(void*), dir->nchildren);
+            if (joliet->info.dir->children == NULL) {
+                free(joliet->info.dir);
+                free(joliet);
+                return ISO_OUT_OF_MEM;
+            }
         }
         joliet->type = JOLIET_DIR;
     } else if (iso->type == LIBISO_FILE) {
@@ -333,6 +337,8 @@ void sort_tree(JolietNode *root)
 {
     size_t i;
 
+    if (root->info.dir->children == NULL)
+        return;
     qsort(root->info.dir->children, root->info.dir->nchildren,
           sizeof(void*), cmp_node);
     for (i = 0; i < root->info.dir->nchildren; i++) {
@@ -406,10 +412,14 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
     uint16_t *full_name = NULL;
     uint16_t *tmp = NULL;
 
+    nchildren = dir->info.dir->nchildren;
+    if (nchildren <= 0) {
+        ret = ISO_SUCCESS;
+        goto ex;
+    }
+    children = dir->info.dir->children;
     LIBISO_ALLOC_MEM(full_name, uint16_t, LIBISO_JOLIET_NAME_MAX);
     LIBISO_ALLOC_MEM(tmp, uint16_t, LIBISO_JOLIET_NAME_MAX);
-    nchildren = dir->info.dir->nchildren;
-    children = dir->info.dir->children;
 
     if (t->opts->joliet_long_names)
         maxchar = 103;

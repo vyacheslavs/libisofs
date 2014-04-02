@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2011-2012 Thomas Schmitt
+ * Copyright (c) 2011-2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -80,7 +80,8 @@ void iso1999_node_free(Iso1999Node *node)
         for (i = 0; i < node->info.dir->nchildren; i++) {
             iso1999_node_free(node->info.dir->children[i]);
         }
-        free(node->info.dir->children);
+        if (node->info.dir->children != NULL)
+            free(node->info.dir->children);
         free(node->info.dir);
     }
     iso_node_unref(node->node);
@@ -111,11 +112,14 @@ int create_node(Ecma119Image *t, IsoNode *iso, Iso1999Node **node)
             free(n);
             return ISO_OUT_OF_MEM;
         }
-        n->info.dir->children = calloc(sizeof(void*), dir->nchildren);
-        if (n->info.dir->children == NULL) {
-            free(n->info.dir);
-            free(n);
-            return ISO_OUT_OF_MEM;
+        n->info.dir->children = NULL;
+        if (dir->nchildren > 0) {
+            n->info.dir->children = calloc(sizeof(void*), dir->nchildren);
+            if (n->info.dir->children == NULL) {
+                free(n->info.dir);
+                free(n);
+                return ISO_OUT_OF_MEM;
+            }
         }
         n->type = ISO1999_DIR;
     } else if (iso->type == LIBISO_FILE) {
@@ -293,6 +297,8 @@ void sort_tree(Iso1999Node *root)
 {
     size_t i;
 
+    if (root->info.dir->children == NULL)
+        return;
     qsort(root->info.dir->children, root->info.dir->nchildren,
           sizeof(void*), cmp_node);
     for (i = 0; i < root->info.dir->nchildren; i++) {
@@ -312,10 +318,14 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
     int need_sort = 0;
     char *full_name = NULL, *tmp = NULL;
 
+    nchildren = dir->info.dir->nchildren;
+    if (nchildren <= 0) {
+        ret = ISO_SUCCESS;
+        goto ex;
+    }
+    children = dir->info.dir->children;
     LIBISO_ALLOC_MEM(full_name, char, 208);
     LIBISO_ALLOC_MEM(tmp, char, 208);
-    nchildren = dir->info.dir->nchildren;
-    children = dir->info.dir->children;
 
     /* a hash table will temporary hold the names, for fast searching */
     ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
