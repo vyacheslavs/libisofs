@@ -201,23 +201,26 @@ static
 int create_dir(Ecma119Image *img, IsoDir *iso, Ecma119Node **node)
 {
     int ret;
-    Ecma119Node **children;
+    Ecma119Node **children = NULL;
     struct ecma119_dir_info *dir_info;
 
-    children = calloc(1, sizeof(void*) * iso->nchildren);
-    if (children == NULL) {
-        return ISO_OUT_OF_MEM;
+    if (iso->nchildren > 0) {
+        children = calloc(1, sizeof(void*) * iso->nchildren);
+        if (children == NULL)
+            return ISO_OUT_OF_MEM;
     }
 
     dir_info = calloc(1, sizeof(struct ecma119_dir_info));
     if (dir_info == NULL) {
-        free(children);
+        if (children != NULL)
+            free(children);
         return ISO_OUT_OF_MEM;
     }
 
     ret = create_ecma119_node(img, (IsoNode*)iso, node);
     if (ret < 0) {
-        free(children);
+        if (children != NULL)
+            free(children);
         free(dir_info);
         return ret;
     }
@@ -353,7 +356,8 @@ void ecma119_node_free(Ecma119Node *node)
         for (i = 0; i < node->info.dir->nchildren; i++) {
             ecma119_node_free(node->info.dir->children[i]);
         }
-        free(node->info.dir->children);
+        if (node->info.dir->children != NULL)
+            free(node->info.dir->children);
         free(node->info.dir);
     }
     free(node->iso_name);
@@ -564,6 +568,8 @@ void sort_tree(Ecma119Node *root)
 {
     size_t i;
 
+    if (root->info.dir->children == NULL)
+        return;
     qsort(root->info.dir->children, root->info.dir->nchildren, sizeof(void*),
           cmp_node_name);
     for (i = 0; i < root->info.dir->nchildren; i++) {
