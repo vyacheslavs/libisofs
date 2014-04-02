@@ -592,6 +592,9 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
     nchildren = dir->info.dir->nchildren;
     children = dir->info.dir->children;
 
+    if (nchildren <= 0)
+        return ISO_SUCCESS; /* nothing to do */
+
     /* a hash table will temporary hold the names, for fast searching */
     ret = iso_htable_create((nchildren * 100) / 80, iso_str_hash,
                             (compare_function_t)strcmp, &table);

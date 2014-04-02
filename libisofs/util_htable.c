@@ -322,9 +322,10 @@ int iso_htable_create(size_t size, hash_funtion_t hash,
 {
     IsoHTable *t;
     
-    if (table == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
+    if (size <= 0)
+        return ISO_WRONG_ARG_VALUE;
+    if (table == NULL)
+        return ISO_NULL_POINTER;
     
     t = malloc(sizeof(IsoHTable));
     if (t == NULL) {
