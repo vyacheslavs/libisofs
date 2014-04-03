@@ -332,6 +332,8 @@ char *get_rr_fname(Ecma119Image *t, char *str)
 
     ret = iso_get_rr_name(t->opts, t->input_charset, t->output_charset,
                           t->image->id, str, &name, 0);
+    if (ret < 0)
+        return NULL;
     return name;
 }
 
