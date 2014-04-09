@@ -61,6 +61,12 @@
 
 #include <stdlib.h>
 
+/* Because AIX defines "open" as "open64".
+   There are struct members named "open" in libisofs.h which get affected.
+   So all includers of libisofs.h must get included fcntl.h to see the same.
+*/
+#include <fcntl.h>
+
 
 /**
  * The following two functions and three macros are utilities to help ensuring
