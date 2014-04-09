@@ -28,6 +28,7 @@ MIPS Volume Header, for MIPS Big Endian, e.g. SGI Indigo2.
 DEC Boot Block, for MIPS Little Endian , e.g. DECstation.
 
 SUN Disk Label and boot images, for SUN SPARC
+GRUB2 SUN SPARC Core File Address
 
 PowerPC Reference Platform (PReP), for IBM PowerPC
 
@@ -548,7 +549,7 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
   16 -  19 | head_crc   | CRC-32 of this header while head_crc is 0
   20 -  23 | reserved   | = 0
   24 -  31 | curr_lba   | Location of this header block = 1
-  32 -  39 | back_lba   | Location of header backup block. See below.
+  32 -  39 | backup_lba | Location of header backup block. See below.
   40 -  47 | first_lba  | First usable LBA for partitions
   48 -  55 | last_lba   | Last usable LBA for partitions
   56 -  71 | guid       | Disk GUID, Random
@@ -617,7 +618,7 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
            |            | Is recomputed after the following changes.
   24 -  31 | curr_lba   | Location of this header block.
            |            | Shows own block address.
-  32 -  39 | back_lba   | Location of header backup block.
+  32 -  39 | backup_lba | Location of header backup block.
            |            | Points to primary header block = 1
   72 -  79 | part_start | Partition entries start.
            |            | Points to start of backup partition table.
@@ -769,8 +770,8 @@ Byte Range | Value      | Meaning
            |            | (Elf32_Phdr field p_filesz + 511) / 512;
            |            |
   28 -  31 |  seg_start | Segment file offset. Blocks 512 bytes.
-           |            | ISO 9660 LBA of boot file * 4 plus offset
-           |            | + offset which stems from ELF header of boot file:
+           |            | ISO 9660 LBA of boot file * 4 plus offset which
+           |            | stems from ELF header of boot file:
            |            | (Elf32_Phdr field p_offset + 511) / 512;
            |            |
   32 - 431 | ========== | Boot Map Entries 2 to 51
@@ -826,7 +827,7 @@ Sources:
 The Disk Label is written to the first 512 bytes of the image. It can mark
 8 partitions (slices ) of which the first contains the ISO image. The other
 7 may contain boot images.
-Words are composed big-endian style.
+Words are composed big-endian style. Block size is 512.
 
 Boot images are provided externally. mkisofs arranges them after the end of
 the ISO image so that each starts at a cylinder boundary (320 kB).
@@ -837,7 +838,6 @@ their predecessor in the partition table:
  boot partitions are mapped to  the  previous  partition.
  If mkisofs is called with -G image -B ... all boot partitions are
  mapped to the partition that contains the ISO9660 filesystem."
-
 
 Disk Label components:
 
@@ -901,7 +901,7 @@ Byte Range | Value      | Meaning
            |            |
  444 - 447 |  start_cyl | Start cylinder
            |            |
- 448 - 451 | num_blocks | Number of blocks in partition
+ 448 - 451 | num_blocks | Number of 512-byte blocks in partition
            |            |
  452 - 507 | ========== | Partition table entries #2 to #8
            |        ... | See above Partition table entry #1
@@ -912,6 +912,30 @@ Byte Range | Value      | Meaning
            |            |
 ---------- | ---------- | ----------------------------------------------------
 
+------------------------------------------------------------------------------
+
+
+                      GRUB2 SUN SPARC Core File Address
+
+Sources:
+    Mail conversations with Vladimir Serbinenko.
+
+GRUB2 lets libisofs write after the disk label block the address and size of a
+data file in the ISO image. E.g. of /boot/grub/sparc64-ieee1275/core.img.
+This is combined with a SUN Disk Label which exposes only the single partition
+describing the overall ISO filesystem size.
+
+  Byte Range | Value      | Meaning
+------------ | ---------- | --------------------------------------------------
+ 512 -   551 |     opaque | Code and data provided by GRUB2
+             |            |
+ 552 -   559 |     offset | Start byte number of the file. 64-bit big-endian.
+             |            |
+ 560 -   563 |      size  | Number of bytes in the file. 32-bit big-endian.
+             |            |
+ 564 - 32767 |     opaque | Code and data provided by GRUB2
+             |            |
+------------ | ---------- | --------------------------------------------------
 
 ------------------------------------------------------------------------------
 
@@ -984,7 +1008,7 @@ Byte Range | Value      | Meaning
            |            | genisoimage option -hppa-ramdisk
   20 -  23 | ramdsk_len | Byte count of the "HPPA ramdisk" file
            |            |
-  24 - 141 |    cmdline | "Command line"
+  24 - 151 |    cmdline | "Command line"
            |            | genisoimage option -hppa-cmdline
            |            |
  232 - 235 | kern64_adr | Byte address of the "HPPA 64-bit kernel" file
@@ -1017,10 +1041,6 @@ point to data files inside the ISO image.
 
 Several fields of the firstblock shall be hardcoded to 0, on advise of
 Helge Deller. Their description is shown in round brackets.
-
-The partition table format is the same as with MBR.
->>> ??? what block range gets marked in which partition ?
->>> If this is only for CD/DVD/BD images, then no partitioning is needed.
 
 All numbers are recorded big endian.
 Except flags, all 4-byte integers are signed.
@@ -1060,48 +1080,9 @@ Byte Range | Value      | Meaning
            |            |
  244 - 247 |    ipl_len | Byte count of the bootloader file
            |            |
- 248 - 251 |  ipl_entry | >>> Meaning unclear
+ 248 - 251 |          0 | (ipl_entry: offset to first command in bootloader)
            |            |
-           |            |
- 446 - 461 | ========== | MBR/DOS Partition Table Entry for partition 1
-           |            |
- 446 - 446 |     status | Governs bootability:
-           |            | 0x80 = bootable/active , 0x00 non-bootable/inactive
-           |            |
- 447 - 449 | ========== | C/H/S address of partition start
- 447 - 447 | start_head | Heads part of start address.
- 448 - 448 |  start_c_s | Bits 0 to 5 : Sectors part of start address.
-           |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
- 449 - 449 |  start_cyl | Lower 8 bits of cylinders part of start address
-           |            |
- 450 - 450 |  part_type | Partition type indicates the purpose or kind of
-           |            | filesystem in the partition.
-           |            |
- 451 - 453 | ========== | C/H/S address of last absolute sector in partition
- 451 - 451 |   end_head | Heads part of end address.
- 452 - 452 |    end_c_s | Bits 0 to 5 : Sectors part of end address.
-                        |               Values: 1 to 63, not 0.
-           |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
- 453 - 453 |    end_cyl | Lower 8 bits of cylinders part of end address
-           |            |
- 454 - 457 |  start_lba | LBA of first absolute sector in partiton. 
-           |            | Block size is 512. Counting starts at 0.
-           |            |
- 458 - 461 | num_blocks | Number of sectors in partition.
-           |            |
- 462 - 477 | ========== | Partition Table Entry for partition 2
-           | part_entr2 | 16 bytes. Format as with partition 1.
-           |            | All 0 means that partition is unused/undefined.
-           |            |
- 478 - 493 | ========== | Partition Table Entry for partition 3
-           | part_entr3 | 16 bytes. See above.
-           |            |
- 494 - 509 | ========== | Partition Table Entry for partition 4
-           | part_entr4 | 16 bytes. See above.
-           |            |
- 510 - 510 |       0x55 | MBR signature
- 511 - 511 |       0xaa | MBR signature
-           |            |
+ 446 - 511 |          0 | (MBR partition table and signature)
            |            |
 1024 -2047 |    cmdline | Zero terminated command line of up to
            |            | 1023 characters
@@ -1298,7 +1279,7 @@ Byte Range | Value      | Meaning (little endian numbers, LBA unit is 512 byte)
 ---------- | ---------- | ----------------------------------------------------
   12 -  15 | head_size  | Header size = 0x5c = 92
   24 -  31 | curr_lba   | Location of this header block = 0x1
-  32 -  39 | back_lba   | Location of header backup block = 0x144ffe = 1331198
+  32 -  39 | backup_lba | Location of header backup block = 0x144ffe = 1331198
            |            | This is 1 KiB before the end of MBR partition 1
            |            | (but should be 512 bytes).
            |            | (Potential isohybrid.c bug #1:
