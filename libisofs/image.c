@@ -146,13 +146,7 @@ void iso_image_unref(IsoImage *image)
         iso_image_give_up_mips_boot(image, 0);
         if (image->sparc_core_node != NULL)
             iso_node_unref((IsoNode *) image->sparc_core_node);
-
-#ifdef Libisofs_enable_unreleased_hppa_palO
-
         iso_image_set_hppa_palo(image, NULL, NULL, NULL, NULL, NULL, 1);
-
-#endif
-
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);

@@ -2137,15 +2137,6 @@ int iso_write_opts_set_overwrite_buf(IsoWriteOpts *opts, uint8_t *overwrite);
 int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
 
 /*
- * Release 1.3.6 contains an incomplete implementation of preparations for the
- * HP-PA bootloader PALO. Its header version 5 is not completely defined yet.
- * To enable the code for these preparations, you have to define the macro
- *   Libisofs_enable_unreleased_hppa_palO
- * and to insert into libisofs/libisofs.ver the lines
- *   iso_image_set_hppa_palo;
- *   iso_image_get_hppa_palo;
- */
-/*
  * Attach 32 kB of binary data which shall get written to the first 32 kB 
  * of the ISO image, the ECMA-119 System Area. This space is intended for
  * system dependent boot software, e.g. a Master Boot Record which allows to
@@ -2195,13 +2186,11 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 This will overwrite the first 512 bytes of the submitted
  *                 data.
  *              4= HP-PA PALO boot sector version 4 for HP PA-RISC
- *                 <<< only ifdef Libisofs_enable_unreleased_hppa_palO
  *                 @since 1.3.8
  *                 Suitable for older PALO of e.g. Debian 4 and 5. 
  *                 Submit all five parameters of iso_image_set_hppa_palo():
  *                   cmdline, bootloader, kernel_32, kernel_64, ramdisk
  *              5= HP-PA PALO boot sector version 5 for HP PA-RISC
- *                 <<< only ifdef Libisofs_enable_unreleased_hppa_palO
  *                 @since 1.3.8
  *                 Suitable for newer PALO, where PALOHDRVERSION in
  *                 lib/common.h is defined as 5.
@@ -3757,13 +3746,6 @@ int iso_image_set_sparc_core(IsoImage *img, IsoFile *sparc_core, int flag);
  */
 int iso_image_get_sparc_core(IsoImage *img, IsoFile **sparc_core, int flag);
 
-
-#ifdef Libisofs_enable_unreleased_hppa_palO
-
-/* <<< This API call and the implementation of its consequences are not yet
-       stable. So it gets excluded from releases.
-*/
-
 /**
  * Define a command line and submit the paths of four mandatory files for
  * production of a HP-PA PALO boot sector for PA-RISC machines.
@@ -3818,8 +3800,6 @@ int iso_image_set_hppa_palo(IsoImage *img, char *cmdline, char *bootloader,
  */
 int iso_image_get_hppa_palo(IsoImage *img, char **cmdline, char **bootloader,
                             char **kernel_32, char **kernel_64, char **ramdisk);
-
-#endif /* Libisofs_enable_unreleased_hppa_palO */
 
 /**
  * Increments the reference counting of the given node.

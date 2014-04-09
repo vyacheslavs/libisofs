@@ -887,8 +887,6 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int hdrversion,
     iso_msb(buf + 240, adr, 4);
     iso_msb(buf + 244, len, 4);
 
-    /* >>> ??? iso_msb(buf + 248, ipl_entry, 4); */
-
     if (hdrversion == 5) {
         if (strlen(img->hppa_cmdline) > 1023) {
             iso_msg_submit(img->id, ISO_HPPA_PALO_CMDLEN, 0,
