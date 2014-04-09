@@ -982,6 +982,10 @@ Sources:
    by Steve McIntyre <steve@einval.com>
       who states "Heavily inspired by palo"
 
+This format is expected by PALO versions before 1.92. Their source code defines
+PALOHDRVERSION as 4. The format also serves as fallback for newer versions,
+which expect header version 5, if a 0-byte is found at byte position 1024.
+
 There are five parameters which get encoded into the first 248 bytes of the
 System Area: cmdline, bootloader, 32-bit kernel, 64-bit kernel, and ramdisk.
 They are all mandatory.
@@ -1033,7 +1037,11 @@ Sources:
    http://git.kernel.org/cgit/linux/kernel/git/deller/palo.git/tree/lib/
       (especially struct firstblock in common.h and struct partition in part.h)
 
-There are five parameters which get encoded into the first 248 bytes of the
+This format is expected by PALO versions 1.92 or higher. They fall back to
+header version 4 if a 0-byte is found at byte position 1024.
+Their source code defines PALOHDRVERSION as 5.
+
+There are five parameters which get encoded into the first 2048 bytes of the
 System Area: cmdline, bootloader, 32-bit kernel, 64-bit kernel, and ramdisk.
 They are all mandatory.
 While cmdline is simply a string of at most 1023 characters, the other four
