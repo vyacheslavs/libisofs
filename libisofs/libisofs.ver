@@ -116,6 +116,7 @@ iso_image_import;
 iso_image_new;
 iso_image_ref;
 iso_image_remove_boot_image;
+iso_image_report_system_area;
 iso_image_set_abstract_file_id;
 iso_image_set_app_use;
 iso_image_set_application_id;

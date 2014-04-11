@@ -902,8 +902,10 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int hdrversion,
 /* Convenience frontend for iso_register_apm_entry().
    name and type are 0-terminated strings.
 */
-int iso_quick_apm_entry(Ecma119Image *t,
-           uint32_t start_block, uint32_t block_count, char *name, char *type)
+int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
+                        int *apm_req_count,
+                        uint32_t start_block, uint32_t block_count,
+                        char *name, char *type)
 {
     int ret;
     struct iso_apm_partition_request *entry;
@@ -915,7 +917,7 @@ int iso_quick_apm_entry(Ecma119Image *t,
     entry->block_count = block_count;
     strncpy((char *) entry->name, name, 32);
     strncpy((char *) entry->type, type, 32);
-    ret = iso_register_apm_entry(t, entry, 0);
+    ret = iso_register_apm_entry(req_array, apm_req_count, entry, 0);
     free(entry);
     return ret;
 }
@@ -924,8 +926,9 @@ int iso_quick_apm_entry(Ecma119Image *t,
 /* Convenience frontend for iso_register_gpt_entry().
    name has to be already encoded as UTF-16LE.
 */
-int iso_quick_gpt_entry(Ecma119Image *t,
-                        uint32_t start_block, uint32_t block_count,
+int iso_quick_gpt_entry(struct iso_gpt_partition_request **req_array,
+                        int *gpt_req_count,
+                        uint64_t start_block, uint64_t block_count,
                         uint8_t type_guid[16], uint8_t partition_guid[16],
                         uint64_t flags, uint8_t name[72])
 {
@@ -941,13 +944,14 @@ int iso_quick_gpt_entry(Ecma119Image *t,
     memcpy(entry->partition_guid, partition_guid, 16);
     entry->flags = flags;
     memcpy(entry->name, name, 72);
-    ret = iso_register_gpt_entry(t, entry, 0);
+    ret = iso_register_gpt_entry(req_array, gpt_req_count, entry, 0);
     free(entry);
     return ret;
 }
 
 
-int iso_quick_mbr_entry(Ecma119Image *t,
+int iso_quick_mbr_entry(struct iso_mbr_partition_request **req_array,
+                        int *mbr_req_count,
                         uint64_t start_block, uint64_t block_count,
                         uint8_t type_byte, uint8_t status_byte,
                         int desired_slot)
@@ -955,7 +959,7 @@ int iso_quick_mbr_entry(Ecma119Image *t,
     int ret;
     struct iso_mbr_partition_request *entry;
 
-    ret = iso_mbr_entry_slot_is_free(t, desired_slot);
+    ret = iso_mbr_entry_slot_is_free(req_array, *mbr_req_count, desired_slot);
     if (ret < 0)
         desired_slot = 0;
     else if (ret == 0)
@@ -969,13 +973,14 @@ int iso_quick_mbr_entry(Ecma119Image *t,
     entry->type_byte = type_byte;
     entry->status_byte = status_byte;
     entry->desired_slot = desired_slot;
-    ret = iso_register_mbr_entry(t, entry, 0);
+    ret = iso_register_mbr_entry(req_array, mbr_req_count, entry, 0);
     free(entry);
     return ret;
 }
 
 
-int iso_mbr_entry_slot_is_free(Ecma119Image *t, int slot)
+int iso_mbr_entry_slot_is_free(struct iso_mbr_partition_request **req_array,
+                               int mbr_req_count, int slot)
 {
     int i;
 
@@ -983,8 +988,8 @@ int iso_mbr_entry_slot_is_free(Ecma119Image *t, int slot)
         return -1;
     if (slot == 0)
         return 1;
-    for (i = 0; i < t->mbr_req_count; i++)
-        if (t->mbr_req[i]->desired_slot == slot)
+    for (i = 0; i < mbr_req_count; i++)
+        if (req_array[i]->desired_slot == slot)
             return 0;
     return 1;
 }
@@ -997,8 +1002,8 @@ static
 int cmp_partition_request(const void *f1, const void *f2)
 {
     struct iso_partition_request {
-       uint32_t start_block;
-       uint32_t block_count;
+       uint64_t start_block;
+       uint64_t block_count;
     } *r1, *r2;
 
     r1 = *((struct iso_partition_request **) f1);
@@ -1046,10 +1051,10 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     iso_msb(wpt, (uint32_t) map_entries, 4);
     wpt += 4;
     /* Physical block start of partition */
-    iso_msb(wpt, req->start_block * block_fac, 4);
+    iso_msb(wpt, (uint32_t) (req->start_block * block_fac), 4);
     wpt += 4;
     /* Physical block count of partition */
-    iso_msb(wpt, req->block_count * block_fac, 4);
+    iso_msb(wpt, (uint32_t) (req->block_count * block_fac), 4);
     wpt += 4;
     /* Partition name */
     memcpy(wpt, req->name, 32);
@@ -1058,10 +1063,10 @@ static int iso_write_apm_entry(Ecma119Image *t, int apm_block_size,
     memcpy(wpt, req->type, 32);
     wpt += 32;
     /* Logical block start */
-    iso_msb(wpt, 0, 4);
+    iso_msb(wpt, (uint32_t) 0, 4);
     wpt += 4;
     /* Logical block count */
-    iso_msb(wpt, req->block_count * block_fac, 4);
+    iso_msb(wpt, (uint32_t) (req->block_count * block_fac), 4);
     wpt += 4;
     /* Status flags : bit0= entry is valid , bit1= entry is allocated
                       bit4= partition is readable , bit5= partition is writable
@@ -1103,7 +1108,8 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
     break;
     }
     if (i >= t->apm_req_count) {
-        ret = iso_quick_apm_entry(t, 1, 0, "Apple", "Apple_partition_map");
+        ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                  1, 0, "Apple", "Apple_partition_map");
         if (ret < 0)
             return ret;
     }
@@ -1115,7 +1121,7 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
     up_to = t->apm_req_count + 1;
     for (i = 1; i < up_to; i++) {
         if (i < up_to - 1)
-            goal = t->apm_req[i]->start_block;
+            goal = (uint32_t) t->apm_req[i]->start_block;
         else
             goal = img_blocks * block_fac;
         if (i == 1) {
@@ -1141,7 +1147,8 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
         if (part_end < goal || i == up_to - 1) { /* Always add a final entry */
             sprintf(gap_name, "Gap%d", gap_counter);
             gap_counter++;
-            ret = iso_quick_apm_entry(t, part_end, goal - part_end,
+            ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                      part_end, goal - part_end,
                                       gap_name, "ISO9660_data");
             if (ret < 0)
                 return ret;
@@ -1167,15 +1174,18 @@ static int rectify_apm(Ecma119Image *t)
     /* <<< ts B20526 : Dummy mock-up */
     if (t->apm_req_count <= 0) {
         /*
-        ret = iso_quick_apm_entry(t, 16, 20, "Test1_name_16_20", "Test1_type");
+        ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                  16, 20, "Test1_name_16_20", "Test1_type");
         / * >>> Caution: Size 90 causes intentional partition overlap error * /
-        ret = iso_quick_apm_entry(t, 30, 90, "BAD_30_90_BAD", "Test1_type");
+        ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                  30, 90, "BAD_30_90_BAD", "Test1_type");
         */
-        ret = iso_quick_apm_entry(t, 30, 20, "Test1_name_30_20", "Test1_type");
+        ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                  30, 20, "Test1_name_30_20", "Test1_type");
         if (ret < 0)
             return ret;
-        ret = iso_quick_apm_entry(t, 100, 400, "Test2_name_100_400",
-                                  "Test2_type");
+        ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                 100, 400, "Test2_name_100_400", "Test2_type");
         if (ret < 0)
             return ret;
     }
@@ -1280,10 +1290,12 @@ static int iso_write_mbr(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 
     /* <<< Dummy mock-up */
     if (t->mbr_req_count <= 0) {
-        ret = iso_quick_mbr_entry(t, (uint64_t) 0, (uint64_t) 0, 0xee, 0, 0);
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
+                                  (uint64_t) 0, (uint64_t) 0, 0xee, 0, 0);
         if (ret < 0)
             return ret;
-        ret = iso_quick_mbr_entry(t, ((uint64_t) 100) * 4, (uint64_t) 0,
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
+                                  ((uint64_t) 100) * 4, (uint64_t) 0,
                                   0x0c, 0x80, 1);
         if (ret < 0)
             return ret;
@@ -1491,8 +1503,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7
     };
 
-    uint32_t p_arr_crc = 0, part_end, goal, next_end;
-    uint64_t start_lba, end_lba;
+    uint32_t p_arr_crc = 0;
+    uint64_t start_lba, end_lba, goal, part_end, next_end, backup_end_lba;
     int ret, i, gap_counter = 0, up_to;
     struct iso_gpt_partition_request *req;
     uint8_t gpt_name[72];
@@ -1513,12 +1525,12 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         if (i < up_to - 1) {
             goal = t->gpt_req[i]->start_block;
         } else {
-            goal = img_blocks;
+            goal = ((uint64_t) img_blocks) * 4;
         }
         if (i == 0) {
-            if (goal <= 16)
+            if (goal <= 16 * 4)
     continue;
-            next_end = 16;
+            next_end = 16 * 4;
         } else {
             next_end = t->gpt_req[i - 1]->start_block +
                        t->gpt_req[i - 1]->block_count;
@@ -1528,8 +1540,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         if (part_end > goal) {
             if (!(t->gpt_req_flags & 1)) {
                 iso_msg_submit(t->image->id, ISO_BOOT_GPT_OVERLAP, 0,
-               "Program error: GPT partitions %d and %d overlap by %lu blocks",
-                               i - 1, i, part_end - goal);
+               "Program error: GPT partitions %d and %d overlap by %.f blocks",
+                               i - 1, i, (double) (part_end - goal));
                 return ISO_BOOT_GPT_OVERLAP;
             }
         } else if (part_end < goal) {
@@ -1537,7 +1549,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
             sprintf((char *) gpt_name, "Gap%d", gap_counter);
             iso_ascii_utf_16le(gpt_name);
             gap_counter++;
-            ret = iso_quick_gpt_entry(t, part_end, goal - part_end,
+            ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                      part_end, goal - part_end,
                                       basic_data_uuid, zero_uuid,
                                       gpt_flags, gpt_name);
             if (ret < 0)
@@ -1554,11 +1567,13 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     /* Write the GPT entries to buf */
     for (i = 0; i < t->gpt_req_count; i++) {
         req = t->gpt_req[i];
-        start_lba = ((uint64_t) req->start_block) * 4;
-        end_lba = ((uint64_t) req->start_block) + req->block_count;
-        if (end_lba > t->gpt_backup_end - t->gpt_backup_size)
-            end_lba = t->gpt_backup_end - t->gpt_backup_size;
-        end_lba = end_lba * 4 - 1;
+        start_lba = req->start_block;
+        end_lba = req->start_block + req->block_count;
+        backup_end_lba = ((uint64_t) t->gpt_backup_end - t->gpt_backup_size) *
+                         4;
+        if (end_lba > backup_end_lba)
+            end_lba = backup_end_lba;
+        end_lba = end_lba - 1;
         iso_write_gpt_entry(t, buf + 512 * t->gpt_part_start + 128 * i,
                             req->type_guid, req->partition_guid, 
                             start_lba, end_lba, req->flags, req->name);
@@ -1929,56 +1944,58 @@ ex:;
 }
 
 
-int iso_register_apm_entry(Ecma119Image *t,
+int iso_register_apm_entry(struct iso_apm_partition_request **req_array,
+                           int *apm_req_count,
                            struct iso_apm_partition_request *req, int flag)
 {
     struct iso_apm_partition_request *entry;
 
-    if (t->apm_req_count >= ISO_APM_ENTRIES_MAX)
+    if (*apm_req_count >= ISO_APM_ENTRIES_MAX)
         return ISO_BOOT_TOO_MANY_APM;
     entry = calloc(1, sizeof(struct iso_apm_partition_request));
     if (entry == NULL)
         return ISO_OUT_OF_MEM;
     
     memcpy(entry, req, sizeof(struct iso_apm_partition_request));
-    t->apm_req[t->apm_req_count] = entry;
-    t->apm_req_count++;
+    req_array[*apm_req_count] = entry;
+    (*apm_req_count)++;
     return ISO_SUCCESS;
 }
 
 
-int iso_register_mbr_entry(Ecma119Image *t,
+int iso_register_mbr_entry(struct iso_mbr_partition_request **req_array,
+                           int *mbr_req_count,
                            struct iso_mbr_partition_request *req, int flag)
 {
     struct iso_mbr_partition_request *entry;
 
-    if (t->mbr_req_count >= ISO_MBR_ENTRIES_MAX)
+    if (*mbr_req_count >= ISO_MBR_ENTRIES_MAX)
         return ISO_BOOT_TOO_MANY_MBR;
     entry = calloc(1, sizeof(struct iso_mbr_partition_request));
     if (entry == NULL)
         return ISO_OUT_OF_MEM;
     
     memcpy(entry, req, sizeof(struct iso_mbr_partition_request));
-    t->mbr_req[t->mbr_req_count] = entry;
-    t->mbr_req_count++;
+    req_array[*mbr_req_count] = entry;
+    (*mbr_req_count)++;
     return ISO_SUCCESS;
 }
 
-
-int iso_register_gpt_entry(Ecma119Image *t,
+int iso_register_gpt_entry(struct iso_gpt_partition_request **req_array,
+                           int *gpt_req_count,
                            struct iso_gpt_partition_request *req, int flag)
 {
     struct iso_gpt_partition_request *entry;
 
-    if (t->gpt_req_count >= ISO_GPT_ENTRIES_MAX)
+    if (*gpt_req_count >= ISO_GPT_ENTRIES_MAX)
         return ISO_BOOT_TOO_MANY_GPT;
     entry = calloc(1, sizeof(struct iso_gpt_partition_request));
     if (entry == NULL)
         return ISO_OUT_OF_MEM;
     
     memcpy(entry, req, sizeof(struct iso_gpt_partition_request));
-    t->gpt_req[t->gpt_req_count] = entry;
-    t->gpt_req_count++;
+    req_array[*gpt_req_count] = entry;
+    (*gpt_req_count)++;
     return ISO_SUCCESS;
 }
 
@@ -2185,19 +2202,26 @@ static int precompute_gpt(Ecma119Image *t)
         strcpy((char *) gpt_name, "GPT Test 1");
         iso_ascii_utf_16le(gpt_name);
         /*
-        ret = iso_quick_gpt_entry(t, 16, 20, hfs_uuid, zero_uuid,
-                                  gpt_flags, gpt_name);
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                  (uint64_t) (16 * 4),  (uint64_t) (20 * 4),
+                                  hfs_uuid, zero_uuid, gpt_flags, gpt_name);
         / * Caution: Size 90 causes intentional partition overlap error * /
-        ret = iso_quick_gpt_entry(t, 30, 90, hfs_uuid, zero_uuid,
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                  (uint64_t) (30 * 4), (uint64_t) (90 * 4),
+                                  hfs_uuid, zero_uuid,
                                   gpt_flags, gpt_name);
         */ 
-        ret = iso_quick_gpt_entry(t, 30, 40, hfs_uuid, zero_uuid,
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                  (uint64_t) (30 * 4),  (uint64_t) (40 * 4), 
+                                  hfs_uuid, zero_uuid,
                                   gpt_flags, gpt_name);
         if (ret < 0)
             return ret;
         strcpy((char *) gpt_name, "GPT Test 2");
         iso_ascii_utf_16le(gpt_name);
-        ret = iso_quick_gpt_entry(t, 110,  60, basic_data_uuid, zero_uuid,
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                  (uint64_t) (110 * 4),  (uint64_t) (60 * 4), 
+                                  basic_data_uuid, zero_uuid,
                                   gpt_flags, gpt_name);
         if (ret < 0)
             return ret;
@@ -2406,7 +2430,9 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         memset(gpt_name, 0, 72);
         strcpy((char *) gpt_name, "EFI boot partition");
         iso_ascii_utf_16le(gpt_name);
-        ret = iso_quick_gpt_entry(t, t->curblock, t->efi_boot_part_size,
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                 ((uint64_t) t->curblock) * 4,
+                                 ((uint64_t) t->efi_boot_part_size) * 4,
                                  efi_sys_uuid, zero_uuid, gpt_flags, gpt_name);
         if (ret < 0)
             return ret;
@@ -2418,8 +2444,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         if (t->opts->prep_partition != NULL || t->opts->fat || will_have_gpt ||
             t->mbr_req_count > 0)
             return ISO_BOOT_MBR_OVERLAP;
-        ret = iso_quick_mbr_entry(t, (uint64_t) 0, (uint64_t) 0,
-                                  0x96, 0x80, 0);
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
+                                  (uint64_t) 0, (uint64_t) 0, 0x96, 0x80, 0);
         if (ret < 0)
             return ret;
         return ISO_SUCCESS;
@@ -2433,7 +2459,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     }
     if (t->prep_part_size > 0 || t->opts->fat || will_have_gpt) {
         /* Protecting MBR entry for ISO start or whole ISO */
-        ret = iso_quick_mbr_entry(t, will_have_gpt ? (uint64_t) 1 :
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
+                                  will_have_gpt ? (uint64_t) 1 :
                                   ((uint64_t) t->opts->partition_offset) * 4,
                                   (uint64_t) 0,
                                   will_have_gpt ? 0xee : 0xcd, 0, 0);
@@ -2441,7 +2468,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
             return ret;
     }
     if (t->prep_part_size > 0) {
-        ret = iso_quick_mbr_entry(t, ((uint64_t) t->curblock) * 4,
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
+                                  ((uint64_t) t->curblock) * 4,
                                   ((uint64_t) t->prep_part_size) * 4,
                                   0x41, 0, 0);
         if (ret < 0)
@@ -2450,8 +2478,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     }
     if (t->prep_part_size > 0 || t->opts->fat) {
         /* FAT partition or protecting MBR entry for ISO end */
-        ret = iso_quick_mbr_entry(t, ((uint64_t) t->curblock) * 4,
-                                  (uint64_t) 0,
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
+                                  ((uint64_t) t->curblock) * 4, (uint64_t) 0,
                                   t->opts->fat ? 0x0c : 0xcd, 0, 0);
         if (ret < 0)
             return ret;

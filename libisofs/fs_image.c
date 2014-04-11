@@ -26,6 +26,7 @@
 #include "eltorito.h"
 #include "node.h"
 #include "aaip_0_2.h"
+#include "system_area.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -3491,6 +3492,7 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
         boot_file = boot->image;
         boot->seems_boot_info_table = 0;
         boot->seems_grub2_boot_info = 0;
+        boot->seems_isohybrid_capable = 0;
         img_size = iso_file_get_size(boot_file);
         if (img_size > Libisofs_boot_image_max_sizE || img_size < 64)
     continue;
@@ -3565,6 +3567,10 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
             if (blk == img_lba * 4 + Libisofs_grub2_elto_patch_offsT)
                 boot->seems_grub2_boot_info = 1;
         }
+        if (img_size >= 68 && boot->seems_boot_info_table)
+            if (boot_image_buf[64] == 0xfb && boot_image_buf[65] == 0xc0 &&
+                boot_image_buf[66] == 0x78 && boot_image_buf[67] == 0x70)
+                boot->seems_isohybrid_capable = 1;
 
         free(boot_image_buf);
         boot_image_buf = NULL;
@@ -3594,6 +3600,1465 @@ void issue_collision_warning_summary(size_t failures)
     }
 }
 
+/* Mark all non-matching combinations of head_per_cyl and sectors_per_head
+   in the matches bitmap. This is a brute force approach to find the common
+   intersections of up to 8 hyperbolas additionally intersected with the grid
+   of integer coordinates {1..255}x{1..63}.
+   Given the solution space size of only 14 bits, it seems inappropriate to
+   employ any algebra.
+*/
+static
+void iso_scan_hc_sh(uint32_t lba, int c, int h, int s, uint8_t *matches)
+{
+    int i, j;
+    uint32_t res;
+
+/*
+    fprintf(stderr, "iso_scan_hc_sh :%d = %4d/%3d/%2d :\n", lba, c, h, s);
+*/
+    if (lba == ((uint32_t) s) - 1 && c == 0 && h == 0) /* trivial solutions */
+        return;
+    if (c == 1023 && h >= 254 && s == 63) /* Indicators for invalid CHS */
+        return;
+
+    /* matches(i=0,j=1) == 0 indicates presence of non-trivial equations */
+    matches[0] &= ~1;
+
+    for (i = 1; i <= 255; i++) {
+        for (j = 1; j <= 63; j++) {
+            res = ((c * i) + h) * j + (s - 1);
+            if (res != lba) {
+                matches[(i / 8) * 32 + (j - 1)] &= ~(1 << (i % 8));
+/*
+            } else {    
+                 if (matches[(i / 8) * 32 + (j - 1)] & (1 << (i % 8)))
+                     fprintf(stderr,
+                    "iso_scan_hc_sh :%d = %4d/%3d/%2d :  H/C= %3d  S/H= %2d\n",
+                            lba, c, h, s, i, j);
+*/
+            }
+        }
+    }
+}
+
+/* Pick a good remaining solution from the matches bitmap.
+*/
+static
+void iso_get_hc_sh(uint8_t *matches, uint32_t iso_image_size,
+                   int *hc, int *sh, int flag)
+{
+    int i, j, k;
+    static int pref[][2] = {{64, 32}, {255, 63}}, prefs = 2;
+    
+    *hc = *sh = 0;
+
+    if (matches[0] & 1)
+        return; /* Only trivial equations seen */
+
+    /* Look for preferred layouts */
+    for (k = 0; k < prefs; k++) {
+        i = pref[k][0];
+        j = pref[k][1];
+        if ((uint32_t) (1024 / 4 * i * j) <= iso_image_size)
+    continue;
+        if (matches[(i / 8) * 32 + (j - 1)] & (1 << (i % 8))) {
+            *hc = i;
+            *sh = j;
+            return;
+        }
+    }
+
+    /* Look for largest possible cylinder */
+    for (i = 1; i <= 255; i++) {
+        for (j = 1; j <= 63; j++) {
+            if ((uint32_t) (1024 / 4 * i * j) <= iso_image_size)
+        continue;
+            if (matches[(i / 8) * 32 + (j - 1)] & (1 << (i % 8))) {
+                if( i * j < *hc * *sh)
+        continue;
+                *hc = i;
+                *sh = j;
+            }
+        }
+    }
+}
+
+static
+int iso_analyze_mbr_ptable(IsoImage *image, int flag)
+{
+    int i, j, ret, cyl_align_mode, part_after_image = 0;
+    uint32_t start_h, start_s, start_c, end_h, end_s, end_c, sph = 0, hpc = 0;
+    uint32_t start_lba, num_blocks, end_chs_lba, image_size, lba, cyl_size;
+    uint8_t *data, pstatus, ptype, *hc_sh = NULL;
+    struct iso_imported_sys_area *sai;
+
+    /* Bitmap for finding head_per_cyl and sectors_per_head. */
+    LIBISO_ALLOC_MEM(hc_sh, uint8_t, 32 * 63);
+    memset(hc_sh, 0xff,  32 * 63);
+
+    sai = image->imported_sa_info;
+    image_size = sai->image_size;
+    for (i = 0; i < 4; i++) {
+        data = (uint8_t *) (image->system_area_data + 446 + 16 * i);
+        for (j = 0; j < 16; j++)
+            if (data[j])
+        break;
+        if (j == 16)
+    continue;
+        pstatus = data[0];
+        ptype = data[4];
+        start_c = ((data[2] & 0xc0) << 2) | data[3];
+        start_h = data[1];
+        start_s = data[2] & 63;
+        end_c = ((data[6] & 0xc0) << 2) | data[7];
+        end_h = data[5];
+        end_s = data[6] & 63;
+        start_lba = iso_read_lsb(data + 8, 4);
+        num_blocks = iso_read_lsb(data + 12, 4);
+        if (num_blocks <= 0)
+    continue;
+        if (sph > 0) {
+            if (end_s != sph)
+                sph = 0xffffffff;
+        } else if (sph == 0) {
+            sph = end_s;
+        }
+        if (hpc > 0) {
+            if (end_h + 1 != hpc)
+                hpc = 0xffffffff;
+        } else if (hpc == 0) {
+            hpc = end_h + 1;
+        }
+        /* Check whether start_lba + num_blocks - 1 matches chs,hpc,spc */
+        end_chs_lba = ((end_c * hpc) + end_h) * sph + end_s;
+        if (hpc > 0 && hpc < 0xffffffff && sph > 0 && sph < 0xffffffff)
+            if (end_chs_lba != start_lba + num_blocks)
+                hpc = sph = 0xffffffff;
+        /* In case that end CHS does not give cylinder layout */
+        iso_scan_hc_sh(start_lba, start_c, start_h, start_s, hc_sh);
+        iso_scan_hc_sh(start_lba + num_blocks - 1, end_c, end_h, end_s, hc_sh);
+
+        /* Register partition as iso_mbr_partition_request */
+        if (sai->mbr_req == NULL) {
+            sai->mbr_req = calloc(ISO_MBR_ENTRIES_MAX,
+                                  sizeof(struct iso_mbr_partition_request));
+            if (sai->mbr_req == NULL)
+                {ret = ISO_OUT_OF_MEM; goto ex;}
+        }
+        ret = iso_quick_mbr_entry(sai->mbr_req, &(sai->mbr_req_count),
+                                  (uint64_t) start_lba, (uint64_t) num_blocks,
+                                  ptype, pstatus, i + 1);
+        if (ret < 0)
+            goto ex;
+        if ((start_lba + num_blocks + 3) / 4 > image_size)
+            image_size = (start_lba + num_blocks + 3) / 4;
+    }
+
+    if (hpc > 0 && hpc < 0xffffffff && sph > 0 && sph < 0xffffffff) {
+        sai->partition_secs_per_head = sph;
+        sai->partition_heads_per_cyl = hpc;
+    } else {
+        /* Look for the best C/H/S parameters caught in scan */
+        iso_get_hc_sh(hc_sh, image_size, &(sai->partition_heads_per_cyl),
+                             &(sai->partition_secs_per_head), 0);
+    }
+
+    cyl_align_mode = 2; /* off */
+    if (sai->partition_secs_per_head >0 && sai->partition_heads_per_cyl > 0 &&
+        sai->mbr_req_count > 0) {
+        /* Check for cylinder alignment */
+        for (i = 0; i < sai->mbr_req_count; i++) {
+             cyl_size = sai->partition_secs_per_head *
+                        sai->partition_heads_per_cyl;
+             lba = sai->mbr_req[i]->start_block + sai->mbr_req[i]->block_count;
+             if (sai->mbr_req[i]->start_block >= sai->image_size)
+                 part_after_image = 1;
+             end_c = lba / cyl_size;
+             if (end_c * cyl_size != lba)
+        break;
+        }
+        if (i == sai->mbr_req_count && part_after_image)
+            cyl_align_mode = 3; /* all */
+        else if (i >= 1)
+            cyl_align_mode = 1; /* on */
+    }
+    sai->system_area_options &= ~(3 << 8);
+    sai->system_area_options |= (cyl_align_mode << 8);
+    ret = 1;
+ex:
+    LIBISO_FREE_MEM(hc_sh);
+    return ret;
+    
+}
+
+/* @return 0= no hybrid detected
+           1= ISOLINUX isohybrid (options & 2)
+           2= GRUB2 MBR patching (options & (1 << 14))
+*/
+static
+int iso_analyze_isohybrid(IsoImage *image, int flag)
+{
+    uint8_t *sad;
+    uint32_t eltorito_lba = 0;
+    uint64_t mbr_lba;
+    int i, section_count, ret;
+    ElToritoBootImage *boot;
+    struct iso_file_section *sections;
+
+    sad = (uint8_t *) image->system_area_data;
+
+    /* Learn LBA of boot image */;
+    if (image->bootcat == NULL)
+        return 0;
+    if (image->bootcat->num_bootimages < 1)
+        return 0;
+    boot = image->bootcat->bootimages[0];
+    if (boot == NULL)
+        return 0;
+    ret = iso_file_get_old_image_sections(boot->image, &section_count,
+                                          &sections, 0);
+    if (ret < 0)
+        return ret;
+    if (section_count > 0)
+        eltorito_lba = sections[0].block;
+    free(sections);
+    
+    /* Check MBR whether it is ISOLINUX and learn LBA to which it points */
+    if (!boot->seems_isohybrid_capable)
+        goto try_grub2_mbr;
+    for (i= 0; i < 426; i++)
+        if(strncmp((char *) (sad + i), "isolinux", 8) == 0)
+    break;
+    if (i < 426) { /* search text was found */
+        mbr_lba = iso_read_lsb(sad + 432, 4);
+        mbr_lba /= 4;
+        if (mbr_lba == eltorito_lba)
+           return 1;
+        goto try_grub2_mbr;
+    }
+
+try_grub2_mbr:;
+    /* Check for GRUB2 MBR patching */
+    mbr_lba = iso_read_lsb64(sad + 0x1b0);
+    if (mbr_lba / 4 - 1 == eltorito_lba)
+        return 2; 
+
+    return 0;
+}
+
+static
+int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int sub_type = 2, ret, is_isohybrid = 0, is_grub2_mbr = 0;
+    int is_protective_label = 0;
+    char *sad;
+    off_t p_offset;
+    uint8_t *buf = NULL;
+    struct iso_imported_sys_area *sai;
+    struct iso_mbr_partition_request *part;
+    struct ecma119_pri_vol_desc *pvm;
+
+    sad = image->system_area_data;
+    sai = image->imported_sa_info;
+
+    /* Is it an MBR ? */
+    if (((unsigned char *) sad)[510] != 0x55 ||
+        ((unsigned char *) sad)[511] != 0xaa)
+        {ret = 0; goto ex;}
+
+    ret = iso_analyze_mbr_ptable(image, 0);
+    if (ret <= 0)
+        goto ex;
+
+    ret = iso_analyze_isohybrid(image, 0);
+    if (ret < 0)
+        goto ex;
+    if (ret == 1) {
+        sub_type = 0;
+        is_isohybrid = 1;
+    } else if(ret == 2) {
+        sub_type = 0;
+        is_grub2_mbr = 1;
+    }
+
+    if (sai->mbr_req_count == 1 && !is_isohybrid) {
+        part = sai->mbr_req[0];
+        if (part->start_block == 1 &&
+            part->block_count + 1 == ((uint64_t) sai->image_size) * 4) {
+            /* libisofs protective msdos label for GRUB2 */
+            is_protective_label = 1;
+            sub_type = 0;
+        } else if (part->start_block == 0 &&
+                 part->block_count <= ((uint64_t) sai->image_size) * 4 &&
+                 part->block_count + 600 >= ((uint64_t) sai->image_size) * 4 &&
+                 part->type_byte == 0x96) {
+            /* CHRP (possibly without padding) */
+            sub_type = 1;
+        } else if (sai->mbr_req[0]->start_block > 0 &&
+                   (sai->mbr_req[0]->start_block % 4) == 0 &&
+                   (sai->mbr_req[0]->start_block +
+                        sai->mbr_req[0]->block_count) / 4 <= sai->image_size &&
+                   part->type_byte == 0x41) {
+            /* mkisofs PReP partition */
+            sai->prep_part_start = sai->mbr_req[0]->start_block / 4;
+            sai->prep_part_size = (sai->mbr_req[0]->block_count + 3) / 4;
+            sub_type = 0;
+        }
+    } else if (sai->mbr_req_count == 3 && !is_isohybrid) {
+        /* Check for libisofs PReP partitions :
+               0xee or 0xcd from 0 to a-1
+               0x41 from a to b
+               0x0c or 0xcd from b+1 to end
+        */
+        if ((sai->mbr_req[0]->start_block == 0 &&
+             (sai->mbr_req[0]->type_byte == 0xee ||
+              sai->mbr_req[0]->type_byte == 0xcd)) &&
+            sai->mbr_req[0]->block_count == sai->mbr_req[1]->start_block &&
+            sai->mbr_req[1]->type_byte == 0x41 &&
+            (sai->mbr_req[1]->start_block % 4) == 0 &&
+            sai->mbr_req[1]->start_block + sai->mbr_req[1]->block_count ==
+                                                sai->mbr_req[2]->start_block &&
+            (sai->mbr_req[2]->type_byte == 0x0c ||
+             sai->mbr_req[2]->type_byte == 0xcd) &&
+            (sai->mbr_req[2]->start_block + sai->mbr_req[2]->block_count) / 4
+                                                          == sai->image_size) {
+            sai->prep_part_start = sai->mbr_req[1]->start_block / 4;
+            sai->prep_part_size = (sai->mbr_req[1]->block_count + 3) / 4;
+            sub_type = 0;
+        }
+    }
+
+    /* Check for partition offset with extra set of meta data */
+    if (sai->mbr_req_count > 0) {
+        part = sai->mbr_req[0];
+        if ((part->status_byte == 0x80 || part->status_byte == 0) &&
+            part->start_block >= 64 && part->block_count >= 72 &&
+            part->start_block <= 2048 &&
+            part->start_block % 4 == 0 && part->block_count % 4 == 0 &&
+            (part->start_block + part->block_count) / 4 == sai->image_size) {
+
+            /* Check for PVD at partition start with same end */
+            LIBISO_ALLOC_MEM(buf, uint8_t, 2048);
+            p_offset = part->start_block / 4;
+            ret = src->read_block(src, p_offset + 16, buf);
+            if (ret > 0) {
+                pvm = (struct ecma119_pri_vol_desc *) buf;
+                if (strncmp((char*) pvm->std_identifier, "CD001", 5) == 0 &&
+                    pvm->vol_desc_type[0] == 1 &&
+                    pvm->vol_desc_version[0] == 1 &&
+                    pvm->file_structure_version[0] == 1 &&
+                    iso_read_lsb(pvm->vol_space_size, 4) + p_offset
+                                                            == sai->image_size)
+                    sai->partition_offset = p_offset;
+            }
+        }
+    }
+
+    /* Set sa type 0, sub type as chosen */
+    sai->system_area_options = (sai->system_area_options & 0xffff8300) |
+                               is_protective_label |
+                               (is_isohybrid << 1) |
+                               (sub_type << 10) |
+                               (is_grub2_mbr << 14);
+    ret = 1;
+ex:;
+    LIBISO_FREE_MEM(buf);
+    return ret;
+}
+
+static
+int iso_seems_usable_gpt_head(uint8_t *head, int flag)
+{
+    uint32_t head_size, entry_size;
+
+    if (strncmp((char *) head, "EFI PART", 8) != 0) /* signature */
+        return 0;
+    if (head[8] || head[9] || head[10] != 1 || head[11]) /* revision */
+        return 0;
+    head_size = iso_read_lsb(head + 12, 4);
+    if (head_size < 92)
+        return 0;
+    entry_size = iso_read_lsb(head + 84, 4);
+    if (entry_size != 128)
+        return 0;
+    return 1;
+}
+
+static
+int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
+{
+    struct iso_imported_sys_area *sai;
+    uint64_t part_start;
+    uint32_t iso_block, found_crc, crc, entry_count, array_crc;
+    uint8_t *head, *part_array, *b_part, *m_part;
+    int ret, i, num_iso_blocks, l, j, entries_diff;
+    unsigned char *buf = NULL;
+    char *comments = NULL;
+
+    sai = image->imported_sa_info;
+    LIBISO_ALLOC_MEM(buf, unsigned char, 34 * 1024);
+    LIBISO_ALLOC_MEM(comments, char, 4096);
+
+    /* Read ISO block with backup head */
+    if (sai->gpt_backup_lba >= ((uint64_t) sai->image_size) * 4) {
+        sprintf(comments + strlen(comments), "Implausible header LBA %.f, ",
+                (double) sai->gpt_backup_lba);
+        ret = 0; goto ex;
+    }
+    iso_block = sai->gpt_backup_lba / 4;
+    ret = src->read_block(src, iso_block, buf);
+    if (ret < 0) {
+        sprintf(comments + strlen(comments),
+                "Cannot read header block at 2k LBA %.f, ",
+                (double) iso_block);
+        goto ex;
+    }
+    head = buf + (sai->gpt_backup_lba % 4) * 512;
+    ret = iso_seems_usable_gpt_head(head, 0);
+    if (ret == 0)
+        strcat(comments,
+               "Not a GPT 1.0 header of 92 bytes for 128 bytes per entry, ");
+    if (ret <= 0)
+        goto ex;
+
+    /* Check head CRC */
+    found_crc = iso_read_lsb(head + 16, 4);
+    memset(head + 16, 0, 4);
+    crc = iso_crc32_gpt((unsigned char *) head, 92, 0);
+    if (found_crc != crc) {
+        sprintf(comments + strlen(comments),
+                "Head CRC 0x%8x wrong. Should be 0x%8x",
+                found_crc, crc);
+        crc = iso_crc32_gpt((unsigned char *) head, 512, 0);
+        if (found_crc == crc) {
+            strcat(comments, ". Matches all 512 block bytes, ");
+        } else {
+            strcat(comments, ", ");
+            ret = 0; goto ex;
+        }
+    }
+    for (i = 0; i < 16; i ++)
+        if (head[i + 56] != sai->gpt_disk_guid[i])
+    break;
+    if (i < 16) {
+        sprintf(comments + strlen(comments), "Disk GUID differs (");
+        iso_util_bin_to_hex(comments + strlen(comments), head + 56, 16, 0);
+        sprintf(comments + strlen(comments), "), ");
+    }
+
+    /* Header content will possibly be overwritten now */
+    array_crc = iso_read_lsb(head + 88, 4);
+    part_start = iso_read_lsb64(head + 72);
+    entry_count = iso_read_lsb(head + 80, 4);
+    head = NULL;
+
+    /* Read backup array */
+    if (entry_count != sai->gpt_max_entries) {
+        sprintf(comments + strlen(comments),
+                "Number of array entries %u differs from main GPT %u, ",
+                entry_count, sai->gpt_max_entries);
+        ret = 0; goto ex;
+    }
+    if (part_start >= ((uint64_t) sai->image_size) * 4) {
+        sprintf(comments + strlen(comments), "Implausible array LBA %.f, ",
+                (double) part_start);
+        ret = 0; goto ex;
+    }
+    iso_block = part_start / 4;
+    num_iso_blocks = (part_start + (entry_count + 3) / 4) / 4 - iso_block + 1;
+    for (i = 0; i < num_iso_blocks; i++) {
+        ret = src->read_block(src, iso_block + (uint32_t) i, buf + i * 2048);
+        if (ret < 0) {
+            sprintf(comments + strlen(comments),
+                    "Cannot read array block at 2k LBA %.f, ",
+                    (double) iso_block);
+            goto ex;
+        }
+    }
+    part_array = buf + (part_start % 4) * 512;
+
+    crc = iso_crc32_gpt((unsigned char *) part_array, 128 * entry_count, 0);
+    if (crc != array_crc) {
+        sprintf(comments + strlen(comments),
+                "Array CRC 0x%8x wrong. Should be 0x%8x, ", array_crc, crc);
+        ret = 0; goto ex;
+    }
+
+    /* Compare entries */
+    entries_diff = 0;
+    for (i = 0; i < (int) entry_count; i++) {
+        b_part = part_array + 128 * i;
+        m_part = ((uint8_t *) image->system_area_data) +
+                 sai->gpt_part_start * 512 + 128 * i;
+        for (j = 0; j < 128; j++)
+            if (b_part[j] != m_part[j])
+        break;
+        if (j < 128) {
+            if (!entries_diff) {
+                strcat(comments, "Entries differ for partitions");
+                entries_diff = 1;
+            }
+            sprintf(comments + strlen(comments), " %d", i + 1);
+        }
+    }
+    if (entries_diff) {
+        strcat(comments, ", ");
+        ret = 0; goto ex;
+    }
+
+    ret = 1;
+ex:;
+    if (comments != NULL) {
+        l = strlen(comments);
+        if (l > 2)
+            if (comments[l - 2] == ',' && comments[l - 1] == ' ')
+                comments[l - 2] = 0;
+        sai->gpt_backup_comments = strdup(comments);
+        if (sai->gpt_backup_comments == NULL)
+            ret = ISO_OUT_OF_MEM;
+    }
+    LIBISO_FREE_MEM(comments);
+    LIBISO_FREE_MEM(buf);
+    return ret;
+}
+
+static
+int iso_analyze_gpt_head(IsoImage *image, IsoDataSource *src, int flag)
+{
+    struct iso_imported_sys_area *sai;
+    uint8_t *head;
+    uint32_t crc;
+    uint64_t part_start;
+    int ret;
+    unsigned char *crc_buf = NULL;
+
+    sai = image->imported_sa_info;
+    head = ((uint8_t *) image->system_area_data) + 512;
+    LIBISO_ALLOC_MEM(crc_buf, unsigned char, 512);
+
+    /* Is this a GPT header with digestible parameters ? */
+    ret = iso_seems_usable_gpt_head(head, 0);
+    if (ret <= 0)
+        goto ex;
+    memcpy(crc_buf, head, 512);
+    memset(crc_buf + 16, 0, 4); /* CRC is computed when head_crc is 0 */
+    sai->gpt_head_crc_found = iso_read_lsb(head + 16, 4);
+    sai->gpt_head_crc_should = iso_crc32_gpt((unsigned char *) crc_buf, 92, 0);
+    if (sai->gpt_head_crc_found != sai->gpt_head_crc_should) {
+        /* There was a bug during libisofs-1.2.4 to libisofs-1.2.8
+           (fixed in rev 1071). So accept the buggy CRC if it matches the
+           whole GPT header block. */
+        crc = iso_crc32_gpt((unsigned char *) crc_buf, 512, 0);
+        if (sai->gpt_head_crc_found != crc)
+            {ret = 0; goto ex;}
+    }
+    part_start = iso_read_lsb64(head + 72);
+    sai->gpt_max_entries = iso_read_lsb(head + 80, 4);
+    if (part_start + (sai->gpt_max_entries + 3) / 4 > 64)
+        {ret = 0; goto ex;}
+
+    /* Fetch desired information */
+    memcpy(sai->gpt_disk_guid, head + 56, 16);
+    sai->gpt_part_start = part_start;
+    sai->gpt_backup_lba = iso_read_lsb64(head + 32);
+    sai->gpt_first_lba = iso_read_lsb64(head + 40);
+    sai->gpt_last_lba = iso_read_lsb64(head + 48);
+    sai->gpt_array_crc_found = iso_read_lsb(head + 88, 4);
+    sai->gpt_array_crc_should =
+                      iso_crc32_gpt((unsigned char *) image->system_area_data +
+                                    sai->gpt_part_start * 512,
+                                    sai->gpt_max_entries * 128, 0);
+
+    ret = iso_analyze_gpt_backup(image, src, 0);
+    if (ret < 0)
+        goto ex;
+
+    ret = 1;
+ex:
+    LIBISO_FREE_MEM(crc_buf);
+    return ret;
+}
+
+static
+int iso_analyze_gpt(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret, i, j;
+    uint64_t start_block, block_count, flags, end_block, j_end, j_start;
+    uint8_t *part;
+    struct iso_imported_sys_area *sai;
+
+    sai = image->imported_sa_info;
+
+    ret = iso_analyze_gpt_head(image, src, 0);
+    if (ret <= 0)
+        return ret;
+
+    for (i = 0; i < (int) sai->gpt_max_entries; i++) {
+        part = ((uint8_t *) image->system_area_data) +
+               sai->gpt_part_start * 512 + 128 * i;
+        for (j = 0; j < 128; j++)
+            if (part[j])
+        break;
+        if (j >= 128) /* all zero, invalid entry */
+    continue;
+        start_block = iso_read_lsb64(part + 32);
+        block_count = iso_read_lsb64(part + 40);
+        flags = iso_read_lsb64(part + 48);
+        if (block_count < start_block)
+    continue;
+        block_count = block_count + 1 - start_block;
+        if (sai->gpt_req == NULL) {
+            sai->gpt_req = calloc(ISO_GPT_ENTRIES_MAX,
+                                  sizeof(struct iso_gpt_partition_request));
+            if (sai->gpt_req == NULL)
+                return ISO_OUT_OF_MEM;
+        }
+        ret = iso_quick_gpt_entry(sai->gpt_req, &(sai->gpt_req_count),
+                                  start_block, block_count,
+                                  part, part + 16, flags, part + 56);
+        if (ret < 0)
+            return ret;
+        sai->gpt_req[sai->gpt_req_count - 1]->idx = i + 1;
+    }
+
+    /* sai->gpt_req_flags :
+          bit0= GPT partitions may overlap
+          >>> bit1= with bit0: neatly nested partitions
+                    without  : neatly divided disk 
+    */
+    for (i = 0; i < (int) sai->gpt_req_count && !(sai->gpt_req_flags & 1);
+         i++) {
+        if (sai->gpt_req[i]->block_count == 0)
+    continue;
+        start_block = sai->gpt_req[i]->start_block;
+        end_block = start_block + sai->gpt_req[i]->block_count;
+        for (j = i + 1; j < (int) sai->gpt_req_count; j++) {
+            if (sai->gpt_req[j]->block_count == 0)
+        continue;
+            j_start = sai->gpt_req[j]->start_block;
+            j_end = j_start + sai->gpt_req[j]->block_count;
+            if ((start_block <= j_start && j_start < end_block) ||
+                (start_block <= j_end   && j_end   < end_block) ||
+                (j_start <= start_block && start_block < j_end)) {
+                sai->gpt_req_flags |= 1;
+        break;
+            }
+        }
+    }
+    return 1;
+}
+
+
+static
+int iso_analyze_apm_head(IsoImage *image, IsoDataSource *src, int flag)
+{
+    struct iso_imported_sys_area *sai;
+    char *sad;
+    uint32_t block_size;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+
+    if (sad[0] != 'E' || sad[1] != 'R')
+        return 0;
+    block_size = iso_read_msb(((uint8_t *) sad) + 2, 2);
+    if (block_size != 2048 && block_size != 512)
+        return 0;
+    sai->apm_block_size = block_size;
+    sai->apm_req_flags |= 4 | 2; /* start_block and block_count are in
+                                    block_size units, do not fill gaps */
+    return 1;
+}
+
+static
+int iso_analyze_apm(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret, i;
+    uint32_t map_entries, start_block, block_count, flags;
+    char *sad, *part, name[33], type_string[33];
+    struct iso_imported_sys_area *sai;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+
+    ret = iso_analyze_apm_head(image, src, 0);
+    if (ret <= 0)
+        return ret;
+
+    part = sad + sai->apm_block_size;
+    map_entries = iso_read_msb(((uint8_t *) part) + 4, 4);
+    for (i = 0; i < (int) map_entries; i++) {
+        part = sad + (i + 1) * sai->apm_block_size;
+        if (part[0] != 'P' || part[1] != 'M')
+    break;
+        flags = iso_read_msb(((uint8_t *) part) + 88, 4);
+        if (!(flags & 3))
+    continue;
+        memcpy(type_string, part + 48, 32);
+        type_string[32] = 0;
+        if(strcmp(type_string, "Apple_partition_map") == 0)
+    continue;
+        start_block = iso_read_msb(((uint8_t *) part) + 8, 4);
+        block_count = iso_read_msb(((uint8_t *) part + 12), 4);
+        memcpy(name, part + 16, 32);
+        name[32] = 0;
+        if (sai->apm_req == NULL) {
+            sai->apm_req = calloc(ISO_APM_ENTRIES_MAX,
+                                  sizeof(struct iso_apm_partition_request));
+            if (sai->apm_req == NULL)
+                return ISO_OUT_OF_MEM;
+        }
+        ret = iso_quick_apm_entry(sai->apm_req, &(sai->apm_req_count),
+                                  start_block, block_count, name, type_string);
+        if (ret <= 0)
+            return ret;
+        if (strncmp(name, "Gap", 3) == 0 &&
+            strcmp(type_string, "ISO9660_data") == 0) {
+            if ('0' <= name[3] && name[3] <= '9' && (name[4] == 0 ||
+                 ('0' <= name[4] && name[4] <= '9' && name[5] == 0))) {
+                sai->apm_gap_count++;
+                sai->apm_req_flags &= ~2;
+            }
+        }
+    }
+    return 1;
+}
+
+static
+int iso_analyze_mips(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret = 0, spt, bps, i, j, idx;
+    uint32_t magic, chk, head_chk;
+    char *sad;
+    uint8_t *usad, *upart;
+    struct iso_imported_sys_area *sai;
+    IsoNode *node;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+    usad = (uint8_t *) sad;
+
+    magic = iso_read_msb(usad, 4);
+    if (magic != 0x0be5a941)
+        return 0;
+    spt = iso_read_msb(usad + 38, 2);
+    bps = iso_read_msb(usad + 40, 2);
+    if (spt != 32 || bps != 512)
+        return 0;
+    chk = 0;
+    for (i = 0; i < 504; i += 4)
+        chk -= iso_read_msb(usad + i, 4);
+    head_chk = iso_read_msb(usad + 504, 4);
+    if (chk != head_chk)
+        return 0;
+
+    /* Verify that partitions 1 to 8 are empty */
+    for (j = 312; j < 408; j++)
+        if (sad[j])
+            return 0;
+
+    /* >>> verify that partitions 9 and 10 match the image size */;
+
+    for (i = 0; i < 15; i++) {
+        upart = usad + 72 + 16 * i;
+        for (j = 0; j < 16; j++)
+            if (upart[j])
+        break;
+        if (j == 16)
+    continue;
+        if (sai->mips_vd_entries == NULL) {
+            sai->mips_boot_file_paths = calloc(15, sizeof(char *));
+            sai->mips_vd_entries = calloc(15,
+                                       sizeof(struct iso_mips_voldir_entry *));
+            if (sai->mips_vd_entries == NULL ||
+                sai->mips_boot_file_paths == NULL)
+                return ISO_OUT_OF_MEM;
+            sai->num_mips_boot_files = 0;
+            for (j = 0; j < 15; j++) {
+                sai->mips_boot_file_paths[j] = NULL;
+                sai->mips_vd_entries[j] = NULL;
+            }
+        }
+
+        /* Assess boot file entry */
+        if (sai->num_mips_boot_files >= 15)
+            return ISO_BOOT_TOO_MANY_MIPS;
+        idx = sai->num_mips_boot_files;
+        sai->mips_vd_entries[idx] =
+                               calloc(1, sizeof(struct iso_mips_voldir_entry));
+        if (sai->mips_vd_entries[idx] == NULL)
+            return ISO_OUT_OF_MEM;
+        memcpy(sai->mips_vd_entries[idx]->name, upart, 8);
+        sai->mips_vd_entries[idx]->name[8] = 0;
+        sai->mips_vd_entries[idx]->boot_block = iso_read_msb(upart + 8, 4);
+        sai->mips_vd_entries[idx]->boot_bytes = iso_read_msb(upart + 12, 4);
+        ret = iso_tree_get_node_of_block(image, NULL,
+                                     sai->mips_vd_entries[idx]->boot_block / 4,
+                                     &node, 0);
+        if (ret > 0)
+            sai->mips_boot_file_paths[idx] = iso_tree_get_node_path(node);
+        sai->num_mips_boot_files++;
+    }
+    if (sai->num_mips_boot_files > 0)
+        sai->system_area_options = (1 << 2);/* MIPS Big Endian Volume Header */
+
+    return ret;
+}
+
+static
+int iso_analyze_mipsel(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret = 0, i, section_count;
+    char *sad;
+    uint8_t *usad;
+    uint32_t magic;
+    struct iso_imported_sys_area *sai;
+    IsoNode *node;
+    IsoFile *file;
+    struct iso_file_section *sections = NULL;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+    usad = (uint8_t *) sad;
+
+    for (i = 0; i < 8; i++)
+        if (sad[i])
+            return 0;
+    magic = iso_read_lsb(usad + 8, 4);
+    if (magic != 0x0002757a)
+        return 0;
+
+    sai->mipsel_p_vaddr = iso_read_lsb(usad + 16, 4);
+    sai->mipsel_e_entry = iso_read_lsb(usad + 20, 4);
+    sai->mipsel_p_filesz = iso_read_lsb(usad + 24, 4) * 512;
+    sai->mipsel_seg_start = iso_read_lsb(usad + 28, 4);
+    ret = iso_tree_get_node_of_block(image, NULL, sai->mipsel_seg_start / 4,
+                                     &node, 0);
+    if (ret > 0) {
+        sai->mipsel_boot_file_path = iso_tree_get_node_path(node);
+        file = (IsoFile *) node;
+        ret = iso_file_get_old_image_sections(file, &section_count,
+                                              &sections, 0);
+        if (ret > 0 && section_count > 0) {
+            if (sections[0].block < (1 << 30) &&
+                sections[0].block * 4 < sai->mipsel_seg_start)
+                sai->mipsel_p_offset = sai->mipsel_seg_start -
+                                       sections[0].block * 4;
+            free(sections);
+        }
+    }
+    /* DEC Boot Block for MIPS Little Endian */
+    sai->system_area_options = (2 << 2);
+
+    return 1;
+}
+
+static
+int iso_analyze_sun(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret = 0, i, idx;
+    char *sad;
+    uint8_t *usad, checksum[2];
+    uint16_t perms;
+    uint64_t last_core_block;
+    struct iso_imported_sys_area *sai;
+    IsoNode *node;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+    usad = (uint8_t *) sad;
+
+    if (iso_read_msb(usad + 128, 4) != 1 ||
+        iso_read_msb(usad + 140, 2) != 8 ||
+        iso_read_msb(usad + 188, 4) != 0x600ddeee ||
+        iso_read_msb(usad + 430, 2) != 1 ||
+        iso_read_msb(usad + 508, 2) != 0xdabe)
+        return 0;
+    if (iso_read_msb(usad + 142, 2) != 4 ||
+        iso_read_msb(usad + 144, 2) != 0x10 ||
+        iso_read_msb(usad + 444, 4) != 0 ||
+        sai->image_size > 0x3fffffff ||
+        iso_read_msb(usad + 448, 4) != sai->image_size * 4)
+        return 0;
+    checksum[0] = checksum[1] = 0;
+    for (i = 0; i < 510; i += 2) {
+        checksum[0] ^= usad[i];
+        checksum[1] ^= usad[i + 1];
+    }
+    if (checksum[0] != usad[510] || checksum[1] != usad[511])
+        return 0;
+
+    sai->sparc_disc_label = calloc(1, 129);
+    if (sai->sparc_disc_label == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(sai->sparc_disc_label, sad, 128);
+    sai->sparc_disc_label[128] = 0;
+    sai->sparc_heads_per_cyl = iso_read_msb(usad + 436, 2);
+    sai->sparc_secs_per_head = iso_read_msb(usad + 438, 2);
+
+    for (i = 0; i < 8; i++) {
+        perms = iso_read_msb(usad + 144 + 4 * i, 2);
+        if (perms == 0)
+    continue;
+        if (sai->sparc_entries == NULL) {
+            sai->sparc_entries = calloc(8,
+                                      sizeof(struct iso_sun_disk_label_entry));
+            if (sai->sparc_entries == NULL)
+                return ISO_OUT_OF_MEM;
+        }
+        idx = sai->sparc_entry_count;
+        sai->sparc_entries[idx].idx = i + 1;
+        sai->sparc_entries[idx].id_tag = iso_read_msb(usad + 142 + 4 * i, 2);
+        sai->sparc_entries[idx].permissions = perms;
+        sai->sparc_entries[idx].start_cyl =
+                                           iso_read_msb(usad + 444 + 8 * i, 4);
+        sai->sparc_entries[idx].num_blocks =
+                                           iso_read_msb(usad + 448 + 8 * i, 4);
+        sai->sparc_entry_count++;
+    }
+
+    /* GRUB2 SUN SPARC Core File Address */
+    sai->sparc_grub2_core_adr = iso_read_msb64(usad + 552);
+    sai->sparc_grub2_core_size = iso_read_msb(usad + 560, 4);
+    last_core_block = (sai->sparc_grub2_core_adr +
+                       sai->sparc_grub2_core_size + 2047) / 2048;
+    if (last_core_block > 0)
+        last_core_block--;
+    if (last_core_block > 17 && last_core_block < sai->image_size) {
+        ret = iso_tree_get_node_of_block(image, NULL,
+                                         (uint32_t) last_core_block, &node, 0);
+        if (ret > 0) {
+            iso_node_ref(node);
+            sai->sparc_core_node = (IsoFile *) node;
+        }
+    } else {
+        sai->sparc_grub2_core_adr = 0;
+        sai->sparc_grub2_core_size = 0;
+    }
+
+    /* SUN Disk Label for SUN SPARC */
+    sai->system_area_options = (3 << 2);
+    
+    return 1;
+}
+
+static
+int iso_analyze_hppa(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret = 0, i, cmd_adr, cmd_len;
+    char *sad, *paths[4];
+    uint8_t *usad;
+    uint16_t magic;
+    uint32_t adrs[4];
+    struct iso_imported_sys_area *sai;
+    IsoNode *node;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+    usad = (uint8_t *) sad;
+
+    magic = iso_read_msb(usad, 2);
+    if (magic != 0x8000 || strncmp(sad + 2, "PALO", 5) != 0 ||
+        sad[7] < 4 || sad[7] > 5)
+        return 0;
+
+    sai->hppa_hdrversion = sad[7];
+    if (sai->hppa_hdrversion == 4) {
+        cmd_len = 127;
+        cmd_adr = 24;
+    } else {
+        cmd_len = 1023;
+        cmd_adr = 1024;
+    }
+    sai->hppa_cmdline = calloc(1, cmd_len + 1);
+    if (sai->hppa_cmdline == NULL)
+        return ISO_OUT_OF_MEM;
+    memcpy(sai->hppa_cmdline, sad + cmd_adr, cmd_len);
+        sai->hppa_cmdline[cmd_len] = 0;
+    adrs[0] = sai->hppa_kern32_adr = iso_read_msb(usad + 8, 4);
+    sai->hppa_kern32_len = iso_read_msb(usad + 12, 4);
+    adrs[1] = sai->hppa_kern64_adr = iso_read_msb(usad + 232, 4);
+    sai->hppa_kern64_len = iso_read_msb(usad + 236, 4);
+    adrs[2] = sai->hppa_ramdisk_adr = iso_read_msb(usad + 16, 4);
+    sai->hppa_ramdisk_len = iso_read_msb(usad + 20, 4);
+    adrs[3] = sai->hppa_bootloader_adr = iso_read_msb(usad + 240, 4);
+    sai->hppa_bootloader_len = iso_read_msb(usad + 244, 4);
+    for (i = 0; i < 4; i++) {
+        paths[i] = NULL;
+        ret = iso_tree_get_node_of_block(image, NULL, adrs[i] / 2048, &node, 0);
+        if (ret > 0)
+            paths[i] = iso_tree_get_node_path(node);
+    }
+    sai->hppa_kernel_32 = paths[0];
+    sai->hppa_kernel_64 = paths[1];
+    sai->hppa_ramdisk = paths[2];
+    sai->hppa_bootloader = paths[3];
+
+    if (sai->hppa_hdrversion == 5)
+        sai->hppa_ipl_entry = iso_read_msb(usad + 248, 4);
+
+    /* HP-PA PALO boot sector version 4 or 5 for HP PA-RISC */
+    sai->system_area_options = (sai->hppa_hdrversion << 2);
+
+    return ret;
+}
+
+static
+void iso_impsysa_line(char *target, char *msg, int *len)
+{
+    if (target != NULL)
+        sprintf(target + *len, "%s\n", msg);
+    *len += strlen(msg) + 1;
+}
+
+static
+void iso_impsysa_report_text(char *target, char *msg, int *len,
+                             char *path, int flag)
+{
+    if (strlen(msg) + strlen(path) >= ISO_MAX_SYSAREA_LINE_LENGTH)
+        sprintf(msg + strlen(msg), "(too long to show here)");
+    else
+        strcat(msg, path);
+    iso_impsysa_line(target, msg, len);
+}
+
+static
+void iso_impsysa_report_blockpath(IsoImage *image,
+                                  char *target, char *msg, int *len,
+                                  uint32_t start_block, int flag)
+{
+    int ret;
+    char *path;
+    IsoNode *node;
+
+    ret = iso_tree_get_node_of_block(image, NULL, start_block, &node, 0);
+    if (ret <= 0)
+        return;
+    path = iso_tree_get_node_path(node);
+    if (path != NULL) {
+        iso_impsysa_report_text(target, msg, len, path, 0);
+        free(path);
+    }
+}
+
+static
+int iso_impsysa_report(IsoImage *image, char *target, int flag)
+{
+    char *msg = NULL, *local_name = NULL, *path;
+    int i, j, len = 0, sa_type, sao, sa_sub, ret, idx;
+    size_t local_len;
+    struct iso_imported_sys_area *sai;
+    struct iso_mbr_partition_request *part;
+    struct iso_gpt_partition_request *gpt_entry;
+    struct iso_apm_partition_request *apm_entry;
+    static char *alignments[4] = {"auto", "on", "off", "all"};
+    IsoWriteOpts *opts = NULL;
+    struct iso_sun_disk_label_entry *sparc_entry;
+
+    sai = image->imported_sa_info;
+
+    LIBISO_ALLOC_MEM(msg, char, ISO_MAX_SYSAREA_LINE_LENGTH);
+
+    if (!sai->is_not_zero)
+        {ret = 0; goto ex;}
+    sao = sai->system_area_options;
+    sprintf(msg, "System area options: 0x%-8.8x", (unsigned int) sao);
+    iso_impsysa_line(target, msg, &len);
+
+    /* Human readable form of system_area_options */
+    sa_type = (sao >> 2) & 63;
+    sa_sub = (sao >> 10) & 15;
+    strcpy(msg, "System area summary:");
+    if (sa_type == 0) {
+        if ((sao & 3) || sa_sub == 1 || sa_sub == 2) {
+            strcat(msg, " MBR");
+            if (sao & 1)
+                strcat(msg, " protective-msdos-label");
+            else if (sao & 2)
+                strcat(msg, " isohybrid");
+            else if (sa_sub == 1)
+                strcat(msg, " CHRP");
+            if ((sao & (1 << 14)) && !(sao & 2))
+                strcat(msg, " grub2-mbr");
+            sprintf(msg + strlen(msg), " cyl-align-%s",
+                                       alignments[(sao >> 8) & 3]);
+        } else if (sai->prep_part_start > 0 && sai->prep_part_size > 0) {
+            strcat(msg, " PReP");
+        } else {
+            strcat(msg, " not-recognized");
+        }
+    } else if (sa_type == 1) {
+        strcat(msg, " MIPS-Big-Endian");
+    } else if (sa_type == 2) {
+        strcat(msg, " MIPS-Little-Endian");
+    } else if (sa_type == 3) {
+        strcat(msg, " SUN-SPARC-Disk-Label");
+    } else if (sa_type == 4 || sa_type == 5) {
+        sprintf(msg + strlen(msg), " HP-PA-PALO");
+    } else {
+        sprintf(msg + strlen(msg), " unkown-system-area-type-%d", sa_type);
+    }
+    if (sai->gpt_req_count > 0)
+        strcat(msg, " GPT");
+    if (sai->apm_req_count > 0)
+        strcat(msg, " APM");
+
+    iso_impsysa_line(target, msg, &len); /* System area summary */
+
+    sprintf(msg, "ISO image size/512 : %.f",
+                 ((double) sai->image_size) * 4.0);
+        iso_impsysa_line(target, msg, &len);
+    if (sai->mbr_req_count > 0 && sa_type == 0) {
+        sprintf(msg, "Partition offset   : %d", sai->partition_offset);
+        iso_impsysa_line(target, msg, &len);
+    }
+    if (sa_type >= 4 && sa_type <= 5) {
+        sprintf(msg, "PALO header version: %d", sai->hppa_hdrversion);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "HP-PA cmdline      : ");
+        iso_impsysa_report_text(target, msg, &len, sai->hppa_cmdline, 0);
+        sprintf(msg, "HP-PA boot files   :   ByteAddr    ByteSize  Path");
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "HP-PA 32-bit kernel: %10u  %10u  ",
+                     sai->hppa_kern32_adr, sai->hppa_kern32_len);
+        iso_impsysa_report_text(target, msg, &len,
+                                sai->hppa_kernel_32 != NULL ?
+                                sai->hppa_kernel_32 : "(not found in ISO)", 0);
+        sprintf(msg, "HP-PA 64-bit kernel: %10u  %10u  ",
+                     sai->hppa_kern64_adr, sai->hppa_kern64_len);
+        iso_impsysa_report_text(target, msg, &len,
+                                sai->hppa_kernel_64 != NULL ?
+                                sai->hppa_kernel_64 : "(not found in ISO)", 0);
+        sprintf(msg, "HP-PA ramdisk      : %10u  %10u  ",
+                     sai->hppa_ramdisk_adr, sai->hppa_ramdisk_len);
+        iso_impsysa_report_text(target, msg, &len,
+                                sai->hppa_ramdisk != NULL ?
+                                sai->hppa_ramdisk : "(not found in ISO)", 0);
+        sprintf(msg, "HP-PA bootloader   : %10u  %10u  ",
+                     sai->hppa_bootloader_adr, sai->hppa_bootloader_len);
+        iso_impsysa_report_text(target, msg, &len,
+                                sai->hppa_bootloader != NULL ?
+                                sai->hppa_bootloader : "(not found in ISO)", 0);
+    }
+    if (sai->mbr_req_count > 0) {
+        sprintf(msg, "MBR heads per cyl  : %d", sai->partition_heads_per_cyl);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "MBR secs per head  : %d", sai->partition_secs_per_head);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg,
+             "MBR partition table: N Status  Type        Start       Blocks");
+        iso_impsysa_line(target, msg, &len);
+    }
+    for (i = 0; i < sai->mbr_req_count; i++) {
+        part = sai->mbr_req[i];
+        sprintf(msg, "MBR partition      : %d   0x%2.2x  0x%2.2x  %11.f  %11.f",
+                part->desired_slot,
+                (unsigned int) part->status_byte,
+                (unsigned int) part->type_byte,
+                (double) part->start_block, (double) part->block_count);
+        iso_impsysa_line(target, msg, &len);
+    }
+    for (i = 0; i < sai->mbr_req_count; i++) {
+        part = sai->mbr_req[i];
+        if (part->block_count == 0)
+    continue;
+        sprintf(msg, "MBR partition path : %d  ", part->desired_slot);
+        iso_impsysa_report_blockpath(image, target, msg, &len,
+                                     (uint32_t) (part->start_block / 4), 0);
+    }
+    if (sai->prep_part_start > 0 && sai->prep_part_size > 0) {
+        sprintf(msg, "PReP boot partition: %u  %u",
+                     sai->prep_part_start, sai->prep_part_size);
+        iso_impsysa_line(target, msg, &len);
+    }
+
+    if (sa_type == 1) {
+        sprintf(msg,
+                "MIPS-BE volume dir :  N      Name       Block       Bytes");
+        iso_impsysa_line(target, msg, &len);
+        for (i = 0; i < sai->num_mips_boot_files; i++) {
+            sprintf(msg,
+                    "MIPS-BE boot entry : %2d  %8s  %10u  %10u",
+                    i + 1, sai->mips_vd_entries[i]->name,
+                    sai->mips_vd_entries[i]->boot_block,
+                    sai->mips_vd_entries[i]->boot_bytes);
+            iso_impsysa_line(target, msg, &len);
+            if (sai->mips_boot_file_paths[i] != NULL) {
+                sprintf(msg, "MIPS-BE boot path  : %2d  ", i + 1);
+                iso_impsysa_report_text(target, msg, &len,
+                                        sai->mips_boot_file_paths[i], 0);
+            }
+        }
+    } else if (sa_type == 2) {
+        sprintf(msg,
+      "MIPS-LE boot map   :   LoadAddr    ExecAddr SegmentSize SegmentStart");
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "MIPS-LE boot params: %10u  %10u  %10u  %10u",
+                sai->mipsel_p_vaddr, sai->mipsel_e_entry, sai->mipsel_p_filesz,
+                sai->mipsel_seg_start);
+        iso_impsysa_line(target, msg, &len);
+        if (sai->mipsel_boot_file_path != NULL) {
+            sprintf(msg, "MIPS-LE boot path  : ");
+            iso_impsysa_report_text(target, msg, &len,
+                                    sai->mipsel_boot_file_path, 0);
+            sprintf(msg, "MIPS-LE elf offset : %u", sai->mipsel_p_offset);
+            iso_impsysa_line(target, msg, &len);
+        }
+    } else if (sa_type == 3) {
+        sprintf(msg, "SUN SPARC disklabel: %s", sai->sparc_disc_label);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "SUN SPARC secs/head: %d", sai->sparc_secs_per_head);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "SUN SPARC heads/cyl: %d", sai->sparc_heads_per_cyl);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg,
+             "SUN SPARC partmap  : N   IdTag   Perms    StartCyl   NumBlocks");
+        iso_impsysa_line(target, msg, &len);
+        for (i = 0; i < sai->sparc_entry_count; i++) {
+            sparc_entry = sai->sparc_entries + i;
+            sprintf(msg,
+                    "SUN SPARC partition: %d  0x%4.4x  0x%4.4x  %10u  %10u",
+                    sparc_entry->idx,
+                    sparc_entry->id_tag, sparc_entry->permissions,
+                    sparc_entry->start_cyl, sparc_entry->num_blocks);
+            iso_impsysa_line(target, msg, &len);
+        }
+        if (sai->sparc_grub2_core_adr > 0) {
+            sprintf(msg, "SPARC GRUB2 core   : %.f  %u",
+                         (double) sai->sparc_grub2_core_adr,
+                         sai->sparc_grub2_core_size);
+            iso_impsysa_line(target, msg, &len);
+            if (sai->sparc_core_node != NULL) {
+                path = iso_tree_get_node_path((IsoNode *) sai->sparc_core_node);
+                if (path != NULL) {
+                    sprintf(msg, "SPARC GRUB2 path   : ");
+                    iso_impsysa_report_text(target, msg, &len, path, 0);
+                    free(path);
+                }
+            }
+        }
+    }
+
+    if (sai->gpt_req_count > 0) {
+        sprintf(msg, "GPT                :   N  Info");
+        iso_impsysa_line(target, msg, &len);
+        if (sai->gpt_head_crc_should != sai->gpt_head_crc_found) {
+            sprintf(msg,
+ "GPT CRC should be  :      0x%8.8x  to match first 92 GPT header block bytes",
+                    sai->gpt_head_crc_should);
+            iso_impsysa_line(target, msg, &len);
+            sprintf(msg,
+ "GPT CRC found      :      0x%8.8x  matches all 512 bytes of GPT header block",
+                    sai->gpt_head_crc_found);
+            iso_impsysa_line(target, msg, &len);
+        }
+        if (sai->gpt_array_crc_should != sai->gpt_array_crc_found) {
+            sprintf(msg,
+                 "GPT array CRC wrong:      should be 0x%8.8x , found 0x%8.8x",
+                 sai->gpt_array_crc_should, sai->gpt_array_crc_found);
+            iso_impsysa_line(target, msg, &len);
+        }
+        if (sai->gpt_backup_comments != NULL) {
+            if (sai->gpt_backup_comments[0]) {
+                sprintf(msg, "GPT backup problems:      ");
+                iso_impsysa_report_text(target, msg, &len,
+                                        sai->gpt_backup_comments, 0);
+            }
+        }
+        sprintf(msg, "GPT disk GUID      :      ");
+        iso_util_bin_to_hex(msg + 26, sai->gpt_disk_guid, 16, 0);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "GPT entry array    :      %u  %u  %s",
+                     (unsigned int) sai->gpt_part_start,
+                     (unsigned int) sai->gpt_max_entries,
+                     sai->gpt_req_flags & 1 ? "overlapping" : "separated");
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "GPT lba range      :      %.f  %.f  %.f",
+                     (double) sai->gpt_first_lba, (double) sai->gpt_last_lba,
+                     (double) sai->gpt_backup_lba);
+        iso_impsysa_line(target, msg, &len);
+	ret = iso_write_opts_new(&opts, 0);
+        if (ret < 0)
+            goto ex;
+        ret = iso_write_opts_set_output_charset(opts, "UTF-16LE");
+        if (ret < 0)
+            goto ex;
+    }
+    for (i = 0; i < sai->gpt_req_count; i++) {
+        gpt_entry = sai->gpt_req[i];
+        idx = gpt_entry->idx;
+
+        sprintf(msg, "GPT partition name : %3d  ", idx);
+        for (j = 72; j >= 2; j -= 2)
+            if (gpt_entry->name[j - 2] || gpt_entry->name[j - 1])
+        break;
+        iso_util_bin_to_hex(msg + 26, gpt_entry->name, j, 0);
+        iso_impsysa_line(target, msg, &len);
+        if (j > 0)
+            ret = iso_conv_name_chars(opts, (char *) gpt_entry->name, j,
+                                 &local_name, &local_len, 0 | 512 | (1 << 15));
+        else
+            ret = 0;
+        if (ret == 1 && local_len <= 228) {
+            sprintf(msg, "GPT partname local : %3d  ", idx);
+            memcpy(msg + 26, local_name, local_len);
+            LIBISO_FREE_MEM(local_name); local_name = NULL;
+            msg[26 + local_len] = 0;
+            iso_impsysa_line(target, msg, &len);
+        }
+        sprintf(msg, "GPT partition GUID : %3d  ", idx);
+        iso_util_bin_to_hex(msg + 26, gpt_entry->partition_guid, 16, 0);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "GPT type GUID      : %3d  ", idx);
+        iso_util_bin_to_hex(msg + 26, gpt_entry->type_guid, 16, 0);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "GPT partition flags: %3d  0x%8.8x%8.8x", idx,
+                     (unsigned int) ((gpt_entry->flags >> 32) & 0xffffffff),
+                     (unsigned int) (gpt_entry->flags & 0xffffffff));
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "GPT start and size : %3d  %.f  %.f", idx,
+                     (double) gpt_entry->start_block,
+                     (double) gpt_entry->block_count);
+        iso_impsysa_line(target, msg, &len);
+        if (gpt_entry->block_count == 0)
+    continue;
+        sprintf(msg, "GPT partition path : %3d  ", idx);
+        iso_impsysa_report_blockpath(image, target, msg, &len,
+                                   (uint32_t) (gpt_entry->start_block / 4), 0);
+    }
+
+    if (sai->apm_req_count > 0) {
+        sprintf(msg, "APM                :  N  Info");
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "APM block size     :     %u", sai->apm_block_size);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "APM gap fillers    :     %d", sai->apm_gap_count);
+        iso_impsysa_line(target, msg, &len);
+    }
+    for (i = 0; i < sai->apm_req_count; i++) {
+        apm_entry = sai->apm_req[i];
+        idx = i + 1;
+        sprintf(msg, "APM partition name : %2d  %s", idx, apm_entry->name);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "APM partition type : %2d  %s", idx, apm_entry->type);
+        iso_impsysa_line(target, msg, &len);
+        sprintf(msg, "APM start and size : %2d  %.f  %.f", idx,
+                     (double) apm_entry->start_block,
+                     (double) apm_entry->block_count);
+        iso_impsysa_line(target, msg, &len);
+        if (apm_entry->block_count == 0)
+    continue;
+        sprintf(msg, "APM partition path : %2d  ", idx);
+        iso_impsysa_report_blockpath(image, target, msg, &len,
+                                     (uint32_t) (apm_entry->start_block /
+                                                 (2048 / sai->apm_block_size)),
+                                     0);
+    }
+
+    ret = len;
+ex:
+    LIBISO_FREE_MEM(local_name);
+    if (opts != NULL)
+        iso_write_opts_free(opts);
+    LIBISO_FREE_MEM(msg);
+    return ret;
+}
+
+/* API */
+int iso_image_report_system_area(IsoImage *image, char **target, int flag)
+{
+    int ret, i, count = 0;
+    static char *doc[] = {ISO_SYSAREA_REPORT_DOC};
+
+    if (flag & 1) {
+        for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++)
+            count += strlen(doc[i]) + 1;
+        *target = calloc(1, count);
+        if (*target == NULL)
+            return ISO_OUT_OF_MEM;
+        count = 0;
+        for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++) {
+            strcpy(*target + count, doc[i]);
+            count += strlen(doc[i]);
+            (*target)[count++] = '\n';
+        }
+        return ISO_SUCCESS;
+    }
+    *target = NULL;
+    if (image->system_area_data == NULL)
+        return 0;
+    ret = iso_impsysa_report(image, NULL, 0);
+    if (ret < 0)
+        return ret;
+    *target = calloc(1, ret + 1);
+    if (*target == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = iso_impsysa_report(image, *target, 0);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+
+static
+int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
+                            uint32_t image_size, int flag)
+{
+    int ret, i, sao, sa_type, sa_sub, is_mbr = 0;
+
+    iso_imported_sa_unref(&(image->imported_sa_info), 0);
+    ret = iso_imported_sa_new(&(image->imported_sa_info), 0);
+    if (ret < 0)
+        goto ex;
+
+    for (i = 0; i < 32768; i++)
+        if (image->system_area_data[i] != 0)
+    break;
+    if (i < 32768)
+        image->imported_sa_info->is_not_zero = 1;
+
+    image->imported_sa_info->image_size = image_size;
+
+    ret = iso_analyze_mbr(image, src, 0);
+    if (ret < 0)
+        goto ex;
+    is_mbr = (ret > 0);
+    ret = iso_analyze_gpt(image, src, 0);
+    if (ret < 0)
+        goto ex;
+    ret = iso_analyze_apm(image, src, 0);
+    if (ret < 0)
+        goto ex;
+    sao = image->imported_sa_info->system_area_options;
+    sa_type = (sao >> 2) & 0x3f;
+    sa_sub = (sao >> 10) & 0xf;
+    if (sa_type == 0 && !((sao & 3) || sa_sub == 1 || sa_sub == 2)) {
+        ret = iso_analyze_mips(image, src, 0);
+        if (ret < 0)
+           goto ex;
+        if (ret == 0) {
+            ret = iso_analyze_mipsel(image, src, 0);
+            if (ret < 0)
+                goto ex;
+        }
+        if (ret == 0) {
+            ret = iso_analyze_sun(image, src, 0);
+            if (ret < 0)
+                goto ex;
+        }
+    }
+    if (sa_type == 0 && !((sao & 3) || sa_sub == 1)) {
+        /* HP-PA PALO v5 can look like generic MBR */
+        ret = iso_analyze_hppa(image, src, 0);
+        if (ret < 0)
+            goto ex;
+    }
+
+    ret = ISO_SUCCESS;
+ex:;
+    image->imported_sa_info->overall_return = ret;
+    return ret;
+}
 
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
@@ -3901,6 +5366,16 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     ret = iso_image_eval_boot_info_table(image, opts, src, data->nblocks, 0);
     if (ret < 0)
         goto import_revert;
+
+    if (opts->load_system_area && image->system_area_data != NULL) {
+        ret = iso_analyze_system_area(image, src, data->nblocks, 0);
+        if (ret < 0) {
+            iso_msg_submit(-1, ISO_SYSAREA_PROBLEMS, 0,
+                      "Problem encountered during inspection of System Area:");
+            iso_msg_submit(-1, ISO_SYSAREA_PROBLEMS, 0,
+                           iso_error_to_msg(ret));
+        }
+    }
 
     ret = ISO_SUCCESS;
     goto import_cleanup;

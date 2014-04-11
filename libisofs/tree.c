@@ -1187,6 +1187,55 @@ ex:;
     return path;
 }
 
+/* Note: No reference is taken to the found node.
+   @param flag bit0= recursion
+*/
+int iso_tree_get_node_of_block(IsoImage *image, IsoDir *dir, uint32_t block,
+                               IsoNode **found, int flag)
+{
+    int ret, section_count, i;
+    IsoDirIter *iter = NULL;
+    IsoNode *node;
+    IsoDir *subdir;
+    IsoFile *file;
+    struct iso_file_section *sections = NULL;
+
+    if (dir == NULL)
+        dir = image->root;
+
+    ret = iso_dir_get_children(dir, &iter);
+    while (iso_dir_iter_next(iter, &node) == 1 ) {
+
+        if (ISO_NODE_IS_FILE(node)) {
+            file = (IsoFile *) node;
+            ret = iso_file_get_old_image_sections(file, &section_count,
+                                                  &sections, 0);
+            if (ret <= 0)
+    continue;
+            for (i = 0; i < section_count; i++) {
+                if (sections[i].block <= block &&
+                    block - sections[i].block <
+                                  (((off_t) sections[i].size) + 2047) / 2048) {
+                    *found = node;
+                    ret = 1; goto ex;
+                }
+            }
+            free(sections); sections = NULL;
+        } else if (ISO_NODE_IS_DIR(node)) {
+            subdir = (IsoDir *) node;
+            ret = iso_tree_get_node_of_block(image, subdir, block, found, 1);
+            if (ret != 0)
+                goto ex;
+        }
+    }
+    ret = 0;
+ex:
+    if (sections != NULL)
+        free(sections);
+    return ret;
+}
+
+
 /* ------------------------- tree cloning ------------------------------ */
 
 static

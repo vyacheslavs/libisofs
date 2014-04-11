@@ -22,6 +22,97 @@
 #include <string.h>
 #include <stdio.h>
 
+
+int iso_imported_sa_new(struct iso_imported_sys_area **boots, int flag)
+{
+    struct iso_imported_sys_area *b;
+
+    *boots = NULL;
+    b = calloc(1, sizeof(struct iso_imported_sys_area));
+    if (b == NULL)
+        return ISO_OUT_OF_MEM;
+
+    b->mbr_req = NULL;
+    b->apm_req = NULL;
+
+    b->gpt_req = NULL;
+    b->gpt_backup_comments = NULL;
+
+    b->mips_boot_file_paths = NULL;
+    b->mips_vd_entries = NULL;
+
+    b->sparc_disc_label = NULL;
+    b->sparc_core_node = NULL;
+    b->sparc_entries = NULL;
+
+    b->hppa_cmdline = NULL;
+    b->hppa_bootloader = NULL;
+    b->hppa_kernel_32 = NULL;
+    b->hppa_kernel_64 = NULL;
+    b->hppa_ramdisk = NULL;
+
+    *boots = b;
+    return 1;
+}
+
+int iso_imported_sa_unref(struct iso_imported_sys_area **boots, int flag)
+{
+    int i;
+    struct iso_imported_sys_area *b;
+
+    b = *boots;
+    if (b == NULL)
+        return 2;
+    if (b->refcount > 0)
+        b->refcount--;
+    if (b->refcount > 0)
+        return 2;
+
+    if (b->mbr_req != NULL) {
+        for (i = 0; i < b->mbr_req_count; i++)
+            LIBISO_FREE_MEM(b->mbr_req[i]);
+        LIBISO_FREE_MEM(b->mbr_req);
+    }
+    if (b->apm_req != NULL) {
+        for (i = 0; i < b->apm_req_count; i++)
+            LIBISO_FREE_MEM(b->apm_req[i]);
+        LIBISO_FREE_MEM(b->apm_req);
+    }
+    if (b->gpt_req != NULL) {
+        for (i = 0; i < b->gpt_req_count; i++)
+            LIBISO_FREE_MEM(b->gpt_req[i]);
+        LIBISO_FREE_MEM(b->gpt_req);
+    }
+    LIBISO_FREE_MEM(b->gpt_backup_comments);
+
+    if (b->mips_boot_file_paths != NULL) {
+        for (i = 0; i < b->num_mips_boot_files; i++)
+            LIBISO_FREE_MEM(b->mips_boot_file_paths[i]);
+        LIBISO_FREE_MEM(b->mips_boot_file_paths);
+    }
+    if (b->mips_vd_entries != NULL) {
+        for (i = 0; i < b->num_mips_boot_files; i++)
+            LIBISO_FREE_MEM(b->mips_vd_entries[i]);
+        LIBISO_FREE_MEM(b->mips_vd_entries);
+    }
+    LIBISO_FREE_MEM(b->mipsel_boot_file_path);
+
+    LIBISO_FREE_MEM(b->sparc_disc_label);
+    if (b->sparc_core_node != NULL)
+        iso_node_unref((IsoNode *) b->sparc_core_node);
+    LIBISO_FREE_MEM(b->sparc_entries);
+
+    LIBISO_FREE_MEM(b->hppa_cmdline);
+    LIBISO_FREE_MEM(b->hppa_bootloader);
+    LIBISO_FREE_MEM(b->hppa_kernel_32);
+    LIBISO_FREE_MEM(b->hppa_kernel_64);
+    LIBISO_FREE_MEM(b->hppa_ramdisk);
+    LIBISO_FREE_MEM(b);
+    *boots = NULL;
+    return 1;
+}
+
+
 /**
  * Create a new image, empty.
  *
@@ -103,6 +194,7 @@ int iso_image_new(const char *name, IsoImage **image)
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
         img->hfsplus_blessed[i] = NULL;
     img->collision_warnings = 0;
+    img->imported_sa_info = NULL;
 
     *image = img;
     return ISO_SUCCESS;
@@ -165,6 +257,7 @@ void iso_image_unref(IsoImage *image)
         if (image->system_area_data != NULL)
             free(image->system_area_data);
         iso_image_free_checksums(image, 0);
+        iso_imported_sa_unref(&(image->imported_sa_info), 0);
         free(image);
     }
 }

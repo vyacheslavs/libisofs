@@ -768,8 +768,8 @@ struct ecma119_image
     /* Allocation block size of HFS+
        May be defined to 512 or 2048 before hfsplus_writer_create().
     */
-    int hfsp_cat_node_size; /* 2 * apm_block_size */
-    int hfsp_iso_block_fac; /* 2048 / apm_block_size */
+    int hfsp_cat_node_size; /* 2 * hfsp_block_size */
+    int hfsp_iso_block_fac; /* 2048 / hfsp_block_size */
 
     /* Apple Partition Map description. To be composed during IsoImageWriter
        method ->compute_data_blocks() by calling iso_register_apm_entry().

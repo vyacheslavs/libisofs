@@ -273,6 +273,9 @@ uint32_t iso_read_msb(const uint8_t *buf, int bytes);
  */
 uint32_t iso_read_bb(const uint8_t *buf, int bytes, int *error);
 
+uint64_t iso_read_lsb64(const uint8_t *buf);
+uint64_t iso_read_msb64(const uint8_t *buf);
+
 /** 
  * Records the date/time into a 7 byte buffer (ECMA-119, 9.1.5)
  * 
@@ -542,6 +545,12 @@ int iso_util_eval_md5_tag(char *block, int desired, uint32_t lba,
 
 
 int iso_util_tag_magic(int tag_type, char **tag_magic, int *len, int flag);
+
+
+int iso_util_bin_to_hex(char *target, uint8_t *bytes, int num_bytes, int flag);
+
+int iso_util_hex_to_bin(char *hex, char *bin, int bin_size, int *bin_count,
+                        int flag);
 
 
 /* ------------------------------------------------------------------------- */

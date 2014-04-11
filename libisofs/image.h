@@ -212,6 +212,9 @@ struct Iso_Image
     /* Counts the name collisions while iso_image_import() */
     size_t collision_warnings;
 
+    /* Contains the assessment of boot aspects of the loaded image */
+    struct iso_imported_sys_area *imported_sa_info;
+
 };
 
 
@@ -262,5 +265,126 @@ int iso_image_set_checksums(IsoImage *image, char *checksum_array,
 int iso_image_set_pvd_times(IsoImage *image,
                             char *creation_time, char *modification_time,
                             char *expiration_time, char *effective_time);
+
+
+/* Collects boot block information obtained from the system area of
+   imported images
+*/
+struct iso_imported_sys_area {
+
+    int refcount;
+
+    /* Whether there was some System Area data at all */
+    int is_not_zero;
+
+    /* Giving the error number if the assessment ended by an error */
+    int overall_return;
+
+    /* Size of the imported ISO image */
+    uint32_t image_size;
+
+    /* see libisofs.h : iso_write_opts_set_system_area() */
+    int system_area_options;
+
+    /* The perceived MBR partitions */
+    struct iso_mbr_partition_request **mbr_req;
+    int mbr_req_count;
+
+    /* see ecma119.h : struct ecma119_image , struct iso_write_opts */
+    /* Effective partition table parameter: 1 to 63, 0= disabled/default */
+    int partition_secs_per_head; 
+    /* 1 to 255, 0= disabled/default */
+    int partition_heads_per_cyl;
+
+    /* see ecma119.h :  struct iso_write_opts */
+    uint32_t partition_offset;
+
+    /* 2048-byte start LBA and block count of PreP partition */
+    uint32_t prep_part_start;
+    uint32_t prep_part_size;
+
+    /* see ecma119.h : struct ecma119_image */
+    struct iso_apm_partition_request **apm_req;
+    int apm_req_count;
+    int apm_req_flags;
+    /* Number of found "GapNN", "ISO9660_data" partitions in APM */
+    int apm_gap_count;
+
+    /* see ecma119.h : struct iso_write_opts */
+    int apm_block_size;
+
+    /* >>> see ecma119.h : struct iso_write_opts */
+    int hfsp_block_size;
+
+    /* see ecma119.h : struct ecma119_image */
+    struct iso_gpt_partition_request **gpt_req;
+    int gpt_req_count;
+    int gpt_req_flags;
+
+    /* see ecma119.h : struct ecma119_image */
+    uint8_t gpt_disk_guid[16];
+    /* Start of GPT entries in System Area, block size 512 */
+    uint64_t gpt_part_start;
+    uint32_t gpt_max_entries;
+    uint64_t gpt_first_lba;
+    uint64_t gpt_last_lba;
+    uint64_t gpt_backup_lba;
+    char *gpt_backup_comments;
+    uint32_t gpt_head_crc_found;
+    uint32_t gpt_head_crc_should;
+    uint32_t gpt_array_crc_found;
+    uint32_t gpt_array_crc_should;
+
+    /* see image.h : struct Iso_Image */
+    int num_mips_boot_files;
+    char **mips_boot_file_paths; /* ISO 9660 Rock Ridge Paths */
+    struct iso_mips_voldir_entry **mips_vd_entries;
+
+    /* see ecma119.h : struct ecma119_image */
+    /* Memorized ELF parameters from MIPS Little Endian boot file */
+    uint32_t mipsel_e_entry;
+    uint32_t mipsel_p_offset;
+    uint32_t mipsel_p_vaddr; 
+    uint32_t mipsel_p_filesz;
+    uint32_t mipsel_seg_start;
+    char *mipsel_boot_file_path;
+
+    /* see image.h : struct Iso_Image */
+    char *sparc_disc_label;
+    int sparc_secs_per_head;
+    int sparc_heads_per_cyl;
+    struct iso_sun_disk_label_entry *sparc_entries;
+    int sparc_entry_count;
+
+    /* grub2-sparc-core : a node in the ISO image
+                          published at bytes 0x228 to 0x233
+    */
+    uint64_t sparc_grub2_core_adr;
+    uint32_t sparc_grub2_core_size;
+    IsoFile *sparc_core_node;
+
+    /* see image.h : struct Iso_Image */
+    int hppa_hdrversion;
+    char *hppa_cmdline;
+    uint32_t hppa_kern32_adr;
+    uint32_t hppa_kern32_len;
+    uint32_t hppa_kern64_adr;
+    uint32_t hppa_kern64_len;
+    uint32_t hppa_ramdisk_adr;
+    uint32_t hppa_ramdisk_len;
+    uint32_t hppa_bootloader_adr;
+    uint32_t hppa_bootloader_len;
+    uint32_t hppa_ipl_entry;
+    char *hppa_kernel_32;
+    char *hppa_kernel_64;
+    char *hppa_ramdisk;
+    char *hppa_bootloader;
+
+};
+
+int iso_imported_sa_new(struct iso_imported_sys_area **sa_info, int flag);
+
+int iso_imported_sa_unref(struct iso_imported_sys_area **sa_info, int flag);
+
 
 #endif /*LIBISO_IMAGE_H_*/

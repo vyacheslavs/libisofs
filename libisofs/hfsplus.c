@@ -475,7 +475,8 @@ int hfsplus_tail_writer_compute_data_blocks(IsoImageWriter *writer)
 
   t->hfsp_total_blocks = hfsp_curblock - t->hfsp_part_start;
 
-  return iso_quick_apm_entry(t, t->hfsp_part_start / block_fac,
+  return iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                             t->hfsp_part_start / block_fac,
 			     t->hfsp_total_blocks / block_fac +
 			     !!(t->hfsp_total_blocks % block_fac),
                             "HFSPLUS_Hybrid", "Apple_HFS");

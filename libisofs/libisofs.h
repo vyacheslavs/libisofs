@@ -2164,14 +2164,15 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              that one partition is defined which begins at the second
  *              512-byte block of the image and ends where the image ends.
  *              This works with and without system_area_data.
+ *              Modern GRUB2 system areas get also treated by bit14. See below.
  *        bit1= Only with System area type 0 = MBR
  *              Apply isohybrid MBR patching to the system area.
  *              This works only with system area data from SYSLINUX plus an
- *              ISOLINUX boot image (see iso_image_set_boot_image()) and
- *              only if not bit0 is set.
+ *              ISOLINUX boot image as first submitted boot image 
+ *              (see iso_image_set_boot_image()) and only if not bit0 is set.
  *        bit2-7= System area type
  *              0= with bit0 or bit1: MBR
- *                 else: unspecified type which will be used unaltered.
+ *                 else: type depends on bits bit10-13: System area sub type
  *              1= MIPS Big Endian Volume Header
  *                 @since 0.6.38
  *                 Submit up to 15 MIPS Big Endian boot files by
@@ -2216,15 +2217,17 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              @since 1.2.4
  *              With type 0 = MBR:
  *                Gets overridden by bit0 and bit1.
- *                0 = no particular sub type
+ *                0 = no particular sub type, use unaltered
  *                1 = CHRP: A single MBR partition of type 0x96 covers the
  *                          ISO image. Not compatible with any other feature
  *                          which needs to have own MBR partition entries.
+ *                2 = generic MBR @since 1.3.8
  *        bit14= Only with System area type 0 = MBR
  *              GRUB2 boot provisions:
  *              @since 1.3.0
- *              Patch system area at byte 92 to 99 with 512-block address + 1
- *              of the first boot image file. Little-endian 8-byte.
+ *              Patch system area at byte 0x1b0 to 0x1b7 with
+ *              (512-block address + 4)  of the first boot image file.
+ *              Little-endian 8-byte.
  *              Should be combined with options bit0.
  *              Will not be in effect if options bit1 is set.
  * @param flag
@@ -3666,6 +3669,219 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
                               int *options, int flag);
 
 /**
+ * The maximum length of a single line in the output of function
+ * iso_image_report_system_area(). This number includes the trailing 0.
+ * @since 1.3.8
+ */
+#define ISO_MAX_SYSAREA_LINE_LENGTH 4096
+
+/**
+ * Text which describes the output format of iso_image_report_system_area().
+ * It is publicly defined here only as part of the API description.
+ * Do not use it as macro in your application but rather call
+ * iso_image_report_system_area() with flag bit0.
+ */
+#define ISO_SYSAREA_REPORT_DOC \
+"Report format for recognized System Area data:", \
+"", \
+"No text will be reported if no System Area was loaded or if it was", \
+"entirely filled with 0-bytes.", \
+"Else there will be at least these two lines:", \
+"  System area options: hex", \
+"       see libisofs.h, parameter of iso_write_opts_set_system_area().", \
+"  System area summary: word ... word", \
+"       human readable interpretation of system area options and other info", \
+"       The words are from the set:", \
+"        { MBR, protective-msdos-label, isohybrid, CHRP, grub2-mbr,", \
+"          cyl-align-{auto,on,off,all}, PReP, MIPS-Big-Endian,", \
+"          MIPS-Little-Endian, SUN-SPARC-Disk-Label, HP-PA-PALO,", \
+"          not-recognized,", \
+"          GPT, APM }", \
+"", \
+"If an MBR is detected, with at least one partition entry of non-zero size,", \
+"then there may be:", \
+"  Partition offset   : decimal", \
+"       if not 0 then a second ISO 9660 superblock was found to which MBR", \
+"       partition 1 is pointing.", \
+"  ISO image size/512 : decimal", \
+"       size of ISO image in MBR block units of 512 bytes.", \
+"  MBR heads per cyl  : decimal", \
+"       conversion factor between MBR C/H/S address and LBA. 0=inconsistent.", \
+"  MBR secs per head  : decimal", \
+"       conversion factor between MBR C/H/S address and LBA. 0=inconsistent.", \
+"  MBR partition table: N Status  Type        Start        Blocks", \
+"       headline for MBR partition table.", \
+"  MBR partition      : X    hex   hex      decimal       decimal", \
+"       gives partition number, status byte, type byte, start block,", \
+"       and number of blocks. 512 bytes per block.", \
+"  MBR partition path : X  path", \
+"       the path of a file in the ISO image which begins at the partition", \
+"       start block of partition X.", \
+"  PReP boot partition: decimal decimal", \
+"       gives start block and size of a PReP boot partition in ISO 9660", \
+"       block units of 2048 bytes.", \
+"", \
+"GUID Partition Table can coexist with MBR:", \
+"  GPT                :   N  Info", \
+"       headline for GPT partition table. The fields are too wide for a", \
+"       neat table. So they are listed with a partition number and a text.", \
+"  GPT CRC should be  :      <hex>  to match first 92 GPT header block bytes", \
+"  GPT CRC found      :      <hex>  matches all 512 bytes of GPT header block", \
+"       libisofs-1.2.4 to 1.2.8 had a bug with the GPT header CRC. So", \
+"       libisofs is willing to recognize GPT with the buggy CRC. These", \
+"       two lines inform that most partition editors will not accept it.", \
+"  GPT array CRC wrong:      should be <hex>, found <hex>", \
+"       GPT entry arrays are accepted even if their CRC does not match.", \
+"       In this case, both CRCs are reported by this line.", \
+"  GPT backup problems:      text", \
+"       reports about inconsistencies between main GPT and backup GPT.", \
+"       The statements are comma separated:", \
+"          Implausible header LBA <decimal>", \
+"          Cannot read header block at 2k LBA <decimal>", \
+"          Not a GPT 1.0 header of 92 bytes for 128 bytes per entry", \
+"          Head CRC <hex> wrong. Should be <hex>", \
+"          Head CRC <hex> wrong. Should be <hex>. Matches all 512 block bytes", \
+"          Disk GUID differs (<hex_digits>)", \
+"          Cannot read array block at 2k LBA <decimal>", \
+"          Array CRC <hex> wrong. Should be <hex>", \
+"          Entries differ for partitions <decimal> [... <decimal>]", \
+"  GPT disk GUID      :      hex_digits", \
+"       32 hex digits giving the byte string of the disk's GUID", \
+"  GPT entry array    :      decimal  decimal  word", \
+"       start block of partition entry array and number of entries. 512 bytes", \
+"       per block. The word may be \"separated\" if partitions are disjoint,", \
+"       \"overlapping\" if they are not. In future there may be \"nested\"", \
+"       as special case where all overlapping partitions are superset and", \
+"       subset, and \"covering\" as special case of disjoint partitions", \
+"       covering the whole GPT block range for partitions.", \
+"  GPT lba range      :      decimal  decimal  decimal", \
+"       addresses of first payload block, last payload block, and of the", \
+"       GPT backup header block. 512 bytes per block.", \
+"  GPT partition name :   X  hex_digits", \
+"       up to 144 hex digits giving the UTF-16LE name byte string of", \
+"       partition X. Trailing 16 bit 0-characters are omitted.", \
+"  GPT partname local :   X  text", \
+"       the name of partition X converted to the local character set.", \
+"       This line may be missing if the name cannot be converted, or is", \
+"       empty.", \
+"  GPT partition GUID :   X   hex_digits", \
+"       32 hex digits giving the byte string of the GUID of partition X.", \
+"  GPT type GUID      :   X   hex_digits", \
+"       32 hex digits giving the byte string of the type GUID of partition X.", \
+"  GPT partition flags:   X   hex", \
+"       64 flag bits of partition X in hex representation.", \
+"       Known bit meanings are:", \
+"         bit0 = \"System Partition\" Do not alter.", \
+"         bit2 = Legacy BIOS bootable (MBR partition type 0x80)", \
+"         bit60= read-only", \
+"  GPT start and size :   X  decimal  decimal", \
+"       start block and number of blocks of partition X. 512 bytes per block.", \
+"  GPT partition path :   X  path", \
+"       the path of a file in the ISO image which begins at the partition", \
+"       start block of partition X.", \
+"", \
+"Apple partition map can coexist with MBR:", \
+"  APM                :  N  Info", \
+"       headline for human readers.", \
+"  APM block size     :     decimal", \
+"       block size of Apple Partition Map. 512 or 2048. This applies to", \
+"       start address and size of all partitions in the APM.", \
+"  APM gap fillers    :     decimal", \
+"       tells the number of partitions with name \"Gap[0-9[0-9]]\" and type", \
+"       \"ISO9660_data\".", \
+"  APM partition name :  X  text", \
+"       the name of partition X. Up to 32 characters.", \
+"  APM partition type :  X  text", \
+"       the type string of partition X. Up to 32 characters.", \
+"  APM start and size :  X  decimal  decimal", \
+"       start block and number of blocks of partition X.", \
+"  APM partition path :  X  path", \
+"       the path of a file in the ISO image which begins at the partition", \
+"       start block of partition X.", \
+"", \
+"If a MIPS Big Endian Volume Header is detected, there may be:", \
+"  MIPS-BE volume dir :  N      Name       Block       Bytes", \
+"       headline for human readers.", \
+"  MIPS-BE boot entry :  X  upto8chr     decimal     decimal", \
+"       tells name, 512-byte block address, and byte count of boot entry X.", \
+"  MIPS-BE boot path  :  X  path", \
+"       tells the path to the boot image file in the ISO image which belongs", \
+"       to the block address given by boot entry X.", \
+"", \
+"If a DEC Boot Block for MIPS Little Endian is detected, there may be:", \
+"  MIPS-LE boot map   :    LoadAddr    ExecAddr SegmentSize SegmentStart", \
+"       headline for human readers.", \
+"  MIPS-LE boot params:     decimal      decimal      decimal      decimal", \
+"       tells four numbers which are originally derived from the ELF header", \
+"       of the boot file. The first two are counted in bytes, the other two", \
+"       are counted in blocks of 512 bytes.", \
+"  MIPS-LE boot path  : path", \
+"       tells the path to the boot file in the ISO image which belongs to the", \
+"       address given by SegmentStart.", \
+"  MIPS-LE elf offset : decimal", \
+"       tells the relative 512-byte block offset inside the boot file:", \
+"         SegmentStart - FileStartBlock", \
+"", \
+"If a SUN SPARC Disk Label is present:", \
+"  SUN SPARC disklabel: text", \
+"       tells the disk label text.", \
+"  SUN SPARC secs/head: decimal", \
+"       tells the number of sectors per head.", \
+"  SUN SPARC heads/cyl: decimal", \
+"       tells the number of heads per cylinder.", \
+"  SPARC GRUB2 core   : decimal  decimal", \
+"       tells byte address and byte count of the GRUB2 SPARC core file.", \
+"  SPARC GRUB2 path   : path", \
+"       tells the path to the data file in the ISO image which belongs to the", \
+"       address given by core.", \
+"", \
+"If a HP-PA PALO boot sector version 4 or 5 is present:", \
+"  PALO header version: decimal", \
+"       tells the PALO header version: 4 or 5.", \
+"  HP-PA cmdline      : text", \
+"       tells the command line for the kernels.", \
+"  HP-PA boot files   :   ByteAddr    ByteSize  Path", \
+"       headline for human readers.", \
+"  HP-PA 32-bit kernel: decimal  decimal  path", \
+"       tells start byte, byte count, and file path of the 32-bit kernel.", \
+"  HP-PA 64-bit kernel: decimal  decimal  path", \
+"       tells the same for the 64-bit kernel.", \
+"  HP-PA ramdisk      : decimal  decimal  path", \
+"       tells the same for the ramdisk file.", \
+"  HP-PA bootloader   : decimal  decimal  path", \
+"       tells the same for the bootloader file.", \
+"@END_OF_DOC@"
+
+/**
+ * Obtain a text describing the detected properties of the eventually loaded
+ * System Area.
+ * The text will be NULL if no System Area was loaded. It will be empty but
+ * non-NULL if the System Area was loaded and contains only 0-bytes. 
+ * Else it will consist of lines as descibed in ISO_SYSAREA_REPORT_DOC above.
+ *
+ * File paths and other long texts are reported as "(too long to show here)"
+ * if their length plus preceeding text plus trailing 0-byte exceeds the
+ * line length limit of ISO_MAX_SYSAREA_LINE_LENGTH bytes.
+ *
+ * @param image
+ *        The image to be inquired.
+ * @param reply
+ *        Will return the allocated result text or NULL. Dispose a non-NULL
+ *        reply by free() when no longer needed.
+ *        Be prepared for a long text with up to ISO_MAX_SYSAREA_LINE_LENGTH
+ *        characters per line.
+ * @param flag
+ *        Bitfield for control purposes
+ *          bit0= do not report system area but rather reply a copy of
+ *                above text ISO_SYSAREA_REPORT_DOC.
+ *                With this bit it is permissible to submit image as NULL.
+ * @return
+ *        1 on success, 0 if no System Area was loaded, < 0 error.
+ * @since 1.3.8
+ */
+int iso_image_report_system_area(IsoImage *image, char **reply, int flag);
+
+/**
  * Add a MIPS boot file path to the image.
  * Up to 15 such files can be written into a MIPS Big Endian Volume Header
  * if this is enabled by value 1 in iso_write_opts_set_system_area() option
@@ -4736,8 +4952,8 @@ int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag);
  * @since 0.6.8
  */
 int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
-                                   struct iso_file_section **sections,
-                                   int flag);
+                                    struct iso_file_section **sections,
+                                    int flag);
 
 /*
  * Like iso_file_get_old_image_lba(), but take an IsoNode.
@@ -5361,7 +5577,7 @@ int iso_ring_buffer_get_status(struct burn_source *b, size_t *size,
  *
  * @param queue_severity Gives the minimum limit for messages to be queued.
  *                       Default: "NEVER". If you queue messages then you
- *                       must consume them by iso_msgs_obtain().
+ *                       must consume them by iso_obtain_msgs().
  * @param print_severity Does the same for messages to be printed directly
  *                       to stderr.
  * @param print_id       A text prefix to be printed before the message.
@@ -7209,13 +7425,14 @@ int iso_image_hfsplus_get_blessed(IsoImage *img, IsoNode ***blessed_nodes,
  * @param flag
  *      Bitfield for control purposes.
  *        bit0-bit7= Name space
- *                   0= generic (to_charset is valid,
+ *                   0= generic (output charset is used,
  *                               no reserved characters, no length limits)
- *                   1= Rock Ridge (to_charset is valid)
- *                   2= Joliet (to_charset gets overridden by UCS-2 or UTF-16)
- *                   3= ECMA-119 (to_charset gets overridden by the
+ *                   1= Rock Ridge (output charset is used)
+ *                   2= Joliet (output charset gets overridden by UCS-2 or
+ *                              UTF-16)
+ *                   3= ECMA-119 (output charset gets overridden by the
  *                                dull ISO 9660 subset of ASCII)
- *                   4= HFS+ (to_charset gets overridden by UTF-16BE)
+ *                   4= HFS+ (output charset gets overridden by UTF-16BE)
  *        bit8=  Treat input text as directory name
  *               (matters for Joliet and ECMA-119)
  *        bit9=  Do not issue error messages
@@ -7693,6 +7910,10 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** HP-PA PALO command line too long               (FAILURE, HIGH, -402) */
 #define ISO_HPPA_PALO_CMDLEN        0xE830FE6E
+
+/** Problems encountered during inspection of System Area (WARN, HIG, -403) */
+#define ISO_SYSAREA_PROBLEMS        0xD030FE6D
+
 
 
 /* Internal developer note: 

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2010 - 2013 Thomas Schmitt
+ * Copyright (c) 2010 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -440,6 +440,8 @@ int create_image(IsoImage *image, const char *image_path,
     iso_node_ref(imgfile); /* get our ref */
     boot->bootable = 1;
     boot->seems_boot_info_table = 0;
+    boot->seems_grub2_boot_info = 0;
+    boot->seems_isohybrid_capable = 0;
     boot->isolinux_options = 0;
     boot->type = boot_media_type;
     boot->partition_type = partition_type;

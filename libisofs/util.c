@@ -1534,6 +1534,26 @@ uint32_t iso_read_bb(const uint8_t *buf, int bytes, int *error)
     return v1;
 }
 
+uint64_t iso_read_lsb64(const uint8_t *buf)
+{
+    int i;
+    uint64_t ret = 0;
+
+    for (i=0; i < 8; i++)
+        ret += ((uint64_t) buf[i]) << (i * 8);
+    return ret;
+}
+
+uint64_t iso_read_msb64(const uint8_t *buf)
+{
+    int i;
+    uint64_t ret = 0;
+
+    for (i=0; i < 8; i++)
+        ret += ((uint64_t) buf[7 - i]) << (i * 8);
+    return ret;
+}
+
 void iso_datetime_7(unsigned char *buf, time_t t, int always_gmt)
 {
     static int tzsetup = 0;
@@ -2007,6 +2027,17 @@ int iso_util_dec_to_uint32(char *dec, uint32_t *value, int flag)
     if (num < 0 || num > 4294967295.0)
         return 0;
     *value = num;
+    return 1;
+}
+
+
+int iso_util_bin_to_hex(char *target, uint8_t *bytes, int num_bytes, int flag)
+{
+    int i;
+
+    for (i = 0; i < num_bytes; i++)
+        sprintf(target + 2 * i, "%-2.2x", bytes[i]);
+    target[2 * num_bytes] = 0;
     return 1;
 }
 

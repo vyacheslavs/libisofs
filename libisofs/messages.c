@@ -515,6 +515,8 @@ const char *iso_error_to_msg(int errcode)
         return "HP-PA PALO file is not a data file";
     case ISO_HPPA_PALO_CMDLEN:
         return "HP-PA PALO command line too long";
+    case ISO_SYSAREA_PROBLEMS:
+        return "Problems encountered during inspection of System Area";
     default:
         return "Unknown error";
     }

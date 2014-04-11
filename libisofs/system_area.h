@@ -108,13 +108,15 @@ struct iso_mbr_partition_request {
    I.e. after the call the submitted storage of req can be disposed or re-used.
    Submit 0 as value flag.
 */
-int iso_register_mbr_entry(Ecma119Image *t,
+int iso_register_mbr_entry(struct iso_mbr_partition_request **req_array,
+                           int *mbr_req_count,
                            struct iso_mbr_partition_request *req, int flag);
 
 /* Convenience frontend for iso_register_mbr_entry().
    name and type are 0-terminated strings, which may get silently truncated.
 */
-int iso_quick_mbr_entry(Ecma119Image *t, 
+int iso_quick_mbr_entry(struct iso_mbr_partition_request **req_array,
+                        int *mbr_req_count,
                         uint64_t start_block, uint64_t block_count,
                         uint8_t type_byte, uint8_t status_byte,
                         int desired_slot);
@@ -125,12 +127,13 @@ int iso_quick_mbr_entry(Ecma119Image *t,
    Return value is 0 if occupied, 1 if free, and -1 if the slot number is
    out of range.
 */
-int iso_mbr_entry_slot_is_free(Ecma119Image *t, int slot);
+int iso_mbr_entry_slot_is_free(struct iso_mbr_partition_request **req_array,
+                               int mbr_req_count, int slot);
 
 
 /* The parameter struct for production of a single Apple Partition Map entry.
    See also the partial APM description in doc/boot_sectors.txt.
-   The list of entries is stored in Ecma119Image.apm_req.
+   The list of entries is stored e.g. in Ecma119Image.apm_req, .apm_req_count.
    The size of a block can be chosen by setting Ecma119Image.apm_block_size.
    If an entry has start_block <=1, then its block_count will be adjusted
    to the final size of the partition map.
@@ -144,8 +147,8 @@ struct iso_apm_partition_request {
     /* Given in blocks of 2 KiB unless (Ecma119Image.apm_req_flags & 4).
        Written to the ISO image according to Ecma119Image.apm_block_size.
     */
-    uint32_t start_block;
-    uint32_t block_count;
+    uint64_t start_block;
+    uint64_t block_count;
 
     /* All 32 bytes get copied to the system area.
        Take care to pad up short strings by 0.
@@ -158,14 +161,17 @@ struct iso_apm_partition_request {
    I.e. after the call the submitted storage of req can be disposed or re-used.
    Submit 0 as value flag.
 */
-int iso_register_apm_entry(Ecma119Image *t,
+int iso_register_apm_entry(struct iso_apm_partition_request **req_array,
+                           int *apm_req_count,
                            struct iso_apm_partition_request *req, int flag);
 
 /* Convenience frontend for iso_register_apm_entry().
    name and type are 0-terminated strings, which may get silently truncated.
 */
-int iso_quick_apm_entry(Ecma119Image *t, 
-           uint32_t start_block, uint32_t block_count, char *name, char *type);
+int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
+                        int *apm_req_count,
+                        uint32_t start_block, uint32_t block_count,
+                        char *name, char *type);
 
 
 /* CRC-32 as of GPT and Ethernet.
@@ -206,11 +212,10 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16]);
 */
 struct iso_gpt_partition_request {
 
-    /* Always given in blocks of 2 KiB.
-       Written to the ISO image in blocks of 512.
+    /* Always given in blocks of 512 bytes.
     */
-    uint32_t start_block;
-    uint32_t block_count;
+    uint64_t start_block;
+    uint64_t block_count;
 
     /* The registered GUID which defines the partition type */
     uint8_t type_guid[16];
@@ -231,20 +236,26 @@ struct iso_gpt_partition_request {
        Take care to pad up short strings by 0.
     */
     uint8_t name[72];
+
+    /* Only if read from imported image: Table index of partition (first = 1)
+    */
+    uint32_t idx;
 };
 
 /* Copies the content of req and registers it in t.gpt_req[].
    I.e. after the call the submitted storage of req can be disposed or re-used.
    Submit 0 as value flag.
 */
-int iso_register_gpt_entry(Ecma119Image *t,
+int iso_register_gpt_entry(struct iso_gpt_partition_request **req_array,
+                           int *gpt_req_count,
                            struct iso_gpt_partition_request *req, int flag);
 
 /* Convenience frontend for iso_register_gpt_entry().
    name has to be already encoded as UTF-16LE.
 */
-int iso_quick_gpt_entry(Ecma119Image *t, 
-                        uint32_t start_block, uint32_t block_count, 
+int iso_quick_gpt_entry(struct iso_gpt_partition_request **req_array,
+                        int *gpt_req_count,
+                        uint64_t start_block, uint64_t block_count, 
                         uint8_t type_guid[16], uint8_t partition_guid[16],
                         uint64_t flags, uint8_t name[72]);
 
@@ -254,6 +265,23 @@ int iso_quick_gpt_entry(Ecma119Image *t,
 int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
                                uint8_t *buf, uint32_t max_entries,
                                uint32_t part_start, uint32_t p_arr_crc);
+
+/* The description of a loaded MIPS Big Endian Volume Directory Entry
+*/
+struct iso_mips_voldir_entry {
+    char name[9];
+    uint32_t boot_block;
+    uint32_t boot_bytes;
+};
+
+/* The description of a loaded SUN Disk Label partition */
+struct iso_sun_disk_label_entry {
+    int idx;
+    uint16_t id_tag;
+    uint16_t permissions;
+    uint32_t start_cyl;
+    uint32_t num_blocks;
+};
 
 /* Creates the Partition Prepend writer.
 */

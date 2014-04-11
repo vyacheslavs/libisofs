@@ -50,7 +50,7 @@ license from above stem licenses, typically from LGPL.
 In case its generosity is needed, here is the 2-clause BSD license:
 
 make_isohybrid_mbr.c is copyright 2002-2008 H. Peter Anvin
-                              and 2008-2012 Thomas Schmitt
+                              and 2008-2014 Thomas Schmitt
 
 1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
@@ -435,9 +435,10 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                 for (j = 0; j < t->bootsrc[i]->nsections; j++)
                      block_count += t->bootsrc[i]->sections[j].size / 2048;
                 ret = iso_quick_gpt_entry(
-                            t, t->bootsrc[i]->sections[0].block,
-                            block_count, uuid, zero_uuid, gpt_flags,
-                            (uint8_t *) gpt_name);
+                            t->gpt_req, &(t->gpt_req_count),
+                            ((uint64_t) t->bootsrc[i]->sections[0].block) * 4,
+                            ((uint64_t) block_count) * 4,
+                            uuid, zero_uuid, gpt_flags, (uint8_t *) gpt_name);
                 if (ret < 0)
                     return ret;
             }
@@ -449,7 +450,8 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                 block_count = 0;
                 for (j = 0; j < t->bootsrc[i]->nsections; j++)
                      block_count += t->bootsrc[i]->sections[j].size / 2048;
-                ret = iso_quick_apm_entry(t, t->bootsrc[i]->sections[0].block,
+                ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+                                          t->bootsrc[i]->sections[0].block,
                                           block_count, "EFI", "Apple_HFS");
                 if (ret < 0)
                     return ret;
@@ -466,7 +468,8 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         iso_ascii_utf_16le(gpt_name);
         /* Let it be open ended. iso_write_gpt() will truncate it as needed. */
         block_count = 0xffffffff;
-        ret = iso_quick_gpt_entry(t, (uint32_t) 0, block_count,
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                  (uint64_t) 0, ((uint64_t) block_count) * 4,
                                   basic_data_uuid, zero_uuid, gpt_flags,
                                   (uint8_t *) gpt_name);
         if (ret < 0)

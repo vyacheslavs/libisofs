@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2010 Thomas Schmitt
+ * Copyright (c) 2010 - 2014 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -59,6 +59,10 @@ struct el_torito_boot_image {
      */
     unsigned int seems_boot_info_table:1;
     unsigned int seems_grub2_boot_info:1;
+    /**
+     * Whether the boot image seems to be capable of isohybrid
+     */
+    unsigned int seems_isohybrid_capable:1;
     /**
      * isolinux options
      * bit 0 -> whether to patch image
