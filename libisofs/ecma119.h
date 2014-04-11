@@ -808,6 +808,8 @@ struct ecma119_image
     /* Messages from gpt_tail_writer_compute_data_blocks() to
        iso_write_system_area().
     */
+    uint8_t gpt_disk_guid[16];
+    int gpt_disk_guid_set;
     /* Start of GPT entries in System Area, block size 512 */
     uint32_t gpt_part_start;
     /* The ISO block number after the backup GPT header , block size 2048 */

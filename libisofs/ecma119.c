@@ -1946,6 +1946,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         target->gpt_req[i] = NULL;
     target->gpt_req_count = 0;
     target->gpt_req_flags = 0;
+    target->gpt_disk_guid_set = 0;
     target->gpt_part_start = 0;
     target->gpt_backup_end = 0;
     target->gpt_backup_size = 0;

@@ -1385,11 +1385,9 @@ static void iso_write_gpt_entry(Ecma119Image *t, uint8_t *buf,
     for (i = 0; i < 16; i++)
         if (part_uuid[i])
     break;
-    if (i < 16) {
-        memcpy(wpt, part_uuid, 16);
-    } else {
-        iso_random_uuid(t, (uint8_t *) wpt);
-    }
+    if (i == 16)
+        iso_random_uuid(t, part_uuid);
+    memcpy(wpt, part_uuid, 16);
     wpt += 16;
     iso_lsb_to_buf(&wpt, start_lba & 0xffffffff, 4, 0);
     iso_lsb_to_buf(&wpt, (start_lba >> 32) & 0xffffffff, 4, 0);
@@ -1450,7 +1448,10 @@ int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
 
     /* Disk GUID */
     /* >>> Make adjustable */
-    iso_random_uuid(t, (uint8_t *) wpt);
+    if (!t->gpt_disk_guid_set)
+        iso_random_uuid(t, t->gpt_disk_guid);
+    t->gpt_disk_guid_set = 1;
+    memcpy(wpt, t->gpt_disk_guid, 16);
     wpt += 16;
 
     /* Partition entries start */
