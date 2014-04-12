@@ -3695,8 +3695,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "        { MBR, protective-msdos-label, isohybrid, CHRP, grub2-mbr,", \
 "          cyl-align-{auto,on,off,all}, PReP, MIPS-Big-Endian,", \
 "          MIPS-Little-Endian, SUN-SPARC-Disk-Label, HP-PA-PALO,", \
-"          not-recognized,", \
-"          GPT, APM }", \
+"          not-recognized, GPT, APM }", \
 "", \
 "If an MBR is detected, with at least one partition entry of non-zero size,", \
 "then there may be:", \
@@ -3880,6 +3879,35 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
  * @since 1.3.8
  */
 int iso_image_report_system_area(IsoImage *image, char **reply, int flag);
+
+/**
+ * Compute a CRC number as expected in the GPT main and backup header blocks.
+ *
+ * The CRC at byte offset 88 is supposed to cover the array of partition
+ * entries.
+ * The CRC at byte offset 16 is supposed to cover the readily produced
+ * first 92 bytes of the header block while its bytes 16 to 19 are still
+ * set to 0.
+ * Block size is 512 bytes. Numbers are stored little-endian.
+ * See doc/boot_sectors.txt for the byte layout of GPT.
+ *
+ * This might be helpful for applications which want to manipulate GPT
+ * directly. The function is in libisofs/system_area.c and self-contained.
+ * So if you want to copy+paste it under the license of that file: Be invited.
+ * Be warned that this implementation works bit-wise and thus is much slower
+ * than table-driven ones. For less than 32 KiB, it fully suffices, though.
+ *
+ * @param data
+ *        The memory buffer with the data to sum up.
+ * @param count
+ *        Number of bytes in data.
+ * @param flag
+ *        Bitfield for control purposes. Submit 0.
+ * @return
+ *        The CRC of data. 
+ * @since 1.3.8
+ */
+uint32_t iso_crc32_gpt(unsigned char *data, int count, int flag);
 
 /**
  * Add a MIPS boot file path to the image.
@@ -7911,9 +7939,11 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** HP-PA PALO command line too long               (FAILURE, HIGH, -402) */
 #define ISO_HPPA_PALO_CMDLEN        0xE830FE6E
 
-/** Problems encountered during inspection of System Area (WARN, HIG, -403) */
+/** Problems encountered during inspection of System Area (WARN, HIGH, -403) */
 #define ISO_SYSAREA_PROBLEMS        0xD030FE6D
 
+/** Unrecognized inquiry for system area property  (FAILURE, HIGH, -404) */
+#define ISO_INQ_SYSAREA_PROP        0xE830FE6C
 
 
 /* Internal developer note: 

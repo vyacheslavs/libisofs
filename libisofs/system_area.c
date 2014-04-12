@@ -2019,7 +2019,7 @@ static void swap_uuid(void *u_pt)
 /* CRC-32 as of GPT and Ethernet.
    Parameters are deduced from a table driven implementation in isohybrid.c
 */
-unsigned int iso_crc32_gpt(unsigned char *data, int count, int flag)
+uint32_t iso_crc32_gpt(unsigned char *data, int count, int flag)
 {   
     unsigned int acc, top, result = 0;
     long int i;
