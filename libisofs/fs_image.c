@@ -5324,11 +5324,21 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             }
             ret = image_builder_create_node(image->builder, image, boot_src,
                                             NULL, &node);
+            iso_file_source_unref(boot_src); /* Now owned by node */
             if (ret < 0) {
                 iso_node_builder_unref(image->builder);
                 goto import_revert;
             }
-            image->bootcat->bootimages[idx]->image = (IsoFile*)node;
+            if (image->bootcat->bootimages[idx]->image != NULL) {
+                /* Already added to bootimages in image_builder_create_node().
+                 * Now it has one refcount for tree and one for bootimages.
+                 * But it will not go to tree. So unref.
+                 */
+                iso_node_unref(node);
+            } else {
+                image->bootcat->bootimages[idx]->image = (IsoFile*)node;
+            }
+            
 
             /* warn about hidden images */
             iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
