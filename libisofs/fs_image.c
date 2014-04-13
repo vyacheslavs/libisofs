@@ -5062,6 +5062,7 @@ int iso_image_report_system_area(IsoImage *image,
     target->lines = calloc(target->line_count + 1, sizeof(char *));
     if (target->buf == NULL || target->lines == NULL)
         {ret = ISO_OUT_OF_MEM; goto ex;}
+    target->lines[0] = target->buf; /* even if no lines get reported */
     target->byte_count = 0;
     target->line_count = 0;
     ret = iso_impsysa_report(image, target, 0);
