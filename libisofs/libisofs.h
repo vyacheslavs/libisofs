@@ -3852,33 +3852,42 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "@END_OF_DOC@"
 
 /**
- * Obtain a text describing the detected properties of the eventually loaded
- * System Area.
- * The text will be NULL if no System Area was loaded. It will be empty but
- * non-NULL if the System Area was loaded and contains only 0-bytes. 
+ * Obtain an array of texts describing the detected properties of the
+ * eventually loaded System Area.
+ * The array will be NULL if no System Area was loaded. It will be non-NULL
+ * with zero line count if the System Area was loaded and contains only
+ * 0-bytes. 
  * Else it will consist of lines as descibed in ISO_SYSAREA_REPORT_DOC above.
  *
  * File paths and other long texts are reported as "(too long to show here)"
  * if their length plus preceeding text plus trailing 0-byte exceeds the
  * line length limit of ISO_MAX_SYSAREA_LINE_LENGTH bytes.
+ * Texts which may contain whitespace or unprintable characters will start
+ * at fixed positions and extend to the end of the line.
+ * Note that newline characters may well appearing in the middle of a "line".
  *
  * @param image
  *        The image to be inquired.
  * @param reply
- *        Will return the allocated result text or NULL. Dispose a non-NULL
- *        reply by free() when no longer needed.
+ *        Will return an array of pointers to the result text lines or NULL.
+ *        Dispose a non-NULL reply by a call to iso_image_report_system_area()
+ *        with flag bit15, when no longer needed.
  *        Be prepared for a long text with up to ISO_MAX_SYSAREA_LINE_LENGTH
  *        characters per line.
+ * @param line_count
+ *        Will return the number of valid pointers in reply.
  * @param flag
  *        Bitfield for control purposes
  *          bit0= do not report system area but rather reply a copy of
- *                above text ISO_SYSAREA_REPORT_DOC.
+ *                above text line array ISO_SYSAREA_REPORT_DOC.
  *                With this bit it is permissible to submit image as NULL.
+ *         bit15= dispose result from previous call.
  * @return
  *        1 on success, 0 if no System Area was loaded, < 0 error.
  * @since 1.3.8
  */
-int iso_image_report_system_area(IsoImage *image, char **reply, int flag);
+int iso_image_report_system_area(IsoImage *image,
+                                 char ***reply, int *line_count, int flag);
 
 /**
  * Compute a CRC number as expected in the GPT main and backup header blocks.

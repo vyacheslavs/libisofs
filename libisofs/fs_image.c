@@ -4603,28 +4603,68 @@ int iso_analyze_hppa(IsoImage *image, IsoDataSource *src, int flag)
     return ret;
 }
 
+struct iso_impsysa_result {
+    char *buf;
+    int byte_count;
+    char **lines;
+    int line_count;
+};
+
 static
-void iso_impsysa_line(char *target, char *msg, int *len)
+int iso_impsysa_result_new(struct iso_impsysa_result **r, int flag)
 {
-    if (target != NULL)
-        sprintf(target + *len, "%s\n", msg);
-    *len += strlen(msg) + 1;
+    int ret;
+
+    LIBISO_ALLOC_MEM(*r, struct iso_impsysa_result, 1);
+    (*r)->buf = NULL;
+    (*r)->lines = NULL;
+    ret = 1;
+ex:
+    if (ret <= 0) {
+       LIBISO_FREE_MEM(*r);
+       *r = NULL;
+    }
+    return ret;
 }
 
 static
-void iso_impsysa_report_text(char *target, char *msg, int *len,
-                             char *path, int flag)
+void iso_impsysa_result_destroy(struct iso_impsysa_result **r, int flag)
+{
+    if (*r == NULL)
+        return;
+    if ((*r)->buf != NULL)
+        free((*r)->buf);
+    if ((*r)->lines != NULL)
+        free((*r)->lines);
+    free(*r);
+    *r = NULL;
+}
+
+static
+void iso_impsysa_line(struct iso_impsysa_result *target, char *msg)
+{
+    if (target->buf != NULL)
+        strcpy(target->buf + target->byte_count, msg);
+    if (target->lines != NULL)
+        target->lines[target->line_count] = target->buf + target->byte_count;
+    target->byte_count += strlen(msg) + 1;
+    target->line_count++;
+}
+
+static
+void iso_impsysa_report_text(struct iso_impsysa_result  *target,
+                             char *msg, char *path, int flag)
 {
     if (strlen(msg) + strlen(path) >= ISO_MAX_SYSAREA_LINE_LENGTH)
         sprintf(msg + strlen(msg), "(too long to show here)");
     else
         strcat(msg, path);
-    iso_impsysa_line(target, msg, len);
+    iso_impsysa_line(target, msg);
 }
 
 static
 void iso_impsysa_report_blockpath(IsoImage *image,
-                                  char *target, char *msg, int *len,
+                                  struct iso_impsysa_result *target, char *msg,
                                   uint32_t start_block, int flag)
 {
     int ret;
@@ -4636,16 +4676,17 @@ void iso_impsysa_report_blockpath(IsoImage *image,
         return;
     path = iso_tree_get_node_path(node);
     if (path != NULL) {
-        iso_impsysa_report_text(target, msg, len, path, 0);
+        iso_impsysa_report_text(target, msg, path, 0);
         free(path);
     }
 }
 
 static
-int iso_impsysa_report(IsoImage *image, char *target, int flag)
+int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
+                       int flag)
 {
     char *msg = NULL, *local_name = NULL, *path;
-    int i, j, len = 0, sa_type, sao, sa_sub, ret, idx;
+    int i, j, sa_type, sao, sa_sub, ret, idx;
     size_t local_len;
     struct iso_imported_sys_area *sai;
     struct iso_mbr_partition_request *part;
@@ -4663,7 +4704,7 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
         {ret = 0; goto ex;}
     sao = sai->system_area_options;
     sprintf(msg, "System area options: 0x%-8.8x", (unsigned int) sao);
-    iso_impsysa_line(target, msg, &len);
+    iso_impsysa_line(target, msg);
 
     /* Human readable form of system_area_options */
     sa_type = (sao >> 2) & 63;
@@ -4703,51 +4744,51 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
     if (sai->apm_req_count > 0)
         strcat(msg, " APM");
 
-    iso_impsysa_line(target, msg, &len); /* System area summary */
+    iso_impsysa_line(target, msg); /* System area summary */
 
     sprintf(msg, "ISO image size/512 : %.f",
                  ((double) sai->image_size) * 4.0);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
     if (sai->mbr_req_count > 0 && sa_type == 0) {
         sprintf(msg, "Partition offset   : %d", sai->partition_offset);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
     }
     if (sa_type >= 4 && sa_type <= 5) {
         sprintf(msg, "PALO header version: %d", sai->hppa_hdrversion);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "HP-PA cmdline      : ");
-        iso_impsysa_report_text(target, msg, &len, sai->hppa_cmdline, 0);
+        iso_impsysa_report_text(target, msg, sai->hppa_cmdline, 0);
         sprintf(msg, "HP-PA boot files   :   ByteAddr    ByteSize  Path");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "HP-PA 32-bit kernel: %10u  %10u  ",
                      sai->hppa_kern32_adr, sai->hppa_kern32_len);
-        iso_impsysa_report_text(target, msg, &len,
+        iso_impsysa_report_text(target, msg,
                                 sai->hppa_kernel_32 != NULL ?
                                 sai->hppa_kernel_32 : "(not found in ISO)", 0);
         sprintf(msg, "HP-PA 64-bit kernel: %10u  %10u  ",
                      sai->hppa_kern64_adr, sai->hppa_kern64_len);
-        iso_impsysa_report_text(target, msg, &len,
+        iso_impsysa_report_text(target, msg,
                                 sai->hppa_kernel_64 != NULL ?
                                 sai->hppa_kernel_64 : "(not found in ISO)", 0);
         sprintf(msg, "HP-PA ramdisk      : %10u  %10u  ",
                      sai->hppa_ramdisk_adr, sai->hppa_ramdisk_len);
-        iso_impsysa_report_text(target, msg, &len,
+        iso_impsysa_report_text(target, msg,
                                 sai->hppa_ramdisk != NULL ?
                                 sai->hppa_ramdisk : "(not found in ISO)", 0);
         sprintf(msg, "HP-PA bootloader   : %10u  %10u  ",
                      sai->hppa_bootloader_adr, sai->hppa_bootloader_len);
-        iso_impsysa_report_text(target, msg, &len,
+        iso_impsysa_report_text(target, msg,
                                 sai->hppa_bootloader != NULL ?
                                 sai->hppa_bootloader : "(not found in ISO)", 0);
     }
     if (sai->mbr_req_count > 0) {
         sprintf(msg, "MBR heads per cyl  : %d", sai->partition_heads_per_cyl);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "MBR secs per head  : %d", sai->partition_secs_per_head);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg,
              "MBR partition table: N Status  Type        Start       Blocks");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
     }
     for (i = 0; i < sai->mbr_req_count; i++) {
         part = sai->mbr_req[i];
@@ -4756,64 +4797,64 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
                 (unsigned int) part->status_byte,
                 (unsigned int) part->type_byte,
                 (double) part->start_block, (double) part->block_count);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
     }
     for (i = 0; i < sai->mbr_req_count; i++) {
         part = sai->mbr_req[i];
         if (part->block_count == 0)
     continue;
         sprintf(msg, "MBR partition path : %d  ", part->desired_slot);
-        iso_impsysa_report_blockpath(image, target, msg, &len,
+        iso_impsysa_report_blockpath(image, target, msg,
                                      (uint32_t) (part->start_block / 4), 0);
     }
     if (sai->prep_part_start > 0 && sai->prep_part_size > 0) {
         sprintf(msg, "PReP boot partition: %u  %u",
                      sai->prep_part_start, sai->prep_part_size);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
     }
 
     if (sa_type == 1) {
         sprintf(msg,
                 "MIPS-BE volume dir :  N      Name       Block       Bytes");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         for (i = 0; i < sai->num_mips_boot_files; i++) {
             sprintf(msg,
                     "MIPS-BE boot entry : %2d  %8s  %10u  %10u",
                     i + 1, sai->mips_vd_entries[i]->name,
                     sai->mips_vd_entries[i]->boot_block,
                     sai->mips_vd_entries[i]->boot_bytes);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
             if (sai->mips_boot_file_paths[i] != NULL) {
                 sprintf(msg, "MIPS-BE boot path  : %2d  ", i + 1);
-                iso_impsysa_report_text(target, msg, &len,
+                iso_impsysa_report_text(target, msg,
                                         sai->mips_boot_file_paths[i], 0);
             }
         }
     } else if (sa_type == 2) {
         sprintf(msg,
       "MIPS-LE boot map   :   LoadAddr    ExecAddr SegmentSize SegmentStart");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "MIPS-LE boot params: %10u  %10u  %10u  %10u",
                 sai->mipsel_p_vaddr, sai->mipsel_e_entry, sai->mipsel_p_filesz,
                 sai->mipsel_seg_start);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         if (sai->mipsel_boot_file_path != NULL) {
             sprintf(msg, "MIPS-LE boot path  : ");
-            iso_impsysa_report_text(target, msg, &len,
+            iso_impsysa_report_text(target, msg,
                                     sai->mipsel_boot_file_path, 0);
             sprintf(msg, "MIPS-LE elf offset : %u", sai->mipsel_p_offset);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
         }
     } else if (sa_type == 3) {
         sprintf(msg, "SUN SPARC disklabel: %s", sai->sparc_disc_label);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "SUN SPARC secs/head: %d", sai->sparc_secs_per_head);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "SUN SPARC heads/cyl: %d", sai->sparc_heads_per_cyl);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg,
              "SUN SPARC partmap  : N   IdTag   Perms    StartCyl   NumBlocks");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         for (i = 0; i < sai->sparc_entry_count; i++) {
             sparc_entry = sai->sparc_entries + i;
             sprintf(msg,
@@ -4821,18 +4862,18 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
                     sparc_entry->idx,
                     sparc_entry->id_tag, sparc_entry->permissions,
                     sparc_entry->start_cyl, sparc_entry->num_blocks);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
         }
         if (sai->sparc_grub2_core_adr > 0) {
             sprintf(msg, "SPARC GRUB2 core   : %.f  %u",
                          (double) sai->sparc_grub2_core_adr,
                          sai->sparc_grub2_core_size);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
             if (sai->sparc_core_node != NULL) {
                 path = iso_tree_get_node_path((IsoNode *) sai->sparc_core_node);
                 if (path != NULL) {
                     sprintf(msg, "SPARC GRUB2 path   : ");
-                    iso_impsysa_report_text(target, msg, &len, path, 0);
+                    iso_impsysa_report_text(target, msg, path, 0);
                     free(path);
                 }
             }
@@ -4841,42 +4882,42 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
 
     if (sai->gpt_req_count > 0) {
         sprintf(msg, "GPT                :   N  Info");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         if (sai->gpt_head_crc_should != sai->gpt_head_crc_found) {
             sprintf(msg,
  "GPT CRC should be  :      0x%8.8x  to match first 92 GPT header block bytes",
                     sai->gpt_head_crc_should);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
             sprintf(msg,
  "GPT CRC found      :      0x%8.8x  matches all 512 bytes of GPT header block",
                     sai->gpt_head_crc_found);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
         }
         if (sai->gpt_array_crc_should != sai->gpt_array_crc_found) {
             sprintf(msg,
                  "GPT array CRC wrong:      should be 0x%8.8x , found 0x%8.8x",
                  sai->gpt_array_crc_should, sai->gpt_array_crc_found);
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
         }
         if (sai->gpt_backup_comments != NULL) {
             if (sai->gpt_backup_comments[0]) {
                 sprintf(msg, "GPT backup problems:      ");
-                iso_impsysa_report_text(target, msg, &len,
+                iso_impsysa_report_text(target, msg,
                                         sai->gpt_backup_comments, 0);
             }
         }
         sprintf(msg, "GPT disk GUID      :      ");
         iso_util_bin_to_hex(msg + 26, sai->gpt_disk_guid, 16, 0);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "GPT entry array    :      %u  %u  %s",
                      (unsigned int) sai->gpt_part_start,
                      (unsigned int) sai->gpt_max_entries,
                      sai->gpt_req_flags & 1 ? "overlapping" : "separated");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "GPT lba range      :      %.f  %.f  %.f",
                      (double) sai->gpt_first_lba, (double) sai->gpt_last_lba,
                      (double) sai->gpt_backup_lba);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
 	ret = iso_write_opts_new(&opts, 0);
         if (ret < 0)
             goto ex;
@@ -4893,7 +4934,7 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
             if (gpt_entry->name[j - 2] || gpt_entry->name[j - 1])
         break;
         iso_util_bin_to_hex(msg + 26, gpt_entry->name, j, 0);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         if (j > 0)
             ret = iso_conv_name_chars(opts, (char *) gpt_entry->name, j,
                                  &local_name, &local_len, 0 | 512 | (1 << 15));
@@ -4904,58 +4945,58 @@ int iso_impsysa_report(IsoImage *image, char *target, int flag)
             memcpy(msg + 26, local_name, local_len);
             LIBISO_FREE_MEM(local_name); local_name = NULL;
             msg[26 + local_len] = 0;
-            iso_impsysa_line(target, msg, &len);
+            iso_impsysa_line(target, msg);
         }
         sprintf(msg, "GPT partition GUID : %3d  ", idx);
         iso_util_bin_to_hex(msg + 26, gpt_entry->partition_guid, 16, 0);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "GPT type GUID      : %3d  ", idx);
         iso_util_bin_to_hex(msg + 26, gpt_entry->type_guid, 16, 0);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "GPT partition flags: %3d  0x%8.8x%8.8x", idx,
                      (unsigned int) ((gpt_entry->flags >> 32) & 0xffffffff),
                      (unsigned int) (gpt_entry->flags & 0xffffffff));
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "GPT start and size : %3d  %.f  %.f", idx,
                      (double) gpt_entry->start_block,
                      (double) gpt_entry->block_count);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         if (gpt_entry->block_count == 0)
     continue;
         sprintf(msg, "GPT partition path : %3d  ", idx);
-        iso_impsysa_report_blockpath(image, target, msg, &len,
+        iso_impsysa_report_blockpath(image, target, msg,
                                    (uint32_t) (gpt_entry->start_block / 4), 0);
     }
 
     if (sai->apm_req_count > 0) {
         sprintf(msg, "APM                :  N  Info");
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "APM block size     :     %u", sai->apm_block_size);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "APM gap fillers    :     %d", sai->apm_gap_count);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
     }
     for (i = 0; i < sai->apm_req_count; i++) {
         apm_entry = sai->apm_req[i];
         idx = i + 1;
         sprintf(msg, "APM partition name : %2d  %s", idx, apm_entry->name);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "APM partition type : %2d  %s", idx, apm_entry->type);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         sprintf(msg, "APM start and size : %2d  %.f  %.f", idx,
                      (double) apm_entry->start_block,
                      (double) apm_entry->block_count);
-        iso_impsysa_line(target, msg, &len);
+        iso_impsysa_line(target, msg);
         if (apm_entry->block_count == 0)
     continue;
         sprintf(msg, "APM partition path : %2d  ", idx);
-        iso_impsysa_report_blockpath(image, target, msg, &len,
+        iso_impsysa_report_blockpath(image, target, msg,
                                      (uint32_t) (apm_entry->start_block /
                                                  (2048 / sai->apm_block_size)),
                                      0);
     }
 
-    ret = len;
+    ret = 1;
 ex:
     LIBISO_FREE_MEM(local_name);
     if (opts != NULL)
@@ -4965,40 +5006,79 @@ ex:
 }
 
 /* API */
-int iso_image_report_system_area(IsoImage *image, char **target, int flag)
+/* @param flag  bit1= do not report system area but rather reply help text
+               bit15= dispose result from previous call
+*/
+int iso_image_report_system_area(IsoImage *image,
+                                 char ***result, int *line_count, int flag)
 {
     int ret, i, count = 0;
+    char *buf;
     static char *doc[] = {ISO_SYSAREA_REPORT_DOC};
+    struct iso_impsysa_result *target = NULL;
 
+    if (flag & (1 << 15)) {
+        if (*result == NULL)
+            {ret = ISO_SUCCESS; goto ex;}
+        if ((*result)[0] != NULL) /* target->buf */
+            free((*result)[0]);
+        free(*result);
+        *result = NULL;
+        {ret = ISO_SUCCESS; goto ex;}
+    }
     if (flag & 1) {
+        *line_count = 0;
         for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++)
             count += strlen(doc[i]) + 1;
-        *target = calloc(1, count);
-        if (*target == NULL)
-            return ISO_OUT_OF_MEM;
+        *result = calloc(i, sizeof(char *));
+        if (*result == NULL)
+            {ret = ISO_OUT_OF_MEM; goto ex;}
+        buf = calloc(1, count);
+        if (buf == NULL) {
+            free(result);
+            *result = NULL;
+            {ret = ISO_OUT_OF_MEM; goto ex;}
+        }
+        *line_count = i;
         count = 0;
         for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++) {
-            strcpy(*target + count, doc[i]);
-            count += strlen(doc[i]);
-            (*target)[count++] = '\n';
+            strcpy(buf + count, doc[i]);
+            (*result)[i] = buf + count;
+            count += strlen(doc[i]) + 1;
         }
-        return ISO_SUCCESS;
+        {ret = ISO_SUCCESS; goto ex;}
     }
-    *target = NULL;
+    *result = NULL;
     if (image->system_area_data == NULL)
-        return 0;
-    ret = iso_impsysa_report(image, NULL, 0);
-    if (ret < 0)
-        return ret;
-    *target = calloc(1, ret + 1);
-    if (*target == NULL)
-        return ISO_OUT_OF_MEM;
-    ret = iso_impsysa_report(image, *target, 0);
-    if (ret < 0)
-        return ret;
-    return ISO_SUCCESS;
-}
+        {ret = 0; goto ex;}
 
+    ret = iso_impsysa_result_new(&target, 0);
+    if (ret < 0)
+        goto ex;
+    ret = iso_impsysa_report(image, target, 0);
+    if (ret < 0)
+        goto ex;
+    target->buf = calloc(1, target->byte_count + 1);
+    target->lines = calloc(target->line_count + 1, sizeof(char *));
+    if (target->buf == NULL || target->lines == NULL)
+        {ret = ISO_OUT_OF_MEM; goto ex;}
+    target->byte_count = 0;
+    target->line_count = 0;
+    ret = iso_impsysa_report(image, target, 0);
+    if (ret < 0)
+        goto ex;
+
+    /* target to result */
+    *result = target->lines;
+    target->lines = NULL;
+    target->buf = NULL;
+    *line_count = target->line_count;
+
+    ret = ISO_SUCCESS;
+ex:
+    iso_impsysa_result_destroy(&target, 0);
+    return ret;
+}
 
 static
 int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
