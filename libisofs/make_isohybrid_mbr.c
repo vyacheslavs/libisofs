@@ -469,7 +469,8 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         /* Let it be open ended. iso_write_gpt() will truncate it as needed. */
         block_count = 0xffffffff;
         ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
-                                  (uint64_t) 0, ((uint64_t) block_count) * 4,
+                                  (uint64_t) t->opts->partition_offset * 4,
+                                  ((uint64_t) block_count) * 4,
                                   basic_data_uuid, zero_uuid, gpt_flags,
                                   (uint8_t *) gpt_name);
         if (ret < 0)
