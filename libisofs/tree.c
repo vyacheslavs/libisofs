@@ -1232,6 +1232,8 @@ int iso_tree_get_node_of_block(IsoImage *image, IsoDir *dir, uint32_t block,
 ex:
     if (sections != NULL)
         free(sections);
+    if (iter != NULL);
+        iso_dir_iter_free(iter);
     return ret;
 }
 
