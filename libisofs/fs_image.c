@@ -3847,16 +3847,44 @@ try_grub2_mbr:;
 }
 
 static
+int iso_analyze_partition_offset(IsoImage *image, IsoDataSource *src,
+                                 uint64_t start_block, int flag)
+{
+    int ret;
+    uint8_t *buf = NULL;
+    off_t p_offset;
+    struct ecma119_pri_vol_desc *pvm;
+    struct iso_imported_sys_area *sai;
+
+    sai = image->imported_sa_info;
+
+    /* Check for PVD at partition start with same end */
+    LIBISO_ALLOC_MEM(buf, uint8_t, 2048);
+    p_offset = start_block / 4;
+    ret = src->read_block(src, p_offset + 16, buf);
+    if (ret > 0) {
+        pvm = (struct ecma119_pri_vol_desc *) buf;
+        if (strncmp((char*) pvm->std_identifier, "CD001", 5) == 0 &&
+            pvm->vol_desc_type[0] == 1 &&
+            pvm->vol_desc_version[0] == 1 &&
+            pvm->file_structure_version[0] == 1 &&
+            iso_read_lsb(pvm->vol_space_size, 4) + p_offset == sai->image_size)
+            sai->partition_offset = p_offset;
+    }
+    ret = 1;
+ex:;
+    LIBISO_FREE_MEM(buf);
+    return ret;
+}
+
+static
 int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
 {
     int sub_type = 2, ret, is_isohybrid = 0, is_grub2_mbr = 0;
     int is_protective_label = 0;
     char *sad;
-    off_t p_offset;
-    uint8_t *buf = NULL;
     struct iso_imported_sys_area *sai;
     struct iso_mbr_partition_request *part;
-    struct ecma119_pri_vol_desc *pvm;
 
     sad = image->system_area_data;
     sai = image->imported_sa_info;
@@ -3937,20 +3965,15 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
             part->start_block % 4 == 0 && part->block_count % 4 == 0 &&
             (part->start_block + part->block_count) / 4 == sai->image_size) {
 
-            /* Check for PVD at partition start with same end */
-            LIBISO_ALLOC_MEM(buf, uint8_t, 2048);
-            p_offset = part->start_block / 4;
-            ret = src->read_block(src, p_offset + 16, buf);
-            if (ret > 0) {
-                pvm = (struct ecma119_pri_vol_desc *) buf;
-                if (strncmp((char*) pvm->std_identifier, "CD001", 5) == 0 &&
-                    pvm->vol_desc_type[0] == 1 &&
-                    pvm->vol_desc_version[0] == 1 &&
-                    pvm->file_structure_version[0] == 1 &&
-                    iso_read_lsb(pvm->vol_space_size, 4) + p_offset
-                                                            == sai->image_size)
-                    sai->partition_offset = p_offset;
-            }
+            ret = iso_analyze_partition_offset(image, src, part->start_block,
+                                               0);
+            if (ret < 0)
+                goto ex;
+        } else if (is_protective_label && sai->image_size >= 34) {
+            ret = iso_analyze_partition_offset(image, src, (uint64_t) (16 * 4),
+                                               0);
+            if (ret < 0)
+                goto ex;
         }
     }
 
@@ -3962,7 +3985,6 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
                                (is_grub2_mbr << 14);
     ret = 1;
 ex:;
-    LIBISO_FREE_MEM(buf);
     return ret;
 }
 
