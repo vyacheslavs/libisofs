@@ -1131,7 +1131,7 @@ int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag)
     }
     *lba = sections[0].block;
     free(sections);
-    return 0;
+    return 1;
 }
 
 
