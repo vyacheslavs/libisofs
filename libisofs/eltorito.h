@@ -78,8 +78,8 @@ struct el_torito_boot_image {
     unsigned int isolinux_options;
     unsigned char type; /**< The type of image */
     unsigned char partition_type; /**< type of partition for HD-emul images */
-    short load_seg; /**< Load segment for the initial boot image. */
-    short load_size; /**< Number of sectors to load. */
+    uint16_t load_seg; /**< Load segment for the initial boot image. */
+    uint16_t load_size; /**< Number of sectors to load. */
 
     /* Byte 1 of Validation Entry or Section Header Entry:
        0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */

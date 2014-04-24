@@ -82,15 +82,16 @@ void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment)
 {
     if (bootimg->type != 0)
         return;
-    bootimg->load_seg = segment;
+    if (segment < 0)
+        bootimg->load_seg = 0x1000 + segment;
+    else
+        bootimg->load_seg = segment;
 }
 
 /* API */
 int el_torito_get_load_seg(ElToritoBootImage *bootimg)
 {
-   if (bootimg->load_seg < 0)
-       return 0xffff - bootimg->load_seg;
-   return bootimg->load_seg;
+   return (int) bootimg->load_seg;
 }
  
 /**
@@ -102,15 +103,16 @@ void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors)
 {
     if (bootimg->type != 0)
         return;
-    bootimg->load_size = sectors;
+    if (sectors < 0)
+        bootimg->load_size = 0x10000 + sectors;
+    else
+        bootimg->load_size = sectors;
 }
 
 /* API */
 int el_torito_get_load_size(ElToritoBootImage *bootimg)
 {
-   if (bootimg->load_size < 0)
-       return 0xffff - bootimg->load_size;
-   return bootimg->load_size;
+   return (int) bootimg->load_size;
 }
 
 /**

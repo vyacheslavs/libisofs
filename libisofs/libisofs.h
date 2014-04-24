@@ -3395,6 +3395,14 @@ int el_torito_get_boot_platform_id(ElToritoBootImage *bootimg);
  * Sets the load segment for the initial boot image. This is only for
  * no emulation boot images, and is a NOP for other image types.
  *
+ * @param bootimg
+ *      The image to to manipulate
+ * @param segment
+ *      Load segment address.
+ *      The data type of this parameter is not fully suitable. You may submit
+ *      negative numbers in the range ((short) 0x8000) to ((short) 0xffff)
+ *      in order to express the non-negative numbers 0x8000 to 0xffff.
+ *
  * @since 0.6.2
  */
 void el_torito_set_load_seg(ElToritoBootImage *bootimg, short segment);
@@ -3416,6 +3424,14 @@ int el_torito_get_load_seg(ElToritoBootImage *bootimg);
  * Sets the number of sectors (512b) to be load at load segment during
  * the initial boot procedure. This is only for
  * no emulation boot images, and is a NOP for other image types.
+ *
+ * @param bootimg
+ *      The image to to manipulate
+ * @param sectors
+ *      Number of 512-byte blocks to be loaded by the BIOS.
+ *      The data type of this parameter is not fully suitable. You may submit
+ *      negative numbers in the range ((short) 0x8000) to ((short) 0xffff)
+ *      in order to express the non-negative numbers 0x8000 to 0xffff.
  *
  * @since 0.6.2
  */
@@ -3670,7 +3686,8 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 
 /**
  * The maximum length of a single line in the output of function
- * iso_image_report_system_area(). This number includes the trailing 0.
+ * iso_image_report_system_area() and iso_image_report_el_torito().
+ * This number includes the trailing 0.
  * @since 1.3.8
  */
 #define ISO_MAX_SYSAREA_LINE_LENGTH 4096
@@ -3682,11 +3699,11 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
  * iso_image_report_system_area() with flag bit0.
  */
 #define ISO_SYSAREA_REPORT_DOC \
-"Report format for recognized System Area data:", \
+"Report format for recognized System Area data.", \
 "", \
 "No text will be reported if no System Area was loaded or if it was", \
 "entirely filled with 0-bytes.", \
-"Else there will be at least these two lines:", \
+"Else there will be at least these three lines:", \
 "  System area options: hex", \
 "       see libisofs.h, parameter of iso_write_opts_set_system_area().", \
 "  System area summary: word ... word", \
@@ -3696,14 +3713,14 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "          cyl-align-{auto,on,off,all}, PReP, MIPS-Big-Endian,", \
 "          MIPS-Little-Endian, SUN-SPARC-Disk-Label, HP-PA-PALO,", \
 "          not-recognized, GPT, APM }", \
+"  ISO image size/512 : decimal", \
+"       size of ISO image in block units of 512 bytes.", \
 "", \
 "If an MBR is detected, with at least one partition entry of non-zero size,", \
 "then there may be:", \
 "  Partition offset   : decimal", \
 "       if not 0 then a second ISO 9660 superblock was found to which MBR", \
 "       partition 1 is pointing.", \
-"  ISO image size/512 : decimal", \
-"       size of ISO image in MBR block units of 512 bytes.", \
 "  MBR heads per cyl  : decimal", \
 "       conversion factor between MBR C/H/S address and LBA. 0=inconsistent.", \
 "  MBR secs per head  : decimal", \
@@ -3857,7 +3874,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
  * The array will be NULL if no System Area was loaded. It will be non-NULL
  * with zero line count if the System Area was loaded and contains only
  * 0-bytes. 
- * Else it will consist of lines as descibed in ISO_SYSAREA_REPORT_DOC above.
+ * Else it will consist of lines as described in ISO_SYSAREA_REPORT_DOC above.
  *
  * File paths and other long texts are reported as "(too long to show here)"
  * if their length plus preceeding text plus trailing 0-byte exceeds the
@@ -3888,6 +3905,85 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
  */
 int iso_image_report_system_area(IsoImage *image,
                                  char ***reply, int *line_count, int flag);
+
+/**
+ * Text which describes the output format of iso_image_report_el_torito().
+ * It is publicly defined here only as part of the API description.
+ * Do not use it as macro in your application but rather call
+ * iso_image_report_el_torito() with flag bit0.
+ */
+#define ISO_ELTORITO_REPORT_DOC \
+"Report format for recognized El Torito boot information.", \
+"", \
+"No text will be reported if no El Torito information was found.", \
+"Else there will be at least these three lines", \
+"  El Torito catalog  : decimal  decimal", \
+"       tells the block address and number of 2048-blocks of the boot catalog.", \
+"  El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz  THG         LBA", \
+"       is the headline of the boot image list.", \
+"  El Torito boot img :   X  word  char  word  hex  hex  decimal  word  decimal", \
+"       tells about boot image number X:", \
+"       - Platform Id: \"BIOS\", \"PPC\", \"Mac\", \"UEFI\" or a hex number.", \
+"       - Bootability: either \"y\" or \"n\".", \
+"       - Emulation: \"none\", \"fd1.2\", \"fd1.4\", \"fd2.8\", \"hd\"", \
+"                    for no emulation, three floppy MB sizes, hard disk.", \
+"       - Load Segment: start offset in boot image. 0x0000 means 0x07c0.", \
+"       - Hard disk emulation partition type: MBR partition type code.", \
+"       - Load size: number of 512-blocks to load with emulation mode \"none\".", \
+"       - THG: word of three characters tells the presence of extra features:", \
+"              \"t\"=boot info table, \"h\"=suitable for isohybrid,", \
+"              \"g\"=GRUB2 boot info, \"-\"=feature not present", \
+"       - LBA: start block number in ISO filesystem (2048-block).", \
+"", \
+"The following lines may be omitted from the report:", \
+"  El Torito cat path : iso_rr_path", \
+"       tells the path to the data file in the ISO image which belongs to", \
+"       the block address where the boot catalog starts.", \
+"       (This line is not reported if no path points to that block.)", \
+"  El Torito id string:   X  hex_digits", \
+"       tells the id string of the catalog section which hosts boot image X.", \
+"       (This line is not reported if the id string is all zero.)", \
+"  El Torito sel crit :   X  hex_digits", \
+"       tells the selection criterion of boot image X.", \
+"       (This line is not reported if the criterion is all zero.)", \
+"  El Torito img path :   X  iso_rr_path", \
+"       tells the path to the data file in the ISO image which belongs to", \
+"       the block address given by LBA of boot image X.", \
+"       (This line is not reported if no path points to that block.)", \
+"@END_OF_DOC@"
+
+/**
+ * Obtain an array of texts describing the detected properties of the
+ * eventually loaded El Torito boot information.
+ * The array will be NULL if no El Torito info was loaded.
+ * Else it will consist of lines as described in ISO_ELTORITO_REPORT_DOC above.
+ *
+ * The lines have the same length restrictions and whitespace rules as the ones
+ * returned by iso_image_report_system_area().
+ * 
+ * @param image
+ *        The image to be inquired.
+ * @param reply
+ *        Will return an array of pointers to the result text lines or NULL.
+ *        Dispose a non-NULL reply by a call to iso_image_report_el_torito()
+ *        with flag bit15, when no longer needed.
+ *        Be prepared for a long text with up to ISO_MAX_SYSAREA_LINE_LENGTH
+ *        characters per line.
+ * @param line_count
+ *        Will return the number of valid pointers in reply.
+ * @param flag
+ *        Bitfield for control purposes
+ *          bit0= do not report system area but rather reply a copy of
+ *                above text line array ISO_ELTORITO_REPORT_DOC.
+ *                With this bit it is permissible to submit image as NULL.
+ *         bit15= dispose result from previous call.
+ * @return
+ *        1 on success, 0 if no El Torito information was loaded, < 0 error.
+ * @since 1.3.8
+ */
+int iso_image_report_el_torito(IsoImage *image,
+                               char ***reply, int *line_count, int flag);
+
 
 /**
  * Compute a CRC number as expected in the GPT main and backup header blocks.
@@ -4959,8 +5055,10 @@ IsoStream *iso_file_get_stream(IsoFile *file);
  * @param flag
  *      Reserved for future usage, submit 0
  * @return
- *      1 if lba is valid (file comes from old image), 0 if file was newly
- *      added, i.e. it does not come from an old image, < 0 error
+ *      1 if lba is valid (file comes from old image and has only one section),
+ *      0 if file was newly added, i.e. it does not come from an old image,
+ *      < 0 error, especially ISO_WRONG_ARG_VALUE if the file has more than
+ *      one file section.
  *
  * @since 0.6.4
  *

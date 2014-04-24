@@ -4770,7 +4770,7 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
 
     sprintf(msg, "ISO image size/512 : %.f",
                  ((double) sai->image_size) * 4.0);
-        iso_impsysa_line(target, msg);
+    iso_impsysa_line(target, msg);
     if (sai->mbr_req_count > 0 && sa_type == 0) {
         sprintf(msg, "Partition offset   : %d", sai->partition_offset);
         iso_impsysa_line(target, msg);
@@ -5027,58 +5027,189 @@ ex:
     return ret;
 }
 
+static
+int iso_report_result_destroy(char ***result, int flag)
+{
+    if (*result == NULL)
+        return ISO_SUCCESS;
+    if ((*result)[0] != NULL) /* points to the whole multi-line buffer */
+        free((*result)[0]);
+    free(*result);
+    *result = NULL;
+    return ISO_SUCCESS;
+}
+
+static
+int iso_report_help(char **doc, char ***result, int *line_count, int flag)
+{
+    int i, count = 0;
+    char *buf = NULL;
+
+    *line_count = 0;
+    for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++)
+        count += strlen(doc[i]) + 1;
+    if (i == 0)
+        return ISO_SUCCESS;
+    *result = calloc(i, sizeof(char *));
+    if (*result == NULL)
+        return ISO_OUT_OF_MEM;
+    buf = calloc(1, count);
+    if (buf == NULL) {
+        free(result);
+        *result = NULL;
+        return ISO_OUT_OF_MEM;
+    }
+    *line_count = i;
+    count = 0;
+    for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++) {
+        strcpy(buf + count, doc[i]);
+        (*result)[i] = buf + count;
+        count += strlen(doc[i]) + 1;
+    }
+    return ISO_SUCCESS;
+}
+
+static
+int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
+                        int flag)
+{
+    char *msg = NULL, emul_code[6], pltf[5], *path;
+    int i, j, ret, section_count;
+    uint32_t lba, *lba_mem = NULL;
+    struct el_torito_boot_catalog *bootcat;
+    IsoBoot *bootnode;
+    struct el_torito_boot_image *img;
+    struct iso_file_section *sections = NULL;
+    static char emul_names[5][6] = {"none", "fd1.2", "fd1.4", "fd2.8", "hd"};
+    static char pltf_names[3][5] = {"BIOS", "PPC", "Mac"};
+    static int num_emuls = 5, num_pltf = 3;
+
+    bootcat = image->bootcat;
+
+    LIBISO_ALLOC_MEM(msg, char, ISO_MAX_SYSAREA_LINE_LENGTH);
+
+    if (bootcat == NULL)
+        {ret= 0; goto ex;}
+    bootnode = image->bootcat->node;
+    if (bootnode == NULL)
+        {ret= 0; goto ex;}
+
+    sprintf(msg, "El Torito catalog  : %u  %u",
+                 (unsigned int) bootnode->lba,
+                 (unsigned int) (bootnode->size + 2047) / 2048);
+    iso_impsysa_line(target, msg);
+    path = iso_tree_get_node_path((IsoNode *) bootnode);
+    if (path != NULL) {
+        sprintf(msg, "El Torito cat path : ");
+        iso_impsysa_report_text(target, msg, path, 0);
+        free(path);
+    }
+    if (bootcat->num_bootimages > 0) {
+        sprintf(msg,
+"El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz  THG         LBA");
+        iso_impsysa_line(target, msg);
+        LIBISO_ALLOC_MEM(lba_mem, uint32_t, bootcat->num_bootimages);
+    }
+    for (i= 0; i < bootcat->num_bootimages; i++) {
+        img = bootcat->bootimages[i];
+        if (img->type < num_emuls)
+            strcpy(emul_code, emul_names[img->type]);
+        else
+            sprintf(emul_code, "0x%2.2x", (unsigned int) img->type);
+        if (img->platform_id < num_pltf)
+            strcpy(pltf, pltf_names[img->platform_id]);
+        else if(img->platform_id == 0xef)
+            strcpy(pltf, "UEFI");
+        else
+            sprintf(pltf, "0x%2.2x", (unsigned int) img->platform_id);
+        lba = 0xffffffff;
+        ret = iso_file_get_old_image_sections(img->image, &section_count,
+                                              &sections, 0);
+        if (ret > 0 && section_count > 0)
+            lba = sections[0].block;
+        lba_mem[i]= lba;
+        if (sections != NULL)
+            free(sections);
+        sprintf(msg,
+ "El Torito boot img : %3d  %4s  %c  %5s  0x%4.4x  0x%2.2x  %5u  %c%c%c  %10u",
+              i + 1, pltf, img->bootable ? 'y' : 'n', emul_code,
+              (unsigned int) img->load_seg, (unsigned int) img->partition_type,
+              (unsigned int) img->load_size,
+              img->seems_boot_info_table ? 't' : '-',
+              img->seems_isohybrid_capable ? 'h' : '-',
+              img->seems_grub2_boot_info ? 'g' : '-',
+              (unsigned int) lba);
+        iso_impsysa_line(target, msg);
+    }
+    for (i= 0; i < bootcat->num_bootimages; i++) {
+        img = bootcat->bootimages[i];
+        for (j = 0; j < (int) sizeof(img->id_string); j++)
+            if (img->id_string[j])
+        break;
+        if (j < (int) sizeof(img->id_string)) {
+            sprintf(msg, "El Torito id string: %3d  ", i + 1);
+            iso_util_bin_to_hex(msg + strlen(msg),
+                                img->id_string, 24 + 4 * (i > 0), 0);
+        }
+        for (j = 0; j < (int) sizeof(img->selection_crit); j++)
+            if (img->selection_crit[j])
+        break;
+        if (j < (int) sizeof(img->selection_crit) && i > 0) {
+            sprintf(msg, "El Torito sel crit : %3d  ", i + 1);
+            iso_util_bin_to_hex(msg + strlen(msg),
+                                img->selection_crit, 20, 0);
+        }
+    }
+    for (i= 0; i < bootcat->num_bootimages; i++) {
+        if (lba_mem[i] == 0xffffffff)
+    continue;
+        img = bootcat->bootimages[i];
+        sprintf(msg, "El Torito img path : %3d  ", i + 1);
+        iso_impsysa_report_blockpath(image, target, msg, lba_mem[i], 0);
+    }
+
+    ret = ISO_SUCCESS;    
+ex:;
+    LIBISO_FREE_MEM(msg);
+    LIBISO_FREE_MEM(lba_mem);
+    return ret;
+}
+
+
 /* API */
 /* @param flag  bit1= do not report system area but rather reply help text
                bit15= dispose result from previous call
 */
-int iso_image_report_system_area(IsoImage *image,
-                                 char ***result, int *line_count, int flag)
+static
+int iso_image_report_boot_eqp(IsoImage *image, int what,
+                              char ***result, int *line_count, int flag)
 {
-    int ret, i, count = 0;
-    char *buf;
-    static char *doc[] = {ISO_SYSAREA_REPORT_DOC};
+    int ret;
+    char **doc;
+    static char *sysarea_doc[] = {ISO_SYSAREA_REPORT_DOC};
+    static char *eltorito_doc[] = {ISO_ELTORITO_REPORT_DOC};
     struct iso_impsysa_result *target = NULL;
 
-    if (flag & (1 << 15)) {
-        if (*result == NULL)
-            {ret = ISO_SUCCESS; goto ex;}
-        if ((*result)[0] != NULL) /* target->buf */
-            free((*result)[0]);
-        free(*result);
-        *result = NULL;
-        {ret = ISO_SUCCESS; goto ex;}
-    }
+    if (flag & (1 << 15))
+        return iso_report_result_destroy(result, 0);
     if (flag & 1) {
-        *line_count = 0;
-        for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++)
-            count += strlen(doc[i]) + 1;
-        *result = calloc(i, sizeof(char *));
-        if (*result == NULL)
-            {ret = ISO_OUT_OF_MEM; goto ex;}
-        buf = calloc(1, count);
-        if (buf == NULL) {
-            free(result);
-            *result = NULL;
-            {ret = ISO_OUT_OF_MEM; goto ex;}
-        }
-        *line_count = i;
-        count = 0;
-        for (i = 0; strcmp(doc[i], "@END_OF_DOC@") != 0; i++) {
-            strcpy(buf + count, doc[i]);
-            (*result)[i] = buf + count;
-            count += strlen(doc[i]) + 1;
-        }
-        {ret = ISO_SUCCESS; goto ex;}
+        if (what == 0)
+            doc = sysarea_doc;
+        else
+            doc = eltorito_doc;
+        return iso_report_help(doc, result, line_count, 0);
     }
-    *result = NULL;
-    if (image->system_area_data == NULL)
-        {ret = 0; goto ex;}
 
+    *result = NULL;
+    *line_count = 0;
     ret = iso_impsysa_result_new(&target, 0);
     if (ret < 0)
         goto ex;
-    ret = iso_impsysa_report(image, target, 0);
-    if (ret < 0)
+    if (what == 0)
+        ret = iso_impsysa_report(image, target, 0);
+    else
+        ret = iso_eltorito_report(image, target, 0);
+    if (ret <= 0)
         goto ex;
     target->buf = calloc(1, target->byte_count + 1);
     target->lines = calloc(target->line_count + 1, sizeof(char *));
@@ -5087,8 +5218,11 @@ int iso_image_report_system_area(IsoImage *image,
     target->lines[0] = target->buf; /* even if no lines get reported */
     target->byte_count = 0;
     target->line_count = 0;
-    ret = iso_impsysa_report(image, target, 0);
-    if (ret < 0)
+    if (what == 0)
+        ret = iso_impsysa_report(image, target, 0);
+    else
+        ret = iso_eltorito_report(image, target, 0);
+    if (ret <= 0)
         goto ex;
 
     /* target to result */
@@ -5101,6 +5235,16 @@ int iso_image_report_system_area(IsoImage *image,
 ex:
     iso_impsysa_result_destroy(&target, 0);
     return ret;
+}
+
+/* API */
+/* @param flag  bit1= do not report system area but rather reply help text
+               bit15= dispose result from previous call
+*/
+int iso_image_report_system_area(IsoImage *image,
+                                 char ***result, int *line_count, int flag)
+{
+    return iso_image_report_boot_eqp(image, 0, result, line_count, flag);
 }
 
 static
@@ -5162,6 +5306,18 @@ ex:;
     image->imported_sa_info->overall_return = ret;
     return ret;
 }
+
+
+/* API */
+/* @param flag  bit1= do not report system area but rather reply help text
+               bit15= dispose result from previous call
+*/
+int iso_image_report_el_torito(IsoImage *image,
+                               char ***reply, int *line_count, int flag)
+{
+    return iso_image_report_boot_eqp(image, 1, reply, line_count, flag);
+}
+
 
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
