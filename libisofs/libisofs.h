@@ -3693,12 +3693,13 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 #define ISO_MAX_SYSAREA_LINE_LENGTH 4096
 
 /**
- * Text which describes the output format of iso_image_report_system_area().
- * It is publicly defined here only as part of the API description.
- * Do not use it as macro in your application but rather call
+ * Texts which describe the output format of iso_image_report_system_area().
+ * They are publicly defined here only as part of the API description.
+ * Do not use these macros in your application but rather call
  * iso_image_report_system_area() with flag bit0.
  */
 #define ISO_SYSAREA_REPORT_DOC \
+\
 "Report format for recognized System Area data.", \
 "", \
 "No text will be reported if no System Area was loaded or if it was", \
@@ -3715,7 +3716,9 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "          not-recognized, GPT, APM }", \
 "  ISO image size/512 : decimal", \
 "       size of ISO image in block units of 512 bytes.", \
-"", \
+""
+#define ISO_SYSAREA_REPORT_DOC_MBR \
+\
 "If an MBR is detected, with at least one partition entry of non-zero size,", \
 "then there may be:", \
 "  Partition offset   : decimal", \
@@ -3736,7 +3739,9 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  PReP boot partition: decimal decimal", \
 "       gives start block and size of a PReP boot partition in ISO 9660", \
 "       block units of 2048 bytes.", \
-"", \
+""
+#define ISO_SYSAREA_REPORT_DOC_GPT1 \
+\
 "GUID Partition Table can coexist with MBR:", \
 "  GPT                :   N  Info", \
 "       headline for GPT partition table. The fields are too wide for a", \
@@ -3772,7 +3777,10 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "       covering the whole GPT block range for partitions.", \
 "  GPT lba range      :      decimal  decimal  decimal", \
 "       addresses of first payload block, last payload block, and of the", \
-"       GPT backup header block. 512 bytes per block.", \
+"       GPT backup header block. 512 bytes per block." \
+
+#define ISO_SYSAREA_REPORT_DOC_GPT2 \
+\
 "  GPT partition name :   X  hex_digits", \
 "       up to 144 hex digits giving the UTF-16LE name byte string of", \
 "       partition X. Trailing 16 bit 0-characters are omitted.", \
@@ -3795,8 +3803,10 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  GPT partition path :   X  path", \
 "       the path of a file in the ISO image which begins at the partition", \
 "       start block of partition X.", \
-"", \
-"Apple partition map can coexist with MBR:", \
+""
+#define ISO_SYSAREA_REPORT_DOC_APM \
+\
+"Apple partition map can coexist with MBR and GPT:", \
 "  APM                :  N  Info", \
 "       headline for human readers.", \
 "  APM block size     :     decimal", \
@@ -3814,7 +3824,9 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  APM partition path :  X  path", \
 "       the path of a file in the ISO image which begins at the partition", \
 "       start block of partition X.", \
-"", \
+""
+#define ISO_SYSAREA_REPORT_DOC_MIPS \
+\
 "If a MIPS Big Endian Volume Header is detected, there may be:", \
 "  MIPS-BE volume dir :  N      Name       Block       Bytes", \
 "       headline for human readers.", \
@@ -3837,7 +3849,9 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  MIPS-LE elf offset : decimal", \
 "       tells the relative 512-byte block offset inside the boot file:", \
 "         SegmentStart - FileStartBlock", \
-"", \
+""
+#define ISO_SYSAREA_REPORT_DOC_SUN \
+\
 "If a SUN SPARC Disk Label is present:", \
 "  SUN SPARC disklabel: text", \
 "       tells the disk label text.", \
@@ -3850,7 +3864,9 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  SPARC GRUB2 path   : path", \
 "       tells the path to the data file in the ISO image which belongs to the", \
 "       address given by core.", \
-"", \
+""
+#define ISO_SYSAREA_REPORT_DOC_HPPA \
+\
 "If a HP-PA PALO boot sector version 4 or 5 is present:", \
 "  PALO header version: decimal", \
 "       tells the PALO header version: 4 or 5.", \
@@ -3866,7 +3882,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "       tells the same for the ramdisk file.", \
 "  HP-PA bootloader   : decimal  decimal  path", \
 "       tells the same for the bootloader file.", \
-"@END_OF_DOC@"
+""
 
 /**
  * Obtain an array of texts describing the detected properties of the
@@ -3896,7 +3912,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
  * @param flag
  *        Bitfield for control purposes
  *          bit0= do not report system area but rather reply a copy of
- *                above text line array ISO_SYSAREA_REPORT_DOC.
+ *                above text line arrays ISO_SYSAREA_REPORT_DOC*.
  *                With this bit it is permissible to submit image as NULL.
  *         bit15= dispose result from previous call.
  * @return
@@ -3935,7 +3951,7 @@ int iso_image_report_system_area(IsoImage *image,
 "              \"g\"=GRUB2 boot info, \"-\"=feature not present", \
 "       - LBA: start block number in ISO filesystem (2048-block).", \
 "", \
-"The following lines may be omitted from the report:", \
+"The following lines appear conditionally:", \
 "  El Torito cat path : iso_rr_path", \
 "       tells the path to the data file in the ISO image which belongs to", \
 "       the block address where the boot catalog starts.", \
@@ -3950,7 +3966,7 @@ int iso_image_report_system_area(IsoImage *image,
 "       tells the path to the data file in the ISO image which belongs to", \
 "       the block address given by LBA of boot image X.", \
 "       (This line is not reported if no path points to that block.)", \
-"@END_OF_DOC@"
+""
 
 /**
  * Obtain an array of texts describing the detected properties of the

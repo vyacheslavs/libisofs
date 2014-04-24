@@ -5186,9 +5186,18 @@ int iso_image_report_boot_eqp(IsoImage *image, int what,
 {
     int ret;
     char **doc;
-    static char *sysarea_doc[] = {ISO_SYSAREA_REPORT_DOC};
-    static char *eltorito_doc[] = {ISO_ELTORITO_REPORT_DOC};
     struct iso_impsysa_result *target = NULL;
+    static char *sysarea_doc[] = { ISO_SYSAREA_REPORT_DOC ,
+                                   ISO_SYSAREA_REPORT_DOC_MBR ,
+                                   ISO_SYSAREA_REPORT_DOC_GPT1 ,
+                                   ISO_SYSAREA_REPORT_DOC_GPT2 ,
+                                   ISO_SYSAREA_REPORT_DOC_APM ,
+                                   ISO_SYSAREA_REPORT_DOC_MIPS ,
+                                   ISO_SYSAREA_REPORT_DOC_SUN ,
+                                   ISO_SYSAREA_REPORT_DOC_HPPA ,
+                                   "@END_OF_DOC@" };
+    static char *eltorito_doc[] = { ISO_ELTORITO_REPORT_DOC ,
+                                    "@END_OF_DOC@" };
 
     if (flag & (1 << 15))
         return iso_report_result_destroy(result, 0);
