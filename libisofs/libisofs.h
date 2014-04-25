@@ -3710,10 +3710,18 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  System area summary: word ... word", \
 "       human readable interpretation of system area options and other info", \
 "       The words are from the set:", \
-"        { MBR, protective-msdos-label, isohybrid, CHRP, grub2-mbr,", \
-"          cyl-align-{auto,on,off,all}, PReP, MIPS-Big-Endian,", \
-"          MIPS-Little-Endian, SUN-SPARC-Disk-Label, HP-PA-PALO,", \
-"          not-recognized, GPT, APM }", \
+"        { MBR, CHRP, PReP, GPT, APM, MIPS-Big-Endian, MIPS-Little-Endian,", \
+"          SUN-SPARC-Disk-Label, HP-PA-PALO,", \
+"          protective-msdos-label, isohybrid, grub2-mbr,", \
+"          cyl-align-{auto,on,off,all}, not-recognized, }", \
+"        The acronyms indicate boot data for particular hardware/firmware.", \
+"        protective-msdos-label is an MBR conformant to specs of GPT.", \
+"        isohybrid is an MBR implementing ISOLINUX isohybrid functionality.", \
+"        grub2-mbr is an MBR with GRUB2 64 bit address patching.", \
+"        cyl-align-on indicates that the ISO image MBR partition ends at a", \
+"        cylinder boundary. cyl-align-all means that more MBR partitions", \
+"        exist and all end at a cylinder boundary.", \
+"        not-recognized tells about unrecognized non-zero system area data.", \
 "  ISO image size/512 : decimal", \
 "       size of ISO image in block units of 512 bytes.", \
 ""
@@ -3837,9 +3845,9 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "       to the block address given by boot entry X.", \
 "", \
 "If a DEC Boot Block for MIPS Little Endian is detected, there may be:", \
-"  MIPS-LE boot map   :    LoadAddr    ExecAddr SegmentSize SegmentStart", \
+"  MIPS-LE boot map   :   LoadAddr    ExecAddr SegmentSize SegmentStart", \
 "       headline for human readers.", \
-"  MIPS-LE boot params:     decimal      decimal      decimal      decimal", \
+"  MIPS-LE boot params:    decimal     decimal     decimal     decimal", \
 "       tells four numbers which are originally derived from the ELF header", \
 "       of the boot file. The first two are counted in bytes, the other two", \
 "       are counted in blocks of 512 bytes.", \
