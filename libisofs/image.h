@@ -280,6 +280,9 @@ struct iso_imported_sys_area {
     /* Giving the error number if the assessment ended by an error */
     int overall_return;
 
+    /* Block address of loaded Primar Volume Descriptor */
+    uint32_t pvd_block;
+
     /* Size of the imported ISO image */
     uint32_t image_size;
 
@@ -380,6 +383,11 @@ struct iso_imported_sys_area {
     char *hppa_ramdisk;
     char *hppa_bootloader;
 
+    /* Some block addresses of active and first session:
+         PVD, L Pathtable, Opt L, M Pathtable, Opt M, root directory
+    */
+    uint32_t meta_struct_blocks[12];
+    int num_meta_struct_blocks;
 };
 
 int iso_imported_sa_new(struct iso_imported_sys_area **sa_info, int flag);

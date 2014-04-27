@@ -3974,6 +3974,9 @@ int iso_image_report_system_area(IsoImage *image,
 "       tells the path to the data file in the ISO image which belongs to", \
 "       the block address given by LBA of boot image X.", \
 "       (This line is not reported if no path points to that block.)", \
+"  El Torito img blks :   X  decimal", \
+"       gives an upper limit of the number of blocks in the boot image", \
+"       if it is not accessible via a path in the ISO directory tree.", \
 ""
 
 /**

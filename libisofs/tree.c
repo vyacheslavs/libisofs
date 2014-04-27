@@ -1191,7 +1191,7 @@ ex:;
    @param flag bit0= recursion
 */
 int iso_tree_get_node_of_block(IsoImage *image, IsoDir *dir, uint32_t block,
-                               IsoNode **found, int flag)
+                               IsoNode **found, uint32_t *next_above, int flag)
 {
     int ret, section_count, i;
     IsoDirIter *iter = NULL;
@@ -1199,6 +1199,7 @@ int iso_tree_get_node_of_block(IsoImage *image, IsoDir *dir, uint32_t block,
     IsoDir *subdir;
     IsoFile *file;
     struct iso_file_section *sections = NULL;
+    uint32_t na = 0;
 
     if (dir == NULL)
         dir = image->root;
@@ -1219,15 +1220,22 @@ int iso_tree_get_node_of_block(IsoImage *image, IsoDir *dir, uint32_t block,
                     *found = node;
                     ret = 1; goto ex;
                 }
+                if ((na == 0 || sections[i].block < na) &&
+                                                     sections[i].block > block)
+                    na = sections[i].block;
             }
             free(sections); sections = NULL;
         } else if (ISO_NODE_IS_DIR(node)) {
             subdir = (IsoDir *) node;
-            ret = iso_tree_get_node_of_block(image, subdir, block, found, 1);
+            ret = iso_tree_get_node_of_block(image, subdir, block, found, &na,
+                                             1);
             if (ret != 0)
                 goto ex;
         }
     }
+    if (next_above != NULL && (na  > 0 || !(flag & 1)))
+        if (*next_above == 0 || *next_above > na || !(flag & 1))
+            *next_above = na;
     ret = 0;
 ex:
     if (sections != NULL)

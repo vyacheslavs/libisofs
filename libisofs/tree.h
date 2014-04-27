@@ -21,7 +21,7 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir);
 
 
 int iso_tree_get_node_of_block(IsoImage *image, IsoDir *dir, uint32_t block,
-                               IsoNode **found, int flag);
+                              IsoNode **found, uint32_t *next_above, int flag);
  
 
 #endif /*LIBISO_IMAGE_TREE_H_*/

@@ -4416,7 +4416,7 @@ int iso_analyze_mips(IsoImage *image, IsoDataSource *src, int flag)
         sai->mips_vd_entries[idx]->boot_bytes = iso_read_msb(upart + 12, 4);
         ret = iso_tree_get_node_of_block(image, NULL,
                                      sai->mips_vd_entries[idx]->boot_block / 4,
-                                     &node, 0);
+                                     &node, NULL, 0);
         if (ret > 0)
             sai->mips_boot_file_paths[idx] = iso_tree_get_node_path(node);
         sai->num_mips_boot_files++;
@@ -4455,7 +4455,7 @@ int iso_analyze_mipsel(IsoImage *image, IsoDataSource *src, int flag)
     sai->mipsel_p_filesz = iso_read_lsb(usad + 24, 4) * 512;
     sai->mipsel_seg_start = iso_read_lsb(usad + 28, 4);
     ret = iso_tree_get_node_of_block(image, NULL, sai->mipsel_seg_start / 4,
-                                     &node, 0);
+                                     &node, NULL, 0);
     if (ret > 0) {
         sai->mipsel_boot_file_path = iso_tree_get_node_path(node);
         file = (IsoFile *) node;
@@ -4548,7 +4548,8 @@ int iso_analyze_sun(IsoImage *image, IsoDataSource *src, int flag)
         last_core_block--;
     if (last_core_block > 17 && last_core_block < sai->image_size) {
         ret = iso_tree_get_node_of_block(image, NULL,
-                                         (uint32_t) last_core_block, &node, 0);
+                                         (uint32_t) last_core_block, &node,
+                                         NULL, 0);
         if (ret > 0) {
             iso_node_ref(node);
             sai->sparc_core_node = (IsoFile *) node;
@@ -4607,7 +4608,8 @@ int iso_analyze_hppa(IsoImage *image, IsoDataSource *src, int flag)
     sai->hppa_bootloader_len = iso_read_msb(usad + 244, 4);
     for (i = 0; i < 4; i++) {
         paths[i] = NULL;
-        ret = iso_tree_get_node_of_block(image, NULL, adrs[i] / 2048, &node, 0);
+        ret = iso_tree_get_node_of_block(image, NULL, adrs[i] / 2048,
+                                         &node, NULL, 0);
         if (ret > 0)
             paths[i] = iso_tree_get_node_path(node);
     }
@@ -4685,17 +4687,100 @@ void iso_impsysa_report_text(struct iso_impsysa_result  *target,
 }
 
 static
+void iso_impsysa_reduce_na(uint32_t block, uint32_t *na, uint32_t claim)
+{
+    if ((*na == 0 || *na > claim) && block < claim)
+        *na = claim;
+}
+
+static
+int iso_impsysa_reduce_next_above(IsoImage *image, uint32_t block,
+                                  uint32_t *next_above, int flag)
+{
+    int i;
+    struct iso_imported_sys_area *sai;
+
+    sai = image->imported_sa_info;
+
+    /* PVD, path table, root directory of active and of first session */
+    for (i = 0; i < sai->num_meta_struct_blocks; i++)
+        iso_impsysa_reduce_na(block, next_above, sai->meta_struct_blocks[i]); 
+
+    /* Partition tables */
+    for (i = 0; i < sai->mbr_req_count; i++) {
+        iso_impsysa_reduce_na(block, next_above,
+                              (uint32_t) (sai->mbr_req[i]->start_block / 4));
+        iso_impsysa_reduce_na(block, next_above,
+                              (uint32_t) ((sai->mbr_req[i]->start_block +
+                                           sai->mbr_req[i]->block_count) / 4));
+    }
+    for (i = 0; i < sai->gpt_req_count; i++) {
+        iso_impsysa_reduce_na(block, next_above,
+                              (uint32_t) (sai->gpt_req[i]->start_block / 4));
+        iso_impsysa_reduce_na(block, next_above,
+                              (uint32_t) ((sai->gpt_req[i]->start_block +
+                                           sai->gpt_req[i]->block_count) / 4));
+    }
+    for (i = 0; i < sai->apm_req_count; i++) {
+        iso_impsysa_reduce_na(block, next_above,
+                              (uint32_t) (sai->apm_req[i]->start_block /
+                                          (2048 / sai->apm_block_size)));
+        iso_impsysa_reduce_na(block, next_above,
+                              (uint32_t) ((sai->apm_req[i]->start_block +
+                                           sai->apm_req[i]->block_count) /
+                                           (2048 / sai->apm_block_size)));
+    }
+    if (image->bootcat != NULL)
+        if (image->bootcat->node != NULL)
+            iso_impsysa_reduce_na(block, next_above, image->bootcat->node->lba);
+
+    iso_impsysa_reduce_na(block, next_above, sai->image_size);
+
+    return ISO_SUCCESS;
+}
+
+/* @param flag bit0= try to estimate the size if no path is found
+*/
+static
 void iso_impsysa_report_blockpath(IsoImage *image,
                                   struct iso_impsysa_result *target, char *msg,
                                   uint32_t start_block, int flag)
 {
     int ret;
-    char *path;
+    char *path = NULL, *cpt;
     IsoNode *node;
+    uint32_t next_above = 0;
+    uint32_t size;
 
-    ret = iso_tree_get_node_of_block(image, NULL, start_block, &node, 0);
-    if (ret <= 0)
+    ret = iso_tree_get_node_of_block(image, NULL, start_block,
+                                     &node, &next_above, 0);
+    if (ret <= 0) {
+        if (!(flag & 1))
+            return;
+        /* Look for next claimed block for estimating file size.
+           next_above already holds the best data file candidate.
+        */
+        ret = iso_impsysa_reduce_next_above(image, start_block, &next_above, 0);
+        if (ret < 0)
+            return;
+        if (next_above == 0)
+            return;
+        size = next_above - start_block;
+
+        /* Replace in msg "path" by "blks", report number in bytes */
+        cpt = strstr(msg, "path");
+        if (cpt == NULL)
+            return;
+        path = iso_alloc_mem(strlen(msg) + 20, 1, 0);
+        if (path == NULL)
+            return;
+        strcpy(path, msg);
+        memcpy(path + (cpt - msg), "blks", 4);
+        sprintf(path + strlen(path), "%u", (unsigned int) size);
+        iso_impsysa_report_text(target, path, "", 0);
+        free(path);
         return;
+    }
     path = iso_tree_get_node_path(node);
     if (path != NULL) {
         iso_impsysa_report_text(target, msg, path, 0);
@@ -5165,7 +5250,7 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
     continue;
         img = bootcat->bootimages[i];
         sprintf(msg, "El Torito img path : %3d  ", i + 1);
-        iso_impsysa_report_blockpath(image, target, msg, lba_mem[i], 0);
+        iso_impsysa_report_blockpath(image, target, msg, lba_mem[i], 1);
     }
 
     ret = ISO_SUCCESS;    
@@ -5257,8 +5342,76 @@ int iso_image_report_system_area(IsoImage *image,
 }
 
 static
+int iso_record_pvd_blocks(IsoImage *image, IsoDataSource *src, uint32_t block,
+                          int flag)
+{
+    int ret;
+    uint8_t *buffer = NULL;
+    struct iso_imported_sys_area *sai;
+
+    LIBISO_ALLOC_MEM(buffer, uint8_t, 2048);
+
+    sai = image->imported_sa_info;
+    sai->meta_struct_blocks[sai->num_meta_struct_blocks++] = block;
+
+    ret = src->read_block(src, block, buffer);
+    if (ret < 0)
+        goto ex;
+
+    /* Verify that it is a PVD of a volume not larger than sai->image_size */
+    if (buffer[0] != 1 || strncmp((char *) buffer + 1, "CD001", 5) != 0)
+        {ret = 0; goto ex;}
+    if (iso_read_lsb(buffer + 80, 4) > sai->image_size)
+        {ret = 0; goto ex;}
+
+    /* L pathtable, Opt L, M pathtable , Opt M, Root directory extent*/
+    sai->meta_struct_blocks[sai->num_meta_struct_blocks++] =
+                                                 iso_read_lsb(buffer + 140, 4);
+    sai->meta_struct_blocks[sai->num_meta_struct_blocks++] =
+                                                 iso_read_lsb(buffer + 144, 4);
+    sai->meta_struct_blocks[sai->num_meta_struct_blocks++] =
+                                                 iso_read_lsb(buffer + 148, 4);
+    sai->meta_struct_blocks[sai->num_meta_struct_blocks++] =
+                                                 iso_read_lsb(buffer + 152, 4);
+    sai->meta_struct_blocks[sai->num_meta_struct_blocks++] =
+                                                 iso_read_lsb(buffer + 158, 4);
+
+    ret = ISO_SUCCESS;
+ex:;
+    LIBISO_FREE_MEM(buffer);
+    return ret;
+}
+
+static
+int iso_record_meta_struct_blocks(IsoImage *image, IsoDataSource *src,
+                                  int flag)
+{
+    int ret;
+    struct iso_imported_sys_area *sai;
+
+    sai = image->imported_sa_info;
+    ret = iso_record_pvd_blocks(image, src, sai->pvd_block, 0);
+    if (ret < 0)
+        goto ex;
+    /* Try block 32 as first session PVD */
+    ret = iso_record_pvd_blocks(image, src, 16, 0);
+    if (ret < 0)
+       goto ex;
+    if (ret == 0 && sai->pvd_block > 16) {
+       /* No emulated multi-session: Try block 16 as first session PVD */
+       ret = iso_record_pvd_blocks(image, src, 16, 0);
+       if (ret < 0)
+           goto ex;
+    }
+    ret = ISO_SUCCESS;
+ex:
+    return ret;
+}
+
+static
 int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
-                            uint32_t image_size, int flag)
+                            struct iso_read_opts *opts, uint32_t image_size, 
+                            int flag)
 {
     int ret, i, sao, sa_type, sa_sub, is_mbr = 0;
 
@@ -5274,6 +5427,7 @@ int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
         image->imported_sa_info->is_not_zero = 1;
 
     image->imported_sa_info->image_size = image_size;
+    image->imported_sa_info->pvd_block = opts->block + 16;
 
     ret = iso_analyze_mbr(image, src, 0);
     if (ret < 0)
@@ -5309,6 +5463,9 @@ int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
         if (ret < 0)
             goto ex;
     }
+    ret = iso_record_meta_struct_blocks(image, src, 0);
+    if (ret < 0)
+        goto ex;
 
     ret = ISO_SUCCESS;
 ex:;
@@ -5646,7 +5803,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         goto import_revert;
 
     if (opts->load_system_area && image->system_area_data != NULL) {
-        ret = iso_analyze_system_area(image, src, data->nblocks, 0);
+        ret = iso_analyze_system_area(image, src, opts, data->nblocks, 0);
         if (ret < 0) {
             iso_msg_submit(-1, ISO_SYSAREA_PROBLEMS, 0,
                       "Problem encountered during inspection of System Area:");
