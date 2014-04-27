@@ -5191,7 +5191,7 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
     }
     if (bootcat->num_bootimages > 0) {
         sprintf(msg,
-"El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz  THG         LBA");
+"El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz         LBA");
         iso_impsysa_line(target, msg);
         LIBISO_ALLOC_MEM(lba_mem, uint32_t, bootcat->num_bootimages);
     }
@@ -5216,18 +5216,32 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
         if (sections != NULL)
             free(sections);
         sprintf(msg,
- "El Torito boot img : %3d  %4s  %c  %5s  0x%4.4x  0x%2.2x  %5u  %c%c%c  %10u",
+         "El Torito boot img : %3d  %4s  %c  %5s  0x%4.4x  0x%2.2x  %5u  %10u",
               i + 1, pltf, img->bootable ? 'y' : 'n', emul_code,
               (unsigned int) img->load_seg, (unsigned int) img->partition_type,
               (unsigned int) img->load_size,
-              img->seems_boot_info_table ? 't' : '-',
-              img->seems_isohybrid_capable ? 'h' : '-',
-              img->seems_grub2_boot_info ? 'g' : '-',
               (unsigned int) lba);
         iso_impsysa_line(target, msg);
     }
     for (i= 0; i < bootcat->num_bootimages; i++) {
         img = bootcat->bootimages[i];
+        sprintf(msg, "El Torito img opts : %3d  ", i + 1);
+        if (img->seems_boot_info_table)
+            strcat(msg, "boot-info-table ");
+        if (img->seems_isohybrid_capable)
+            strcat(msg, "isohybrid-suitable ");
+        if (img->seems_grub2_boot_info)
+            strcat(msg, "grub2-boot-info ");
+        if (strlen(msg) > 27) {
+            msg[strlen(msg) - 1] = 0;
+            iso_impsysa_line(target, msg);
+        }
+/*
+    }
+
+    for (i= 0; i < bootcat->num_bootimages; i++) {
+        img = bootcat->bootimages[i];
+*/
         for (j = 0; j < (int) sizeof(img->id_string); j++)
             if (img->id_string[j])
         break;
@@ -5244,8 +5258,10 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
             iso_util_bin_to_hex(msg + strlen(msg),
                                 img->selection_crit, 20, 0);
         }
+/*
     }
     for (i= 0; i < bootcat->num_bootimages; i++) {
+*/
         if (lba_mem[i] == 0xffffffff)
     continue;
         img = bootcat->bootimages[i];

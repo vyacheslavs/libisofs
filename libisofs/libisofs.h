@@ -3943,9 +3943,9 @@ int iso_image_report_system_area(IsoImage *image,
 "Else there will be at least these three lines", \
 "  El Torito catalog  : decimal  decimal", \
 "       tells the block address and number of 2048-blocks of the boot catalog.", \
-"  El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz  THG         LBA", \
+"  El Torito images   :   N  Pltf  B   Emul  Ld_seg  Hdpt  Ldsiz         LBA", \
 "       is the headline of the boot image list.", \
-"  El Torito boot img :   X  word  char  word  hex  hex  decimal  word  decimal", \
+"  El Torito boot img :   X  word  char  word  hex  hex  decimal  decimal", \
 "       tells about boot image number X:", \
 "       - Platform Id: \"BIOS\", \"PPC\", \"Mac\", \"UEFI\" or a hex number.", \
 "       - Bootability: either \"y\" or \"n\".", \
@@ -3954,9 +3954,6 @@ int iso_image_report_system_area(IsoImage *image,
 "       - Load Segment: start offset in boot image. 0x0000 means 0x07c0.", \
 "       - Hard disk emulation partition type: MBR partition type code.", \
 "       - Load size: number of 512-blocks to load with emulation mode \"none\".", \
-"       - THG: word of three characters tells the presence of extra features:", \
-"              \"t\"=boot info table, \"h\"=suitable for isohybrid,", \
-"              \"g\"=GRUB2 boot info, \"-\"=feature not present", \
 "       - LBA: start block number in ISO filesystem (2048-block).", \
 "", \
 "The following lines appear conditionally:", \
@@ -3964,6 +3961,12 @@ int iso_image_report_system_area(IsoImage *image,
 "       tells the path to the data file in the ISO image which belongs to", \
 "       the block address where the boot catalog starts.", \
 "       (This line is not reported if no path points to that block.)", \
+"  El Torito img opts :   X  word ... word", \
+"       tells the presence of extra features:", \
+"         \"boot-info-table\"    image got boot info table patching.", \
+"         \"isohybrid-suitable\" image is suitable for ISOLINUX isohybrid MBR.", \
+"         \"grub2-boot-info\"    image got GRUB2 boot info patching.", \
+"       (This line is not reported if no such options were detected.)", \
 "  El Torito id string:   X  hex_digits", \
 "       tells the id string of the catalog section which hosts boot image X.", \
 "       (This line is not reported if the id string is all zero.)", \
@@ -3977,6 +3980,7 @@ int iso_image_report_system_area(IsoImage *image,
 "  El Torito img blks :   X  decimal", \
 "       gives an upper limit of the number of blocks in the boot image", \
 "       if it is not accessible via a path in the ISO directory tree.", \
+"       (This line is not reported if a path points to the image start.)", \
 ""
 
 /**
