@@ -5429,7 +5429,7 @@ int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
                             struct iso_read_opts *opts, uint32_t image_size, 
                             int flag)
 {
-    int ret, i, sao, sa_type, sa_sub, is_mbr = 0;
+    int ret, i, sao, sa_type, sa_sub;
 
     iso_imported_sa_unref(&(image->imported_sa_info), 0);
     ret = iso_imported_sa_new(&(image->imported_sa_info), 0);
@@ -5448,7 +5448,6 @@ int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
     ret = iso_analyze_mbr(image, src, 0);
     if (ret < 0)
         goto ex;
-    is_mbr = (ret > 0);
     ret = iso_analyze_gpt(image, src, 0);
     if (ret < 0)
         goto ex;
