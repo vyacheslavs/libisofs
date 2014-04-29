@@ -4894,12 +4894,13 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
         sprintf(msg, "MBR secs per head  : %d", sai->partition_secs_per_head);
         iso_impsysa_line(target, msg);
         sprintf(msg,
-             "MBR partition table: N Status  Type        Start       Blocks");
+            "MBR partition table:   N Status  Type        Start       Blocks");
         iso_impsysa_line(target, msg);
     }
     for (i = 0; i < sai->mbr_req_count; i++) {
         part = sai->mbr_req[i];
-        sprintf(msg, "MBR partition      : %d   0x%2.2x  0x%2.2x  %11.f  %11.f",
+        sprintf(msg,
+                "MBR partition      : %3d   0x%2.2x  0x%2.2x  %11.f  %11.f",
                 part->desired_slot,
                 (unsigned int) part->status_byte,
                 (unsigned int) part->type_byte,
@@ -4910,7 +4911,7 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
         part = sai->mbr_req[i];
         if (part->block_count == 0)
     continue;
-        sprintf(msg, "MBR partition path : %d  ", part->desired_slot);
+        sprintf(msg, "MBR partition path : %3d  ", part->desired_slot);
         iso_impsysa_report_blockpath(image, target, msg,
                                      (uint32_t) (part->start_block / 4), 0);
     }
@@ -4922,17 +4923,17 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
 
     if (sa_type == 1) {
         sprintf(msg,
-                "MIPS-BE volume dir :  N      Name       Block       Bytes");
+                "MIPS-BE volume dir :   N      Name       Block       Bytes");
         iso_impsysa_line(target, msg);
         for (i = 0; i < sai->num_mips_boot_files; i++) {
             sprintf(msg,
-                    "MIPS-BE boot entry : %2d  %8s  %10u  %10u",
+                    "MIPS-BE boot entry : %3d  %8s  %10u  %10u",
                     i + 1, sai->mips_vd_entries[i]->name,
                     sai->mips_vd_entries[i]->boot_block,
                     sai->mips_vd_entries[i]->boot_bytes);
             iso_impsysa_line(target, msg);
             if (sai->mips_boot_file_paths[i] != NULL) {
-                sprintf(msg, "MIPS-BE boot path  : %2d  ", i + 1);
+                sprintf(msg, "MIPS-BE boot path  : %3d  ", i + 1);
                 iso_impsysa_report_text(target, msg,
                                         sai->mips_boot_file_paths[i], 0);
             }
@@ -4960,12 +4961,12 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
         sprintf(msg, "SUN SPARC heads/cyl: %d", sai->sparc_heads_per_cyl);
         iso_impsysa_line(target, msg);
         sprintf(msg,
-             "SUN SPARC partmap  : N   IdTag   Perms    StartCyl   NumBlocks");
+           "SUN SPARC partmap  :   N   IdTag   Perms    StartCyl   NumBlocks");
         iso_impsysa_line(target, msg);
         for (i = 0; i < sai->sparc_entry_count; i++) {
             sparc_entry = sai->sparc_entries + i;
             sprintf(msg,
-                    "SUN SPARC partition: %d  0x%4.4x  0x%4.4x  %10u  %10u",
+                    "SUN SPARC partition: %3d  0x%4.4x  0x%4.4x  %10u  %10u",
                     sparc_entry->idx,
                     sparc_entry->id_tag, sparc_entry->permissions,
                     sparc_entry->start_cyl, sparc_entry->num_blocks);
@@ -5076,27 +5077,27 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
     }
 
     if (sai->apm_req_count > 0) {
-        sprintf(msg, "APM                :  N  Info");
+        sprintf(msg, "APM                :   N  Info");
         iso_impsysa_line(target, msg);
-        sprintf(msg, "APM block size     :     %u", sai->apm_block_size);
+        sprintf(msg, "APM block size     :      %u", sai->apm_block_size);
         iso_impsysa_line(target, msg);
-        sprintf(msg, "APM gap fillers    :     %d", sai->apm_gap_count);
+        sprintf(msg, "APM gap fillers    :      %d", sai->apm_gap_count);
         iso_impsysa_line(target, msg);
     }
     for (i = 0; i < sai->apm_req_count; i++) {
         apm_entry = sai->apm_req[i];
         idx = i + 1;
-        sprintf(msg, "APM partition name : %2d  %s", idx, apm_entry->name);
+        sprintf(msg, "APM partition name : %3d  %s", idx, apm_entry->name);
         iso_impsysa_line(target, msg);
-        sprintf(msg, "APM partition type : %2d  %s", idx, apm_entry->type);
+        sprintf(msg, "APM partition type : %3d  %s", idx, apm_entry->type);
         iso_impsysa_line(target, msg);
-        sprintf(msg, "APM start and size : %2d  %.f  %.f", idx,
+        sprintf(msg, "APM start and size : %3d  %.f  %.f", idx,
                      (double) apm_entry->start_block,
                      (double) apm_entry->block_count);
         iso_impsysa_line(target, msg);
         if (apm_entry->block_count == 0)
     continue;
-        sprintf(msg, "APM partition path : %2d  ", idx);
+        sprintf(msg, "APM partition path : %3d  ", idx);
         iso_impsysa_report_blockpath(image, target, msg,
                                      (uint32_t) (apm_entry->start_block /
                                                  (2048 / sai->apm_block_size)),
