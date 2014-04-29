@@ -5225,6 +5225,10 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
     }
     for (i= 0; i < bootcat->num_bootimages; i++) {
         img = bootcat->bootimages[i];
+        if (lba_mem[i] != 0xffffffff) {
+            sprintf(msg, "El Torito img path : %3d  ", i + 1);
+            iso_impsysa_report_blockpath(image, target, msg, lba_mem[i], 1);
+        }
         sprintf(msg, "El Torito img opts : %3d  ", i + 1);
         if (img->seems_boot_info_table)
             strcat(msg, "boot-info-table ");
@@ -5236,12 +5240,6 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
             msg[strlen(msg) - 1] = 0;
             iso_impsysa_line(target, msg);
         }
-/*
-    }
-
-    for (i= 0; i < bootcat->num_bootimages; i++) {
-        img = bootcat->bootimages[i];
-*/
         for (j = 0; j < (int) sizeof(img->id_string); j++)
             if (img->id_string[j])
         break;
@@ -5258,15 +5256,6 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
             iso_util_bin_to_hex(msg + strlen(msg),
                                 img->selection_crit, 20, 0);
         }
-/*
-    }
-    for (i= 0; i < bootcat->num_bootimages; i++) {
-*/
-        if (lba_mem[i] == 0xffffffff)
-    continue;
-        img = bootcat->bootimages[i];
-        sprintf(msg, "El Torito img path : %3d  ", i + 1);
-        iso_impsysa_report_blockpath(image, target, msg, lba_mem[i], 1);
     }
 
     ret = ISO_SUCCESS;    

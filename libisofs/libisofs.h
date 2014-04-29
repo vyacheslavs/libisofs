@@ -3978,9 +3978,11 @@ int iso_image_report_system_area(IsoImage *image,
 "       the block address given by LBA of boot image X.", \
 "       (This line is not reported if no path points to that block.)", \
 "  El Torito img blks :   X  decimal", \
-"       gives an upper limit of the number of blocks in the boot image", \
+"       gives an upper limit of the number of 2048-blocks in the boot image", \
 "       if it is not accessible via a path in the ISO directory tree.", \
-"       (This line is not reported if a path points to the image start.)", \
+"       The boot image is supposed to end before the start block of any", \
+"       other entity of the ISO filesystem.", \
+"       (This line is not reported if no limiting entity is found.)", \
 ""
 
 /**
