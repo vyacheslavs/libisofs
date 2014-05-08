@@ -3736,12 +3736,12 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "       conversion factor between MBR C/H/S address and LBA. 0=inconsistent.", \
 "  MBR secs per head  : decimal", \
 "       conversion factor between MBR C/H/S address and LBA. 0=inconsistent.", \
-"  MBR partition table: N Status  Type        Start        Blocks", \
+"  MBR partition table:   N Status  Type        Start        Blocks", \
 "       headline for MBR partition table.", \
-"  MBR partition      : X    hex   hex      decimal       decimal", \
+"  MBR partition      :   X    hex   hex      decimal       decimal", \
 "       gives partition number, status byte, type byte, start block,", \
 "       and number of blocks. 512 bytes per block.", \
-"  MBR partition path : X  path", \
+"  MBR partition path :   X  path", \
 "       the path of a file in the ISO image which begins at the partition", \
 "       start block of partition X.", \
 "  PReP boot partition: decimal decimal", \
@@ -3815,32 +3815,32 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 #define ISO_SYSAREA_REPORT_DOC_APM \
 \
 "Apple partition map can coexist with MBR and GPT:", \
-"  APM                :  N  Info", \
+"  APM                :   N  Info", \
 "       headline for human readers.", \
-"  APM block size     :     decimal", \
+"  APM block size     :      decimal", \
 "       block size of Apple Partition Map. 512 or 2048. This applies to", \
 "       start address and size of all partitions in the APM.", \
-"  APM gap fillers    :     decimal", \
+"  APM gap fillers    :      decimal", \
 "       tells the number of partitions with name \"Gap[0-9[0-9]]\" and type", \
 "       \"ISO9660_data\".", \
-"  APM partition name :  X  text", \
+"  APM partition name :   X   text", \
 "       the name of partition X. Up to 32 characters.", \
-"  APM partition type :  X  text", \
+"  APM partition type :   X   text", \
 "       the type string of partition X. Up to 32 characters.", \
-"  APM start and size :  X  decimal  decimal", \
+"  APM start and size :   X   decimal  decimal", \
 "       start block and number of blocks of partition X.", \
-"  APM partition path :  X  path", \
+"  APM partition path :   X   path", \
 "       the path of a file in the ISO image which begins at the partition", \
 "       start block of partition X.", \
 ""
 #define ISO_SYSAREA_REPORT_DOC_MIPS \
 \
 "If a MIPS Big Endian Volume Header is detected, there may be:", \
-"  MIPS-BE volume dir :  N      Name       Block       Bytes", \
+"  MIPS-BE volume dir :   N      Name       Block       Bytes", \
 "       headline for human readers.", \
-"  MIPS-BE boot entry :  X  upto8chr     decimal     decimal", \
+"  MIPS-BE boot entry :   X  upto8chr     decimal     decimal", \
 "       tells name, 512-byte block address, and byte count of boot entry X.", \
-"  MIPS-BE boot path  :  X  path", \
+"  MIPS-BE boot path  :   X  path", \
 "       tells the path to the boot image file in the ISO image which belongs", \
 "       to the block address given by boot entry X.", \
 "", \
