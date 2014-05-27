@@ -1122,6 +1122,11 @@ int family_set_ino(Ecma119Image *img, Ecma119Node **nodes, size_t family_start,
         */
         if (img_ino == prev_ino)
             img_ino = 0;
+
+	/* Accept only if it is within the 32 bit range. */
+        if (((uint64_t) img_ino) > 0xffffffff)
+            img_ino = 0;
+
     }
     if (img_ino == 0) {
         img_ino = img_give_ino_number(img->image, 0);

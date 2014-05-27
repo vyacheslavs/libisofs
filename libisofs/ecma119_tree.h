@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- *               2012 Thomas Schmitt
+ *               2012 - 2014 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -64,9 +64,7 @@ struct ecma119_node
 
     IsoNode *node; /*< reference to the iso node */
 
-    /* >>> ts A90501 : Shouldn't this be uint32_t
-                       as this is what PX will take ? */
-    ino_t ino;
+    uint32_t ino;
 
     nlink_t nlink;
 

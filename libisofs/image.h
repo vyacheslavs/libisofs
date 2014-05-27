@@ -171,18 +171,20 @@ struct Iso_Image
      * Inode number management. inode_counter is taken over from
      * IsoImageFilesystem._ImageFsData after image import.
      * It is to be used with img_give_ino_number()
-     */
-    ino_t inode_counter;
+     * This is a Rock Ridge file serial number. Thus 32 bit.
+    */
+    uint32_t inode_counter;
     /*
      * A bitmap of used inode numbers in an interval beginning at
      * used_inodes_start and holding ISO_USED_INODE_RANGE bits.
      * If a bit is set, then the corresponding inode number is occupied.
      * This interval is kept around inode_counter and eventually gets
      * advanced by ISO_USED_INODE_RANGE numbers in a tree traversal
-     * done by img_collect_inos().
+     * done by img_collect_inos(). The value will stay in the 32 bit range,
+     * although used_inodes_start is 64 bit to better handle rollovers.
      */
     uint8_t *used_inodes;
-    ino_t used_inodes_start;
+    uint64_t used_inodes_start;
 
     /**
      * Array of MD5 checksums as announced by xattr "isofs.ca" of the 
@@ -236,10 +238,10 @@ int img_collect_inos(IsoImage *image, IsoDir *dir, int flag);
  * @param image The image where the number shall be used
  * @param flag  bit0= reset count (Caution: image must get new inos then)
  * @return
- *     Since ino_t 0 is used as default and considered self-unique, 
+ *     Since 0 is used as default and considered self-unique, 
  *     the value 0 should only be returned in case of error.
  */ 
-ino_t img_give_ino_number(IsoImage *image, int flag);
+uint32_t img_give_ino_number(IsoImage *image, int flag);
 
 /* @param flag bit0= overwrite any ino, else only ino == 0
                bit1= install inode with non-data, non-directory files

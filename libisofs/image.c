@@ -674,7 +674,8 @@ ex:;
 
 
 /**
- * A global counter for inode numbers for the ISO image filesystem.
+ * A global counter for Rock Ridge inode numbers in the ISO image filesystem.
+ *
  * On image import it gets maxed by the eventual inode numbers from PX
  * entries. Up to the first 32 bit rollover it simply increments the counter.
  * After the first rollover it uses a look ahead bitmap which gets filled
@@ -684,13 +685,13 @@ ex:;
  * @param image The image where the number shall be used
  * @param flag  bit0= reset count (Caution: image must get new inos then)
  * @return
- *     Since ino_t 0 is used as default and considered self-unique,
+ *     Since 0 is used as default and considered self-unique,
  *     the value 0 should only be returned in case of error.
  */
-ino_t img_give_ino_number(IsoImage *image, int flag)
+uint32_t img_give_ino_number(IsoImage *image, int flag)
 {
     int ret;
-    ino_t new_ino, ino_idx;
+    uint64_t new_ino, ino_idx;
     static uint64_t limit = 0xffffffff;
 
     if (flag & 1) {
@@ -700,10 +701,10 @@ ino_t img_give_ino_number(IsoImage *image, int flag)
         image->used_inodes = NULL;
         image->used_inodes_start = 0;
     }
-    new_ino = image->inode_counter + 1;
+    new_ino = ((uint64_t) image->inode_counter) + 1;
     if (image->used_inodes == NULL) {
         if (new_ino > 0 && new_ino <= limit) {
-            image->inode_counter = new_ino;
+            image->inode_counter = (uint32_t) new_ino;
             return image->inode_counter;
         }
     }

@@ -955,7 +955,8 @@ int catalog_is_repeatable(IsoStream *stream)
 /**
  * fs_id will be the id reserved for El-Torito
  * dev_id will be 0 for catalog, 1 for boot image (if needed)
- * we leave ino_id for future use when we support multiple boot images
+ * ino_id 0 is supposed to be unique. At write time it will get assigned
+ * an automatic file serial number in the ISO, if needed.
  */
 static
 void catalog_get_id(IsoStream *stream, unsigned int *fs_id, dev_t *dev_id,

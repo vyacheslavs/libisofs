@@ -320,8 +320,8 @@ typedef struct
     /* Whether inode numbers from PX entries shall be discarded */
     unsigned int make_new_ino : 1 ;
 
-    /* Inode number generator counter */
-    ino_t inode_counter;
+    /* Inode number generator counter. 32 bit because for Rock Ridge PX. */
+    uint32_t inode_counter;
 
     /* PX inode number status
        bit0= there were nodes with PX inode numbers
