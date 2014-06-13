@@ -1447,17 +1447,6 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         {ret = ISO_UNSUPPORTED_ECMA119; goto ex;}
     }
 
-    /*
-     * Check for extended attributes, that are not supported. Note that even
-     * if we don't support them, it is easy to ignore them.
-     */
-    if (record->len_xa[0]) {
-        iso_msg_submit(fsdata->msgid, ISO_UNSUPPORTED_ECMA119, 0,
-              "Unsupported image. This image has at least one file with "
-              "ECMA-119 Extended Attributes, that are not supported");
-        {ret = ISO_UNSUPPORTED_ECMA119; goto ex;}
-    }
-
     /* TODO #00013 : check for unsupported flags when reading a dir record */
 
     /*
@@ -1527,7 +1516,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             ret = ISO_OUT_OF_MEM;
             goto ifs_cleanup;
         }
-        ifsdata->sections[ifsdata->nsections].block = iso_read_bb(record->block, 4, NULL);
+        ifsdata->sections[ifsdata->nsections].block =
+                       iso_read_bb(record->block, 4, NULL) + record->len_xa[0];
         ifsdata->sections[ifsdata->nsections].size = iso_read_bb(record->length, 4, NULL);
 
         ifsdata->info.st_size += (off_t) ifsdata->sections[ifsdata->nsections].size;
@@ -2037,7 +2027,8 @@ if (name != NULL && !namecont) {
         ret = ISO_OUT_OF_MEM;
         goto ifs_cleanup;
     }
-    ifsdata->sections[ifsdata->nsections].block = iso_read_bb(record->block, 4, NULL);
+    ifsdata->sections[ifsdata->nsections].block =
+                       iso_read_bb(record->block, 4, NULL) + record->len_xa[0];
     ifsdata->sections[ifsdata->nsections].size = iso_read_bb(record->length, 4, NULL);
     ifsdata->nsections++;
 
@@ -2546,7 +2537,8 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     data->nblocks = iso_read_bb(pvm->vol_space_size, 4, NULL);
 
     rootdr = (struct ecma119_dir_record*) pvm->root_dir_record;
-    data->pvd_root_block = iso_read_bb(rootdr->block, 4, NULL);
+    data->pvd_root_block = iso_read_bb(rootdr->block, 4, NULL) +
+                           rootdr->len_xa[0];
 
     /*
      * TODO #00017 : take advantage of other atts of PVD
@@ -2929,7 +2921,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     iso_msg_debug(data->msgid, "Found Joliet extensions");
                     data->joliet = 1;
                     root = (struct ecma119_dir_record*)sup->root_dir_record;
-                    data->svd_root_block = iso_read_bb(root->block, 4, NULL);
+                    data->svd_root_block = iso_read_bb(root->block, 4, NULL) +
+                                           root->len_xa[0];
                     /* TODO #00019 : set IsoImage attribs from Joliet SVD? */
                     /* TODO #00020 : handle RR info in Joliet tree */
                 } else if (sup->vol_desc_version[0] == 2) {
@@ -2940,7 +2933,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                     iso_msg_debug(data->msgid, "Found ISO 9660:1999");
                     data->iso1999 = 1;
                     root = (struct ecma119_dir_record*)sup->root_dir_record;
-                    data->evd_root_block = iso_read_bb(root->block, 4, NULL);
+                    data->evd_root_block = iso_read_bb(root->block, 4, NULL) + 
+                                           root->len_xa[0];
                     /* TODO #00021 : handle RR info in ISO 9660:1999 tree */
                 } else {
                     ret = iso_msg_submit(data->msgid, ISO_UNSUPPORTED_VD, 0,
