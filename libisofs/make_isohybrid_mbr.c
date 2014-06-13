@@ -560,7 +560,7 @@ static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
 /*
  * @param flag  bit0= make own random MBR Id from current time
  */
-int make_isolinux_mbr(int32_t *img_blocks, Ecma119Image *t,
+int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
                       uint8_t *buf, int flag)
 {
