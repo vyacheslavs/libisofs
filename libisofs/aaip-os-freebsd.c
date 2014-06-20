@@ -5,9 +5,9 @@
  Arbitrary Attribute Interchange Protocol , system adapter for getting and
  setting of ACLs and xattr.
 
- To be included by aaip_0_2.c
+ To be included by aaip_0_2.c for FreeBSD and NetBSD
 
- Copyright (c) 2009 - 2011 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2014 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -31,6 +31,8 @@
 #ifdef Libisofs_with_freebsd_extattR
 #include <sys/extattr.h>
 #endif
+
+#include <sys/statvfs.h>
 
 /* <<< Use old ACL adapter code that is unable to deal with extattr */
 /* # define Libisofs_old_freebsd_acl_adapteR */
@@ -68,6 +70,32 @@ int aaip_local_attr_support(int flag)
 
  return(ret);
 }
+
+
+#ifdef Libisofs_with_freebsd_extattR
+
+static int aaip_extattr_path_supp(char *path, int flag)
+{
+
+#ifdef MNT_EXTATTR
+
+ int ret;
+ struct statvfs statvfs_buf;
+
+ ret = statvfs(path, &statvfs_buf);
+ if(ret == -1)
+   return(1);
+ return(!!(statvfs_buf.f_flag & MNT_EXTATTR));
+
+#else /* MNT_EXTATTR */
+
+ return(1);
+
+#endif /* ! MNT_EXTATTR */
+
+}
+
+#endif /* Libisofs_with_freebsd_extattR */
 
 
 /* ------------------------------ Getters --------------------------------- */
@@ -195,8 +223,13 @@ static int aaip_extattr_make_list(char *path, int attrnamespace,
    *list_size= extattr_list_file(path, attrnamespace, NULL, (size_t) 0);
  else
    *list_size= extattr_list_link(path, attrnamespace, NULL, (size_t) 0);
- if(*list_size == -1)
+ if(*list_size == -1) {
+   if(! aaip_extattr_path_supp(path, 0)) {
+     *list_size = 0;
+     return(2);
+   }
    return(0);
+ }
  if(*list_size == 0)
    return(2);
  *list= calloc(*list_size, 1);

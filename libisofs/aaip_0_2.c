@@ -7,7 +7,7 @@
  See libisofs/aaip_0_2.h
      http://libburnia-project.org/wiki/AAIP
 
- Copyright (c) 2009 - 2011 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2014 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -2182,6 +2182,11 @@ ex:;
 #include "aaip-os-freebsd.c"
 
 #else
+#ifdef __NetBSD__
+
+#include "aaip-os-freebsd.c"
+
+#else
 #ifdef __linux
 
 #include "aaip-os-linux.c"
@@ -2198,5 +2203,6 @@ ex:;
 #include "aaip-os-dummy.c"
 
 #endif /* ! __linux */
+#endif /* ! __NetBSD__ */
 #endif /* ! __FreeBSD__ */
 

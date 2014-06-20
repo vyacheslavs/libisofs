@@ -5,7 +5,7 @@
  Arbitrary Attribute Interchange Protocol , system adapter for getting and
  setting of ACLs and xattr.
 
- To be included by aaip_0_2.c
+ To be included by aaip_0_2.c for Linux
 
  Copyright (c) 2009 - 2011 Thomas Schmitt, libburnia project, GPLv2+
 
