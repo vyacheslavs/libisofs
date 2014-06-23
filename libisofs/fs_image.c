@@ -4016,11 +4016,12 @@ int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
     LIBISO_ALLOC_MEM(comments, char, 4096);
 
     /* Read ISO block with backup head */
-    if (sai->gpt_backup_lba >= ((uint64_t) sai->image_size) * 4) {
+    if (sai->gpt_backup_lba >= ((uint64_t) sai->image_size) * 4 &&
+        (sai->mbr_req_count < 1 ||
+         sai->mbr_req[0]->start_block + sai->mbr_req[0]->block_count
+         != sai->gpt_backup_lba + 1))
         sprintf(comments + strlen(comments), "Implausible header LBA %.f, ",
                 (double) sai->gpt_backup_lba);
-        ret = 0; goto ex;
-    }
     iso_block = sai->gpt_backup_lba / 4;
     ret = src->read_block(src, iso_block, buf);
     if (ret < 0) {
@@ -4075,11 +4076,9 @@ int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
                 entry_count, sai->gpt_max_entries);
         ret = 0; goto ex;
     }
-    if (part_start >= ((uint64_t) sai->image_size) * 4) {
+    if (part_start + (entry_count + 3) / 4 != sai->gpt_backup_lba)
         sprintf(comments + strlen(comments), "Implausible array LBA %.f, ",
                 (double) part_start);
-        ret = 0; goto ex;
-    }
     iso_block = part_start / 4;
     num_iso_blocks = (part_start + (entry_count + 3) / 4) / 4 - iso_block + 1;
     for (i = 0; i < num_iso_blocks; i++) {
@@ -4094,11 +4093,9 @@ int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
     part_array = buf + (part_start % 4) * 512;
 
     crc = iso_crc32_gpt((unsigned char *) part_array, 128 * entry_count, 0);
-    if (crc != array_crc) {
+    if (crc != array_crc)
         sprintf(comments + strlen(comments),
                 "Array CRC 0x%8x wrong. Should be 0x%8x, ", array_crc, crc);
-        ret = 0; goto ex;
-    }
 
     /* Compare entries */
     entries_diff = 0;
