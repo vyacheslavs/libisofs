@@ -4798,6 +4798,8 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
 
     LIBISO_ALLOC_MEM(msg, char, ISO_MAX_SYSAREA_LINE_LENGTH);
 
+    if (sai == NULL)
+        {ret = 0; goto ex;}
     if (!sai->is_not_zero)
         {ret = 0; goto ex;}
     sao = sai->system_area_options;
