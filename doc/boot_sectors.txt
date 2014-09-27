@@ -959,6 +959,7 @@ PReP boots via a MBR partition containing only raw ELF and having type 0x41.
 Sources:
     Mail conversations with Vladimir Serbinenko.
     http://stuff.mit.edu/afs/sipb/contrib/doc/specs/protocol/chrp/chrp1_7a.pdf
+    https://www.ibm.com/developerworks/community/wikis/home?lang=en#!/wiki/W51a7ffcf4dfd_4b40_9d82_446ebc23c550/page/PowerLinux%20Boot%20howto
 
 CHRP is marked by an MBR partition entry of type 0x96 spanning the whole
 ISO 9660 image.
@@ -966,10 +967,14 @@ ISO 9660 image.
 The specs in chrp1_7a.pdf promise that CHRP also recognizes ISO 9660 file
 systems on unpartitioned disks. (See 11.1.1. Media Layout Format)
 
+The firmware looks up a file /ppc/bootinfo.txt which in SGML-ish tag
+<boot-script> contains firmware commands.
+E.g. to execute the binary /boot/grub/powerpc.elf as first stage of GRUB2:
+  <boot-script>boot &device;:\boot\grub\powerpc.elf</boot-script> 
+
 Vladimir Serbinenko stated:
 PReP boot may be preferable. At least it can co-exist with other partitions
 in the ISO image [without causing overlapping between partitions].
-
 
 
 ------------------------------------------------------------------------------
