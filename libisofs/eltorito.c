@@ -538,7 +538,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
         catalog->bootimages[i] = NULL;
     catalog->node = cat_node;
     catalog->sort_weight = 1000;                            /* slightly high */
-    if (!boot_node->explicit_weight)
+    if (!(boot_node->explicit_weight || boot_node->from_old_session))
         boot_node->sort_weight = 2;
     iso_node_ref((IsoNode*)cat_node);
     image->bootcat = catalog;
@@ -719,7 +719,7 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
     ret = create_image(image, image_path, type, &boot_img, &boot_node);
     if (ret < 0) 
         return ret;
-    if (!boot_node->explicit_weight)
+    if (!(boot_node->explicit_weight || boot_node->from_old_session))
         boot_node->sort_weight = 2;
     catalog->bootimages[catalog->num_bootimages] = boot_img;
     catalog->num_bootimages++;
