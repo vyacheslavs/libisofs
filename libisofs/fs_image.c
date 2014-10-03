@@ -3963,11 +3963,6 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
                                                0);
             if (ret < 0)
                 goto ex;
-        } else if (is_protective_label && sai->image_size >= 34) {
-            ret = iso_analyze_partition_offset(image, src, (uint64_t) (16 * 4),
-                                               0);
-            if (ret < 0)
-                goto ex;
         }
     }
 
@@ -4825,6 +4820,8 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
                                        alignments[(sao >> 8) & 3]);
         } else if (sai->prep_part_start > 0 && sai->prep_part_size > 0) {
             strcat(msg, " PReP");
+        } else if (sai->mbr_req_count > 0) {
+            strcat(msg, " MBR");
         } else {
             strcat(msg, " not-recognized");
         }
