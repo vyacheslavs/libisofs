@@ -3867,6 +3867,13 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "       tells the number of sectors per head.", \
 "  SUN SPARC heads/cyl: decimal", \
 "       tells the number of heads per cylinder.", \
+"  SUN SPARC partmap  :   N   IdTag   Perms    StartCyl   NumBlock", \
+"       headline for human readers.", \
+"  SUN SPARC partition:   X   hex     hex       decimal    decimal", \
+"       gives partition number, type word, permission word, start cylinder,", \
+"       and number of of blocks. 512 bytes per block. Type word may be: ", \
+"       0=unused, 2=root partition with boot, 4=user partition.", \
+"       Permission word is 0x10 = read-only.", \
 "  SPARC GRUB2 core   : decimal  decimal", \
 "       tells byte address and byte count of the GRUB2 SPARC core file.", \
 "  SPARC GRUB2 path   : path", \
@@ -3961,6 +3968,10 @@ int iso_image_report_system_area(IsoImage *image,
 "       tells the path to the data file in the ISO image which belongs to", \
 "       the block address where the boot catalog starts.", \
 "       (This line is not reported if no path points to that block.)", \
+"  El Torito img path :   X  iso_rr_path", \
+"       tells the path to the data file in the ISO image which belongs to", \
+"       the block address given by LBA of boot image X.", \
+"       (This line is not reported if no path points to that block.)", \
 "  El Torito img opts :   X  word ... word", \
 "       tells the presence of extra features:", \
 "         \"boot-info-table\"    image got boot info table patching.", \
@@ -3973,10 +3984,6 @@ int iso_image_report_system_area(IsoImage *image,
 "  El Torito sel crit :   X  hex_digits", \
 "       tells the selection criterion of boot image X.", \
 "       (This line is not reported if the criterion is all zero.)", \
-"  El Torito img path :   X  iso_rr_path", \
-"       tells the path to the data file in the ISO image which belongs to", \
-"       the block address given by LBA of boot image X.", \
-"       (This line is not reported if no path points to that block.)", \
 "  El Torito img blks :   X  decimal", \
 "       gives an upper limit of the number of 2048-blocks in the boot image", \
 "       if it is not accessible via a path in the ISO directory tree.", \
