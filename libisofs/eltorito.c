@@ -537,7 +537,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
     for (i = 1; i < Libisofs_max_boot_imageS; i++)
         catalog->bootimages[i] = NULL;
     catalog->node = cat_node;
-    catalog->sort_weight = 1000;                            /* slightly high */
+    catalog->sort_weight = 1000000000;                          /* very high */
     if (!(boot_node->explicit_weight || boot_node->from_old_session))
         boot_node->sort_weight = 2;
     iso_node_ref((IsoNode*)cat_node);
