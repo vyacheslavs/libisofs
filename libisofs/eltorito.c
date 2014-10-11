@@ -814,7 +814,8 @@ write_section_header(uint8_t *buf, Ecma119Image *t, int idx, int num_entries)
         (struct el_torito_section_header *) buf;
 
     /* 0x90 = more section headers follow , 0x91 = final section */
-    e->header_indicator[0] = 0x90 + (idx == t->catalog->num_bootimages - 1);
+    e->header_indicator[0] =
+                      0x90 + (idx == t->catalog->num_bootimages - num_entries);
     e->platform_id[0] = t->catalog->bootimages[idx]->platform_id;
     e->num_entries[0] = num_entries & 0xff;
     e->num_entries[1] = (num_entries >> 8) & 0xff;;
