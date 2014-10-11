@@ -206,6 +206,8 @@ void el_torito_patch_isolinux_image(ElToritoBootImage *bootimg)
 int el_torito_set_isolinux_options(ElToritoBootImage *bootimg, int options, int flag)
 {
     bootimg->isolinux_options = (options & 0x03ff);
+    bootimg->seems_boot_info_table = !!(options & 1);
+    bootimg->seems_grub2_boot_info = !!(options & (1 << 9));
     return ISO_SUCCESS;
 }
 
