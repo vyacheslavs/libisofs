@@ -1409,7 +1409,7 @@ int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
     uint32_t crc;
     off_t back_lba;
 
-    memset(buf, 0, 128);
+    memset(buf, 0, 512);
     wpt = (char *) buf;
 
     /* >>> Make signature adjustable */
