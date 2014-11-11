@@ -4023,15 +4023,16 @@ int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
         sprintf(comments + strlen(comments),
                 "Cannot read header block at 2k LBA %.f, ",
                 (double) iso_block);
-        goto ex;
+        ret = 0; goto ex;
     }
     head = buf + (sai->gpt_backup_lba % 4) * 512;
     ret = iso_seems_usable_gpt_head(head, 0);
     if (ret == 0)
         strcat(comments,
                "Not a GPT 1.0 header of 92 bytes for 128 bytes per entry, ");
-    if (ret <= 0)
-        goto ex;
+    if (ret <= 0) {
+        ret = 0; goto ex;
+    }
 
     /* Check head CRC */
     found_crc = iso_read_lsb(head + 16, 4);
@@ -4082,7 +4083,7 @@ int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
             sprintf(comments + strlen(comments),
                     "Cannot read array block at 2k LBA %.f, ",
                     (double) iso_block);
-            goto ex;
+            ret = 0; goto ex;
         }
     }
     part_array = buf + (part_start % 4) * 512;
