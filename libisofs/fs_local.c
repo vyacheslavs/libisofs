@@ -282,6 +282,9 @@ static
 int lfs_read(IsoFileSource *src, void *buf, size_t count)
 {
     _LocalFsFileSource *data;
+    size_t to_read, done = 0;
+    int ret;
+    uint8_t *buf8;
 
     if (src == NULL || buf == NULL) {
         return ISO_NULL_POINTER;
@@ -293,28 +296,28 @@ int lfs_read(IsoFileSource *src, void *buf, size_t count)
     data = src->data;
     switch (data->openned) {
     case 1: /* not dir */
-        {
-            int ret;
-            ret = read(data->info.fd, buf, count);
+        buf8 = (uint8_t *) buf; /* for pointer arithmetic */
+        for (to_read = count; to_read > 0; to_read = count - done) {
+            if (to_read > 1024 * 1024)
+                to_read = 1024 * 1024;
+            ret = read(data->info.fd, buf8 + done, to_read);
             if (ret < 0) {
                 /* error on read */
                 switch (errno) {
                 case EINTR:
-                    ret = ISO_INTERRUPTED;
-                    break;
+                    return ISO_INTERRUPTED;
                 case EFAULT:
-                    ret = ISO_OUT_OF_MEM;
-                    break;
+                    return ISO_OUT_OF_MEM;
                 case EIO:
-                    ret = ISO_FILE_READ_ERROR;
-                    break;
-                default:
-                    ret = ISO_FILE_ERROR;
-                    break;
+                    return ISO_FILE_READ_ERROR;
                 }
+                return ISO_FILE_ERROR;
             }
-            return ret;
+            if (ret == 0) /* EOF */
+        break;
+            done += ret;
         }
+        return done;
     case 2: /* directory */
         return ISO_FILE_IS_DIR;
     default:

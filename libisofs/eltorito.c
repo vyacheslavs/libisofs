@@ -1194,6 +1194,9 @@ int iso_patch_eltoritos(Ecma119Image *t)
         ret = iso_stream_read(original, buf, size);
         iso_stream_close(original);
         if (ret != (int) size) {
+            if (ret >= 0)
+               iso_msg_submit(t->image->id, ISO_FILE_READ_ERROR, 0,
+        "Cannot read all bytes from El Torito boot image for boot info table");
             return (ret < 0) ? ret : (int) ISO_FILE_READ_ERROR;
         }
 
