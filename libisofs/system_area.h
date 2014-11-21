@@ -173,12 +173,6 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
                         uint32_t start_block, uint32_t block_count,
                         char *name, char *type);
 
-
-/* CRC-32 as of GPT and Ethernet.
-*/
-unsigned int iso_crc32_gpt(unsigned char *data, int count, int flag);
-
-
 /* These two pseudo-random generators produce byte strings which will
    surely not duplicate in the first 256 calls. If more calls are necessary
    in the same process, then one must wait until the output of
