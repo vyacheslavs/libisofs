@@ -42,6 +42,11 @@
 #include <uuid/uuid.h>
 #endif
 
+/* O_BINARY is needed for Cygwin but undefined elsewhere */
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 
 /*
  * Create a MBR for an isohybrid enabled ISOLINUX boot image.
@@ -2079,7 +2084,7 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
        (Weakening the result by 8 bit saves a lot of pool entropy.)
     */
     if ((counter & 0xff) == 0) {
-        fd = open("/dev/urandom", O_RDONLY);
+        fd = open("/dev/urandom", O_RDONLY | O_BINARY);
         if (fd == -1)
             goto fallback;
         ret = read(fd, uuid_urandom, 16);

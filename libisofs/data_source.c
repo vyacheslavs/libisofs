@@ -21,6 +21,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+/* O_BINARY is needed for Cygwin but undefined elsewhere */
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 /**
  * Private data for File IsoDataSource
  */
@@ -65,7 +70,7 @@ int ds_open(IsoDataSource *src)
         return ISO_FILE_ALREADY_OPENED;
     }
 
-    fd = open(data->path, O_RDONLY);
+    fd = open(data->path, O_RDONLY | O_BINARY);
     if (fd == -1) {
         return ISO_FILE_ERROR;
     }

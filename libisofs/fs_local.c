@@ -30,6 +30,11 @@
 #include <libgen.h>
 #include <string.h>
 
+/* O_BINARY is needed for Cygwin but undefined elsewhere */
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 static
 int iso_file_source_new_lfs(IsoFileSource *parent, const char *name, 
                             IsoFileSource **src);
@@ -222,7 +227,7 @@ int lfs_open(IsoFileSource *src)
         data->info.dir = opendir(path);
         data->openned = data->info.dir ? 2 : 0;
     } else {
-        data->info.fd = open(path, O_RDONLY);
+        data->info.fd = open(path, O_RDONLY | O_BINARY);
         data->openned = data->info.fd != -1 ? 1 : 0;
     }
     free(path);
