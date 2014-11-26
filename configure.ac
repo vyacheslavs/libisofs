@@ -114,6 +114,16 @@ AC_CHECK_DECL([timegm],
 	,
 	[#include <time.h>])
 
+dnl Whether timezone is an integer variable
+AH_TEMPLATE([Libburnia_timezonE], [Either timezone or 0])
+LIBBURNIA_TRY_TIMEZONE
+if test x$LIBBURNIA_TIMEZONE = xtimezone
+then
+   AC_DEFINE([Libburnia_timezonE], [timezone])
+else
+   AC_DEFINE([Libburnia_timezonE], [0])
+fi
+
 dnl Check if non standard eaccess() function is available
 AC_CHECK_DECL([eaccess], 
 	[AC_DEFINE(HAVE_EACCESS, 1, [Define this if eaccess function is available])],

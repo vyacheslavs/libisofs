@@ -198,3 +198,15 @@ dnl For debugging only
  
 ])
 
+dnl LIBBURNIA_TRY_TIMEZONE is by Thomas Schmitt, libburnia project
+dnl It tests whether the global variable exists and is suitable for
+dnl integer arithmetics.
+AC_DEFUN([LIBBURNIA_TRY_TIMEZONE],
+[
+    echo -n "checking for timezone variable ... "
+    AC_TRY_LINK([ #include <time.h> ], [long int i; i = 1 - timezone; ], 
+                [LIBBURNIA_TIMEZONE="timezone"], [LIBBURNIA_TIMEZONE="0"]
+    )
+    echo "$LIBBURNIA_TIMEZONE"
+])
+

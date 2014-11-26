@@ -1574,7 +1574,10 @@ void iso_datetime_7(unsigned char *buf, time_t t, int always_gmt)
 #else
     if (tm.tm_isdst < 0)
         tm.tm_isdst = 0;
-    tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
+#ifndef Libburnia_timezonE
+#define Libburnia_timezonE timezone
+#endif
+    tzoffset = ( - Libburnia_timezonE / 60 / 15 ) + 4 * tm.tm_isdst;
 #endif
 
     if (tzoffset > 52 || tzoffset < -48 || always_gmt) {
