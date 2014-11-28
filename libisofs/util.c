@@ -1577,8 +1577,11 @@ void iso_datetime_7(unsigned char *buf, time_t t, int always_gmt)
 #ifndef Libburnia_timezonE
 #define Libburnia_timezonE timezone
 #endif
+ #if Libburnia_timezonE == 0
+    always_gmt = 1;
+ #endif
     tzoffset = ( - Libburnia_timezonE / 60 / 15 ) + 4 * tm.tm_isdst;
-#endif
+#endif /* ! HAVE_TM_GMTOFF */
 
     if (tzoffset > 52 || tzoffset < -48 || always_gmt) {
         /* absurd timezone offset, represent time in GMT */
@@ -1623,8 +1626,14 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
 #else
     if (tm.tm_isdst < 0)
         tm.tm_isdst = 0;
-    tzoffset = ( - timezone / 60 / 15 ) + 4 * tm.tm_isdst;
+#ifndef Libburnia_timezonE
+#define Libburnia_timezonE timezone
 #endif
+ #if Libburnia_timezonE == 0
+    always_gmt = 1;
+ #endif
+    tzoffset = ( - Libburnia_timezonE / 60 / 15 ) + 4 * tm.tm_isdst;
+#endif /* ! HAVE_TM_GMTOFF */
 
     if (tzoffset > 52 || tzoffset < -48 || always_gmt) {
         /* absurd timezone offset, represent time in GMT */
