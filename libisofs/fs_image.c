@@ -4684,8 +4684,10 @@ static
 int iso_impsysa_reduce_next_above(IsoImage *image, uint32_t block,
                                   uint32_t *next_above, int flag)
 {
-    int i;
+    int i, section_count, ret;
     struct iso_imported_sys_area *sai;
+    struct el_torito_boot_image *img;
+    struct iso_file_section *sections = NULL;
 
     sai = image->imported_sa_info;
 
@@ -4720,6 +4722,17 @@ int iso_impsysa_reduce_next_above(IsoImage *image, uint32_t block,
     if (image->bootcat != NULL)
         if (image->bootcat->node != NULL)
             iso_impsysa_reduce_na(block, next_above, image->bootcat->node->lba);
+
+    for (i= 0; i < image->bootcat->num_bootimages; i++) {
+        img = image->bootcat->bootimages[i];
+        ret = iso_file_get_old_image_sections(img->image, &section_count,
+                                              &sections, 0);
+        if (ret > 0 && section_count > 0)
+            if (block != sections[0].block)
+                iso_impsysa_reduce_na(block, next_above, sections[0].block);
+        if (sections != NULL)
+            free(sections);
+    }
 
     iso_impsysa_reduce_na(block, next_above, sai->image_size);
 
