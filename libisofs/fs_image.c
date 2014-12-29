@@ -1477,7 +1477,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         /*
          * Directory entries can only have one section (ECMA-119, 6.8.1)
          */
-        if (record->flags[0] & 0x02) {
+        if ((record->flags[0] & 0x02) || (flag & 1)) {
             iso_msg_submit(fsdata->msgid, ISO_WRONG_ECMA119, 0,
                           "Directories with more than one section are not allowed.");
             {ret = ISO_WRONG_ECMA119; goto ex;}
