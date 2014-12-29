@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2007 - 2009 Vreixo Formoso, Thomas Schmitt
+ * Copyright (c) 2007 - 2014 Vreixo Formoso, Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -446,7 +446,8 @@ iso_read_print_dir(IsoFileSource *dir, int level)
         sp[i+1] = ' ';
     }
 
-    sp[level * 2-1] = '-';
+    if (level > 0)
+        sp[level * 2 - 1] = '-';
     sp[level * 2] = '\0';
 
     ret = iso_file_source_open(dir);
@@ -551,7 +552,7 @@ int gesture_iso_cat(int argc, char **argv)
     IsoReadOpts *opts;
 
     if (argc != 3) {
-        fprintf(stderr, "Usage: isocat /path/to/image /path/to/file\n");
+        fprintf(stderr, "Usage: -iso_cat /path/to/image /path/to/file\n");
         return 1;
     }
 
