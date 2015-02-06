@@ -574,8 +574,7 @@ bit1 becomes bit30, and so on. Further it gets exored with 0xffffffff.
 
 A GUID consists of a 32-bit integer, two 16-bit integers, and an array of
 8 bytes. The integers are to be stored big-endian.
-A globally registered class of GUID are the partition type GUIDs.
-This example uses two of them
+A globally registered class of GUID are the partition type GUIDs:
 Basic data partition:  a2 a0 d0 eb , e5 b9 , 33 44 , 87 c0 68 b6 b7 26 99 c7
 HFS+ partition      :  00 53 46 48 , 00 00 , aa 11 , aa 11 00 30 65 43 ec ac
 EFI System partition:  28 73 2a c1 , 1f f8 , d2 11 , ba 4b 00 a0 c9 3e c9 3b
@@ -1225,7 +1224,7 @@ intentionally non-essential:
 They may be overwritten by other bytes which must not produce errors or
 undesirable side effects when executed as x86 machine code.
 The following 32 bytes from block 0 of an Apple Partiton Map (APM) are such
-harmless code. They stem from Fedora-LiveCD.iso by Matthew Garret:
+harmless code. They stem from Fedora-LiveCD.iso by Matthew Garrett:
    45  52  08  00  00  00  90  90  00  00  00  00  00  00  00  00
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00
 They do not depend on any properties of the ISO image or the information
@@ -1443,6 +1442,9 @@ Start at block 0xa4 = 164 * 512 = 41 * 2048. The VFAT image file.
 Last block is 0x0513 = 1299 = 164 + 1135. This end is correct.
 (Potential isohybrid.c bug #4:
  Wrong character set and incidential bytes in GPT partition name.)
+(Potential isohybrid.c bug #5:
+ The EFI System Partition should have type GUID :
+ "C12A7328-F81F-11D2-BA4B-00A0C93EC93B")
 
 Next entry at byte 0x02100 = 8448:
 
