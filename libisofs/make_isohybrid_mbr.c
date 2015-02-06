@@ -1,3 +1,13 @@
+/*
+ * Copyright (c) 2008 - 2015 Thomas Schmitt
+ * with special credits to H. Peter Anvin for isohybrid
+ * and to Matthew Garrett for isohybrid with GPT and APM 
+ *
+ * This file is part of the libisofs project; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License version 2
+ * or later as published by the Free Software Foundation.
+ * See COPYING file for details.
+ */
 
 #ifdef HAVE_CONFIG_H
 #include "../config.h"
@@ -559,6 +569,7 @@ static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
 
 /*
  * @param flag  bit0= make own random MBR Id from current time
+ *              bit1= create protective MBR as of UEFI/GPT specs
  */
 int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
@@ -573,6 +584,11 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     /* For generating a weak random number */
     struct timeval tv;
     struct timezone tz;
+
+    if (flag & 2) {
+        part_number = 1;
+        part_offset = 1;
+    }
 
     hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4;
 
@@ -639,14 +655,17 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
             wpt+= 16;
     continue;
         }
-        /* write byte 0x80
+        /* write byte 0x80 if bootable
            write LBA_to_CHS(partition_offset)
            write byte filesystem_type
            write LBA_to_CHS(image_size-1)
            write dword partition_offset
            write dword image_size
         */
-        lsb_to_buf(&wpt, 0x80, 8, 0);
+        if (flag & 2)
+            lsb_to_buf(&wpt, 0x00, 8, 0);
+        else
+            lsb_to_buf(&wpt, 0x80, 8, 0);
         lba512chs_to_buf(&wpt, part_offset, head_count, sector_count);
         lsb_to_buf(&wpt, fs_type, 8, 0);
         lba512chs_to_buf(&wpt, hd_img_blocks - 1, head_count, sector_count);

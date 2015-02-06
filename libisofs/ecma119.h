@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2013 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -480,6 +480,10 @@ struct iso_write_opts {
     char *appended_partitions[ISO_MAX_PARTITIONS]; 
     uint8_t appended_part_types[ISO_MAX_PARTITIONS];
 
+    /* If 1: With appended partitions: create protective MBR and mark by GPT
+     */
+    int appended_as_gpt;
+
     /* Eventual name of the non-ISO aspect of the image. E.g. SUN ASCII label.
      */
     char ascii_disc_label[ISO_DISC_LABEL_SIZE];
@@ -756,6 +760,7 @@ struct ecma119_image
     uint32_t appended_part_prepad[ISO_MAX_PARTITIONS];
     uint32_t appended_part_start[ISO_MAX_PARTITIONS];
     uint32_t appended_part_size[ISO_MAX_PARTITIONS];
+    int have_appended_partitions;
 
     /* See IsoImage and libisofs.h */
     IsoNode *hfsplus_blessed[ISO_HFSPLUS_BLESS_MAX];
@@ -802,6 +807,9 @@ struct ecma119_image
     /* bit0= GPT partitions may overlap */
     int gpt_req_flags;
 
+    /* Whether the eventual backup GPT is not part of the ISO filesystem */
+    int gpt_backup_outside;
+
     uint32_t efi_boot_part_size;
     IsoFileSrc *efi_boot_part_filesrc; /* Just a pointer. Do not free. */
 
@@ -822,6 +830,7 @@ struct ecma119_image
        write_data() methods of the writers.
     */
     uint8_t sys_area_as_written[16 * BLOCK_SIZE];
+    int sys_area_already_written;
 
     /* Size of the filesrc_writer area (data file content).
        This is available before any IsoImageWriter.compute_data_blocks()

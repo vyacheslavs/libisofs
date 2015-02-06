@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2014 Thomas Schmitt
+ * Copyright (c) 2009-2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2502,6 +2502,24 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
 int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
                            uint8_t partition_type, char *image_path, int flag);
 
+/**
+ * Control whether partitions created by iso_write_opts_set_partition_img()
+ * are to be represented in MBR or as GPT partitions.
+ * 
+ * @param opts
+ *        The option set to be manipulated.
+ * @param gpt
+ *        0= represent as MBR partition; as GPT only if other GPT partitions
+ *           are present
+ *        1= represent as GPT partition and cause protective MBR with a single
+ *           partition which covers the whole output data.
+ *           This may fail if other settings demand MBR partitions.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.4.0
+ */
+int iso_write_opts_set_appended_as_gpt(IsoWriteOpts *opts, int gpt);
 
 /**
  * Inquire the start address of the file data blocks after having used
@@ -3730,8 +3748,8 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "If an MBR is detected, with at least one partition entry of non-zero size,", \
 "then there may be:", \
 "  Partition offset   : decimal", \
-"       if not 0 then a second ISO 9660 superblock was found to which MBR", \
-"       partition 1 is pointing.", \
+"       if not 0 then a second ISO 9660 superblock was found to which", \
+"       MBR partition 1 or GPT partition 1 is pointing.", \
 "  MBR heads per cyl  : decimal", \
 "       conversion factor between MBR C/H/S address and LBA. 0=inconsistent.", \
 "  MBR secs per head  : decimal", \

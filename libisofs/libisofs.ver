@@ -290,6 +290,7 @@ iso_write_opts_set_allow_longer_paths;
 iso_write_opts_set_allow_lowercase;
 iso_write_opts_set_always_gmt;
 iso_write_opts_set_appendable;
+iso_write_opts_set_appended_as_gpt;
 iso_write_opts_set_default_dir_mode;
 iso_write_opts_set_default_file_mode;
 iso_write_opts_set_default_gid;

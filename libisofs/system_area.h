@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2012 Thomas Schmitt
+ * Copyright (c) 2012 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -281,9 +281,19 @@ struct iso_sun_disk_label_entry {
 */
 int partprepend_writer_create(Ecma119Image *target);
 
+/* Creates the Inline Partition Append Writer
+*/
+int partappend_writer_create(Ecma119Image *target);
+
 /* Creates the GPT backup tail writer.
 */
 int gpt_tail_writer_create(Ecma119Image *target);
+
+/* Not for execution but only to identify the writer by
+    ( writer->write_vol_desc == gpt_tail_writer_write_vol_desc )
+*/
+int gpt_tail_writer_write_vol_desc(IsoImageWriter *writer);
+
 
 /* Only for up to 36 characters ISO-8859-1 (or ASCII) input */
 void iso_ascii_utf_16le(uint8_t gap_name[72]);
@@ -300,5 +310,11 @@ void iso_ascii_utf_16le(uint8_t gap_name[72]);
 */
 #define Libisofs_grub2_sparc_patch_adr_poS    0x228
 #define Libisofs_grub2_sparc_patch_size_poS   0x230    
+
+
+/* >>> It is unclear whether there is a use case for appended partitions
+       inside the ISO filesystem range. 
+ # define Libisofs_appended_partitions_inlinE yes
+*/
 
 #endif /* SYSTEM_AREA_H_ */

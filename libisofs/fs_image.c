@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -4014,7 +4014,7 @@ int iso_analyze_gpt_backup(IsoImage *image, IsoDataSource *src, int flag)
     if (sai->gpt_backup_lba >= ((uint64_t) sai->image_size) * 4 &&
         (sai->mbr_req_count < 1 ||
          sai->mbr_req[0]->start_block + sai->mbr_req[0]->block_count
-         != sai->gpt_backup_lba + 1))
+         > sai->gpt_backup_lba + 1))
         sprintf(comments + strlen(comments), "Implausible header LBA %.f, ",
                 (double) sai->gpt_backup_lba);
     iso_block = sai->gpt_backup_lba / 4;
@@ -4254,6 +4254,26 @@ int iso_analyze_gpt(IsoImage *image, IsoDataSource *src, int flag)
             }
         }
     }
+
+    /* Check first GPT partition for ISO partition offset */
+    if (sai->partition_offset == 0 && sai->mbr_req_count > 0 &&
+        sai->gpt_req_count > 0) {
+        if (sai->mbr_req[0]->type_byte == 0xee &&
+            sai->mbr_req[0]->start_block == 1) { /* protective MBR */
+            start_block = sai->gpt_req[0]->start_block;
+            block_count = sai->gpt_req[0]->block_count;
+            if (start_block >= 64 && block_count >= 72 &&
+                start_block <= 2048 && start_block % 4 == 0 &&
+                block_count % 4 == 0 &&
+                (start_block + block_count) / 4 == sai->image_size) {
+
+                ret = iso_analyze_partition_offset(image, src, start_block, 0);
+                if (ret < 0)
+                    return ret;
+            }
+        }
+    }
+
     return 1;
 }
 

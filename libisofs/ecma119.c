@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2013 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1318,12 +1318,18 @@ ex:
 static
 int write_head_part1(Ecma119Image *target, int *write_count, int flag)
 {
-    int res, i;
-    uint8_t *sa;
+    int res, i, ret;
+    uint8_t *sa, *sa_local = NULL;
     IsoImageWriter *writer;
     size_t buffer_size = 0, buffer_free = 0, buffer_start_free = 0;
 
-    sa = target->sys_area_as_written;
+    if (target->sys_area_already_written) {
+        LIBISO_ALLOC_MEM(sa_local, uint8_t, 16 * BLOCK_SIZE);
+        sa = sa_local;
+    } else {
+        sa = target->sys_area_as_written;
+        target->sys_area_already_written = 1;
+    }
     iso_ring_buffer_get_buf_status(target->buffer, &buffer_size,
                                    &buffer_start_free);
     *write_count = 0;
@@ -1360,9 +1366,16 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
       *write_count = target->bytes_written / BLOCK_SIZE;
     }
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+    goto ex;
+
 write_error:;
-    return res;
+    ret = res;
+    goto ex;
+
+ex:
+    LIBISO_FREE_MEM(sa_local);
+    return ret;
 }
 
 static
@@ -1483,6 +1496,10 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
             goto ex;
     }
 
+/* >>> need opportunity to read from input ISO image
+       resp. to just mark a partition in the older sessions
+*/;
+
     fp = fopen(path, "rb");
     if (fp == NULL)
         {ret = ISO_BAD_PARTITION_FILE; goto ex;}
@@ -1528,8 +1545,10 @@ void issue_ucs2_warning_summary(size_t failures)
 static
 void *write_function(void *arg)
 {
-    int res, first_partition = 1, last_partition = 0, sa_type;
-    int i;
+    int res, i;
+#ifndef Libisofs_appended_partitions_inlinE
+    int first_partition = 1, last_partition = 0, sa_type;
+#endif
     IsoImageWriter *writer;
 
     Ecma119Image *target = (Ecma119Image*)arg;
@@ -1545,11 +1564,16 @@ void *write_function(void *arg)
     /* write data for each writer */
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
+        if (target->gpt_backup_outside &&
+            writer->write_vol_desc == gpt_tail_writer_write_vol_desc)
+    continue;
         res = writer->write_data(writer);
         if (res < 0) {
             goto write_error;
         }
     }
+
+#ifndef Libisofs_appended_partitions_inlinE
 
     /* Append partition data */
     sa_type = (target->system_area_options >> 2) & 0x3f;
@@ -1571,6 +1595,19 @@ void *write_function(void *arg)
                                        target->appended_part_size[i], 0);
         if (res < 0)
             goto write_error;
+    }
+
+#endif /* ! Libisofs_appended_partitions_inlinE */
+
+    if (target->gpt_backup_outside) {
+        for (i = 0; i < (int) target->nwriters; ++i) {
+            writer = target->writers[i];
+            if (writer->write_vol_desc != gpt_tail_writer_write_vol_desc)
+        continue;
+            res = writer->write_data(writer);
+            if (res < 0)
+                goto write_error;
+        }
     }
 
     /* Transplant checksum buffer from Ecma119Image to IsoImage */
@@ -1927,6 +1964,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         target->appended_part_prepad[i] = 0;
         target->appended_part_start[i] = target->appended_part_size[i] = 0;
     }
+    target->have_appended_partitions = 0;
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++) {
         target->hfsplus_blessed[i] = src->hfsplus_blessed[i];
         if (target->hfsplus_blessed[i] != NULL)
@@ -1946,6 +1984,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         target->gpt_req[i] = NULL;
     target->gpt_req_count = 0;
     target->gpt_req_flags = 0;
+    target->gpt_backup_outside = 0;
     target->gpt_disk_guid_set = 0;
     target->gpt_part_start = 0;
     target->gpt_backup_end = 0;
@@ -1953,10 +1992,22 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     target->gpt_max_entries = 0;
     target->gpt_is_computed = 0;
 
+    target->sys_area_already_written = 0;
+
     target->filesrc_start = 0;
     target->filesrc_blocks = 0;
 
     target->joliet_ucs2_failures = 0;
+
+    /* If partitions get appended, then the backup GPT cannot be part of
+       the ISO filesystem.
+    */
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
+       if (target->opts->appended_partitions[i] != NULL) {
+           target->gpt_backup_outside = 1;
+           target->have_appended_partitions = 1;
+    break;
+       }
 
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
@@ -1991,6 +2042,13 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     if (opts->hfsplus || opts->fat) {
         nwriters+= 2;
     }
+
+#ifdef Libisofs_appended_partitions_inlinE
+
+    nwriters++; /* Inline Partition Append Writer */
+
+#endif
+
     nwriters++; /* GPT backup tail writer */
     nwriters++; /* Tail padding writer */
     if ((opts->md5_file_checksums & 1) || opts->md5_session_checksum) {
@@ -2139,6 +2197,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 
 #endif /* Libisofs_checksums_before_paddinG */
 
+#ifdef Libisofs_appended_partitions_inlinE
+
+    ret = partappend_writer_create(target);
+    if (ret < 0) 
+        goto target_cleanup;
+
+#endif /* Libisofs_appended_partitions_inlinE */
+
 #ifdef Libisofs_gpt_writer_lasT
     /* This writer shall be the last one in the list, because it protects the
        image on media which are seen as GPT partitioned.
@@ -2204,6 +2270,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     for (i = 0; i < (int) target->nwriters; ++i) {
         IsoImageWriter *writer = target->writers[i];
 
+        if (target->gpt_backup_outside &&
+            writer->write_vol_desc == gpt_tail_writer_write_vol_desc)
+    continue;
+
         /* Exposing address of data start to IsoWriteOpts and memorizing
            this address for all files which have no block address: 
            symbolic links, device files, empty data files.
@@ -2220,6 +2290,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         if (ret < 0) {
             goto target_cleanup;
         }
+
+#ifdef Libisofs_appended_partitions_inlinE
+
+        target->vol_space_size = target->curblock - opts->ms_block;
+        target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
+
+#endif
+
     }
 
     ret = iso_patch_eltoritos(target);
@@ -2230,6 +2308,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         if (ret < 0)
             goto target_cleanup;
     }
+
+#ifndef Libisofs_appended_partitions_inlinE
 
     /*
      * The volume space size is just the size of the last session, in
@@ -2242,6 +2322,20 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     ret = iso_compute_append_partitions(target, 0);
     if (ret < 0)
         goto target_cleanup;
+
+#endif /* ! Libisofs_appended_partitions_inlinE */
+
+    if (target->gpt_backup_outside) {
+        for (i = 0; i < (int) target->nwriters; ++i) {
+            IsoImageWriter *writer = target->writers[i];
+
+            if (writer->write_vol_desc != gpt_tail_writer_write_vol_desc)
+        continue;
+            ret = writer->compute_data_blocks(writer);
+            if (ret < 0)
+                goto target_cleanup;
+        }
+    }
 
     /* create the ring buffer */
     if (opts->overwrite != NULL &&
@@ -2732,6 +2826,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->efi_boot_partition = NULL;
     for (i = 0; i < ISO_MAX_PARTITIONS; i++)
         wopts->appended_partitions[i] = NULL;
+    wopts->appended_as_gpt = 0;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
     wopts->allow_dir_id_ext = 0;
@@ -3442,6 +3537,12 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
     if (opts->appended_partitions[partition_number - 1] == NULL)
         return ISO_OUT_OF_MEM;
     opts->appended_part_types[partition_number - 1] = partition_type;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_appended_as_gpt(IsoWriteOpts *opts, int gpt)
+{
+    opts->appended_as_gpt = !!gpt;
     return ISO_SUCCESS;
 }
 
