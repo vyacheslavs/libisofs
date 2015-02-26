@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -32,9 +32,15 @@
 #define ISO_ROCKRIDGE_IN_DIR_REC 124
 #endif
 
+#define ISO_CE_ENTRY_SIZE  28
+
 
 static
 int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno);
+
+static
+int susp_make_CE(Ecma119Image *t, uint8_t **CE,
+                 uint32_t block_offset, uint32_t byte_offset, uint32_t size);
 
 
 static
@@ -54,14 +60,66 @@ int susp_append(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 static
 int susp_append_ce(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
 {
-    susp->n_ce_susp_fields++;
-    susp->ce_susp_fields = realloc(susp->ce_susp_fields, sizeof(void*)
-                                   * susp->n_ce_susp_fields);
-    if (susp->ce_susp_fields == NULL) {
-        return ISO_OUT_OF_MEM;
+    int to_alloc = 1, ret;
+    unsigned char *pad;
+    uint8_t *CE;
+    size_t next_alloc;
+
+    if (data[0] &&
+        (susp->ce_len + data[2] + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE !=
+                                                   susp->ce_len / BLOCK_SIZE) {
+        /* Linux fs/isofs wants byte_offset + ce_len <= BLOCK_SIZE.
+           So this Continuation Area needs to end by a CE which points
+           to the start of the next block.
+        */ 
+        to_alloc = 2;
+        if ((susp->ce_len + ISO_CE_ENTRY_SIZE) % BLOCK_SIZE)
+            to_alloc = 3; /* need a PAD pseudo entry */
     }
-    susp->ce_susp_fields[susp->n_ce_susp_fields - 1] = data;
-    susp->ce_len += data[2];
+
+    if (susp->ce_susp_fields == NULL)
+        susp->alloc_ce_susp_fields = 0;
+    if (susp->n_ce_susp_fields + to_alloc > susp->alloc_ce_susp_fields) {
+        next_alloc = susp->alloc_ce_susp_fields;
+        while (susp->n_ce_susp_fields + to_alloc > next_alloc)
+            next_alloc += ISO_SUSP_CE_ALLOC_STEP;
+        susp->ce_susp_fields = realloc(susp->ce_susp_fields,
+                                       sizeof(uint8_t *) * next_alloc);
+        if (susp->ce_susp_fields == NULL)
+            return ISO_OUT_OF_MEM;
+        susp->alloc_ce_susp_fields = next_alloc;
+    }
+
+    if (to_alloc >= 2) {
+        /* Insert CE entry (actual CE size later by susp_update_CE_sizes) */
+        ret = susp_make_CE(t, &CE, (uint32_t) (susp->ce_block +
+                                               susp->ce_len / BLOCK_SIZE + 1),
+                           (uint32_t) 0, (uint32_t) 2048);
+        if (ret < 0)
+            return ret;
+        susp->ce_susp_fields[susp->n_ce_susp_fields] = CE;
+        susp->ce_len += ISO_CE_ENTRY_SIZE;
+        susp->n_ce_susp_fields++;
+    }
+    if (to_alloc >= 3) {
+        pad = malloc(1);
+        if (pad == NULL)
+            return ISO_OUT_OF_MEM;
+        pad[0] = 0;
+        susp->ce_susp_fields[susp->n_ce_susp_fields] = pad;
+        if (susp->ce_len % BLOCK_SIZE)
+            susp->ce_len += BLOCK_SIZE - (susp->ce_len % BLOCK_SIZE);
+        susp->n_ce_susp_fields++;
+    }
+    susp->ce_susp_fields[susp->n_ce_susp_fields] = data;
+    susp->n_ce_susp_fields++;
+
+    if (data[0] == 0) {
+        if (susp->ce_len % BLOCK_SIZE)
+            susp->ce_len += BLOCK_SIZE - (susp->ce_len % BLOCK_SIZE);
+    } else {
+        susp->ce_len += data[2];
+    }
     return ISO_SUCCESS;
 }
 
@@ -547,9 +605,24 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 }
 
 
+static
+int susp_calc_add_to_ce(size_t *ce, int add, int flag)
+{
+    /* Account for inserted CE before size exceeds block size */
+    if ((*ce + add + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE != *ce / BLOCK_SIZE) {
+        /* Insert CE and padding */
+        *ce += ISO_CE_ENTRY_SIZE;
+        if (*ce % BLOCK_SIZE)
+            *ce += BLOCK_SIZE - (*ce % BLOCK_SIZE);
+    }
+    *ce += add;
+    return ISO_SUCCESS;
+}
+
+
 /*
-   @param flag bit0= only account sizes in sua_free resp. ce_len
-                     parameters susp and data may be NULL in this case
+   @param flag bit0= only account sizes in sua_free resp. ce_len.
+                     Parameter susp may be NULL in this case
 */
 static
 int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
@@ -558,11 +631,20 @@ int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
 {
     int ret, done = 0, len, es_extra = 0;
     uint8_t *aapt, *cpt;
+    size_t count = 0;
 
     if (!t->opts->aaip_susp_1_10)
         es_extra = 5;
     if (*sua_free < num_data + es_extra || *ce_len > 0) {
-        *ce_len += num_data + es_extra;
+        if (es_extra > 0)
+            susp_calc_add_to_ce(ce_len, es_extra, 0);
+        done = 0;
+        for (aapt = *data; !done; aapt += aapt[2]) {
+            done = !(aapt[4] & 1);
+            len = aapt[2];
+            susp_calc_add_to_ce(ce_len, len, 0);
+            count += len;
+        }
     } else {
         *sua_free -= num_data + es_extra;
     }
@@ -588,6 +670,7 @@ int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
     }
 
     /* Multiple fields have to be handed over as single field copies */
+    done = 0;
     for (aapt = *data; !done; aapt += aapt[2]) {
         done = !(aapt[4] & 1);
         len = aapt[2];
@@ -723,6 +806,35 @@ int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, int flag)
 
 
 /**
+ * Create the byte representation of a CE entry.
+ * (SUSP, 5.1).
+ */
+static
+int susp_make_CE(Ecma119Image *t, uint8_t **CE,
+                 uint32_t block_offset, uint32_t byte_offset, uint32_t size)
+{
+    uint8_t *data;
+
+    *CE = NULL;
+    data = calloc(1, 28);
+    if (data == NULL)
+        return ISO_OUT_OF_MEM;
+    *CE = data;
+
+    data[0] = 'C';
+    data[1] = 'E';
+    data[2] = 28;
+    data[3] = 1;
+
+    iso_bb(&data[4], block_offset - t->eff_partition_offset, 4);
+    iso_bb(&data[12], byte_offset, 4);
+    iso_bb(&data[20], size, 4);
+
+    return ISO_SUCCESS;
+}
+
+
+/**
  * Add a CE System Use Entry to the given tree node. A "CE" is used to add
  * a continuation area, where additional System Use Entry can be written.
  * (SUSP, 5.1).
@@ -730,20 +842,18 @@ int aaip_add_ER(Ecma119Image *t, struct susp_info *susp, int flag)
 static
 int susp_add_CE(Ecma119Image *t, size_t ce_len, struct susp_info *susp)
 {
-    uint8_t *CE = malloc(28);
-    if (CE == NULL) {
-        return ISO_OUT_OF_MEM;
-    }
+    uint32_t block_offset, byte_offset;
+    uint8_t *CE;
+    int ret;
 
-    CE[0] = 'C';
-    CE[1] = 'E';
-    CE[2] = 28;
-    CE[3] = 1;
-
-    iso_bb(&CE[4], susp->ce_block - t->eff_partition_offset, 4);
-    iso_bb(&CE[12], susp->ce_len, 4);
-    iso_bb(&CE[20], (uint32_t) ce_len, 4);
-
+    /* Linux fs/isofs wants byte_offset + ce_len <= BLOCK_SIZE
+     * Here the byte_offset is reduced to the minimum.
+     */
+    block_offset = susp->ce_block + susp->ce_len / BLOCK_SIZE;
+    byte_offset = susp->ce_len % BLOCK_SIZE;
+    ret = susp_make_CE(t, &CE, block_offset, byte_offset, (uint32_t) ce_len);
+    if (ret < 0)
+        return ret;
     return susp_append(t, susp, CE);
 }
 
@@ -796,6 +906,27 @@ int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno)
     } else {
         return susp_append(t, susp, ES);
     }
+}
+
+
+/** 
+ * A field beginning by 0 causes rrip_write_ce_fields() to pad up to the
+ * next block.
+ */
+static
+int pseudo_susp_add_PAD(Ecma119Image *t, struct susp_info *susp)
+{
+    unsigned char *pad;
+    int ret;
+
+    pad = malloc(1);
+    if (pad == NULL)
+        return ISO_OUT_OF_MEM;
+    pad[0] = 0;
+    ret = susp_append_ce(t, susp, pad);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
 }
 
 
@@ -922,7 +1053,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
 
     /* Account for field size */
     if (*sua_free < 16 || *ce_len > 0) {
-        *ce_len += 16;
+        susp_calc_add_to_ce(ce_len, 16, 0);
     } else {
         *sua_free -= 16;
     }
@@ -988,6 +1119,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     void *xipt;
     size_t num_aapt = 0, sua_free = 0;
     int ret;
+    uint8_t *aapt;
 
     su_mem = *su_size;
     ce_mem = *ce;
@@ -1020,7 +1152,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                 of the name will always fit into the directory entry.)
         */;
 
-        *ce = 5 + namelen;
+        susp_calc_add_to_ce(ce, 5 + namelen, 0);
         *su_size = space;
     }
     if (n->type == ECMA119_SYMLINK) {
@@ -1090,21 +1222,26 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                              * the component can be divided between this
                              * and another SL entry
                              */
-                            *ce += 255; /* this SL, full */
-                            sl_len = 5 + (clen - fit);
+                            /* Will fill up old SL and write it */
+                            susp_calc_add_to_ce(ce, 255, 0);
+                            sl_len = 5 + (clen - fit); /* Start new SL */
                         } else {
                             /*
                              * the component will need a 2rd SL entry in
                              * any case, so we prefer to don't write 
                              * anything in this SL
                              */
-                            *ce += sl_len + 255;
-                            sl_len = 5 + (clen - 250) + 2;
+                            /* Will write non-full old SL */
+                            susp_calc_add_to_ce(ce, sl_len , 0);
+                            /* Will write another full SL */
+                            susp_calc_add_to_ce(ce, 255, 0);
+                            sl_len = 5 + (clen - 250) + 2; /* Start new SL */
                         }
                     } else {
                         /* case 2, create a new SL entry */
-                        *ce += sl_len;
-                        sl_len = 5 + clen;
+                        /* Will write non-full old SL */
+                        susp_calc_add_to_ce(ce, sl_len, 0);
+                        sl_len = 5 + clen; /* Start new SL */
                     }
                 } else {
                     sl_len += clen;
@@ -1126,7 +1263,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
             /* the whole SL fits into the SUA */
             *su_size += sl_len;
         } else {
-            *ce += sl_len;
+            susp_calc_add_to_ce(ce, sl_len, 0);
         }
 
     }
@@ -1150,7 +1287,8 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     /* let the expert decide where to add num_aapt */
     if (num_aapt > 0) {
         sua_free = space - *su_size;
-        aaip_add_AL(t, NULL, NULL, num_aapt, &sua_free, ce, 1);
+        aapt = (uint8_t *) xipt;
+        aaip_add_AL(t, NULL, &aapt, num_aapt, &sua_free, ce, 1);
         *su_size = space - sua_free;
         if (*ce > 0 && !(flag & 1))
             goto unannounced_ca;
@@ -1185,7 +1323,9 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
         num_aapt = aaip_count_bytes((unsigned char *) xipt, 0);
         if (num_aapt > 0) {
             if (flag & 1) {
-                ret = aaip_add_AL(t, NULL,NULL, num_aapt, sua_free, ce_len, 1);
+                aapt = (unsigned char *) xipt;
+                ret = aaip_add_AL(t, NULL, &aapt, num_aapt, sua_free, ce_len,
+                                  1);
             } else {
                 aapt = malloc(num_aapt);
                 if (aapt == NULL)
@@ -1193,10 +1333,10 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
                 memcpy(aapt, xipt, num_aapt);
                 ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
                                   0);
+                /* aapt is NULL now and the memory is owned by t */
             }
             if (ret < 0) 
                 return ret;
-            /* aapt is NULL now and the memory is owned by t */
         }
     }
     return 1;
@@ -1392,6 +1532,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
           type, space, ISO_ROCKRIDGE_IN_DIR_REC);
         return ISO_ASSERT_FAILURE;
     }
+
+    /* Mark start index of node's continuation area for later update */
+    info->current_ce_start = info->n_ce_susp_fields;
 
     if (type == 2 && n->parent != NULL) {
         node = n->parent;
@@ -1699,6 +1842,16 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
 
         if (ce_is_predicted) {
+            if ((info->ce_len % BLOCK_SIZE) &&
+                (info->ce_len + ce_len_pd - 1 ) / BLOCK_SIZE !=
+                info->ce_len / BLOCK_SIZE) {
+                /* Linux fs/isofs wants byte_offset + ce_len <= BLOCK_SIZE
+                 * Insert padding to shift CE offset to next block start
+                 */
+                ret = pseudo_susp_add_PAD(t, info);
+                if (ret < 0)
+                    goto add_susp_cleanup;
+            }
             /* Add the CE entry */
             ret = susp_add_CE(t, ce_len_pd, info);
             if (ret < 0) {
@@ -1854,6 +2007,51 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     return ret;
 }
 
+
+/* Update the sizes of CE fields at end of info->susp_fields and in
+   single node range of info->ce_susp_fields.
+*/
+static
+int susp_update_CE_sizes(Ecma119Image *t, struct susp_info *info, int flag)
+{
+    size_t i, curr_pos;
+    uint8_t *curr_ce;
+    uint32_t size;
+
+    if (info->n_susp_fields == 0 ||
+        info->n_ce_susp_fields - info->current_ce_start == 0)
+        return ISO_SUCCESS;
+    if (info->susp_fields[info->n_susp_fields - 1][0] != 'C' ||
+        info->susp_fields[info->n_susp_fields - 1][1] != 'E') {
+        iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
+                       "Last System Use Area field is not CE, but there are fileds in Continuation Area");
+        return ISO_ASSERT_FAILURE;
+    }
+    curr_ce = info->susp_fields[info->n_susp_fields - 1];
+    curr_pos = 0;
+    for (i = info->current_ce_start; i < info->n_ce_susp_fields; i++) {
+       if (info->ce_susp_fields[i][0] == 0) {
+           curr_pos = 0; /* pseudo SUSP PAD */
+    continue;
+       }
+       if (info->ce_susp_fields[i][0] == 'C' &&
+           info->ce_susp_fields[i][1] == 'E') {
+          size = (curr_pos + info->ce_susp_fields[i][2]) % BLOCK_SIZE;
+          if (size == 0)
+              size = BLOCK_SIZE;
+          iso_bb(curr_ce + 20, size, 4);
+          curr_ce = info->ce_susp_fields[i];
+       }
+       curr_pos = (curr_pos + info->ce_susp_fields[i][2]) % 2048;
+    }
+    if (curr_pos > 0) {
+        size = curr_pos % BLOCK_SIZE;
+        iso_bb(curr_ce + 20, size, 4);
+    }
+    return ISO_SUCCESS;
+}
+
+
 /**
  * Write the given SUSP fields into buf. Note that Continuation Area
  * fields are not written.
@@ -1866,10 +2064,15 @@ void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
 {
     size_t i;
     size_t pos = 0;
+    int ret;
 
     if (info->n_susp_fields == 0) {
         return;
     }
+
+    ret = susp_update_CE_sizes(t, info, 0);
+    if (ret < 0)
+        return;
 
     for (i = 0; i < info->n_susp_fields; i++) {
         memcpy(buf + pos, info->susp_fields[i], info->susp_fields[i][2]);
@@ -1896,6 +2099,7 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
     size_t i;
     uint8_t *padding = NULL;
     int ret= ISO_SUCCESS;
+    uint64_t written = 0, pad_size;
 
     if (info->n_ce_susp_fields == 0) {
         goto ex;
@@ -1903,11 +2107,24 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
     LIBISO_ALLOC_MEM(padding, uint8_t, BLOCK_SIZE);
 
     for (i = 0; i < info->n_ce_susp_fields; i++) {
+        if (info->ce_susp_fields[i][0] == 0) {
+            /* Pseudo field: pad up to next block boundary */
+            pad_size = BLOCK_SIZE - (written % BLOCK_SIZE);
+            if (pad_size == BLOCK_SIZE)
+    continue;
+            memset(padding, 0, pad_size);
+            ret = iso_write(t, padding, pad_size);
+            if (ret < 0)
+                goto write_ce_field_cleanup;
+            written += pad_size;
+    continue;
+        }
         ret = iso_write(t, info->ce_susp_fields[i], 
                         info->ce_susp_fields[i][2]);
         if (ret < 0) {
             goto write_ce_field_cleanup;
         }
+        written += info->ce_susp_fields[i][2];
     }
 
     /* pad continuation area until block size */
@@ -1915,6 +2132,9 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
     if (i > 0 && i < BLOCK_SIZE) {
         memset(padding, 0, i);
         ret = iso_write(t, padding, i);
+        if (ret < 0)
+            goto write_ce_field_cleanup;
+        written += i;
     }
 
     write_ce_field_cleanup: ;
@@ -1925,6 +2145,7 @@ int rrip_write_ce_fields(Ecma119Image *t, struct susp_info *info)
     free(info->ce_susp_fields);
     info->ce_susp_fields = NULL;
     info->n_ce_susp_fields = 0;
+    info->alloc_ce_susp_fields = 0;
     info->ce_len = 0;
 ex:;
     LIBISO_FREE_MEM(padding);

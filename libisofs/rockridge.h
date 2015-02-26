@@ -63,9 +63,21 @@ struct susp_info
     uint32_t ce_block;
     uint32_t ce_len;
 
+    /* Storage for Continuation Area for a whole directory */
     size_t n_ce_susp_fields;
     uint8_t **ce_susp_fields;
+
+    /* The number of allocated members in ce_susp_fields */
+    size_t alloc_ce_susp_fields;
+
+    /* Marks the start index in ce_susp_fields of the current node */
+    size_t current_ce_start;
+
 };
+
+/* Step to increase allocated size of susp_info.ce_susp_fields */
+#define ISO_SUSP_CE_ALLOC_STEP 16
+
 
 /* SUSP 5.1 */
 struct susp_CE {
