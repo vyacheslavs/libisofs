@@ -1104,7 +1104,44 @@ Byte Range | Value      | Meaning
 
 ------------------------------------------------------------------------------
 
->>> ??? DEC Alpha
+                          DEC Alpha SRM boot sector
+                           for Alpha architecture
+
+Sources:
+    http://www.tldp.org/HOWTO/text/SRM-HOWTO
+      SRM Firmware Howto - Rich Payne, and David Huggins-Daines
+    cdrkit-1.1.10/genisoimage/boot-alpha.c
+      by Steve McIntyre
+      who states "Heavily inspired by isomarkboot by David Mosberger in 1996"
+    mail conversations with Helge Deller
+    
+The SRM firmware expects a Secondary Bootstrap Loader program, which usually
+is a data file of the ISO filesystem. This loader is announced by size and
+block address in the first 512 bytes of the System Area.
+SRM accepts the boot sector and executes the loader if the checksum matches.
+
+All numbers are recorded as unsigned 64 bit little endian.
+
+Boot sector components:
+
+Byte Range | Value      | Meaning
+---------- | ---------- | ----------------------------------------------------
+   0 -   ? | boot_string| genisoimage writes
+           |            | "Linux/Alpha aboot for ISO filesystem." 
+           |            | with terminating zero byte.
+           |            |
+   ? - 479 |          0 | Unused / undefined.
+           |            |
+ 480 - 487 |     length | Size of boot loader file in units of 512 bytes.
+           |            |
+ 488 - 495 |    address | LBA of the boot loader file in units of 512 bytes.
+           |            |
+ 496 - 503 |       flag | "Always 0"
+           |            |
+ 504 - 511 |   checksum | Sum of 64 bit words 0 to 63 (bytes 0 to 503).
+           |            |
+---------- | ---------- | ----------------------------------------------------
+
 
 ------------------------------------------------------------------------------
 

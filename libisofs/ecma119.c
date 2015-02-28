@@ -637,6 +637,7 @@ int write_one_dir(Ecma119Image *t, Ecma119Node *dir, Ecma119Node *parent)
         /* initialize the ce_block, it might be needed */
         info.ce_block = dir->info.dir->block + DIV_UP(dir->info.dir->len,
                                                       BLOCK_SIZE);
+        info.ce_susp_fields = NULL;
     }
 
     /* write the "." and ".." entries first */

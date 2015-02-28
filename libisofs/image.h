@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -88,6 +88,9 @@ struct Iso_Image
     char *hppa_kernel_64;
     char *hppa_ramdisk;
 
+    /* Absolute DEC Alpha boot image path in the ISO image */
+    char *alpha_boot_image;
+
     /* image identifier, for message origin identifier */
     int id;
 
@@ -96,7 +99,7 @@ struct Iso_Image
      */
     IsoFilesystem *fs;
 
-    /*
+    /**
      * Default builder to use when adding files to the image tree.
      */
     IsoNodeBuilder *builder;
@@ -384,6 +387,10 @@ struct iso_imported_sys_area {
     char *hppa_kernel_64;
     char *hppa_ramdisk;
     char *hppa_bootloader;
+
+    uint64_t alpha_boot_image_size;
+    uint64_t alpha_boot_image_adr;
+    char *alpha_boot_image;
 
     /* Some block addresses of active and first session:
          PVD, L Pathtable, Opt L, M Pathtable, Opt M, root directory

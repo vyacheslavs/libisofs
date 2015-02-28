@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -50,6 +50,8 @@ int iso_imported_sa_new(struct iso_imported_sys_area **boots, int flag)
     b->hppa_kernel_32 = NULL;
     b->hppa_kernel_64 = NULL;
     b->hppa_ramdisk = NULL;
+
+    b->alpha_boot_image = NULL;
 
     *boots = b;
     return 1;
@@ -107,6 +109,7 @@ int iso_imported_sa_unref(struct iso_imported_sys_area **boots, int flag)
     LIBISO_FREE_MEM(b->hppa_kernel_32);
     LIBISO_FREE_MEM(b->hppa_kernel_64);
     LIBISO_FREE_MEM(b->hppa_ramdisk);
+    LIBISO_FREE_MEM(b->alpha_boot_image);
     LIBISO_FREE_MEM(b);
     *boots = NULL;
     return 1;
@@ -177,10 +180,11 @@ int iso_image_new(const char *name, IsoImage **image)
          img->mips_boot_file_paths[i] = NULL;
     img->sparc_core_node = NULL;
     img->hppa_cmdline= NULL;
-    img->hppa_bootloader= NULL;
-    img->hppa_kernel_32= NULL;
-    img->hppa_kernel_64= NULL;
-    img->hppa_ramdisk= NULL;
+    img->hppa_bootloader = NULL;
+    img->hppa_kernel_32 = NULL;
+    img->hppa_kernel_64 = NULL;
+    img->hppa_ramdisk = NULL;
+    img->alpha_boot_image = NULL;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
     img->inode_counter = 0;
@@ -239,6 +243,8 @@ void iso_image_unref(IsoImage *image)
         if (image->sparc_core_node != NULL)
             iso_node_unref((IsoNode *) image->sparc_core_node);
         iso_image_set_hppa_palo(image, NULL, NULL, NULL, NULL, NULL, 1);
+        if (image->alpha_boot_image != NULL)
+            free(image->alpha_boot_image);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);
@@ -969,9 +975,9 @@ int iso_image_get_sparc_core(IsoImage *img, IsoFile **sparc_core, int flag)
                  Else only the non-NULL parameters of this call have an effect.
 */
 static int hppa_palo_set_path(IsoImage *img, char *path, char **target,
-                              int flag)
+                              char *what, int flag)
 {
-    int ret;
+    int ret, err;
     IsoNode *node;
     IsoFile *file;
 
@@ -986,13 +992,16 @@ static int hppa_palo_set_path(IsoImage *img, char *path, char **target,
         return ret;
     if (ret == 0) {
         iso_msg_submit(img->id, ISO_BOOT_FILE_MISSING, 0,
-                       "Cannot find in ISO image: HP-PA file '%s'", path);
+                       "Cannot find in ISO image: %s file '%s'", what, path);
         return ISO_BOOT_FILE_MISSING;
     }
     if (iso_node_get_type(node) != LIBISO_FILE) {
-        iso_msg_submit(img->id, ISO_HPPA_PALO_NOTREG, 0,
-                       "HP-PA PALO file is not a data file: '%s'", path);
-        return ISO_HPPA_PALO_NOTREG;
+        err = ISO_HPPA_PALO_NOTREG;
+        if (strncmp(what, "DEC Alpha", 9) == 0)
+            err = ISO_ALPHA_BOOT_NOTREG;
+        iso_msg_submit(img->id, err, 0,
+                       "%s file is not a data file: '%s'", what, path);
+        return err;
     }
     file = (IsoFile *) node;
     if (!(file->explicit_weight || file->from_old_session))
@@ -1012,21 +1021,25 @@ int iso_image_set_hppa_palo(IsoImage *img, char *cmdline, char *bootloader,
                             int flag)
 {
     int ret;
+    static char *what = "HP-PA PALO";
 
     if (cmdline != NULL || (flag & 1))
         if (iso_clone_mgtd_mem(cmdline, &(img->hppa_cmdline), 0) < 0)
             return ISO_OUT_OF_MEM;
-    ret = hppa_palo_set_path(img, bootloader, &(img->hppa_bootloader),
+    ret = hppa_palo_set_path(img, bootloader, &(img->hppa_bootloader), what,
                              flag & 1);
     if (ret < 0)
         return ret;
-    ret = hppa_palo_set_path(img, kernel_32, &(img->hppa_kernel_32), flag & 1);
+    ret = hppa_palo_set_path(img, kernel_32, &(img->hppa_kernel_32), what,
+                             flag & 1);
     if (ret < 0)
         return ret;
-    ret = hppa_palo_set_path(img, kernel_64, &(img->hppa_kernel_64), flag & 1);
+    ret = hppa_palo_set_path(img, kernel_64, &(img->hppa_kernel_64), what,
+                             flag & 1);
     if (ret < 0)
         return ret;
-    ret = hppa_palo_set_path(img, ramdisk, &(img->hppa_ramdisk), flag & 1);
+    ret = hppa_palo_set_path(img, ramdisk, &(img->hppa_ramdisk), what,
+                             flag & 1);
     if (ret < 0)
         return ret;
     return ISO_SUCCESS;
@@ -1042,6 +1055,27 @@ int iso_image_get_hppa_palo(IsoImage *img, char **cmdline, char **bootloader,
     *kernel_32 = img->hppa_kernel_32;
     *kernel_64 = img->hppa_kernel_64;
     *ramdisk  = img->hppa_ramdisk;
+    return ISO_SUCCESS;
+}
+
+
+/* API */
+int iso_image_set_alpha_boot(IsoImage *img, char *boot_loader_path, int flag)
+{
+    int ret;
+
+    ret = hppa_palo_set_path(img, boot_loader_path, &(img->alpha_boot_image),
+                             "DEC Alpha Bootloader", 1);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+
+/* API */
+int iso_image_get_alpha_boot(IsoImage *img, char **boot_loader_path)
+{
+    *boot_loader_path = img->alpha_boot_image;
     return ISO_SUCCESS;
 }
 

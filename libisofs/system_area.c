@@ -913,6 +913,45 @@ static int make_hppa_palo_sector(Ecma119Image *t, uint8_t *buf, int hdrversion,
 }
 
 
+/**
+ * Write DEC Alpha boot sector. See doc/boot_sectors.txt
+ *
+ * learned from  cdrkit-1.1.10/genisoimage/boot-alpha.c
+ * by Steve McIntyre <steve@einval.com>
+ *    who states "Heavily inspired by isomarkboot by David Mosberger in 1996"
+ *
+ */
+static int make_dec_alpha_sector(Ecma119Image *t, uint8_t *buf, int flag)
+{
+    int ret, i;
+    IsoImage *img;
+    IsoNode *iso_node;
+    Ecma119Node *ecma_node;
+    uint64_t size, lba, checksum = 0;
+
+    img = t->image;
+    if (img->alpha_boot_image == NULL)
+        return ISO_SUCCESS;
+    ret = boot_nodes_from_iso_path(t, img->alpha_boot_image,
+                              &iso_node, &ecma_node, "DEC Alpha boot file", 0);
+    if (ret < 0)
+        return ret;
+    memset(buf, 0, 512);
+    strcpy((char *) buf, "Linux/Alpha aboot for ISO filesystem.");
+    lba = ecma_node->info.file->sections[0].block * 4;
+    size = ecma_node->info.file->sections[0].size / 512 +
+           !!(ecma_node->info.file->sections[0].size % 512);
+    iso_lsb(buf + 480, size & 0xffffffff, 4);
+    iso_lsb(buf + 484, (size >> 32) & 0xffffffff, 4);
+    iso_lsb(buf + 488, lba & 0xffffffff, 4);
+    iso_lsb(buf + 492, (lba >> 32) & 0xffffffff, 4);
+    for (i = 0; i < 63; i++)
+       checksum += iso_read_lsb64(buf + 8 * i);
+    iso_lsb(buf + 504, checksum & 0xffffffff, 4);
+    iso_lsb(buf + 508, (checksum >> 32) & 0xffffffff, 4);
+    return ISO_SUCCESS;
+}
+
 /* Convenience frontend for iso_register_apm_entry().
    name and type are 0-terminated strings.
 */
@@ -1776,6 +1815,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     } else if (sa_type == 4 || sa_type == 5) {
         /* (By coincidence, sa_type and PALO header versions match) */
         ret = make_hppa_palo_sector(t, buf, sa_type, 0);
+        if (ret != ISO_SUCCESS)
+            return ret;
+    } else if (sa_type == 6) {
+        ret = make_dec_alpha_sector(t, buf, 0);
         if (ret != ISO_SUCCESS)
             return ret;
     } else if ((t->opts->partition_offset > 0 || will_append) &&

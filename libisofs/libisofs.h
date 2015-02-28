@@ -2203,6 +2203,9 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                 lib/common.h is defined as 5.
  *                 Submit all five parameters of iso_image_set_hppa_palo():
  *                   cmdline, bootloader, kernel_32, kernel_64, ramdisk
+ *              6= DEC Alpha SRM boot sector
+ *                 @since 1.4.0
+ *                 Submit bootloader path in ISO by iso_image_set_alpha_boot().
  *        bit8-9= Only with System area type 0 = MBR
  *              @since 1.0.4
  *              Cylinder alignment mode eventually pads the image to make it
@@ -2493,7 +2496,8 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
  *        Linux Native Partition = 0x83. See fdisk command L.
  *        This parameter is ignored with SUN Disk Label.
  * @param flag
- *        Reserved for future usage, set to 0.
+ *        bit0= The path may contain instructions for the interval reader
+ *        All other bits are reserved for future usage. Set them to 0.
  * @return
  *        ISO_SUCCESS or error
  *
@@ -3729,7 +3733,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "       human readable interpretation of system area options and other info", \
 "       The words are from the set:", \
 "        { MBR, CHRP, PReP, GPT, APM, MIPS-Big-Endian, MIPS-Little-Endian,", \
-"          SUN-SPARC-Disk-Label, HP-PA-PALO,", \
+"          SUN-SPARC-Disk-Label, HP-PA-PALO, DEC-Alpha, ", \
 "          protective-msdos-label, isohybrid, grub2-mbr,", \
 "          cyl-align-{auto,on,off,all}, not-recognized, }", \
 "        The acronyms indicate boot data for particular hardware/firmware.", \
@@ -3916,6 +3920,16 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 "  HP-PA bootloader   : decimal  decimal  path", \
 "       tells the same for the bootloader file.", \
 ""
+#define ISO_SYSAREA_REPORT_DOC_ALPHA \
+"If a DEC Alpha SRM boot sector is present:", \
+"  DEC Alpha ldr size : decimal", \
+"       tells the number of 512-byte blocks in DEC Alpha Secondary Bootstrap" \
+"       Loader file.", \
+"  DEC Alpha ldr adr  : decimal", \
+"       tells the start of the loader file in units of 512-byte blocks.", \
+"  DEC Alpha ldr path : path", \
+"       tells the path of a file in the ISO image which starts at the loader", \
+"       start address."
 
 /**
  * Obtain an array of texts describing the detected properties of the
@@ -4213,6 +4227,42 @@ int iso_image_set_hppa_palo(IsoImage *img, char *cmdline, char *bootloader,
  */
 int iso_image_get_hppa_palo(IsoImage *img, char **cmdline, char **bootloader,
                             char **kernel_32, char **kernel_64, char **ramdisk);
+
+
+/**
+ * Submit the path of the DEC Alpha Secondary Bootstrap Loader file.
+ * The path must lead to an already existing data file in the ISO image
+ * which stays with this path until image production.
+ * This setting has an effect only if system area type is set to 6
+ * with iso_write_opts_set_system_area().
+ *
+ * @param img
+ *        The image to be manipulated.
+ * @param boot_loader_path
+ *        Absolute path of a data file in the ISO image.
+ *        Submit NULL to free this image property.
+ * @param flag
+ *        Bitfield for control purposes. Unused yet. Submit 0.
+ * @return
+ *        1 is success , <0 means error
+ * @since 1.4.0
+ */
+int iso_image_set_alpha_boot(IsoImage *img, char *boot_loader_path, int flag);
+
+/**
+ * Inquire the path submitted by iso_image_set_alpha_boot()
+ * Do not free() the returned pointer.
+ *
+ * @param img
+ *        The image to be inquired.
+ * @param cmdline
+ *        Will return the path. NULL if none is currently submitted.
+ * @return
+ *        1 is success , <0 means error
+ * @since 1.4.0
+ */
+int iso_image_get_alpha_boot(IsoImage *img, char **boot_loader_path);
+
 
 /**
  * Increments the reference counting of the given node.
@@ -8109,6 +8159,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Unrecognized inquiry for system area property  (FAILURE, HIGH, -404) */
 #define ISO_INQ_SYSAREA_PROP        0xE830FE6C
+
+/** DEC Alpha Boot Loader file is not a data file   (FAILURE, HIGH, -405) */
+#define ISO_ALPHA_BOOT_NOTREG       0xE830FE6A
 
 
 /* Internal developer note: 

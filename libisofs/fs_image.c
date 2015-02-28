@@ -4631,8 +4631,57 @@ int iso_analyze_hppa(IsoImage *image, IsoDataSource *src, int flag)
     /* HP-PA PALO boot sector version 4 or 5 for HP PA-RISC */
     sai->system_area_options = (sai->hppa_hdrversion << 2);
 
-    return ret;
+    return 1;
 }
+
+static
+int iso_analyze_alpha_boot(IsoImage *image, IsoDataSource *src, int flag)
+{
+    int ret = 0, i, section_count;
+    char *sad;
+    uint8_t *usad;
+    struct iso_imported_sys_area *sai;
+    IsoNode *node;
+    IsoFile *file;
+    uint64_t checksum_found, checksum_should = 0, size;
+    struct iso_file_section *sections = NULL;
+
+    sai = image->imported_sa_info;
+    sad = image->system_area_data;
+    usad = (uint8_t *) sad;
+
+    checksum_found = iso_read_lsb64(usad + 504);
+    for (i = 0; i < 63; i++)
+       checksum_should += iso_read_lsb64(usad + 8 * i);
+    if (checksum_found != checksum_should)
+       return 0;
+    sai->alpha_boot_image = NULL;
+    sai->alpha_boot_image_size = (uint64_t) iso_read_lsb64(usad + 480);
+    sai->alpha_boot_image_adr = (uint64_t) iso_read_lsb64(usad + 488);
+    ret = iso_tree_get_node_of_block(image, NULL,
+                                  (uint32_t) (sai->alpha_boot_image_adr / 4),
+                                  &node, NULL, 0);
+    if (ret > 0) {
+       if (iso_node_get_type(node) != LIBISO_FILE)
+           return 0;
+       file = (IsoFile *) node;
+       ret = iso_file_get_old_image_sections(file, &section_count,
+                                             &sections, 0);
+       if (ret > 0) {
+           size = sections[0].size / 512 + !!(sections[0].size % 512);
+           free(sections);
+           if (size != sai->alpha_boot_image_size)
+               return 0;
+       }
+       sai->alpha_boot_image = iso_tree_get_node_path(node);
+    } else if (strncmp(sad, "Linux/Alpha aboot for ISO filesystem.", 37) != 0
+               || sad[37] != 0) {
+        return 0; /* Want to see either boot file or genisoimage string */
+    }
+    sai->system_area_options = (6 << 2);
+    return 1;
+}
+
 
 struct iso_impsysa_result {
     char *buf;
@@ -4867,6 +4916,8 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
         strcat(msg, " SUN-SPARC-Disk-Label");
     } else if (sa_type == 4 || sa_type == 5) {
         sprintf(msg + strlen(msg), " HP-PA-PALO");
+    } else if (sa_type == 6) {
+        sprintf(msg + strlen(msg), " DEC-Alpha");
     } else {
         sprintf(msg + strlen(msg), " unkown-system-area-type-%d", sa_type);
     }
@@ -4911,6 +4962,17 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
         iso_impsysa_report_text(target, msg,
                                 sai->hppa_bootloader != NULL ?
                                 sai->hppa_bootloader : "(not found in ISO)", 0);
+    } else if (sa_type == 6) {
+        sprintf(msg, "DEC Alpha ldr size : %.f",
+                     (double) sai->alpha_boot_image_size);
+        iso_impsysa_line(target, msg);
+        sprintf(msg, "DEC Alpha ldr adr  : %.f",
+                     (double) sai->alpha_boot_image_adr);
+        iso_impsysa_line(target, msg);
+        if (sai->alpha_boot_image != NULL) {
+            sprintf(msg, "DEC Alpha ldr path : %s", sai->alpha_boot_image);
+            iso_impsysa_line(target, msg);
+        }
     }
     if (sai->mbr_req_count > 0) {
         sprintf(msg, "MBR heads per cyl  : %d", sai->partition_heads_per_cyl);
@@ -5310,6 +5372,7 @@ int iso_image_report_boot_eqp(IsoImage *image, int what,
                                    ISO_SYSAREA_REPORT_DOC_MIPS ,
                                    ISO_SYSAREA_REPORT_DOC_SUN ,
                                    ISO_SYSAREA_REPORT_DOC_HPPA ,
+                                   ISO_SYSAREA_REPORT_DOC_ALPHA ,
                                    "@END_OF_DOC@" };
     static char *eltorito_doc[] = { ISO_ELTORITO_REPORT_DOC ,
                                     "@END_OF_DOC@" };
@@ -5491,6 +5554,12 @@ int iso_analyze_system_area(IsoImage *image, IsoDataSource *src,
         ret = iso_analyze_hppa(image, src, 0);
         if (ret < 0)
             goto ex;
+        /* DEC Alpha has checksum bytes where MBR has its magic number */
+        if (ret == 0) {
+            ret = iso_analyze_alpha_boot(image, src, 0);
+            if (ret < 0)
+                goto ex;
+        }
     }
     ret = iso_record_meta_struct_blocks(image, src, 0);
     if (ret < 0)

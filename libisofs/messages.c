@@ -519,6 +519,8 @@ const char *iso_error_to_msg(int errcode)
         return "Problems encountered during inspection of System Area";
     case ISO_INQ_SYSAREA_PROP:
         return "Unrecognized inquiry for system area property";
+    case ISO_ALPHA_BOOT_NOTREG:
+        return "DEC Alpha Boot Loader file is not a data file";
     default:
         return "Unknown error";
     }
