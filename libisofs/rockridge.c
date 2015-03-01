@@ -2142,13 +2142,17 @@ int susp_update_CE_sizes(Ecma119Image *t, struct susp_info *info, int flag)
     if (info->n_susp_fields == 0 ||
         info->n_ce_susp_fields - info->current_ce_start == 0)
         return ISO_SUCCESS;
-    if (info->susp_fields[info->n_susp_fields - 1][0] != 'C' ||
-        info->susp_fields[info->n_susp_fields - 1][1] != 'E') {
+
+    for (i = 0; i < info->n_susp_fields; i++)
+        if (info->susp_fields[i][0] == 'C')
+            if(info->susp_fields[i][1] == 'E')
+    break;
+    if (i >= info->n_susp_fields) {
         iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
-                       "Last System Use Area field is not CE, but there are fields in Continuation Area");
+                       "System Use Area field contains no CE, but there are fields in Continuation Area");
         return ISO_ASSERT_FAILURE;
     }
-    curr_ce = info->susp_fields[info->n_susp_fields - 1];
+    curr_ce = info->susp_fields[i];
     curr_pos = 0;
     for (i = info->current_ce_start; i < info->n_ce_susp_fields; i++) {
        if (info->ce_susp_fields[i][0] == 0) {
