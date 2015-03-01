@@ -1150,13 +1150,13 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     int ret;
     uint8_t *aapt;
 
-#ifdef Libisofs_ce_calc_debuG
+#ifdef Libisofs_ce_calc_debug_extrA
 
     if (n->node->name != NULL)
         fprintf(stderr, "libburn_DEBUG: susp_calc_nm_sl_al : %.f %s \n",
                         (double) base_ce, n->node->name);
 
-#endif /* Libisofs_ce_calc_debuG */
+#endif /* Libisofs_ce_calc_debug_extrA */
 
     su_mem = *su_size;
     ce_mem = *ce;
@@ -1348,14 +1348,14 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
             goto unannounced_ca;
     }
 
-#ifdef Libisofs_ce_calc_debuG
+#ifdef Libisofs_ce_calc_debug_filetraP
 
     if (n->node->name != NULL)
         if (strcmp(n->node->name, "...insert.leaf.name.here...") == 0)
             fprintf(stderr,
                     "libburn_DEBUG: filename breakpoint susp_calc_nm_sl_al\n");
 
-#endif /* Libisofs_ce_calc_debuG */
+#endif /* Libisofs_ce_calc_debug_filetraP */
 
     if (*ce > 0 && !(flag & 2)) {
         if (base_ce / BLOCK_SIZE !=
@@ -1631,13 +1631,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     info->current_ce_start = info->n_ce_susp_fields;
     ce_mem = info->ce_len;
 
-#ifdef Libisofs_ce_calc_debuG
+#ifdef Libisofs_ce_calc_debug_filetraP
 
     if (n->node->name != NULL)
         if (strcmp(n->node->name, "...put.leafname.here...") == 0)
             fprintf(stderr, "libburn_DEBUG: filename breakpoint\n");
 
-#endif /* Libisofs_ce_calc_debuG */
+#endif /* Libisofs_ce_calc_debug_filetraP */
 
     if (type == 2 && n->parent != NULL) {
         node = n->parent;
