@@ -205,9 +205,9 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
     /* size of "." and ".." entries */
     len = 34 + 34;
     if (t->opts->rockridge) {
-        len += rrip_calc_len(t, dir, 1, 34, &ce_len);
+        len += rrip_calc_len(t, dir, 1, 34, &ce_len, *ce);
         *ce += ce_len;
-        len += rrip_calc_len(t, dir, 2, 34, &ce_len);
+        len += rrip_calc_len(t, dir, 2, 34, &ce_len, *ce);
         *ce += ce_len;
     }
 
@@ -220,7 +220,8 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         for (section = 0; section < nsections; ++section) {
             size_t dirent_len = calc_dirent_len(t, child);
             if (t->opts->rockridge) {
-                dirent_len += rrip_calc_len(t, child, 0, dirent_len, &ce_len);
+                dirent_len += rrip_calc_len(t, child, 0, dirent_len, &ce_len,
+                                            *ce);
                 *ce += ce_len;
             }
             remaining = BLOCK_SIZE - (len % BLOCK_SIZE);

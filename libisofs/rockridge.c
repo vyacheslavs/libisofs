@@ -102,6 +102,16 @@ int susp_append_ce(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
         susp->n_ce_susp_fields++;
     }
     if (to_alloc >= 3) {
+
+
+#ifdef Libisofs_ce_calc_debuG
+
+        fprintf(stderr,
+                  "\nlibburn_DEBUG: Inserting %d bytes of CE padding\n\n",
+                  (int) (BLOCK_SIZE - (susp->ce_len % BLOCK_SIZE)));
+
+#endif /* Libisofs_ce_calc_debuG */
+
         pad = malloc(1);
         if (pad == NULL)
             return ISO_OUT_OF_MEM;
@@ -605,15 +615,19 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 }
 
 
+/* @param flag bit1= care about crossing block boundaries */
 static
-int susp_calc_add_to_ce(size_t *ce, int add, int flag)
+int susp_calc_add_to_ce(size_t *ce, size_t base_ce, int add, int flag)
 {
-    /* Account for inserted CE before size exceeds block size */
-    if ((*ce + add + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE != *ce / BLOCK_SIZE) {
-        /* Insert CE and padding */
-        *ce += ISO_CE_ENTRY_SIZE;
-        if (*ce % BLOCK_SIZE)
-            *ce += BLOCK_SIZE - (*ce % BLOCK_SIZE);
+    if (flag & 2) {
+        /* Account for inserted CE before size exceeds block size */
+        if ((*ce + base_ce + add + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE !=
+            (*ce + base_ce) / BLOCK_SIZE) {
+            /* Insert CE and padding */
+            *ce += ISO_CE_ENTRY_SIZE;
+            if ((*ce + base_ce) % BLOCK_SIZE)
+                *ce += BLOCK_SIZE - ((*ce + base_ce) % BLOCK_SIZE);
+        }
     }
     *ce += add;
     return ISO_SUCCESS;
@@ -623,26 +637,32 @@ int susp_calc_add_to_ce(size_t *ce, int add, int flag)
 /*
    @param flag bit0= only account sizes in sua_free resp. ce_len.
                      Parameter susp may be NULL in this case
+               bit1= account for crossing block boundaries
+                     (implied by bit0 == 0)
+   @param ce_len counts the freshly added CA size of the current node
+   @param ce_mem tells the CA size of previous nodes in the same directory
 */
 static
 int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
                 uint8_t **data, size_t num_data,
-                size_t *sua_free, size_t *ce_len, int flag)
+                size_t *sua_free, size_t *ce_len, size_t ce_mem, int flag)
 {
     int ret, done = 0, len, es_extra = 0;
     uint8_t *aapt, *cpt;
     size_t count = 0;
 
+    if (!(flag & 1))
+        flag |= 2;
     if (!t->opts->aaip_susp_1_10)
         es_extra = 5;
     if (*sua_free < num_data + es_extra || *ce_len > 0) {
         if (es_extra > 0)
-            susp_calc_add_to_ce(ce_len, es_extra, 0);
+            susp_calc_add_to_ce(ce_len, ce_mem, es_extra, flag & 2);
         done = 0;
         for (aapt = *data; !done; aapt += aapt[2]) {
             done = !(aapt[4] & 1);
             len = aapt[2];
-            susp_calc_add_to_ce(ce_len, len, 0);
+            susp_calc_add_to_ce(ce_len, ce_mem, len, flag & 2);
             count += len;
         }
     } else {
@@ -961,10 +981,12 @@ int zisofs_add_ZF(Ecma119Image *t, struct susp_info *susp, int to_ce,
 
 
 /* @param flag bit0= Do not add data but only count sua_free and ce_len
+               bit1= account for crossing block boundaries
+                     (implied by bit0 == 0)
 */
 static
 int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
-                 size_t *sua_free, size_t *ce_len, int flag)
+                 size_t *sua_free, size_t *ce_len, size_t base_ce, int flag)
 {
     int ret, will_copy = 1, stream_type = 0, do_zf = 0;
     int header_size_div4 = 0, block_size_log2 = 0;
@@ -980,6 +1002,8 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
                               int *header_size_div4, int *block_size_log2,
                               uint32_t *uncompressed_size, int flag);
 
+    if (!(flag & 1))
+        flag |= 2;
 
     if (iso_node_get_type(n->node) != LIBISO_FILE)
         return 2;
@@ -1053,7 +1077,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
 
     /* Account for field size */
     if (*sua_free < 16 || *ce_len > 0) {
-        susp_calc_add_to_ce(ce_len, 16, 0);
+        susp_calc_add_to_ce(ce_len, base_ce, 16, flag & 2);
     } else {
         *sua_free -= 16;
     }
@@ -1101,10 +1125,15 @@ int aaip_xinfo_cloner(void *old_data, void **new_data, int flag)
  * a CE entry of 28 bytes in SUA, this computation fails if not the 28 bytes
  * are taken into account at start. In this case the caller should retry with
  * bit0 set. 
+ * If the resulting *ce added to base_ce is in a different block than base_ce,
+ * then computation with bit0 fails and the caller should finally try bit1.
  * 
  * @param flag      bit0= assume CA usage (else return 0 on SUA overflow)
+ *                  bit1= let CA start at block start (else return 0 if
+ *                        *ce crosses a block boundary)
  * @return          1= ok, computation of *su_size and *ce is valid
  *                  0= not ok, CA usage is necessary but bit0 was not set
+ *                             or *ce crosses boundary and bit1 was not set
  *                     (*su_size and *ce stay unaltered in this case)
  *                 <0= error:
  *                 -1= not enough SUA space for 28 bytes of CE entry
@@ -1112,7 +1141,7 @@ int aaip_xinfo_cloner(void *old_data, void **new_data, int flag)
  */
 static
 int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
-                       size_t *su_size, size_t *ce, int flag)
+                       size_t *su_size, size_t *ce, size_t base_ce, int flag)
 {
     char *name;
     size_t namelen, su_mem, ce_mem;
@@ -1121,10 +1150,34 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     int ret;
     uint8_t *aapt;
 
+#ifdef Libisofs_ce_calc_debuG
+
+    if (n->node->name != NULL)
+        fprintf(stderr, "libburn_DEBUG: susp_calc_nm_sl_al : %.f %s \n",
+                        (double) base_ce, n->node->name);
+
+#endif /* Libisofs_ce_calc_debuG */
+
     su_mem = *su_size;
     ce_mem = *ce;
     if (*ce > 0 && !(flag & 1))
         goto unannounced_ca;
+
+    if (flag & 2) {
+        flag |= 1;
+        if (base_ce % BLOCK_SIZE) {
+
+#ifdef Libisofs_ce_calc_debuG
+
+            fprintf(stderr,
+                "\nlibburn_DEBUG: Accounting for %d bytes CE padding : %s\n\n",
+                (int) (BLOCK_SIZE - (base_ce % BLOCK_SIZE)), n->node->name);
+
+#endif /* Libisofs_ce_calc_debuG */
+
+            *ce += BLOCK_SIZE - (base_ce % BLOCK_SIZE);
+        }
+    }
 
     name = get_rr_fname(t, n->node->name);
     namelen = strlen(name);
@@ -1152,7 +1205,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                 of the name will always fit into the directory entry.)
         */;
 
-        susp_calc_add_to_ce(ce, 5 + namelen, 0);
+        susp_calc_add_to_ce(ce, base_ce, 5 + namelen, flag & 2);
         *su_size = space;
     }
     if (n->type == ECMA119_SYMLINK) {
@@ -1223,7 +1276,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                              * and another SL entry
                              */
                             /* Will fill up old SL and write it */
-                            susp_calc_add_to_ce(ce, 255, 0);
+                            susp_calc_add_to_ce(ce, base_ce, 255, flag & 2);
                             sl_len = 5 + (clen - fit); /* Start new SL */
                         } else {
                             /*
@@ -1232,15 +1285,15 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                              * anything in this SL
                              */
                             /* Will write non-full old SL */
-                            susp_calc_add_to_ce(ce, sl_len , 0);
+                            susp_calc_add_to_ce(ce, base_ce, sl_len, flag & 2);
                             /* Will write another full SL */
-                            susp_calc_add_to_ce(ce, 255, 0);
+                            susp_calc_add_to_ce(ce, base_ce, 255, flag & 2);
                             sl_len = 5 + (clen - 250) + 2; /* Start new SL */
                         }
                     } else {
                         /* case 2, create a new SL entry */
                         /* Will write non-full old SL */
-                        susp_calc_add_to_ce(ce, sl_len, 0);
+                        susp_calc_add_to_ce(ce, base_ce, sl_len, flag & 2);
                         sl_len = 5 + clen; /* Start new SL */
                     }
                 } else {
@@ -1263,14 +1316,14 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
             /* the whole SL fits into the SUA */
             *su_size += sl_len;
         } else {
-            susp_calc_add_to_ce(ce, sl_len, 0);
+            susp_calc_add_to_ce(ce, base_ce, sl_len, flag & 2);
         }
 
     }
 
     /* Find out whether ZF is to be added and account for its bytes */
     sua_free = space - *su_size;
-    add_zf_field(t, n, NULL, &sua_free, ce, 1);
+    add_zf_field(t, n, NULL, &sua_free, ce, base_ce, 1 | (flag & 2));
     *su_size = space - sua_free;
     if (*ce > 0 && !(flag & 1))
         goto unannounced_ca;
@@ -1288,10 +1341,43 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     if (num_aapt > 0) {
         sua_free = space - *su_size;
         aapt = (uint8_t *) xipt;
-        aaip_add_AL(t, NULL, &aapt, num_aapt, &sua_free, ce, 1);
+        aaip_add_AL(t, NULL, &aapt, num_aapt, &sua_free, ce, base_ce,
+                    1 | (flag & 2));
         *su_size = space - sua_free;
         if (*ce > 0 && !(flag & 1))
             goto unannounced_ca;
+    }
+
+#ifdef Libisofs_ce_calc_debuG
+
+    if (n->node->name != NULL)
+        if (strcmp(n->node->name, "...insert.leaf.name.here...") == 0)
+            fprintf(stderr,
+                    "libburn_DEBUG: filename breakpoint susp_calc_nm_sl_al\n");
+
+#endif /* Libisofs_ce_calc_debuG */
+
+    if (*ce > 0 && !(flag & 2)) {
+        if (base_ce / BLOCK_SIZE !=
+            (base_ce + *ce + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE) {
+
+#ifdef Libisofs_ce_calc_debuG
+
+            fprintf(stderr,
+    "\nlibburn_DEBUG: Crossed block boundary: %.f (%lu) -> %.f (%lu) : %s\n\n",
+                    (double) base_ce, (unsigned long) (base_ce / BLOCK_SIZE),
+                    (double) (base_ce + *ce - 1),
+                    (unsigned long)
+                        ((base_ce + *ce + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE),
+                     n->node->name);
+
+#endif /* Libisofs_ce_calc_debuG */
+
+            /* Crossed a block boundary */
+            *su_size = su_mem;
+            *ce = ce_mem;
+            return 0;
+        }
     }
 
     return 1;
@@ -1308,7 +1394,7 @@ unannounced_ca:;
 */
 static
 int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
-                  size_t *sua_free, size_t *ce_len, int flag)
+                  size_t *sua_free, size_t *ce_len, size_t base_ce, int flag)
 {
     int ret;
     uint8_t *aapt;
@@ -1325,14 +1411,14 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
             if (flag & 1) {
                 aapt = (unsigned char *) xipt;
                 ret = aaip_add_AL(t, NULL, &aapt, num_aapt, sua_free, ce_len,
-                                  1);
+                                  base_ce, 1);
             } else {
                 aapt = malloc(num_aapt);
                 if (aapt == NULL)
                     return ISO_OUT_OF_MEM;
                 memcpy(aapt, xipt, num_aapt);
                 ret = aaip_add_AL(t, info, &aapt, num_aapt, sua_free, ce_len,
-                                  0);
+                                  base_ce, 0);
                 /* aapt is NULL now and the memory is owned by t */
             }
             if (ret < 0) 
@@ -1354,11 +1440,13 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
  *      Already occupied space in the directory record.
  * @param ce
  *      Will be filled with the space needed in a CE
+ * @param base_ce
+ *      Predicted fill of continuation area by previous nodes of same dir
  * @return
  *      The size needed for the RR entries in the System Use Area
  */
 size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
-                     size_t *ce)
+                     size_t *ce, size_t base_ce)
 {
     size_t su_size, space;
     int ret;
@@ -1421,9 +1509,11 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
     if (type == 0) {
 
         /* Try without CE */
-        ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, 0);
-        if (ret == 0) /* Retry with CE */
-            ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, 1);
+        ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, base_ce, 0);
+        if (ret == 0) /* Retry with CE but no block crossing */
+            ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, base_ce, 1);
+        if (ret == 0) /* Retry with aligned CE and block hopping */
+            ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, base_ce, 1 | 2);
         if (ret == -2)
            return ISO_OUT_OF_MEM;
 
@@ -1452,9 +1542,13 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
             }
             /* Compute length of AAIP string of root node */
             aaip_sua_free= 0;
-            ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, 1);
+            ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, base_ce,
+                                1);
             if (ret < 0)
                return ret;
+
+            /* >>> what if too large ? */;
+
             *ce += aaip_len;
         }
     }
@@ -1516,7 +1610,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     size_t rrip_er_len= 182;
     size_t su_size_pd, ce_len_pd; /* predicted sizes of SUA and CA */
     int ce_is_predicted = 0;
-    size_t aaip_sua_free= 0, aaip_len= 0;
+    size_t aaip_sua_free= 0, aaip_len= 0, ce_mem;
     int space;
 
     if (t == NULL || n == NULL || info == NULL) {
@@ -1535,6 +1629,15 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
     /* Mark start index of node's continuation area for later update */
     info->current_ce_start = info->n_ce_susp_fields;
+    ce_mem = info->ce_len;
+
+#ifdef Libisofs_ce_calc_debuG
+
+    if (n->node->name != NULL)
+        if (strcmp(n->node->name, "...put.leafname.here...") == 0)
+            fprintf(stderr, "libburn_DEBUG: filename breakpoint\n");
+
+#endif /* Libisofs_ce_calc_debuG */
 
     if (type == 2 && n->parent != NULL) {
         node = n->parent;
@@ -1645,10 +1748,14 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         su_size_pd = info->suf_len;
         ce_len_pd = ce_len;
         ret = susp_calc_nm_sl_al(t, n, (size_t) space,
-                                 &su_size_pd, &ce_len_pd, 0);
+                                 &su_size_pd, &ce_len_pd, info->ce_len, 0);
         if (ret == 0) { /* Have to use CA. 28 bytes of CE are necessary */
             ret = susp_calc_nm_sl_al(t, n, (size_t) space,
-                                     &su_size_pd, &ce_len_pd, 1);
+                                     &su_size_pd, &ce_len_pd, info->ce_len, 1);
+            if (ret == 0) /* Retry with aligned CE and block hopping */
+                ret = susp_calc_nm_sl_al(t, n, (size_t) space,
+                                         &su_size_pd, &ce_len_pd, info->ce_len,
+                                         1 | 2);
             sua_free -= 28;
             ce_is_predicted = 1;
         }
@@ -1848,6 +1955,16 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                 /* Linux fs/isofs wants byte_offset + ce_len <= BLOCK_SIZE
                  * Insert padding to shift CE offset to next block start
                  */
+
+#ifdef Libisofs_ce_calc_debuG
+
+                fprintf(stderr,
+                  "\nlibburn_DEBUG: Inserting %d bytes of CE padding : %s\n\n",
+                  (int) (BLOCK_SIZE - (info->ce_len % BLOCK_SIZE)),
+                   n->node->name);
+
+#endif /* Libisofs_ce_calc_debuG */
+
                 ret = pseudo_susp_add_PAD(t, info);
                 if (ret < 0)
                     goto add_susp_cleanup;
@@ -1893,14 +2010,14 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
 
         /* Eventually write zisofs ZF field */
-        ret = add_zf_field(t, n, info, &sua_free, &ce_len, 0);
+        ret = add_zf_field(t, n, info, &sua_free, &ce_len, ce_mem, 0);
         if (ret < 0)
             goto add_susp_cleanup;
 
         /* Eventually obtain AAIP field string from node
            and write it to directory entry or CE area.
         */
-        ret = add_aa_string(t, n, info, &sua_free, &ce_len, 0);
+        ret = add_aa_string(t, n, info, &sua_free, &ce_len, ce_mem, 0);
         if (ret < 0)
             goto add_susp_cleanup;
 
@@ -1961,9 +2078,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
             /* Compute length of AAIP string of root node */
             aaip_sua_free= 0;
-            ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, 1);
+            ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, ce_mem,
+                                1);
             if (ret < 0)
                 goto add_susp_cleanup;
+
+            /* >>> what if too large ? */;
 
             /* Allocate the necessary CE space */
             ret = susp_add_CE(t, rrip_er_len + aaip_er_len + aaip_len, info);
@@ -1982,7 +2102,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             }
             /* Write AAIP string of root node */
             aaip_sua_free= aaip_len= 0;
-            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, 0);
+            ret = add_aa_string(t, n, info, &aaip_sua_free, &aaip_len, ce_mem,
+                                0);
             if (ret < 0)
                 goto add_susp_cleanup;
 
@@ -2024,7 +2145,7 @@ int susp_update_CE_sizes(Ecma119Image *t, struct susp_info *info, int flag)
     if (info->susp_fields[info->n_susp_fields - 1][0] != 'C' ||
         info->susp_fields[info->n_susp_fields - 1][1] != 'E') {
         iso_msg_submit(t->image->id, ISO_ASSERT_FAILURE, 0,
-                       "Last System Use Area field is not CE, but there are fileds in Continuation Area");
+                       "Last System Use Area field is not CE, but there are fields in Continuation Area");
         return ISO_ASSERT_FAILURE;
     }
     curr_ce = info->susp_fields[info->n_susp_fields - 1];
