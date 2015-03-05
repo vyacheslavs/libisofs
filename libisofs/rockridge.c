@@ -1391,6 +1391,8 @@ unannounced_ca:;
 
 /* @param flag bit0= Do not add data but only count sua_free and ce_len
                      param info may be NULL in this case
+               bit1= account for crossing block boundaries
+                     (implied by bit0 == 0)
 */
 static
 int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
@@ -1411,7 +1413,7 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
             if (flag & 1) {
                 aapt = (unsigned char *) xipt;
                 ret = aaip_add_AL(t, NULL, &aapt, num_aapt, sua_free, ce_len,
-                                  base_ce, 1);
+                                  base_ce, flag & (1 | 2));
             } else {
                 aapt = malloc(num_aapt);
                 if (aapt == NULL)
@@ -1540,15 +1542,15 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
             if (t->opts->aaip && !t->opts->aaip_susp_1_10) {
                 *ce += 160; /* ER of AAIP */
             }
-            /* Compute length of AAIP string of root node */
+            /* Compute length of AAIP string of root node.
+               Will write all AIIP to CA, which already starts at
+               block boundary. So no need for three tries.
+             */
             aaip_sua_free= 0;
             ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, base_ce,
-                                1);
+                                1 | 2);
             if (ret < 0)
                return ret;
-
-            /* >>> what if too large ? */;
-
             *ce += aaip_len;
         }
     }
@@ -2079,11 +2081,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             /* Compute length of AAIP string of root node */
             aaip_sua_free= 0;
             ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, ce_mem,
-                                1);
+                                1 | 2);
             if (ret < 0)
                 goto add_susp_cleanup;
-
-            /* >>> what if too large ? */;
 
             /* Allocate the necessary CE space */
             ret = susp_add_CE(t, rrip_er_len + aaip_er_len + aaip_len, info);
