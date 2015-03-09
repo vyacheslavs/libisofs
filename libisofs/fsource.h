@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -34,9 +34,13 @@ int iso_local_filesystem_new(IsoFilesystem **fs);
 
 
 /* Rank two IsoFileSource of ifs_class by their eventual old image LBAs.
-   Other IsoFileSource classes will be ranked only roughly.
+ * @param cmp_ret  will return the reply value -1, 0, or 1.
+ * @return         1= *cmp_ret is a valid reply
+ *                 0= not both streams are of ifs_class,
+ *                    *cmp_ret is only a rough estimation.
 */
-int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int flag);
+int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int *cmp_ret,
+                         int flag);
 
 
 /* Create an independent copy of an ifs_class IsoFileSource.

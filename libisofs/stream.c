@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -957,6 +957,23 @@ int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
    return 0;
 }
 
+int iso_stream_cmp_ifs_sections(IsoStream *s1, IsoStream *s2, int *cmp_ret,
+                                int flag)
+{   
+    int ret;
+    FSrcStreamData *fssd1, *fssd2;
+
+    if (s1->class != &fsrc_stream_class || s2->class != &fsrc_stream_class)
+        return 0;
+    /* Compare eventual image data section LBA and sizes */
+    fssd1= (FSrcStreamData *) s1->data;
+    fssd2= (FSrcStreamData *) s2->data;
+    ret = iso_ifs_sections_cmp(fssd1->src, fssd2->src, cmp_ret, 0);
+    if (ret <= 0)
+        return 0;
+    return 1;
+}
+
 /* API */ 
 int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
 {
@@ -965,8 +982,6 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     dev_t dev_id1, dev_id2;
     ino_t ino_id1, ino_id2;
     off_t size1, size2;
-    FSrcStreamData *fssd1, *fssd2;
-
 
 /*
    #define Libisofs_stream_cmp_ino_debuG 1
@@ -982,6 +997,9 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
         return -1;
     if (s2 == NULL)
         return 1;
+
+    if (iso_stream_cmp_ifs_sections(s1, s2, &ret, 0) > 0)
+        return ret; /* Both are unfiltered from loaded ISO filesystem */
 
     if (s1->class->version >= 3 && !(flag & 1)) {
        /* Filters may have smarter methods to compare themselves with others */
@@ -1042,14 +1060,6 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
 
     if (s1->class != s2->class)
         return (s1->class < s2->class ? -1 : 1);
-    if (s1->class == &fsrc_stream_class) {
-        /* Compare eventual image data section LBA and sizes */
-        fssd1= (FSrcStreamData *) s1->data;
-        fssd2= (FSrcStreamData *) s2->data;
-        ret = iso_ifs_sections_cmp(fssd1->src, fssd2->src, 0);
-        if (ret != 0)
-            return ret;
-    }
     if (fs_id1 == 0 && dev_id1 == 0 && ino_id1 == 0) {
         return (s1 < s2 ? -1 : 1);
     }
