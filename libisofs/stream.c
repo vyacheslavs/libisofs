@@ -943,11 +943,21 @@ ex:;
     return path;
 }
 
-/* @return 1 = ok , 0 = not an ISO image stream , <0 = error */
+/*
+   @param flag bit0= in case of filter stream do not dig for base stream
+   @return 1 = ok , 0 = not an ISO image stream , <0 = error
+*/
 int iso_stream_set_image_ino(IsoStream *stream, ino_t ino, int flag)
 {
+    IsoStream *base_stream;
+
     if (stream == NULL) {
         return ISO_NULL_POINTER;
+    }
+    if (!(flag & 1)) {
+        base_stream = iso_stream_get_input_stream(stream, 1);
+        if (base_stream != NULL)
+            stream = base_stream;
     }
     if (stream->class == &fsrc_stream_class) {
         FSrcStreamData *fsrc_data = stream->data;
