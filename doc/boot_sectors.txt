@@ -54,6 +54,7 @@ Sources:
     El Torito, Bootable CD-ROM Format Specification, Version 1.0, 1995
     which refers to ECMA-119, the standard for ISO 9660 filesystems.
     libisofs/eltorito.[ch] by Vreixo Formoso.
+    http://www.uefi.org/sites/default/files/resources/2_4_Errata_B.pdf
 
 
 ECMA-119 prescribes that the first 32 kB of an ISO 9660 image are System Area
@@ -124,7 +125,7 @@ Defined by El Torito are:
     0 = "80x86" which is used for standard PCs with Intel x86 or compatible CPU
     1 = "PowerPC" (possibly for IBM machines with PowerPC CPU)
     2 = "Mac" (possibly for Apple computers with MC68000 or PowerPC CPU)
-Further in use by GRUB2 and ISOLINUX is:
+UEFI 2.4 specifies in 12.3.2.1 "ISO-9660 and El Torito":
  0xef = EFI, a competitor resp. successor to PC-BIOS, possibly in use with
              Intel ia64 Itanium and possibly with newer Apple machines.
 
@@ -528,6 +529,7 @@ Sources:
   http://mjg59.fedorapeople.org/Fedora-LiveCD.iso
   http://en.wikipedia.org/wiki/GUID_Partition_Table
   http://en.wikipedia.org/wiki/GUID
+  http://www.uefi.org/sites/default/files/resources/2_4_Errata_B.pdf
 
 
 GPT is the partition map format of EFI, a successor of PC-BIOS.
@@ -535,8 +537,11 @@ Block size is always 512. GPT consists of a header block at block address 1 and
 a partition table near the start of the medium. This is called the primary GPT.
 There is a backup copy of header and table near the end of the medium.
 
-GPT is particularly designed to co-exist with MBR. If it is present, then the
-booting firmware may or may not prefer it over the MBR partition table.
+GPT is particularly designed to co-exist with MBR. Officially only with a
+Protective MBR which covers the whole medium (except the MBR itself) by
+a single partition of type 0xee. Inofficially often with filesystem partitions
+marked in both, GPT and MBR. In the latter case the booting firmware may
+or may not prefer GPT over the MBR partition table.
 GPT can co-exist with APM if APM block size is at least 1024. In this case,
 the primary partition table will begin after the last APM entry block.
 
