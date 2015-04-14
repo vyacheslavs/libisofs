@@ -1828,7 +1828,16 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                                     t->partition_heads_per_cyl, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
-        if (t->opts->partition_offset == 0) {
+        if (t->opts->appended_as_gpt && t->have_appended_partitions) {
+            /* Re-write partion entry 1 : protective MBR for GPT */
+            part_type = 0xee;
+            ret = write_mbr_partition_entry(1, part_type,
+                        (uint64_t) 1, ((uint64_t) gpt_blocks) * 4 - 1, 
+                        t->partition_secs_per_head, t->partition_heads_per_cyl,
+                        buf, 2);
+            if (ret < 0)
+                return ret;
+        } else if (t->opts->partition_offset == 0) {
             /* Re-write partion entry 1 : start at 0, type Linux */
             ret = write_mbr_partition_entry(1, 0x83,
                         (uint64_t) 0, (uint64_t) img_blocks,
