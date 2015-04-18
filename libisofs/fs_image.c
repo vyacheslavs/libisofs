@@ -4213,7 +4213,8 @@ int iso_analyze_gpt(IsoImage *image, IsoDataSource *src, int flag)
         start_block = iso_read_lsb64(part + 32);
         block_count = iso_read_lsb64(part + 40);
         flags = iso_read_lsb64(part + 48);
-        if (block_count < start_block)
+        if ((start_block == 0 && block_count == 0) ||
+            block_count + 1 < start_block)
     continue;
         block_count = block_count + 1 - start_block;
         if (sai->gpt_req == NULL) {
