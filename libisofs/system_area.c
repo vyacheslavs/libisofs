@@ -1567,6 +1567,7 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 
     if (t->gpt_req_count == 0)
         return 2;
+    backup_end_lba = ((uint64_t) t->gpt_backup_end - t->gpt_backup_size) * 4;
 
     /* Sort and fill gaps */
     qsort(t->gpt_req, t->gpt_req_count,
@@ -1580,6 +1581,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
             goal = t->gpt_req[i]->start_block;
         } else {
             goal = ((uint64_t) img_blocks) * 4;
+            if (goal > backup_end_lba)
+                goal = backup_end_lba;
         }
         if (i == 0) {
             if (goal <= 16 * 4)
@@ -1627,8 +1630,6 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         req = t->gpt_req[i];
         start_lba = req->start_block;
         end_lba = req->start_block + req->block_count;
-        backup_end_lba = ((uint64_t) t->gpt_backup_end - t->gpt_backup_size) *
-                         4;
         if (req->start_block == t->opts->partition_offset * ((uint64_t) 4) &&
             req->block_count == ((uint64_t) 4) * 0xffffffff)
             end_lba = t->vol_space_size * 4;
