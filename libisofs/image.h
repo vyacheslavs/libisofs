@@ -64,6 +64,8 @@ struct Iso_Image
     /* Eventually loaded system area data, or NULL */
     char *system_area_data;
     /* Prescribed/detected options, see iso_write_opts_set_system_area() */
+    /* >>> Needs to be coordinated with .imported_sa_info->system_area_options
+    */
     int system_area_options;
 
    /*
@@ -100,6 +102,11 @@ struct Iso_Image
     IsoFilesystem *fs;
 
     /**
+     * Block storage of imported ISO if demanded by IsoReadOpts.
+     */
+    IsoDataSource *import_src;
+
+    /*
      * Default builder to use when adding files to the image tree.
      */
     IsoNodeBuilder *builder;

@@ -185,6 +185,7 @@ int iso_image_new(const char *name, IsoImage **image)
     img->hppa_kernel_64 = NULL;
     img->hppa_ramdisk = NULL;
     img->alpha_boot_image = NULL;
+    img->import_src = NULL;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
     img->inode_counter = 0;
@@ -245,6 +246,8 @@ void iso_image_unref(IsoImage *image)
         iso_image_set_hppa_palo(image, NULL, NULL, NULL, NULL, NULL, 1);
         if (image->alpha_boot_image != NULL)
             free(image->alpha_boot_image);
+        if (image->import_src != NULL)
+            iso_data_source_unref(image->import_src);
         free(image->volset_id);
         free(image->volume_id);
         free(image->publisher_id);

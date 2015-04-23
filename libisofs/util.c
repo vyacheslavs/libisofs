@@ -2305,3 +2305,41 @@ int iso_clone_mgtd_mem(char *in, char **out, size_t size)
     return iso_clone_mem(in, out, size);
 }
 
+
+/** Convert a text into a number of type double and multiply it by unit code
+    [kmgt] (2^10 to 2^40) or [s] (2048) or [d] (512).
+    (Also accepts capital letters.)
+    @param text Input like "42", "223062s", "3m" or "-1g"
+    @param flag Bitfield for control purposes:
+                bit0= return -1 rathern than 0 on failure
+                bit1= if scaled then compute the last byte of the last unit
+    @return The derived value
+*/
+off_t iso_scanf_io_size(char *text, int flag)
+{
+    int c;
+    off_t ret = 0, fac = 1;
+    char *rpt;
+
+    for (rpt = text; *rpt >= '0' && *rpt <= '9'; rpt++)
+        ret = ret * 10 + (*rpt - '0');
+    if (rpt == text)
+        return (off_t) (flag & 1 ? -1 : 0);
+    c = *rpt;
+    if (c=='k' || c=='K')
+        fac = 1024;
+    else if (c=='m' || c=='M')
+        fac = 1024 * 1024;
+    else if (c=='g' || c=='G')
+        fac = 1024 * 1024 * 1024;
+    else if (c=='t' || c=='T')
+        fac = ((off_t) 1024) * 1024 * 1024 * 1024;
+    else if (c=='s' || c=='S')
+        fac = 2048;
+    else if (c=='d' || c=='D')
+        fac = 512;
+    ret *= fac;
+    if (flag & 2)
+        ret += fac - 1;
+    return ret;
+}

@@ -521,6 +521,12 @@ const char *iso_error_to_msg(int errcode)
         return "Unrecognized inquiry for system area property";
     case ISO_ALPHA_BOOT_NOTREG:
         return "DEC Alpha Boot Loader file is not a data file";
+    case ISO_NO_KEPT_DATA_SRC:
+        return "No data source of imported ISO image available";
+    case ISO_MALFORMED_READ_INTVL:
+        return "Malformed description string for interval reader";
+    case ISO_INTVL_READ_PROBLEM:
+        return "Unreadable file, premature EOF, or failure to seek for interval reader";
     default:
         return "Unknown error";
     }

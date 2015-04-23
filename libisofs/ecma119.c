@@ -1483,11 +1483,519 @@ static int finish_libjte(Ecma119Image *target)
 }
 
 
+/* >>> need opportunity to just mark a partition in the older sessions
+*/
+
+
+struct iso_interval_zeroizer {
+    int z_type; /* 0= $zero_start"-"$zero_end ,
+                   1= "zero_mbrpt" , 2= "zero_gpt" , 3= "zero_apm"
+                */
+    off_t zero_start;
+    off_t zero_end;
+};
+
+struct iso_interval_reader {
+
+    /* Setup */
+
+    IsoImage *image;
+
+    char *path;
+
+    int flags; /* bit0= imported_iso, else local_fs
+               */
+
+    off_t start_byte;
+    off_t end_byte;
+
+    struct iso_interval_zeroizer *zeroizers;
+    int num_zeroizers;
+
+    char *source_pt; /* This is a parasite pointer of path. Do not free */
+
+    /* State information */
+
+    int initialized;
+    int is_block_aligned;
+    off_t cur_block;
+    int fd;
+    uint8_t read_buf[BLOCK_SIZE];
+    uint8_t *pending_read_pt;
+    int pending_read_bytes;
+    off_t read_count;
+    int eof;
+
+    int src_is_open;
+
+    uint32_t apm_block_size;
+
+};
+
+static
+int iso_ivr_next_comp(char *read_pt, char **next_pt, int flag)
+{
+    *next_pt = NULL;
+    if (read_pt == NULL)
+        return 0;
+    *next_pt = strchr(read_pt, ':');
+    if (*next_pt != NULL)
+        (*next_pt)++;
+    return 1;
+}
+
+/* @param flag bit1= end number requested, forward to iso_scanf_io_size()
+*/
+static
+int iso_ivr_read_number(char *start_pt, char *end_pt, off_t *result, int flag)
+{
+    char txt[20];
+    off_t num;
+
+    if (end_pt - start_pt <= 0 || end_pt - start_pt > 16) {
+        iso_msg_submit(-1, ISO_MALFORMED_READ_INTVL, 0,
+    "Number text too short or too long in interval reader description string");
+        return ISO_MALFORMED_READ_INTVL;
+    }
+    if (end_pt - start_pt > 0)
+        strncpy(txt, start_pt, end_pt - start_pt);
+    txt[end_pt - start_pt] = 0;
+
+    num = iso_scanf_io_size(start_pt, 1 | (flag & 2));
+    if (num < 0.0 || num > 0xffffffffffff) {
+        iso_msg_submit(-1, ISO_MALFORMED_READ_INTVL, 0,
+      "Negative or overly large number in interval reader description string");
+        return ISO_MALFORMED_READ_INTVL;
+    }
+    *result = num;
+    return 1;
+}
+
+static
+int iso_ivr_parse_interval(char *start_pt, char *end_pt, off_t *start_byte,
+                           off_t *end_byte, int flag)
+{
+    int ret;
+    char *m_pt;
+
+    m_pt = strchr(start_pt, '-');
+    if (m_pt == NULL) {
+        iso_msg_submit(-1, ISO_MALFORMED_READ_INTVL, 0,
+              "Malformed byte interval in interval reader description string");
+        return ISO_MALFORMED_READ_INTVL;
+    }
+    ret = iso_ivr_read_number(start_pt, m_pt, start_byte, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_ivr_read_number(m_pt + 1, end_pt - 1, end_byte, 2);
+    if (ret < 0)
+        return ret;
+    return ISO_SUCCESS;
+}
+
+static
+int iso_ivr_parse_zeroizers(struct iso_interval_reader *ivr,
+                            char *pathpt, char *end_pt, int flag)
+{
+    int ret, num_zs = 1, idx, i;
+    char *rpt, *cpt;
+
+    ivr->num_zeroizers = 0;
+    if (pathpt[0] == 0 || pathpt == end_pt)
+        return ISO_SUCCESS;
+    for(cpt = pathpt - 1; cpt != NULL && cpt < end_pt; num_zs++)
+        cpt = strchr(cpt + 1, ',');
+    LIBISO_ALLOC_MEM(ivr->zeroizers, struct iso_interval_zeroizer, num_zs);
+    for (i = 0; i < num_zs; i++)
+        ivr->zeroizers[i].zero_end = -1;
+    idx = 0;
+    for (rpt = pathpt; rpt != NULL && rpt < end_pt; idx++) {
+        cpt = strchr(rpt, ',');
+        if (cpt == NULL || cpt > end_pt)
+            cpt = end_pt;
+
+        if (cpt == rpt) {
+    continue;
+        } else if (strncmp(rpt, "zero_mbrpt", cpt - rpt) == 0) {
+            ivr->zeroizers[idx].z_type = 1;
+        } else if (strncmp(rpt, "zero_gpt", cpt - rpt) == 0) {
+            ivr->zeroizers[idx].z_type = 2;
+        } else if (strncmp(rpt, "zero_apm", cpt - rpt) == 0) {
+            ivr->zeroizers[idx].z_type = 3;
+        } else {
+            ivr->zeroizers[idx].z_type = 0;
+            ret = iso_ivr_parse_interval(rpt, cpt,
+                                         &(ivr->zeroizers[idx].zero_start),
+                                         &(ivr->zeroizers[idx].zero_end), 0);
+            if (ret < 0)
+                goto ex;
+        }
+        rpt = cpt + 1;
+        ivr->num_zeroizers++;
+    }
+    ret = ISO_SUCCESS;
+ex:;
+    return ret;
+}
+
+static
+int iso_ivr_parse(struct iso_interval_reader *ivr, char *path, int flag)
+{
+    int ret;
+    char *flags_pt, *interval_pt, *zeroize_pt;
+
+    flags_pt = path;
+    iso_ivr_next_comp(flags_pt, &interval_pt, 0);
+    iso_ivr_next_comp(interval_pt, &zeroize_pt, 0);
+    iso_ivr_next_comp(zeroize_pt, &(ivr->source_pt), 0);
+    if (ivr->source_pt == NULL) {
+        iso_msg_submit(-1, ISO_MALFORMED_READ_INTVL, 0,
+                "Not enough components in interval reader description string");
+        return ISO_MALFORMED_READ_INTVL;
+    }
+
+    ivr->flags = 0;
+    if (strncmp(flags_pt, "imported_iso", 12) == 0) {
+        ivr->flags |= 1;
+    } else if (strncmp(flags_pt, "local_fs", 8) == 0) {
+        ;
+    } else {
+        iso_msg_submit(-1, ISO_MALFORMED_READ_INTVL, 0,
+ "Unknown flag name in first component of interval reader description string");
+        return ISO_MALFORMED_READ_INTVL;
+    }
+    ret = iso_ivr_parse_interval(interval_pt, zeroize_pt, &(ivr->start_byte),
+                                 &(ivr->end_byte), 0);
+    if (ret < 0)
+        goto ex;
+    ret = iso_ivr_parse_zeroizers(ivr, zeroize_pt, ivr->source_pt - 1, 0);
+    if (ret < 0)
+        goto ex;
+
+    ret = ISO_SUCCESS;
+ex:;
+    return ret;
+}   
+
+int iso_interval_reader_destroy(struct iso_interval_reader **ivr, int flag)
+{
+    struct iso_interval_reader *o;
+
+    if (*ivr == NULL)
+        return 0;
+    o = *ivr;
+
+    LIBISO_FREE_MEM(o->path);
+    LIBISO_FREE_MEM(o->zeroizers);
+
+    if (o->fd != -1)
+        close(o->fd);
+    if (o->src_is_open)
+        (*o->image->import_src->close)(o->image->import_src);
+
+    LIBISO_FREE_MEM(*ivr);
+    return ISO_SUCCESS;
+}
+
+/* @param flag bit0= tolerate lack of import_src
+*/
+int iso_interval_reader_new(IsoImage *img, char *path,
+                            struct iso_interval_reader **ivr,
+                            off_t *byte_count, int flag)
+{
+    int ret, no_img = 0;
+    struct iso_interval_reader *o = NULL;
+
+    *ivr = NULL;
+    *byte_count = 0;
+    LIBISO_ALLOC_MEM(o, struct iso_interval_reader, 1);
+    o->image = img;
+    o->path = NULL;
+    o->zeroizers = NULL;
+    o->num_zeroizers = 0;
+    o->source_pt = NULL;
+    o->initialized = 0;
+    o->is_block_aligned = 0;
+    o->fd = -1;
+    o->pending_read_pt = NULL;
+    o->pending_read_bytes = 0;
+    o->eof = 0;
+    o->read_count = 0;
+    o->src_is_open = 0;
+
+    o->apm_block_size = 0;
+
+    LIBISO_ALLOC_MEM(o->path, char, strlen(path) + 1);
+    strcpy(o->path, path);
+
+    ret = iso_ivr_parse(o, path, 0);
+    if (ret < 0)
+        goto ex;
+
+    if (o->image == NULL)
+        no_img = 1;
+    else if (o->image->import_src == NULL)
+        no_img = 1;
+    if ((o->flags & 1) && no_img) {
+        iso_msg_submit(-1, ISO_NO_KEPT_DATA_SRC, 0,
+                "Interval reader lacks of data source object of imported ISO");
+        if (!(flag & 1)) {
+            ret = ISO_BAD_PARTITION_FILE;
+            goto ex;
+        }
+        o->eof = 1;
+    }
+    *byte_count = o->end_byte - o->start_byte + 1;
+    *ivr = o;
+    ret = ISO_SUCCESS;
+ex:;
+    if (ret < 0)
+        iso_interval_reader_destroy(&o, 0);
+    return ret;
+}
+
+static
+int iso_ivr_zeroize(struct iso_interval_reader *ivr, uint8_t *buf,
+                             int buf_fill, int flag)
+{
+    int i;
+    off_t low, high, part_start, entry_count, apm_offset = -1, map_entries;
+    uint8_t *apm_buf;
+    struct iso_interval_zeroizer *zr;
+
+    for (i = 0; i < ivr->num_zeroizers; i++) {
+        zr = ivr->zeroizers + i;
+        if (zr->z_type == 1) { /* zero_mbrpt */
+            if (ivr->read_count > 0 || buf_fill < 512)
+    continue;
+            if (buf[510] != 0x55 || buf[511] != 0xaa)
+    continue;
+            memset(buf + 446, 0, 64);
+
+        } else if (zr->z_type == 2) { /* zero_gpt */
+            if (zr->zero_start <= zr->zero_end)
+                goto process_interval;
+
+            if (ivr->read_count > 0 || buf_fill < 512 + 92)
+    continue;
+            if (strncmp((char *) buf + 512, "EFI PART", 8) != 0 ||
+                buf[520] != 0 || buf[521] != 0  || buf[522] != 1 ||
+                buf[523] != 0)
+    continue;
+            /* head_size , curr_lba , entry_size */
+            if (iso_read_lsb(buf + 524, 4) != 92 ||
+                iso_read_lsb(buf + 536, 4) != 1 ||
+                iso_read_lsb(buf + 596, 4) != 128)
+    continue;
+            part_start = iso_read_lsb(buf + 584, 4);
+            entry_count = iso_read_lsb(buf + 592, 4);
+            if (part_start < 2 || part_start + (entry_count + 3) / 4 > 64)
+    continue;
+            zr->zero_start = part_start * 512;
+            zr->zero_end = (part_start + (entry_count + 3) / 4) * 512 - 1;
+            memset(buf + 512, 0, 92);
+
+        } else if (zr->z_type == 3) { /* zero_apm */
+            if (zr->zero_start <= zr->zero_end)
+                goto process_interval;
+
+            if (ivr->read_count == 0) {
+                if (buf_fill < 512)
+    continue;
+                if (buf[0] != 'E' || buf[1] != 'R')
+    continue;
+                ivr->apm_block_size = iso_read_msb(buf + 2, 2);
+                if ((ivr->apm_block_size != 512 &&
+                     ivr->apm_block_size != 1024 &&
+                     ivr->apm_block_size != 2048) ||
+                    ((uint32_t) buf_fill) < ivr->apm_block_size) {
+                    ivr->apm_block_size = 0;
+    continue;
+                }
+                if (ivr->read_count + buf_fill >= 2 * ivr->apm_block_size)
+                    apm_offset = ivr->apm_block_size;
+            } else if (ivr->read_count == 2048 &&
+                       ivr->apm_block_size == 2048 && buf_fill == 2048) {
+                apm_offset = 0;
+            }
+            if (apm_offset < 0)
+    continue;
+
+            /* Check for first APM entry */
+            apm_buf = buf + apm_offset;
+            if(apm_buf[0] != 'P' || apm_buf[1] != 'M')
+    continue;
+            if (iso_read_msb(apm_buf + 8, 4) != 1)
+    continue;
+            map_entries = iso_read_msb(apm_buf + 4, 4);
+            if ((1 + map_entries) * ivr->apm_block_size > 16 * 2048)
+    continue;
+            zr->zero_start = ivr->apm_block_size;
+            zr->zero_end = (1 + map_entries) * ivr->apm_block_size;
+        }
+process_interval:;
+        /* If an interval is defined by now: zeroize its intersection with buf
+         */
+        if (zr->zero_start <= zr->zero_end) {
+            low = ivr->read_count >= zr->zero_start ?
+                  ivr->read_count : zr->zero_start;
+            high = ivr->read_count + buf_fill - 1 <= zr->zero_end ?
+                   ivr->read_count + buf_fill - 1 : zr->zero_end;
+            if (low <= high)
+                memset(buf + low - ivr->read_count, 0, high - low + 1);
+        }
+    }
+
+    return ISO_SUCCESS;
+}
+
+int iso_interval_reader_read(struct iso_interval_reader *ivr, uint8_t *buf,
+                             int *buf_fill, int flag)
+{
+    int ret, read_done, to_copy, initializing = 0;
+    IsoDataSource *src;
+    uint8_t *read_buf;
+    off_t to_read;
+
+    *buf_fill = 0;
+    src = ivr->image->import_src;
+
+    if (ivr->eof) {
+eof:;
+        memset(buf, 0, BLOCK_SIZE);
+        return 0;
+    }
+
+    if (ivr->initialized) {
+        ivr->cur_block++;
+    } else {
+        initializing = 1;
+        ivr->cur_block = ivr->start_byte / BLOCK_SIZE;
+        ivr->is_block_aligned = !(ivr->start_byte % BLOCK_SIZE);
+        if (ivr->flags & 1) {
+            if (src == NULL)
+                goto eof;
+            ret = (*src->open)(src);
+            if (ret < 0) {
+                ivr->eof = 1;
+                return ret;
+            }
+            ivr->src_is_open = 1;
+        } else {
+            ivr->fd = open(ivr->source_pt, O_RDONLY);
+            if (ivr->fd == -1) {
+                iso_msg_submit(-1, ISO_BAD_PARTITION_FILE, 0,
+                         "Cannot open local file for interval reading");
+                ivr->eof = 1;
+                return ISO_BAD_PARTITION_FILE;
+            }
+            if (ivr->cur_block != 0) {
+                if (lseek(ivr->fd, ivr->cur_block * BLOCK_SIZE, SEEK_SET) ==
+                    -1) {
+                    iso_msg_submit(-1, ISO_INTVL_READ_PROBLEM, 0,
+                         "Cannot address interval start in local file");
+                    ivr->eof = 1;
+                    goto eof;
+                }
+            }
+        }
+        ivr->initialized = 1;
+    }
+    if (ivr->is_block_aligned) {
+        read_buf = buf;
+    } else {
+process_pending:;
+        read_buf = ivr->read_buf;
+        /* Copy pending bytes from previous read */
+        if (ivr->pending_read_bytes > 0) {
+            memcpy(buf, ivr->pending_read_pt, ivr->pending_read_bytes);
+            *buf_fill = ivr->pending_read_bytes;
+            ivr->pending_read_bytes = 0;
+        }
+    }
+
+    /* Read next block */
+    read_done = 0;
+    if (ivr->cur_block * BLOCK_SIZE <= ivr->end_byte) {
+        if (ivr->flags & 1) {
+            ret = (*src->read_block)(src, (uint32_t) ivr->cur_block, read_buf);
+            if (ret < 0) {
+                if (iso_error_get_severity(ret) > 0x68000000) /* > FAILURE */
+                    return ret;
+                iso_msg_submit(-1, ISO_INTVL_READ_PROBLEM, 0,
+                     "Premature EOF while interval reading from imported ISO");
+                ivr->eof = 1;
+            }
+            read_done = BLOCK_SIZE;
+        } else {
+            read_done = 0;
+            to_read = ivr->end_byte - ivr->start_byte + 1 - ivr->read_count;
+            if (to_read > BLOCK_SIZE)
+                to_read = BLOCK_SIZE;
+            while (read_done < to_read) {
+                ret = read(ivr->fd, read_buf, to_read - read_done);
+                if (ret == -1) {
+                    iso_msg_submit(-1, ISO_INTVL_READ_PROBLEM, 0,
+                       "Read error while interval reading from local file");
+                    ivr->eof = 1;
+            break;
+                } else if (ret == 0) {
+                    iso_msg_submit(-1, ISO_INTVL_READ_PROBLEM, 0,
+                       "Premature EOF while interval reading from local file");
+                    ivr->eof = 1;
+            break;
+                } else
+                    read_done += ret;
+            }
+        }
+    }
+    if (ivr->is_block_aligned) {
+        *buf_fill = read_done;
+    } else if (initializing) {
+        ivr->pending_read_pt = ivr->read_buf +
+                               (ivr->start_byte - ivr->cur_block * BLOCK_SIZE);
+        ivr->pending_read_bytes = (((off_t) ivr->cur_block) + 1) * BLOCK_SIZE -
+                                  ivr->start_byte;
+        initializing = 0;
+        goto process_pending;
+
+    } else if (read_done > 0) {
+        /* Copy bytes from new read */
+        to_copy = read_done > BLOCK_SIZE - *buf_fill ?
+                  BLOCK_SIZE - *buf_fill : read_done;
+        memcpy(buf + *buf_fill, ivr->read_buf, to_copy);
+        *buf_fill += to_copy;
+        ivr->pending_read_pt = ivr->read_buf + to_copy;
+        ivr->pending_read_bytes = read_done - to_copy;
+    }
+    if (ivr->start_byte + ivr->read_count + *buf_fill - 1 > ivr->end_byte) {
+        *buf_fill = ivr->end_byte - ivr->start_byte + 1 - ivr->read_count;
+        ivr->eof = 1;
+    }
+
+    if (*buf_fill < BLOCK_SIZE)
+        memset(buf + *buf_fill, 0, BLOCK_SIZE - *buf_fill);
+
+    ret = iso_ivr_zeroize(ivr, buf, *buf_fill, 0);
+    if (ret < 0)
+        return ret;
+
+    ivr->read_count += *buf_fill;
+
+    return ISO_SUCCESS;
+}
+
+
 int iso_write_partition_file(Ecma119Image *target, char *path,
                              uint32_t prepad, uint32_t blocks, int flag)
 {
+
+    struct iso_interval_reader *ivr = NULL;
+    int buf_fill;
+    off_t byte_count;
     FILE *fp = NULL;
-    uint32_t i;
+
+    uint32_t i, intvl_blocks;
     uint8_t *buf = NULL;
     int ret;
 
@@ -1498,33 +2006,46 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
             goto ex;
     }
 
-/* >>> need opportunity to read from input ISO image
-       resp. to just mark a partition in the older sessions
-*/;
+    if (flag & 1) {
+        ret = iso_interval_reader_new(target->image, path,
+                                      &ivr, &byte_count, 0);
+        if (ret < 0)
+            goto ex;
+        intvl_blocks = (byte_count + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        for (i = 0; i < blocks; i++) {
+            ret = iso_interval_reader_read(ivr, buf, &buf_fill, 0);
+            if (ret < 0)
+                goto ex;
+            ret = iso_write(target, buf, BLOCK_SIZE);
+            if (ret < 0)
+                goto ex;
+        }
+    } else {
+        fp = fopen(path, "rb");
+        if (fp == NULL)
+            {ret = ISO_BAD_PARTITION_FILE; goto ex;}
 
-    fp = fopen(path, "rb");
-    if (fp == NULL)
-        {ret = ISO_BAD_PARTITION_FILE; goto ex;}
-
-    for (i = 0; i < blocks; i++) {
-        memset(buf, 0, BLOCK_SIZE);
-        if (fp != NULL) {
-            ret = fread(buf, 1, BLOCK_SIZE, fp);
-            if (ret != BLOCK_SIZE) {
-                 fclose(fp);
-                 fp = NULL;
+        for (i = 0; i < blocks; i++) {
+            memset(buf, 0, BLOCK_SIZE);
+            if (fp != NULL) {
+                ret = fread(buf, 1, BLOCK_SIZE, fp);
+                if (ret != BLOCK_SIZE) {
+                    fclose(fp);
+                    fp = NULL;
+                }
+            }
+            ret = iso_write(target, buf, BLOCK_SIZE);
+            if (ret < 0) {
+                fclose(fp);
+                goto ex;
             }
         }
-        ret = iso_write(target, buf, BLOCK_SIZE);
-        if (ret < 0) {
+        if (fp != NULL) 
             fclose(fp);
-            goto ex;
-        }
     }
-    if (fp != NULL) 
-        fclose(fp);
     ret = ISO_SUCCESS;
 ex:;
+    iso_interval_reader_destroy(&ivr, 0);
     LIBISO_FREE_MEM(buf);
     return ret;
 }
@@ -1592,9 +2113,10 @@ void *write_function(void *arg)
         if (target->opts->appended_partitions[i][0] == 0)
     continue;
         res = iso_write_partition_file(target,
-                                       target->opts->appended_partitions[i],
-                                       target->appended_part_prepad[i],
-                                       target->appended_part_size[i], 0);
+                                     target->opts->appended_partitions[i],
+                                     target->appended_part_prepad[i],
+                                     target->appended_part_size[i],
+                                     target->opts->appended_part_flags[i] & 1);
         if (res < 0)
             goto write_error;
     }
@@ -2825,9 +3347,14 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
 
     wopts->tail_blocks = 0;
     wopts->prep_partition = NULL;
+    wopts->prep_part_flag = 0;
     wopts->efi_boot_partition = NULL;
-    for (i = 0; i < ISO_MAX_PARTITIONS; i++)
+    wopts->efi_boot_part_flag = 0;
+    for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         wopts->appended_partitions[i] = NULL;
+        wopts->appended_part_types[i] = 0;
+        wopts->appended_part_flags[i] = 0;
+    }
     wopts->appended_as_gpt = 0;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
@@ -3510,6 +4037,7 @@ int iso_write_opts_set_prep_img(IsoWriteOpts *opts, char *image_path, int flag)
     opts->prep_partition = strdup(image_path);
     if (opts->prep_partition == NULL)
         return ISO_OUT_OF_MEM;
+    opts->prep_part_flag = (flag & 1);
     return ISO_SUCCESS;
 }
 
@@ -3523,6 +4051,7 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
     opts->efi_boot_partition = strdup(image_path);
     if (opts->efi_boot_partition == NULL)
         return ISO_OUT_OF_MEM;
+    opts->efi_boot_part_flag = (flag & 1);
     return ISO_SUCCESS;
 }
 
@@ -3539,6 +4068,7 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
     if (opts->appended_partitions[partition_number - 1] == NULL)
         return ISO_OUT_OF_MEM;
     opts->appended_part_types[partition_number - 1] = partition_type;
+    opts->appended_part_flags[partition_number - 1] = (flag & 1);
     return ISO_SUCCESS;
 }
 

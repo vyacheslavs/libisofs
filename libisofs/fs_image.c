@@ -124,6 +124,12 @@ struct iso_read_opts
      * submission by iso_write_opts_set_system_area(data, 0).
      */
     int load_system_area;
+
+    /**
+     * Keep data source of imported ISO filesystem in IsoImage.import_src
+     */
+    int keep_import_src;
+
 };
 
 /**
@@ -5620,6 +5626,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     data = fs->data;
 
 
+    if (opts->keep_import_src) {
+        iso_data_source_ref(src);
+        image->import_src = src;
+    }
     if (opts->load_system_area) {
         if (image->system_area_data != NULL)
             free(image->system_area_data);
@@ -6029,6 +6039,7 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
     ropts->noaaip = 1;
     ropts->nomd5 = 1;
     ropts->load_system_area = 0;
+    ropts->keep_import_src = 0;
 
     *opts = ropts;
     return ISO_SUCCESS;
@@ -6170,6 +6181,15 @@ int iso_read_opts_load_system_area(IsoReadOpts *opts, int mode)
         return ISO_NULL_POINTER;
     }
     opts->load_system_area = mode & 1;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_keep_import_src(IsoReadOpts *opts, int mode)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->keep_import_src = mode & 1;
     return ISO_SUCCESS;
 }
 

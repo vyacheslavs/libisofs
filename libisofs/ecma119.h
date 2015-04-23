@@ -468,17 +468,20 @@ struct iso_write_opts {
        to HFS+/FAT and IsoFileSrc areas and marked by an MBR partition entry.
     */
     char *prep_partition;
+    int prep_part_flag;
 
     /* Eventual disk file path of an EFI system partition image which shall
        be prepended to HFS+/FAT and IsoFileSrc areas and marked by a GPT entry.
     */
     char *efi_boot_partition;
+    int efi_boot_part_flag;
 
     /* Eventual disk file paths of prepared images which shall be appended
        after the ISO image and described by partiton table entries in a MBR
     */
     char *appended_partitions[ISO_MAX_PARTITIONS]; 
     uint8_t appended_part_types[ISO_MAX_PARTITIONS];
+    int appended_part_flags[ISO_MAX_PARTITIONS];
 
     /* If 1: With appended partitions: create protective MBR and mark by GPT
      */

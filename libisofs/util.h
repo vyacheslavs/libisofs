@@ -21,6 +21,10 @@
 
 #include <time.h>
 
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
 #ifndef MAX
 #   define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
@@ -627,6 +631,16 @@ int iso_clone_mem(char *in, char **out, size_t size);
 */
 int iso_clone_mgtd_mem(char *in, char **out, size_t size);
 
+/** Convert a text into a number of type double and multiply it by unit code
+    [kmgt] (2^10 to 2^40) or [s] (2048) or [d] (512).
+    (Also accepts capital letters.)
+    @param text Input like "42", "223062s", "3m" or "-1g"
+    @param flag Bitfield for control purposes:
+                bit0= return -1 rathern than 0 on failure
+                bit1= if scaled then compute the last byte of the last unit
+    @return The derived value
+*/
+off_t iso_scanf_io_size(char *text, int flag);
 
 /* ------------------------------------------------------------------------- */
 

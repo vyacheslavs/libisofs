@@ -107,12 +107,26 @@ void iso_compute_cyl_head_sec(uint64_t img_blocks, int hpc, int sph,
     }
 }
 
-static uint32_t compute_partition_size(char *disk_path, uint32_t *size,
-                                       int flag)
+/* @param flag bit0= The path contains instructions for the interval reader
+*/
+static int compute_partition_size(Ecma119Image *t, char *disk_path,
+                                  uint32_t *size, int flag)
 {
     int ret;
     off_t num;
     struct stat stbuf;
+    struct iso_interval_reader *ivr;
+    off_t byte_count;
+
+    if (flag & 1) {
+        ret = iso_interval_reader_new(t->image, disk_path,
+                                      &ivr, &byte_count, 0);
+        if (ret < 0)
+            return ret;
+        *size = (byte_count + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        iso_interval_reader_destroy(&ivr, 0);
+        return ISO_SUCCESS;
+    }
 
     *size = 0;
     ret = stat(disk_path, &stbuf);
@@ -150,8 +164,8 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
     continue;
         if (t->opts->appended_partitions[i][0] == 0)
     continue;
-        ret = compute_partition_size(t->opts->appended_partitions[i], &size,
-                                     0);
+        ret = compute_partition_size(t, t->opts->appended_partitions[i], &size,
+                                     t->opts->appended_part_flags[i]);
         if (ret < 0)
             return ret;
         add_pos = 0;
@@ -255,7 +269,7 @@ static int write_mbr_partition_entry(int partition_number, int partition_type,
 */
 static
 int make_grub_msdos_label(uint32_t img_blocks, int sph, int hpc,
-                          uint8_t *buf, int flag)
+                          uint8_t part_type, uint8_t *buf, int flag)
 {
     uint8_t *wpt;
     uint32_t end_lba, end_sec, end_head, end_cyl;
@@ -286,7 +300,7 @@ int make_grub_msdos_label(uint32_t img_blocks, int sph, int hpc,
     *(wpt++) = 0;
 
     /* 0xcd (partition type) */
-    *(wpt++) = 0xcd;
+    *(wpt++) = part_type;
 
     /* [3 bytes of C/H/S end], */
     *(wpt++) = end_head;
@@ -1660,7 +1674,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     int first_partition = 1, last_partition = 4, apm_flag, part_type = 0;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, no_boot_mbr = 0;
     int offset_flag = 0;
-    uint32_t img_blocks, gpt_blocks, mbrp1_blocks;
+    uint32_t img_blocks, gpt_blocks, mbrp1_blocks, pml_blocks;
     uint64_t blk;
     uint8_t *wpt;
 
@@ -1767,8 +1781,16 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         if (t->mbr_req_count == 0){
             /* Write GRUB protective msdos label, i.e. a simple partition
                table */
-            ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
-                                      t->partition_heads_per_cyl, buf, 0);
+            if (t->gpt_req_count > 0) {
+                part_type = 0xee;
+                pml_blocks = gpt_blocks;
+            } else {
+                part_type = 0xcd;
+                pml_blocks = img_blocks;
+            }
+            ret = make_grub_msdos_label(pml_blocks, t->partition_secs_per_head,
+                                        t->partition_heads_per_cyl,
+                                        (uint8_t) part_type, buf, 0);
             if (ret != ISO_SUCCESS) /* error should never happen */
                return ISO_ASSERT_FAILURE;
         }
@@ -1826,7 +1848,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                sa_type == 0 && t->mbr_req_count == 0) {
         /* Write a simple partition table. */
         ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
-                                    t->partition_heads_per_cyl, buf, 2);
+                                    t->partition_heads_per_cyl,
+                                    (uint8_t) 0xcd, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
         if (t->opts->appended_as_gpt && t->have_appended_partitions) {
@@ -1961,7 +1984,8 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
 
     img_blocks = t->curblock + t->opts->tail_blocks + t->gpt_backup_size;
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
-    if (((t->system_area_options & 3) || always_align)
+    if ((!(t->opts->appended_as_gpt && t->have_appended_partitions))
+        && ((t->system_area_options & 3) || always_align)
         && (off_t) (t->partition_heads_per_cyl * t->partition_secs_per_head
                     * 1024) * (off_t) 512 < imgsize) {
         /* Choose small values which can represent the image size */
@@ -2585,7 +2609,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
                 t->efi_boot_part_size += (src->sections[i].size + 2047) / 2048;
             }
         } else {
-            ret = compute_partition_size(t->opts->efi_boot_partition,
+            ret = compute_partition_size(t, t->opts->efi_boot_partition,
                                          &(t->efi_boot_part_size), 0);
             if (ret < 0)
                 return ret;
@@ -2615,7 +2639,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     }
 
     if (t->opts->prep_partition != NULL) {
-        ret = compute_partition_size(t->opts->prep_partition,
+        ret = compute_partition_size(t, t->opts->prep_partition,
                                      &(t->prep_part_size), 0);
         if (ret < 0)
             return ret;
@@ -2672,14 +2696,16 @@ static int partprepend_writer_write_data(IsoImageWriter *writer)
                                          NULL, NULL, 0);
         } else {
             ret = iso_write_partition_file(t, t->opts->efi_boot_partition,
-                                       (uint32_t) 0, t->efi_boot_part_size, 0);
+                                       (uint32_t) 0, t->efi_boot_part_size,
+                                       t->opts->efi_boot_part_flag & 1);
         }
         if (ret < 0)
             return ret;
     }
     if (t->opts->prep_partition != NULL && t->prep_part_size) {
         ret = iso_write_partition_file(t, t->opts->prep_partition,
-                                       (uint32_t) 0, t->prep_part_size, 0);
+                                       (uint32_t) 0, t->prep_part_size,
+                                       t->opts->prep_part_flag & 1);
         if (ret < 0)
             return ret;
     }
@@ -2762,7 +2788,8 @@ static int partappend_writer_write_data(IsoImageWriter *writer)
         res = iso_write_partition_file(target,
                                        target->opts->appended_partitions[i],
                                        target->appended_part_prepad[i],
-                                       target->appended_part_size[i], 0);
+                                       target->appended_part_size[i],
+                                       target->appended_part_flags[i] & 1);
         if (res < 0)
             return res;
         target->curblock += target->appended_part_size[i];

@@ -2409,6 +2409,117 @@ int iso_write_opts_detach_jte(IsoWriteOpts *opts, void **libjte_handle);
  */
 int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
 
+
+/**
+ * The libisofs interval reader is used internally and offered by libisofs API:
+ * @since 1.4.0
+ * The functions iso_write_opts_set_prep_img(), iso_write_opts_set_efi_bootp(),
+ * and iso_write_opts_set_partition_img() accept with their flag bit0 an
+ * interval reader description string instead of a disk path.
+ * The API calls are iso_interval_reader_new(), iso_interval_reader_read(),
+ * and iso_interval_reader_destroy().
+ * The data may be cut out and optionally partly zeroized.
+ *
+ * An interval reader description string has the form:
+ *   $flags:$interval:$zeroizers:$source
+ * The component $flags modifies the further interpretation:
+ *  "local_fs" ....... demands to read from a file depicted by the path in
+ *                     $source.
+ *  "imported_iso" ... demands to read from the IsoDataSource object that was
+ *                     used with iso_image_import() when
+ *                     iso_read_opts_keep_import_src() was enabled.
+ *                     The text in $source is ignored.
+ *                     The application has to ensure that reading from the
+ *                     import source does not disturb production of the new
+ *                     ISO session. Especially this would be the case if the
+ *                     import source is the same libburn drive with a
+ *                     sequential optical medium to which the new session shall
+ *                     get burned.
+ * The component $interval consists of two byte address numbers separated
+ * by a "-" character. E.g. "0-429" means to read bytes 0 to 429.
+ * The component $zeroizers consists of zero or more comma separated strings.
+ * They define which part of the read data to zeroize. Byte number 0 means
+ * the byte read from the $interval start address.
+ * Each string may be either
+ *  "zero_mbrpt" ..... demands to zeroize bytes 446 to 509 of the read data if
+ *                     bytes 510 and 511 bear the MBR signature 0x55 0xaa.
+ *  "zero_gpt" ....... demands to check for a GPT header in bytes 512 to 1023,
+ *                     to zeroize it and its partition table blocks.
+ *  "zero_apm" ....... demands to check for an APM block 0 and to zeroize
+ *                     its partition table blocks. But not the block 0 itself,
+ *                     because it could be actually MBR x86 machine code.
+ *  $zero_start"-"$zero_end ... demands to zeroize the read-in bytes beginning
+ *                     with number $zero_start and ending after $zero_end. 
+ * The component $source is the file path with "local_fs", and ignored with
+ * "imported_iso".
+ * Byte numbers may be scaled by a suffix out of {k,m,g,t,s,d} meaning
+ * multiplication by {1024, 1024k, 1024m, 1024g, 2048, 512}. A scaled value
+ * as end number depicts the last byte of the scaled range.
+ * E.g. "0d-0d" is "0-511".
+ * Examples:
+ *    "local_fs:0-32767:zero_mbrpt,zero_gpt,440-443:/tmp/template.iso"
+ *    "imported_iso:45056d-47103d::"
+ */
+struct iso_interval_reader;
+
+/**
+ * Create an interval reader object.
+ *
+ * @param img
+ *        The IsoImage object which can provide the "imported_iso" data source.
+ * @param path
+ *        The interval reader description string. See above.
+ * @param ivr
+ *        Returns in case of success a pointer to the created object.
+ *        Dispose it by iso_interval_reader_destroy() when no longer needed.
+ * @param byte_count
+ *        Returns in case of success the number of bytes in the interval.
+ * @param flag
+ *        bit0= tolerate (src == NULL) with "imported_iso".
+ *              (Will immediately cause eof of interval input.)
+ * @return
+ *        ISO_SUCCESS or error (which is < 0)
+ *
+ * @since 1.4.0
+ */
+int iso_interval_reader_new(IsoImage *img, char *path,
+                            struct iso_interval_reader **ivr,
+                            off_t *byte_count, int flag);
+
+/**
+ * Dispose an interval reader object.
+ *
+ * @param ivr
+ *        The reader object to be disposed. *ivr will be set to NULL.
+ * @return
+ *        ISO_SUCCESS or error (which is < 0)
+ * 
+ * @since 1.4.0
+ */ 
+int iso_interval_reader_destroy(struct iso_interval_reader **ivr, int flag);
+
+/**
+ * Read the next block of 2048 bytes from an interval reader object.
+ * If end-of-input happens, the interval will get filled up with 0 bytes.
+ *
+ * @param ivr
+ *        The object to read from.
+ * @param buf
+ *        Pointer to memory for filling in at least 2048 bytes.
+ * @param buf_fill
+ *        Will in case of success return the number of valid bytes.
+ *        If this is smaller than 2048, then end-of-interval has occured.
+ * @param flag
+ *        Unused yet. Submit 0.
+ * @return
+ *        ISO_SUCCESS if data were read, 0 if not, < 0 if error
+ *
+ * @since 1.4.0
+ */
+int iso_interval_reader_read(struct iso_interval_reader *ivr, uint8_t *buf,
+                             int *buf_fill, int flag);
+
+
 /**
  * Copy a data file from the local filesystem into the emerging ISO image.
  * Mark it by an MBR partition entry as PreP partition and also cause
@@ -2427,10 +2538,14 @@ int iso_write_opts_set_tail_blocks(IsoWriteOpts *opts, uint32_t num_blocks);
  * @param opts
  *        The option set to be manipulated.
  * @param image_path
- *        File address in the local file system.
+ *        File address in the local file system or instructions for interval
+ *        reader. See flag bit0.
  *        NULL revokes production of the PreP partition.
  * @param flag
- *        Reserved for future usage, set to 0.
+ *        bit0= The path contains instructions for the interval reader.
+ *              See above.
+ *              @since 1.4.0
+ *        All other bits are reserved for future usage. Set them to 0.
  * @return
  *        ISO_SUCCESS or error
  *
@@ -2457,10 +2572,14 @@ int iso_write_opts_set_prep_img(IsoWriteOpts *opts, char *image_path,
  * @param opts
  *        The option set to be manipulated.
  * @param image_path
- *        File address in the local file system.
+ *        File address in the local file system or instructions for interval
+ *        reader. See flag bit0.
  *        NULL revokes production of the EFI boot partition.
  * @param flag
- *        Reserved for future usage, set to 0.
+ *        bit0= The path contains instructions for the interval reader
+ *              See above.
+ *              @since 1.4.0
+ *        All other bits are reserved for future usage. Set them to 0.
  * @return
  *        ISO_SUCCESS or error
  *
@@ -2488,7 +2607,8 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
  *                        unclaimable space before partition 1.
  *        Range with SUN Disk Label: 2 to 8.
  * @param image_path
- *        File address in the local file system.
+ *        File address in the local file system or instructions for interval
+ *        reader. See flag bit0.
  *        With SUN Disk Label: an empty name causes the partition to become
  *        a copy of the next lower partition.
  * @param image_type
@@ -2496,7 +2616,9 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
  *        Linux Native Partition = 0x83. See fdisk command L.
  *        This parameter is ignored with SUN Disk Label.
  * @param flag
- *        bit0= The path may contain instructions for the interval reader
+ *        bit0= The path contains instructions for the interval reader
+ *              See above.
+ *              @since 1.4.0
  *        All other bits are reserved for future usage. Set them to 0.
  * @return
  *        ISO_SUCCESS or error
@@ -2815,6 +2937,24 @@ int iso_read_opts_auto_input_charset(IsoReadOpts *opts, int mode);
  *
  */
 int iso_read_opts_load_system_area(IsoReadOpts *opts, int mode);
+
+/**
+ * Control whether to keep a reference to the IsoDataSource object which
+ * allows access to the blocks of the imported ISO 9660 filesystem.
+ * This is needed if the interval reader shall read from "imported_iso".
+ *
+ * @param opts
+ *       The option set to be manipulated
+ * @param mode
+ *       Bitfield for control purposes:
+ *       bit0= Keep a reference to the IsoDataSource until the IsoImage object
+ *             gets disposed by its final iso_image_unref().
+ *       Submit any other bits with value 0.
+ *
+ * @since 1.4.0
+ *
+ */
+int iso_read_opts_keep_import_src(IsoReadOpts *opts, int mode);
 
 /**
  * Import a previous session or image, for growing or modify.
@@ -8161,7 +8301,17 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 #define ISO_INQ_SYSAREA_PROP        0xE830FE6C
 
 /** DEC Alpha Boot Loader file is not a data file   (FAILURE, HIGH, -405) */
-#define ISO_ALPHA_BOOT_NOTREG       0xE830FE6A
+#define ISO_ALPHA_BOOT_NOTREG       0xE830FE6B
+
+/** No data source of imported ISO image available  (WARNING, HIGH, -406) */
+#define ISO_NO_KEPT_DATA_SRC        0xD030FE6A
+
+/** Malformed description string for interval reader (FAILURE, HIGH, -407) */
+#define ISO_MALFORMED_READ_INTVL    0xE830FE69
+
+/** Unreadable file, premature EOF, or failure to seek for interval reader
+                                                       (WARNING, HIGH, -408) */
+#define ISO_INTVL_READ_PROBLEM      0xD030FE68
 
 
 /* Internal developer note: 
