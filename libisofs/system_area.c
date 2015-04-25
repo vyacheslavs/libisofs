@@ -1768,7 +1768,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         return ISO_NON_MBR_SYS_AREA;
 
     if (t->gpt_backup_outside)
-        gpt_blocks = t->total_size / 2048;
+        gpt_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
     else
         gpt_blocks = img_blocks;
     ret = iso_write_gpt(t, gpt_blocks, buf);
@@ -1879,7 +1879,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         */
         img_blocks = t->curblock;                  /* value might be altered */
         if (part_type == 0xee) {
-            mbrp1_blocks = t->total_size / 2048;
+            mbrp1_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
             offset_flag |= 2 | 1; /* protective MBR, no other partitions */
         } else {
             mbrp1_blocks = img_blocks;
@@ -2448,7 +2448,7 @@ int gpt_tail_writer_compute_data_blocks(IsoImageWriter *writer)
     if (t->gpt_backup_outside) {
         t->total_size += t->gpt_backup_size * 2048;
         /* The ISO block number after the backup GPT header */
-        t->gpt_backup_end = t->total_size / 2048;
+        t->gpt_backup_end = t->total_size / BLOCK_SIZE + t->opts->ms_block;
     } else {
         t->curblock += t->gpt_backup_size;
         /* The ISO block number after the backup GPT header */
