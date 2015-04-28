@@ -2610,7 +2610,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
             }
         } else {
             ret = compute_partition_size(t, t->opts->efi_boot_partition,
-                                         &(t->efi_boot_part_size), 0);
+                                         &(t->efi_boot_part_size),
+                                         t->opts->efi_boot_part_flag & 1);
             if (ret < 0)
                 return ret;
         }
@@ -2640,7 +2641,8 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
 
     if (t->opts->prep_partition != NULL) {
         ret = compute_partition_size(t, t->opts->prep_partition,
-                                     &(t->prep_part_size), 0);
+                                     &(t->prep_part_size),
+                                     t->opts->prep_part_flag & 1);
         if (ret < 0)
             return ret;
     }
