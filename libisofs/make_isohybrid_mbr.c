@@ -590,7 +590,8 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
         part_offset = 1;
     }
 
-    hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4;
+    hd_img_blocks = ((off_t) *img_blocks) * (off_t) 4 -
+                    t->post_iso_part_pad / 512;
 
     boot_lba = t->bootsrc[0]->sections[0].block;
     head_count = t->partition_heads_per_cyl;

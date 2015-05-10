@@ -2481,6 +2481,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 
     target->wthread_is_running = 0;
 
+    target->post_iso_part_pad = 0;
     target->prep_part_size = 0;
     target->efi_boot_part_size = 0;
     target->efi_boot_part_filesrc = NULL;

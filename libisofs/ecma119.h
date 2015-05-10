@@ -798,6 +798,12 @@ struct ecma119_image
     struct iso_mbr_partition_request *mbr_req[ISO_MBR_ENTRIES_MAX];
     int mbr_req_count;
 
+    /* Number of bytes which have to be added after the cylinder aligned end
+       of the overall ISO partition because clinder size is not a multiple
+       of 2048
+    */
+    int post_iso_part_pad;
+
     uint32_t prep_part_size;
 
     /* GPT description. To be composed during IsoImageWriter

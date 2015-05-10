@@ -329,21 +329,24 @@ int make_grub_msdos_label(uint32_t img_blocks, int sph, int hpc,
 
 
 /* @param flag bit0= zeroize partitions entries 2, 3, 4
-               bit0= UEFI protective MBR: start LBA = 1
+               bit1= UEFI protective MBR: start LBA = 1
 */
 static
-int iso_offset_partition_start(uint32_t img_blocks, uint32_t partition_offset,
+int iso_offset_partition_start(uint32_t img_blocks, int post_part_pad,
+                               uint32_t partition_offset,
                                int sph, int hpc, uint8_t *buf, int flag)
 {
     uint8_t *wpt;
     uint32_t end_lba, end_sec, end_head, end_cyl;
     uint32_t start_lba, start_sec, start_head, start_cyl;
+    uint64_t img_hd_blocks;
     int i;
 
     iso_compute_cyl_head_sec((uint64_t) partition_offset, hpc, sph,
                            &start_lba, &start_sec, &start_head, &start_cyl, 1);
-    iso_compute_cyl_head_sec((uint64_t) img_blocks, hpc, sph,
-                             &end_lba, &end_sec, &end_head, &end_cyl, 0);
+    img_hd_blocks = ((uint64_t) img_blocks) * 4 - post_part_pad / 512;
+    iso_compute_cyl_head_sec(img_hd_blocks, hpc, sph,
+                             &end_lba, &end_sec, &end_head, &end_cyl, 2);
     if (flag & 2) {
         start_lba = 1;
         start_sec = 2;
@@ -1863,10 +1866,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                 return ret;
         } else if (t->opts->partition_offset == 0) {
             /* Re-write partion entry 1 : start at 0, type Linux */
-            ret = write_mbr_partition_entry(1, 0x83,
-                        (uint64_t) 0, (uint64_t) img_blocks,
+            blk = ((uint64_t) img_blocks) * 4 - t->post_iso_part_pad / 512;
+            ret = write_mbr_partition_entry(1, 0x83, (uint64_t) 0, blk,
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
-                        buf, 0);
+                        buf, 2);
             if (ret < 0)
                 return ret;
         }
@@ -1884,7 +1887,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         } else {
             mbrp1_blocks = img_blocks;
         }
-        ret = iso_offset_partition_start(mbrp1_blocks,
+        ret = iso_offset_partition_start(mbrp1_blocks, t->post_iso_part_pad,
                                          t->opts->partition_offset,
                                          t->partition_secs_per_head,
                                          t->partition_heads_per_cyl, buf,
@@ -1936,7 +1939,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 /* Choose *heads_per_cyl so that
    - *heads_per_cyl * secs_per_head * 1024 >= imgsize / 512
    - *heads_per_cyl * secs_per_head is divisible by 4
-   - it is as small as possible (to reduce aligment overhead)
+   - it is as small as possible (to reduce alignment overhead)
    - it is <= 255
    @return 1= success , 0= cannot achieve goals
 */
@@ -2053,14 +2056,15 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     frac = imgsize - ((off_t) img_blocks) * (off_t) 2048;
     if (frac == 0)
         {ret = ISO_SUCCESS; goto ex;}
+    t->post_iso_part_pad = 0;
     if (frac % 2048) {
+        t->post_iso_part_pad = 2048 - frac % 2048;
         sprintf(msg,
-             "Cylinder size %d not divisible by 2048. Cannot align partition.",
-             (int) cylsize);
+ "Cylinder aligned image size is not divisible by 2048. Have to add %d bytes.",
+                t->post_iso_part_pad);
         iso_msgs_submit(0, msg, 0, "WARNING", 0);
-    } else {
-        t->opts->tail_blocks += frac / 2048;
     }
+    t->opts->tail_blocks += (frac + 2047) / 2048;
     ret = ISO_SUCCESS;
 ex:;
     LIBISO_FREE_MEM(msg);

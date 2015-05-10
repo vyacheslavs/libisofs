@@ -128,7 +128,7 @@ Name:
 
 Purpose:
       Records the IsoHfsplusBlessings blessing of a IsoNode as defined
-      in libisofs.h. At image load time, this info shall be converted back
+      in libisofs.h. At image load time, this info may be converted back
       into a relation between IsoImage and IsoNode so that it is available for
       the HFS+ writer when a new ISO 9660 / HFS+ image gets produced.
 
@@ -152,7 +152,7 @@ Name:
 
 Purpose:
       Records the iso_hfsplus_xinfo_data information as defined in libisofs.h.
-      At image load time, this info shall be converted back into an xinfo
+      At image load time, this info may be converted back into an xinfo
       attachment for iso_hfsplus_xinfo_func so that it is available for
       the HFS+ writer when a new ISO 9660 / HFS+ image gets produced.
 
