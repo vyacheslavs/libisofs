@@ -1,3 +1,8 @@
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.2.tar.gz)
+===============================================================================
+- no novelties yet -
+
+
 libisofs-1.4.0.tar.gz Sun May 17 2014
 ===============================================================================
 * Bug fix: iso_image_report_system_area() caused SIGSEGV by NULL if no valid
