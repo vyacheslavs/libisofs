@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #endif
 
+#include <fcntl.h>
+
 #ifndef MAX
 #   define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
