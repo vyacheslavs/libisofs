@@ -1,6 +1,37 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.0.tar.gz)
+libisofs-1.4.0.tar.gz Sun May 17 2014
 ===============================================================================
-- no novelties yet -
+* Bug fix: iso_image_report_system_area() caused SIGSEGV by NULL if no valid
+           ISO 9660 image was loeaded. Thanks to OmegaPhil.
+* Bug fix: A SIGSEGV could happen when loading a faulty ISO filesystem.
+           Debian bug 774152. Thanks to Jakub Wilk.
+* Bug fix: Rock Ridge Continuation Area could be produced crossing a block
+           boundary. This is heavily disliked by the Linux kernel and spoils
+           the representation of directories which contain many symbolic links.
+* Bug fix: If iso_write_opts_set_hardlinks() enabled automatic inode numbers,
+           then they did not get into effect with nodes were zisofs decoder
+           filters got attached during the image load process.
+* Bug fix: The header indicator of the last El Torito catalog section header
+           was set to 0x90 rather than 0x91 if more than one boot image is in
+           that section.
+* Bug fix: Only 128 bytes of an emerging GPT header block were zeroized.
+* Bug fix: iso_image_report_system_area() did not show GPT partitions of
+           size 0.
+* Bug fix: A zero sized GPT partition was marked after the last appended
+           GPT partition.
+* Bug fix: GPT production did not yield proper results with appended sessions
+           resp. with TOC emulation enabled.
+* Increased default weight of El Torito boot catalog to 1 billion.
+* Improved handling of cylinder alignment if the resulting image size is not
+  divisible by 2048. Old behavior was to not align. New is to pad up by a
+  few blocks of 512 bytes.
+* New API call iso_write_opts_set_appended_as_gpt()
+  and marking of appended partitions in GPT if GPT emerges for other reasons.
+* New system area type 6 = DEC Alpha SRM boot sector.
+  New API calls iso_image_set_alpha_boot(), iso_image_get_alpha_boot().
+  Thanks to Helge Deller.
+* New API object iso_interval_reader. Enabling flag bits for older API calls
+  iso_write_opts_set_prep_img(), iso_write_opts_set_efi_bootp(),
+  and iso_write_opts_set_partition_img().
 
 
 libisofs-1.3.8.tar.gz Sat Jun 28 2014
