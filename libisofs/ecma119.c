@@ -1562,7 +1562,7 @@ int iso_ivr_read_number(char *start_pt, char *end_pt, off_t *result, int flag)
     txt[end_pt - start_pt] = 0;
 
     num = iso_scanf_io_size(start_pt, 1 | (flag & 2));
-    if (num < 0.0 || num > 0xffffffffffff) {
+    if (num < 0.0 || num > 281474976710655.0) {
         iso_msg_submit(-1, ISO_MALFORMED_READ_INTVL, 0,
       "Negative or overly large number in interval reader description string");
         return ISO_MALFORMED_READ_INTVL;
@@ -1995,7 +1995,7 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
     off_t byte_count;
     FILE *fp = NULL;
 
-    uint32_t i, intvl_blocks;
+    uint32_t i;
     uint8_t *buf = NULL;
     int ret;
 
@@ -2011,7 +2011,6 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
                                       &ivr, &byte_count, 0);
         if (ret < 0)
             goto ex;
-        intvl_blocks = (byte_count + BLOCK_SIZE - 1) / BLOCK_SIZE;
         for (i = 0; i < blocks; i++) {
             ret = iso_interval_reader_read(ivr, buf, &buf_fill, 0);
             if (ret < 0)
