@@ -3227,10 +3227,14 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
                 new = (IsoNode*) file;
                 new->refcount = 0;
 
-                for (idx = 0; idx < fsdata->num_bootimgs; idx++)
-                    if (fsdata->eltorito && data->sections[0].block ==
-                        fsdata->bootblocks[idx])
-                break;
+                if (data->sections[0].size > 0) {
+                    for (idx = 0; idx < fsdata->num_bootimgs; idx++)
+                        if (fsdata->eltorito && data->sections[0].block ==
+                            fsdata->bootblocks[idx])
+                    break;
+                } else {
+                    idx = fsdata->num_bootimgs;
+                }
                 if (idx < fsdata->num_bootimgs) {
                     /* it is boot image node */
                     if (image->bootcat->bootimages[idx]->image != NULL) {
