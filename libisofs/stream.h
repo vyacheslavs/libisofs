@@ -112,4 +112,13 @@ int iso_stream_clone_filter_common(IsoStream *old_stream,
                                    IsoStream **new_stream, 
                                    IsoStream **new_input, int flag);
 
+
+/**
+ * Dispose the internal list of stream class cmp_ino() functions. It is
+ * a static global of stream.c, created and used by iso_stream_cmp_ino().
+ * This function is supposed to be called by iso_finish() only.
+ */
+int iso_stream_destroy_cmpranks(int flag);
+
+
 #endif /*STREAM_H_*/

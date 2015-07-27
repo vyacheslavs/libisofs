@@ -229,12 +229,23 @@ int shall_be_written(void *arg)
     return f->no_write ? 0 : 1;
 }
 
+static
+int shall_be_written_if_not_taken(void *arg)
+{
+    IsoFileSrc *f = (IsoFileSrc *)arg;
+    return f->no_write || f->taken ? 0 : 1;
+}
+
 int filesrc_writer_pre_compute(IsoImageWriter *writer)
 {
     size_t i, size, is_external;
     Ecma119Image *t;
     IsoFileSrc **filelist;
     int (*inc_item)(void *);
+    size_t omitted_count;
+    IsoFileSrc **iso_ecma119_to_filesrc_array(Ecma119Image *t,
+                                              int (*include_item)(void *),
+                                              size_t *size);
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -257,7 +268,16 @@ int filesrc_writer_pre_compute(IsoImageWriter *writer)
     }
 
     /* store the filesrcs in a array */
-    filelist = (IsoFileSrc**)iso_rbtree_to_array(t->files, inc_item, &size);
+    filelist = (IsoFileSrc**) iso_ecma119_to_filesrc_array(t, inc_item, &size);
+    omitted_count = iso_rbtree_count_array(t->files, (size_t) 0,
+                                           shall_be_written_if_not_taken);
+    if (omitted_count > 0) {
+        iso_msg_submit(t->image->id, ISO_NOT_REPRODUCIBLE, 0,
+            "Cannot arrange content of data files in surely reproducible way");
+        LIBISO_FREE_MEM(filelist);
+        filelist = (IsoFileSrc**)iso_rbtree_to_array(
+                                                    t->files, inc_item, &size);
+    }
     if (filelist == NULL) {
         return ISO_OUT_OF_MEM;
     }

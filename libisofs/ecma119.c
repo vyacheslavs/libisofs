@@ -88,6 +88,8 @@ void ecma119_image_free(Ecma119Image *t)
         iso_image_unref(t->image);
     if (t->files != NULL)
         iso_rbtree_destroy(t->files, iso_file_src_free);
+    if (t->ecma119_hidden_list != NULL)
+        iso_filesrc_list_destroy(&(t->ecma119_hidden_list));
     if (t->buffer != NULL)
         iso_ring_buffer_free(t->buffer);
 
@@ -2343,6 +2345,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     if (ret < 0) {
         goto target_cleanup;
     }
+    target->ecma119_hidden_list = NULL;
 
     target->image = src;
     iso_image_ref(src);
@@ -4251,4 +4254,84 @@ ex:
     return ret;
 }
 
+
+static
+void ecma119_filesrc_array(Ecma119Node *dir,
+                           int (*include_item)(void *),
+                           IsoFileSrc **filelist, size_t *size, int just_count)
+{
+    size_t i;
+    Ecma119Node *child;
+
+    for (i = 0; i < dir->info.dir->nchildren; i++) {
+        child = dir->info.dir->children[i];
+        if (child->type == ECMA119_DIR) {
+            ecma119_filesrc_array(child, include_item, filelist, size,
+                                  just_count);
+        } else if (child->type == ECMA119_FILE) {
+            if (include_item != NULL)
+                if (!include_item((void *) child->info.file))
+    continue;
+            if (just_count) {
+                (*size)++;
+            } else {
+                if (!child->info.file->taken) {
+                    filelist[*size] = child->info.file;
+                    child->info.file->taken = 1;
+                    (*size)++;
+                }
+            }
+        }
+    }
+}
+
+
+static
+void hidden_filesrc_array(Ecma119Image *t, 
+                          int (*include_item)(void *),
+                          IsoFileSrc **filelist, size_t *size, int just_count)
+{
+    struct iso_filesrc_list_item *item;
+
+    for (item = t->ecma119_hidden_list; item != NULL; item = item->next) {
+        if (include_item != NULL)
+            if (!include_item((void *) item->src))
+    continue;
+        if (just_count) {
+            (*size)++;
+        } else {
+            if (!item->src->taken) {
+                filelist[*size] = item->src;
+                item->src->taken = 1;
+                (*size)++;
+            }
+        }
+    }
+}
+
+
+IsoFileSrc **iso_ecma119_to_filesrc_array(Ecma119Image *t,
+                                          int (*include_item)(void *),
+                                          size_t *size)
+{
+    IsoFileSrc **filelist = NULL;
+
+    /* Count nodes */
+    *size = 0;
+    ecma119_filesrc_array(t->root, include_item, filelist, size, 1);
+    hidden_filesrc_array(t, include_item, filelist, size, 1);
+
+    LIBISO_ALLOC_MEM_VOID(filelist, IsoFileSrc *, *size + 1);
+
+    /* Fill array */
+    *size = 0;
+    ecma119_filesrc_array(t->root, include_item, filelist, size, 0);
+    hidden_filesrc_array(t, include_item, filelist, size, 0);
+    filelist[*size] = NULL;
+    return filelist;
+
+ex: /* LIBISO_ALLOC_MEM failed */
+    *size = 0;
+    return NULL;
+}
 

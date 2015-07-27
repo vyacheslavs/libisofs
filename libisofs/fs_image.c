@@ -34,6 +34,7 @@
 #include <langinfo.h>
 #include <limits.h>
 #include <stdio.h>
+#include <ctype.h>
 
 
 /* Enable this and write the correct absolute path into the include statement
@@ -1439,6 +1440,18 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     memset(&atts, 0, sizeof(struct stat));
     atts.st_nlink = 1;
 
+#ifdef Libisofs_for_bsd_inst_isoS
+
+    /* >>> ??? see read_rr_TF : shall libisofs follow a Linux inconsistency ? */
+    /* Set preliminary file type */
+    if (record->flags[0] & 0x02) {
+        atts.st_mode = S_IFDIR;
+    } else {
+        atts.st_mode = S_IFREG;
+    }
+
+#endif /* Libisofs_for_bsd_inst_isoS */
+
     /*
      * First of all, check for unsupported ECMA-119 features
      */
@@ -1915,6 +1928,18 @@ if (name != NULL && !namecont) {
                     name[len-2] = '\0';
                 }
             }
+
+#ifdef Libisofs_for_bsd_inst_isoS
+
+            { char *cpt;
+                 for (cpt = name; *cpt != 0; cpt++)
+                     if (isupper(*cpt))
+                         *cpt = tolower(*cpt);
+            }
+
+#endif /* Libisofs_for_bsd_inst_isoS */
+
+
         }
     }
 
@@ -6320,35 +6345,76 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
     return 0;
 }
 
-/* Rank two IsoFileSource by their eventual old image LBAs.
-   Other IsoFileSource classes will be ranked only roughly.
+/* Rank two IsoFileSource by their eventual old image LBAs if still non-zero.
+   Other IsoFileSource classes and zeroized LBAs will be ranked only roughly.
+   flag bit0 preserves transitivity of the caller by evaluating ifs_class with
+   non-zero block address as smaller than anything else.
+   flag bit1 could harm reproducibility of ISO image output.
+   @param flag bit0= if s1 exor s2 is of applicable class, then enforce
+                     a valid test result by comparing classes
+               bit1= if both are applicable but also have sections[].block == 0
+                     then enforce a valid test result by comparing object                            addresses.
 */
 int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int *cmp_ret,
                          int flag)
 {
     int i;
-    ImageFileSourceData *d1, *d2;
+    ImageFileSourceData *d1 = NULL, *d2 = NULL;
+    IsoFileSourceIface *class1 = NULL, *class2 = NULL;
 
-    if (s1->class != s2->class) {
-        *cmp_ret = (s1->class < s2->class ? -1 : 1);
-        return 0;
+    /* Newly created IsoFileSrc from imported IsoFile (e.g. boot image)
+       is not an applicable source. It must be kept from causing a decision
+       with other non-applicables.
+    */
+    if (s1 != NULL) {
+        class1 = (IsoFileSourceIface *) s1->class;
+        if (class1 == &ifs_class) {
+            d1 = (ImageFileSourceData *) s1->data;
+            if (d1->nsections > 0)
+                if (d1->sections[0].block == 0)
+                    class1 = NULL;
+        }
     }
-    if (s1->class != &ifs_class) {
+    if (s2 != NULL) {
+        class2 = (IsoFileSourceIface *) s2->class;
+        if (class2 == &ifs_class) {
+            d2 = (ImageFileSourceData *) s2->data;
+            if (d2->nsections > 0)
+                if (d2->sections[0].block == 0)
+                    class2 = NULL;
+        }
+    }
+
+    if (class1 != &ifs_class && class2 != &ifs_class) {
         *cmp_ret = 0;
         return 0;
     }
-
-    d1 = s1->data;
-    d2 = s2->data;
-    if (d1->nsections < 1)
-        return 0;
-    if (d1->sections[0].size < 1)
-        return 0;
-    for (i = 0; i < d1->nsections; i++) {
-        if (i >= d2->nsections) {
-            *cmp_ret = 1;
+    if (class1 != class2) {
+        *cmp_ret = (class1 == &ifs_class ? -1 : 1);
+        if (flag & 1)
             return 1;
-        }
+        return 0;
+    }
+
+    if (d1->nsections != d2->nsections) {
+        *cmp_ret = d1->nsections < d2->nsections ? -1 : 1;
+        return 1;
+    }
+    if (d1->nsections == 0) {
+       *cmp_ret = 0;
+       return 1;
+    }
+    if (d1->sections[0].size < 1 || d2->sections[0].size < 1) {
+        if (d1->sections[0].size > d2->sections[0].size)
+            *cmp_ret = 1;
+        else if (d1->sections[0].size < d2->sections[0].size)
+            *cmp_ret = -1;
+        else
+            *cmp_ret = 0;
+        return 1;
+    }
+
+    for (i = 0; i < d1->nsections; i++) {
         if (d1->sections[i].block != d2->sections[i].block) {
             *cmp_ret = (d1->sections[i].block < d2->sections[i].block ? -1 : 1);
             return 1;
@@ -6357,10 +6423,6 @@ int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int *cmp_ret,
             *cmp_ret = (d1->sections[i].size < d2->sections[i].size ? -1 : 1);
             return 1;
         }
-    }
-    if (i < d2->nsections) {
-        *cmp_ret = -1;
-        return 1;
     }
     *cmp_ret = 0;
     return 1;

@@ -308,3 +308,38 @@ void ** iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *),
     return array;
 }
 
+
+static
+size_t rbtree_count_array_aux(struct iso_rbnode *root, size_t pos,
+                              int (*include_item)(void *))
+{
+    if (root == NULL) {
+        return pos;
+    }
+    pos = rbtree_count_array_aux(root->ch[0], pos, include_item);
+    if (include_item == NULL || include_item(root->data)) {
+
+/*
+{
+IsoFileSrc* src = (IsoFileSrc*) root->data;
+fprintf(stderr, "libisofs_DEBUG: rbtree_count_array_aux : not taken : '%s'\n",
+                iso_stream_get_source_path(src->stream, 0));
+}       
+*/
+
+        pos++;
+    }
+    pos = rbtree_count_array_aux(root->ch[1], pos, include_item);
+    return pos;
+}
+
+
+size_t iso_rbtree_count_array(IsoRBTree *tree, size_t initial_count,
+                          int (*include_item)(void *))
+{
+    size_t pos;
+
+    pos = rbtree_count_array_aux(tree->root, initial_count, include_item);
+    return pos;
+}
+

@@ -365,6 +365,35 @@ void ecma119_node_free(Ecma119Node *node)
     free(node);
 }
 
+
+static
+int add_to_hidden_list(Ecma119Image *image, IsoFileSrc *src)
+{
+    int ret;
+    struct iso_filesrc_list_item *item;
+
+    LIBISO_ALLOC_MEM(item, struct iso_filesrc_list_item, 1);
+    item->src = src;
+    item->next = image->ecma119_hidden_list;
+    image->ecma119_hidden_list = item;
+    ret = ISO_SUCCESS;
+ex:
+    return ret;
+}
+
+
+int iso_filesrc_list_destroy(struct iso_filesrc_list_item **start_item)
+{
+    struct iso_filesrc_list_item *item, *next;
+
+    for (item = *start_item; item != NULL; item = next) {
+        next = item->next;
+        LIBISO_FREE_MEM(item);
+    }
+    return ISO_SUCCESS;
+}
+ 
+
 /**
  * @param flag
  *      bit0= iso is in a hidden directory. Thus hide it.
@@ -430,6 +459,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     case LIBISO_FILE:
         if (hidden) {
             ret = create_file_src(image, (IsoFile *) iso, &src);
+            if (ret <= 0)
+                goto ex;
+            ret = add_to_hidden_list(image, src); 
         } else {
             ret = create_file(image, (IsoFile*)iso, &node);
         }
@@ -470,6 +502,9 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
         if (image->eltorito) {
             if (hidden) {
                 ret = el_torito_catalog_file_src_create(image, &src);
+                if (ret <= 0)
+                    goto ex;
+                ret = add_to_hidden_list(image, src); 
             } else {
                 ret = create_boot_cat(image, (IsoBoot*)iso, &node);
             }

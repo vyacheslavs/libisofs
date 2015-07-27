@@ -79,6 +79,17 @@ struct ecma119_node
     } info;
 };
 
+
+/* For recording files which are hidden in ECMA-119 */
+struct iso_filesrc_list_item
+{
+    IsoFileSrc *src;
+    struct iso_filesrc_list_item *next;
+};
+
+int iso_filesrc_list_destroy(struct iso_filesrc_list_item **start_item);
+
+
 /**
  * 
  */

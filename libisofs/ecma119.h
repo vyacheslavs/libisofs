@@ -702,6 +702,8 @@ struct ecma119_image
     /* tree of files sources */
     IsoRBTree *files;
 
+    struct iso_filesrc_list_item *ecma119_hidden_list;
+
     unsigned int checksum_idx_counter;
     void *checksum_ctx;
     off_t checksum_counter;

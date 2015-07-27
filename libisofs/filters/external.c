@@ -655,14 +655,41 @@ IsoStreamIface extf_stream_class = {
 static
 int extf_cmp_ino(IsoStream *s1, IsoStream *s2)
 {
+    int i;
     ExternalFilterStreamData *data1, *data2;
+    IsoExternalFilterCommand *cmd1, *cmd2;
 
+    /* This function may rely on being called by iso_stream_cmp_ino()
+       only with s1, s2 which both point to it as their .cmp_ino() function.
+       It would be a programming error to let any other than extf_stream_class
+       point to extf_cmp_ino(). This fallback endangers transitivity of
+       iso_stream_cmp_ino().
+    */
     if (s1->class != &extf_stream_class || s2->class != &extf_stream_class)
         return iso_stream_cmp_ino(s1, s2, 1);
+
     data1 = (ExternalFilterStreamData*) s1->data;
     data2 = (ExternalFilterStreamData*) s2->data;
-    if (data1->cmd != data2->cmd)
-        return (data1->cmd < data2->cmd ? -1 : 1);
+    cmd1 = data1->cmd;
+    cmd2 = data2->cmd;
+    if (cmd1 != cmd2) {
+        if (strcmp(cmd1->name, cmd2->name) != 0)
+            return strcmp(cmd1->name, cmd2->name);
+        if (strcmp(cmd1->path, cmd2->path) != 0)
+            return strcmp(cmd1->path, cmd2->path);
+        if (cmd1->argc != cmd2->argc)
+            return cmd1->argc < cmd2->argc ? -1 : 1;
+        for (i = 0; i < cmd1->argc; i++) {
+            if (strcmp(cmd1->argv[i], cmd2->argv[i]) != 0)
+                return strcmp(cmd1->argv[i], cmd2->argv[i]);
+        }
+        if (cmd1->behavior != cmd2->behavior)
+            return cmd1->behavior < cmd2->behavior ? -1 : 1;
+        if (strcmp(cmd1->suffix, cmd2->suffix) != 0)
+            return strcmp(cmd1->suffix, cmd2->suffix);
+    }
+
+    /* Both streams apply the same treatment to their input streams */
     return iso_stream_cmp_ino(data1->orig, data2->orig, 0);
 }
 

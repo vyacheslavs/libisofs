@@ -985,7 +985,7 @@ struct IsoStream_Iface
      *    get_input_stream() added.
      *    A filter stream must have version 2 at least.
      * Version 3 (since 0.6.20)
-     *    compare() added.
+     *    cmp_ino() added.
      *    A filter stream should have version 3 at least.
      * Version 4 (since 1.0.2)
      *    clone_stream() added.
@@ -1107,11 +1107,15 @@ struct IsoStream_Iface
      * produce the same output. If in any doubt, then this comparison should
      * indicate no match. A match might allow hardlinking of IsoFile objects.
      *
-     * If this function cannot accept one of the given stream types, then
-     * the decision must be delegated to
-     *    iso_stream_cmp_ino(s1, s2, 1);
-     * This is also appropriate if one has reason to implement stream.cmp_ino()
-     * without having an own special comparison algorithm.
+     * A pointer value of NULL is permissible. In this case, function
+     * iso_stream_cmp_ino() will decide on its own.
+     *
+     * If not NULL, this function .cmp_ino() will be called by
+     * iso_stream_cmp_ino() if both compared streams point to it, and if not
+     * flag bit0 of iso_stream_cmp_ino() prevents it.
+     * So a .cmp_ino() function must be able to compare any pair of streams
+     * which name it as their .cmp_ino(). A fallback to iso_stream_cmp_ino(,,1)
+     * would endanger transitivity of iso_stream_cmp_ino(,,0).
      *
      * With filter streams, the decision whether the underlying chains of
      * streams match, should be delegated to
@@ -1123,15 +1127,8 @@ struct IsoStream_Iface
      *   cmp_ino(A,A) == 0
      *   cmp_ino(A,B) == -cmp_ino(B,A) 
      *   if cmp_ino(A,B) == 0 && cmp_ino(B,C) == 0 then cmp_ino(A,C) == 0
+     * Most tricky is the demand for transitivity:
      *   if cmp_ino(A,B) < 0 && cmp_ino(B,C) < 0 then cmp_ino(A,C) < 0
-     *
-     * A big hazard to the last constraint are tests which do not apply to some 
-     * types of streams.Thus it is mandatory to let iso_stream_cmp_ino(s1,s2,1)
-     * decide in this case.
-     *
-     * A function s1.(*cmp_ino)() must only accept stream s2 if function
-     * s2.(*cmp_ino)() would accept s1. Best is to accept only the own stream
-     * type or to have the same function for a family of similar stream types.
      *
      * @param s1
      *     The first stream to compare. Expect foreign stream types.
@@ -6639,9 +6636,7 @@ char *iso_stream_get_source_path(IsoStream *stream, int flag);
  * @return
  *     -1 if s1 is smaller s2 , 0 if s1 matches s2 , 1 if s1 is larger s2
  * @param flag
- *     bit0= do not use s1->class->compare() even if available
- *           (e.g. because iso_stream_cmp_ino(0 is called as fallback
- *            from said stream->class->compare())
+ *     bit0= do not use s1->class->cmp_ino() even if available
  *
  * @since 0.6.20
  */
@@ -8313,6 +8308,10 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
                                                        (WARNING, HIGH, -408) */
 #define ISO_INTVL_READ_PROBLEM      0xD030FE68
 
+/** Cannot arrange content of data files in surely reproducible way
+                                                       (NOTE, HIGH, -409) */
+#define ISO_NOT_REPRODUCIBLE        0xB030FE67
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 
@@ -8508,6 +8507,15 @@ struct burn_source {
                DID NOT HELP: Solaris knows only RRIP_1991A.
 
  #define Libisofs_with_rrip_rR yes
+*/
+
+/* Experiment : bring representation of BSD installation ISOs near to
+                their representation by the Linux kernel.
+                Rock Ridge TF has ctime in CREATE rather than ATTRIBUTES.
+                Linux accepts this, but not for directories. 
+                Some files only have ECMA-119 names, which Linux maps
+                to lowercase.
+ #define Libisofs_for_bsd_inst_isoS yes
 */
 
 

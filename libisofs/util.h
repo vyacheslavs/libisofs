@@ -407,6 +407,12 @@ size_t iso_rbtree_get_size(IsoRBTree *tree);
 void **iso_rbtree_to_array(IsoRBTree *tree, int (*include_item)(void *), 
                            size_t *size);
 
+/** Predict the size of the array which gets returned by iso_rbtree_to_array().
+ */
+size_t iso_rbtree_count_array(IsoRBTree *tree, size_t initial_count,
+                              int (*include_item)(void *));
+
+
 /**
  * Create a new hash table.
  * 

@@ -164,15 +164,6 @@ IsoStream *fsrc_get_input_stream(IsoStream *stream, int flag)
     return NULL;
 }
 
-static 
-int fsrc_cmp_ino(IsoStream *s1, IsoStream *s2)
-{
-    int ret;
-
-    ret = iso_stream_cmp_ino(s1, s2, 1);
-    return ret;
-}
-
 int fsrc_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
                       int flag)
 {
@@ -227,7 +218,7 @@ IsoStreamIface fsrc_stream_class = {
     fsrc_free,
     fsrc_update_size,
     fsrc_get_input_stream,
-    fsrc_cmp_ino,
+    NULL,
     fsrc_clone_stream
 };
 
@@ -449,15 +440,6 @@ IsoStream* cut_out_get_input_stream(IsoStream *stream, int flag)
 }
 
 static
-int cut_out_cmp_ino(IsoStream *s1, IsoStream *s2)
-{
-    int ret;
-
-    ret = iso_stream_cmp_ino(s1, s2, 1);
-    return ret;
-}
-
-static
 int cut_out_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
                       int flag)
 {
@@ -517,7 +499,7 @@ IsoStreamIface cut_out_stream_class = {
     cut_out_free,
     cut_out_update_size,
     cut_out_get_input_stream,
-    cut_out_cmp_ino,
+    NULL,
     cut_out_clone_stream
     
 };
@@ -699,15 +681,6 @@ IsoStream* mem_get_input_stream(IsoStream *stream, int flag)
 }
 
 static
-int mem_cmp_ino(IsoStream *s1, IsoStream *s2)
-{
-    int ret;
-
-    ret = iso_stream_cmp_ino(s1, s2, 1);
-    return ret;
-}
-
-static
 int mem_clone_stream(IsoStream *old_stream, IsoStream **new_stream,
                       int flag)
 {
@@ -763,7 +736,7 @@ IsoStreamIface mem_stream_class = {
     mem_free,
     mem_update_size,
     mem_get_input_stream,
-    mem_cmp_ino,
+    NULL,
     mem_clone_stream
 
 };
@@ -972,17 +945,98 @@ int iso_stream_cmp_ifs_sections(IsoStream *s1, IsoStream *s2, int *cmp_ret,
 {   
     int ret;
     FSrcStreamData *fssd1, *fssd2;
+    IsoFileSource *src1, *src2;
 
-    if (s1->class != &fsrc_stream_class || s2->class != &fsrc_stream_class)
+    /* Must keep any suspect in the game to preserve transitivity of the
+       calling function by ranking applicable streams lower than
+       non-applicable. ones.
+    */
+    if (s1->class != &fsrc_stream_class && s2->class != &fsrc_stream_class)
         return 0;
+
     /* Compare eventual image data section LBA and sizes */
-    fssd1= (FSrcStreamData *) s1->data;
-    fssd2= (FSrcStreamData *) s2->data;
-    ret = iso_ifs_sections_cmp(fssd1->src, fssd2->src, cmp_ret, 0);
+    if (s1->class == &fsrc_stream_class) {
+        fssd1= (FSrcStreamData *) s1->data;
+        src1 = fssd1->src;
+    } else {
+        src1 = NULL;
+    }
+    if (s2->class == &fsrc_stream_class) {
+        fssd2= (FSrcStreamData *) s2->data;
+        src2 = fssd2->src;
+    } else {
+        src2 = NULL;
+    }
+    ret = iso_ifs_sections_cmp(src1, src2, cmp_ret, 1);
     if (ret <= 0)
         return 0;
     return 1;
 }
+
+
+/* Maintain and exploit a list of stream compare functions seen by
+   iso_stream_cmp_ino(). This is needed to separate stream comparison
+   families in order to keep iso_stream_cmp_ino() transitive while
+   alternative stream->class->cmp_ino() decide inside the families.
+*/
+struct iso_streamcmprank {
+    int (*cmp_func)(IsoStream *s1, IsoStream *s2);
+    struct iso_streamcmprank *next;
+};
+
+static struct iso_streamcmprank *streamcmpranks = NULL;
+
+static
+int iso_get_streamcmprank(int (*cmp_func)(IsoStream *s1, IsoStream *s2),
+                          int flag)
+{
+    int idx;
+    struct iso_streamcmprank *cpr, *last_cpr = NULL;
+
+    idx = 0;
+    for (cpr = streamcmpranks; cpr != NULL; cpr = cpr->next) {
+        if (cpr->cmp_func == cmp_func)
+    break;
+        idx++;
+        last_cpr = cpr;
+    }
+    if (cpr != NULL)
+        return idx;
+    LIBISO_ALLOC_MEM_VOID(cpr, struct iso_streamcmprank, 1);
+    cpr->cmp_func = cmp_func;
+    cpr->next = NULL;
+    if (last_cpr != NULL)
+        last_cpr->next = cpr;
+    if (streamcmpranks == NULL)
+        streamcmpranks = cpr;
+    return idx;
+ex:;
+    return -1;
+}
+
+static
+int iso_cmp_streamcmpranks(int (*cf1)(IsoStream *s1, IsoStream *s2),
+                           int (*cf2)(IsoStream *s1, IsoStream *s2))
+{
+    int rank1, rank2;
+
+    rank1 = iso_get_streamcmprank(cf1, 0);
+    rank2 = iso_get_streamcmprank(cf2, 0);
+    return rank1 < rank2 ? -1 : 1;
+}
+
+int iso_stream_destroy_cmpranks(int flag)
+{
+    struct iso_streamcmprank *cpr, *next;
+
+    for (cpr = streamcmpranks; cpr != NULL; cpr = next) {
+        next = cpr->next;
+        LIBISO_FREE_MEM(cpr);
+    }
+    streamcmpranks = NULL;
+    return ISO_SUCCESS;
+}
+
 
 /* API */ 
 int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
@@ -1008,13 +1062,72 @@ int iso_stream_cmp_ino(IsoStream *s1, IsoStream *s2, int flag)
     if (s2 == NULL)
         return 1;
 
+    /* This stays transitive by the fact that 
+       iso_stream_cmp_ifs_sections() is transitive,
+       returns > 0 if s1 or s2 are applicable,
+       ret is -1 if s1 is applicable but s2 is not,
+       ret is 1 if s1 is not applicable but s2 is.
+
+       Proof:
+       Be A the set of applicable streams, S and G transitive and
+       antisymmetric relations in respect to outcome {-1, 0, 1}.
+       The combined relation R shall be defined by
+         I.   R(a,b) = S(a,b) if a in A or b in A, else G(a,b)
+       Further S shall have the property
+         II.  S(a,b) = -1 if a in A and b not in A
+       Then R can be proven to be transitive:
+       By enumerating the 8 combinations of a,b,c being in A or not, we get
+       5 cases of pure S or pure G. Three cases are mixed:
+         a,b not in A, c in A : G(a,b) == -1, S(b,c) == -1 -> S(a,c) == -1 
+             Impossible because S(b,c) == -1 contradicts II.
+         a,c not in A, b in A : S(a,b) == -1, S(b,c) == -1 -> G(a,c) == -1
+             Impossible because S(a,b) == -1 contradicts II.
+         b,c not in A, a in A : S(a,b) == -1, G(b,c) == -1 -> S(a,c) == -1
+             Always true because S(a,c) == -1 by definition II.
+    */
     if (iso_stream_cmp_ifs_sections(s1, s2, &ret, 0) > 0)
         return ret; /* Both are unfiltered from loaded ISO filesystem */
 
-    if (s1->class->version >= 3 && !(flag & 1)) {
-       /* Filters may have smarter methods to compare themselves with others */
-       ret = s1->class->cmp_ino(s1, s2);
-       return ret;
+    if (!(flag & 1)) {
+       /* Filters may have smarter methods to compare themselves with others.
+          Transitivity is ensured by ranking mixed pairs by the rank of their
+          comparison functions, and by ranking streams with .cmp_ino lower
+          than streams without.
+          (One could merge (class->version < 3) and (cmp_ino == NULL).)
+
+          Here we define S for "and" rather than "or"
+            I.   R(a,b) = S(a,b) if a in A and b in A, else G(a,b)
+          and the function ranking in case of "exor" makes sure that
+            II.  G(a,b) = -1 if a in A and b not in A
+          Again we get three mixed cases:
+            a not in A, b,c in A : G(a,b) == -1, S(b,c) == -1 -> G(a,c) == -1 
+                Impossible because G(a,b) == -1 contradicts II.
+            b not in A, a,c in A : G(a,b) == -1, G(b,c) == -1 -> S(a,c) == -1
+                Impossible because G(b,c) == -1 contradicts II.
+            c not in A, a,b in A : S(a,b) == -1, G(b,c) == -1 -> G(a,c) == -1
+                Always true because G(a,c) == -1 by definition II.
+       */
+       if ((s1->class->version >= 3) ^ (s2->class->version >= 3)) {
+           /* One of both has no own com_ino function. Rank it as larger. */
+           return s1->class->version >= 3 ? -1 : 1;
+       } else if (s1->class->version >= 3) {
+           if (s1->class->cmp_ino == s2->class->cmp_ino) {
+               if (s1->class->cmp_ino == NULL) {
+                   /* Both are NULL. No decision by .cmp_ino(). */;
+               } else {
+                   /* Both are compared by the same function */
+                   ret = s1->class->cmp_ino(s1, s2);
+                   return ret;
+               }
+           } else {
+               /* Not the same cmp_ino() function. Decide by list rank of
+                  function while building the list on the fly.
+               */
+               ret = iso_cmp_streamcmpranks(s1->class->cmp_ino,
+                                            s2->class->cmp_ino);
+               return ret;
+           }
+       }
     }
 
     iso_stream_get_id(s1, &fs_id1, &dev_id1, &ino_id1);

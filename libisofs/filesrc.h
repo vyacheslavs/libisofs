@@ -32,6 +32,10 @@ struct Iso_File_Src
     */
     unsigned int no_write :1;
 
+    /* Is 1 if the object was already put into the filelist array.
+    */
+    unsigned int taken :1;
+
     unsigned int checksum_index :31;
 
     /** File Sections of the file in the image */

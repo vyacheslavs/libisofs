@@ -38,6 +38,7 @@
 
 #include "util.h"
 #include "node.h"
+#include "stream.h"
 
 
 /*
@@ -232,6 +233,7 @@ void iso_finish()
 {
     libiso_msgs_destroy(&libiso_msgr, 0);
     iso_node_xinfo_dispose_cloners(0);
+    iso_stream_destroy_cmpranks(0);
 }
 
 int iso_set_abort_severity(char *severity)
@@ -527,6 +529,8 @@ const char *iso_error_to_msg(int errcode)
         return "Malformed description string for interval reader";
     case ISO_INTVL_READ_PROBLEM:
         return "Unreadable file, premature EOF, or failure to seek for interval reader";
+    case ISO_NOT_REPRODUCIBLE:
+        return "Cannot arrange content of data files in surely reproducible way";
     default:
         return "Unknown error";
     }
