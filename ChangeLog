@@ -24,7 +24,7 @@ libisofs-1.4.0.tar.gz Sun May 17 2014
 * Bug fix: A zero sized GPT partition was marked after the last appended
            GPT partition.
 * Bug fix: GPT production did not yield proper results with appended sessions
-           resp. with TOC emulation enabled.
+           or with TOC emulation enabled.
 * Increased default weight of El Torito boot catalog to 1 billion.
 * Improved handling of cylinder alignment if the resulting image size is not
   divisible by 2048. Old behavior was to not align. New is to pad up by a

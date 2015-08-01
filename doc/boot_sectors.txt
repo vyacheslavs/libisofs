@@ -126,10 +126,10 @@ Defined by El Torito are:
     1 = "PowerPC" (possibly for IBM machines with PowerPC CPU)
     2 = "Mac" (possibly for Apple computers with MC68000 or PowerPC CPU)
 UEFI 2.4 specifies in 12.3.2.1 "ISO-9660 and El Torito":
- 0xef = EFI, a competitor resp. successor to PC-BIOS, possibly in use with
-             Intel ia64 Itanium and possibly with newer Apple machines.
+ 0xef = EFI, a competitor and successor to PC-BIOS, further in use with
+             Intel ia64 Itanium and newer Apple machines.
 
-Words resp. numbers are represented are little-endian. 
+Words and numbers are represented as little-endian. 
 
 Validation Entry:
 
@@ -386,7 +386,7 @@ on Linux a partition device file (e.g. /dev/sdb1) which cannot be used to mount
 the ISO filesystem.
 
 libisofs is able to produce a second set of trees and meta data which is
-suitable for being mounted at start block 16 (ISO) resp. 64 (MBR).
+suitable for being mounted at start block 16 (ISO) which is block 64 in MBR.
 See <libisofs/libisofs.h> for call iso_write_opts_set_part_offset()
 and http://libburnia-project.org/wiki/PartitionOffset for examples with
 program xorriso.
@@ -1515,8 +1515,8 @@ The ISO image file gets padded up to full MiB with sufficient room for the GPT
 backup which is stored near the very end of the image file. There is need for
 at least 16.5 KiB, which effectively occupy 18 KiB.
 
-The backup partition array is stored 17 KiB before the end of MBR partition 1
-resp. the image file.
+The backup partition array is stored 17 KiB before the end of MBR partition 1,
+which is also the end of the image file.
 (Potential isohybrid.c bug #1:
  Wikipedia suggests "LBA -33" counted from end. This would be 16.5 KiB before
  end.)

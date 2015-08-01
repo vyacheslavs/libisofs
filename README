@@ -37,7 +37,7 @@ and execute
    ./configure --prefix=/usr
    make
 
-To make the libraries accessible for running resp. developing applications 
+To make the libraries accessible for running and developing applications 
    make install
 
 On GNU/Linux it will try to run program ldconfig with the library installation

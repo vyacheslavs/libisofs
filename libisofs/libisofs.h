@@ -31,7 +31,7 @@
  * This can be achieved either:
  * - by using autotools which will define HAVE_STDINT_H or HAVE_INTTYPES_H
  *   according to its ./configure tests,
- * - or by defining the macros HAVE_STDINT_H resp. HAVE_INTTYPES_H according
+ * - or by defining the macros HAVE_STDINT_H or HAVE_INTTYPES_H according
  *   to the local situation,
  * - or by appropriately defining uint32_t and uint8_t by other means,
  *   e.g. by including inttypes.h before including libisofs.h
@@ -2039,7 +2039,7 @@ int iso_write_opts_set_output_charset(IsoWriteOpts *opts, const char *charset);
  * On the other side, an appended image is not self contained. It may refer
  * to files that stay stored in the imported existing image.
  * This usage model is inspired by CD multi-session. It demands that the
- * appended image is finally written to the same media resp. disk file
+ * appended image is finally written to the same media or disk file
  * as the imported image at an address behind the end of that imported image.
  * The exact address may depend on media peculiarities and thus has to be
  * announced by the application via iso_write_opts_set_ms_block().
@@ -2309,7 +2309,7 @@ int iso_write_opts_set_pvd_times(IsoWriteOpts *opts,
  * The additional volume descriptor set and trees will allow to mount the
  * ISO image at the start of the first partition, while it is still possible
  * to mount it via the normal first volume descriptor set and tree at the
- * start of the image resp. storage device.
+ * start of the image or storage device.
  * This makes few sense on optical media. But on USB sticks it creates a
  * conventional partition table which makes it mountable on e.g. Linux via
  * /dev/sdb and /dev/sdb1 alike.
@@ -3503,7 +3503,7 @@ int iso_image_set_boot_catalog_hidden(IsoImage *image, int hide_attrs);
 
 /**
  * Get the boot media type as of parameter "type" of iso_image_set_boot_image()
- * resp. iso_image_add_boot_image().
+ * or iso_image_add_boot_image().
  *
  * @param bootimg
  *      The image to inquire
@@ -3629,7 +3629,7 @@ void el_torito_set_no_bootable(ElToritoBootImage *bootimg);
 int el_torito_get_bootable(ElToritoBootImage *bootimg);
 
 /**
- * Set the id_string of the Validation Entry resp. Sector Header Entry which
+ * Set the id_string of the Validation Entry or Sector Header Entry which
  * will govern the boot image Section Entry in the El Torito Catalog.
  *
  * @param bootimg
@@ -5591,7 +5591,7 @@ int iso_tree_get_ignore_special(IsoImage *image);
  *   iso_tree_add_dir_rec(image, root, "/home/user/data/private");
  *
  * the directory /home/user/data/private is added. On the other, side, and
- * foollowing the the example above,
+ * following the example above,
  *
  *   iso_tree_add_dir_rec(image, root, "/home/user");
  *
@@ -5603,8 +5603,8 @@ int iso_tree_get_ignore_special(IsoImage *image);
  *   iso_tree_add_exclude(image, "private");
  *   iso_tree_add_exclude(image, "user/data");
  *
- * to excluve, respectively, all files or dirs named private, and also all
- * files or dirs named data that belong to a folder named "user". Not that the
+ * to exclude, respectively, all files or dirs named private, and also all
+ * files or dirs named data that belong to a folder named "user". Note that the
  * above rule about deeper dirs is still valid. i.e., if you call
  *
  *   iso_tree_add_dir_rec(image, root, "/home/user/data/music");
@@ -6673,7 +6673,7 @@ int iso_stream_clone(IsoStream *old_stream, IsoStream **new_stream, int flag);
  *
  * An AAIP string contains the Attribute List with the xattr and ACL of a node
  * in the image tree. It is formatted according to libisofs specification
- * AAIP-2.0 and ready to be written into the System Use Area resp. Continuation
+ * AAIP-2.0 and ready to be written into the System Use Area or Continuation
  * Area of a directory entry in an ISO image.
  *
  * Applications are not supposed to manipulate AAIP strings directly.
@@ -6694,14 +6694,14 @@ int aaip_xinfo_func(void *data, int flag);
 
 /**
  * The iso_node_xinfo_cloner function which gets associated to aaip_xinfo_func
- * by iso_init() resp. iso_init_with_flag() via iso_node_xinfo_make_clonable().
+ * by iso_init() or iso_init_with_flag() via iso_node_xinfo_make_clonable().
  * @since 1.0.2
  */
 int aaip_xinfo_cloner(void *old_data, void **new_data, int flag);
 
 /**
  * Get the eventual ACLs which are associated with the node.
- * The result will be in "long" text form as of man acl resp. acl_to_text().
+ * The result will be in "long" text form as of man acl and acl_to_text().
  * Call this function with flag bit15 to finally release the memory
  * occupied by an ACL inquiry.
  *
@@ -6915,7 +6915,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
  *                        It is permissibile to set them to 1 already now.
  *           bit8 and higher: reserved, submit 0
  * @return
- *      Bitfield corresponding to flag. If bits are set, th
+ *      Bitfield corresponding to flag.
  *           bit0= ACL adapter is enabled
  *           bit1= xattr adapter is enabled
  *           bit2 - bit7= Reserved for future types.
@@ -6947,7 +6947,7 @@ int iso_local_attr_support(int flag);
  *        0 no ACL manipulation adapter available / ACL not supported on fs
  *       -1 failure of system ACL service (see errno)
  *       -2 attempt to inquire ACL of a symbolic link without bit4 or bit5
- *          resp. with no suitable link target
+ *          or with no suitable link target
  *
  * @since 0.6.14
  */
@@ -6971,7 +6971,7 @@ int iso_local_get_acl_text(char *disk_path, char **text, int flag);
  *        0 no ACL manipulation adapter available for desired ACL type
  *       -1 failure of system ACL service (see errno)
  *       -2 attempt to manipulate ACL of a symbolic link without bit5
- *          resp. with no suitable link target
+ *          or with no suitable link target
  *
  * @since 0.6.14
  */
@@ -6992,7 +6992,7 @@ int iso_local_set_acl_text(char *disk_path, char *text, int flag);
  *      Returns permission bits as of stat(2)
  * @return
  *      1 success
- *     -1 failure of lstat() resp. stat() (see errno)
+ *     -1 failure of lstat() or stat() (see errno)
  *
  * @since 0.6.14
  */
@@ -7200,7 +7200,7 @@ struct iso_external_filter_command
     int behavior;
 
     /* The eventual suffix which is supposed to be added to the IsoFile name
-     * resp. to be removed from the name.
+     * or to be removed from the name.
      * (This is to be done by the application, not by calls
      *  iso_file_add_external_filter() or iso_file_remove_filter().
      *  The value recorded here serves only as reminder for the application.)

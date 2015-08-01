@@ -1832,7 +1832,7 @@ struct iso_hfsplus_xinfo_data *iso_hfsplus_xinfo_new(int flag)
 }
 
 /* The iso_node_xinfo_cloner function which gets associated to
- * iso_hfsplus_xinfo_func by iso_init() resp. iso_init_with_flag() via
+ * iso_hfsplus_xinfo_func by iso_init() or iso_init_with_flag() via
  * iso_node_xinfo_make_clonable()
  */
 int iso_hfsplus_xinfo_cloner(void *old_data, void **new_data, int flag)

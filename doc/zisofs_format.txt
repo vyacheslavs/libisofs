@@ -37,7 +37,7 @@ i.e. block sizes 32 kB, 64 kB, and 128 kB. Writers must not use other sizes.
 
                                Block Pointers
 
-There are ceil(input_size / block_size) input resp. output blocks.
+There are ceil(input_size / block_size) input and output blocks.
 Each input block is of fixed size whereas the output blocks have varying
 size (down to 0). For each output block there is an offset pointer giving
 its byte address in the overall file content. The next block pointer in the
@@ -68,7 +68,7 @@ when being read.
 ZF may only be applied to files with a single extent and less than 4 GiB of
 uncompressed size.
 
-The ZF entry follows the general layout of SUSP resp. RRIP.
+The ZF entry follows the general layout of SUSP and RRIP.
 Its fields are:
 
   [1] "BP 1 to BP 2 - Signature Word" shall be (5A)(46) ("ZF").
@@ -85,19 +85,18 @@ Its fields are:
   [5] "BP 7 - Header Size Div 4" shall specify as an 8-bit number the number of
       4-byte words in the header part of the file data recorded according
       to ISO 9660:7.1.1.
-      (This is a copy of header byte 12, resp. header BP 13).
+      (This is a copy of header byte 12 / BP 13).
 
   [6] "BP 8 - Log2 of Block Size" shall specify as an 8-bit number the binary
       logarithm of the compression block size recorded according to
       ISO 9660:7.1.1.
-      (This is a copy of header byte 13, resp. header BP 14.
+      (This is a copy of header byte 13 / BP 14.
        The value has to be 15, 16 or 17 i.e. 32 kiB, 64 kiB, or 128 kiB.)
 
   [7] "BP 9 to BP 16 - Uncompressed Size" shall tell the number of uncompressed
       bytes represented by the given extent. This field shall be recorded
       according to ISO 9660:7.3.3.
-      (This number is the same as in header bytes 8 to 11, resp header BP 9
-       to BP 12.)
+      (This number is the same as in header bytes 8 to 11 / BP 9 to BP 12.)
 
   | 'Z' | 'F' | LENGTH | 1 | 'p' | 'z' | HEADER SIZE DIV 4 | LOG2 BLOCK SIZE
   | UNCOMPRESSED SIZE |

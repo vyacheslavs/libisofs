@@ -89,7 +89,7 @@ int aaip_local_attr_support(int flag)
                             or filesystem does not support ACL
                          -1 failure of system ACL service (see errno)
                          -2 attempt to inquire ACL of a symbolic link without
-                            bit4 or bit5 resp. with no suitable link target
+                            bit4 or bit5 or with no suitable link target
 */
 int aaip_get_acl_text(char *path, char **text, int flag)
 {
@@ -377,7 +377,7 @@ ex:;
                          0 ACL support not enabled at compile time
                         -1 failure of system ACL service (see errno)
                         -2 attempt to manipulate ACL of a symbolic link
-                           without bit5 resp. with no suitable link target
+                           without bit5 or with no suitable link target
 */
 int aaip_set_acl_text(char *path, char *text, int flag)
 {

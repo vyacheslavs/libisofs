@@ -217,7 +217,7 @@ S_IRWXG. If there is ACL_USER_N or ACL_GROUP_N there must also be ACL_MASK.
 
 A numeric qualifier is a binary number of variable length up to 4 bytes. The
 Most Significant Byte comes first. The number shall be the "POSIX File User ID"
-resp. "POSIX File Group ID" as also used in RRIP PX entries. The ids of owning
+or "POSIX File Group ID" as also used in RRIP PX entries. The ids of owning
 user and owning group shall be taken from the PX entry of the file object.
 
 Optional TRANSLATE entries may associate user or group names with numeric
