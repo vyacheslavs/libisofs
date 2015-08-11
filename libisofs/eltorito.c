@@ -1178,10 +1178,10 @@ int iso_patch_eltoritos(Ecma119Image *t)
     continue;
         original = t->bootsrc[idx]->stream;
         size = (size_t) iso_stream_get_size(original);
-
-        /* >>> BOOT ts B00428 :
-               check whether size is not too large for buffering */;
-
+        if (size > Libisofs_elto_max_patchablE)
+            return ISO_PATCH_OVERSIZED_BOOT;
+        if (iso_stream_get_input_stream(original, 0) != NULL)
+            return ISO_PATCH_FILTERED_BOOT;
         buf = calloc(1, size);
         if (buf == NULL) {
             return ISO_OUT_OF_MEM;

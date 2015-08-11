@@ -531,6 +531,10 @@ const char *iso_error_to_msg(int errcode)
         return "Unreadable file, premature EOF, or failure to seek for interval reader";
     case ISO_NOT_REPRODUCIBLE:
         return "Cannot arrange content of data files in surely reproducible way";
+    case ISO_PATCH_FILTERED_BOOT:
+        return "May not write boot info into filtered stream of boot image";
+    case ISO_PATCH_OVERSIZED_BOOT:
+        return "Boot image to large to buffer for writing boot info";
     default:
         return "Unknown error";
     }

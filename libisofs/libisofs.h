@@ -8312,6 +8312,14 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
                                                        (NOTE, HIGH, -409) */
 #define ISO_NOT_REPRODUCIBLE        0xB030FE67
 
+/** May not write boot info into filtered stream of boot image
+                                                       (FAILURE, HIGH, -410) */
+#define ISO_PATCH_FILTERED_BOOT     0xE830FE66
+
+/** Boot image to large to buffer for writing boot info
+                                                       (FAILURE, HIGH, -411) */
+#define ISO_PATCH_OVERSIZED_BOOT    0xE830FE65
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

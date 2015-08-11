@@ -168,4 +168,11 @@ int iso_patch_eltoritos(Ecma119Image *t);
 #define Libisofs_grub2_elto_patch_offsT  5
 
 
+/* Maximum size of a boot image which is marked by
+   el_torito_set_isolinux_options() for patching (boot info table,
+   GRUB2 boot info, maybe others).
+*/
+#define Libisofs_elto_max_patchablE      (32 * 1024 * 1024)
+
+
 #endif /* LIBISO_ELTORITO_H */
