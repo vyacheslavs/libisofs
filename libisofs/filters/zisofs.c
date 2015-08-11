@@ -130,9 +130,9 @@ int ziso_running_new(ZisofsFilterRuntime **running, int flag)
 
     o->block_size = ziso_block_size;
 #ifdef Libisofs_with_zliB
-    o->buffer_size= compressBound((uLong) ziso_block_size);
+    o->buffer_size = compressBound((uLong) ziso_block_size);
 #else
-    o->buffer_size= 2 * ziso_block_size;
+    o->buffer_size = 2 * ziso_block_size;
 #endif
     o->read_buffer = calloc(o->block_size, 1);
     o->block_buffer = calloc(o->buffer_size, 1);
@@ -381,7 +381,7 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                     if (todo * 4 > rng->buffer_size)
                         todo = rng->buffer_size / 4;
                     memcpy(rng->block_buffer,
-                           data->block_pointers + 4 * rng->block_pointer_rpos,
+                           data->block_pointers + rng->block_pointer_rpos,
                            todo * 4);
                     rng->buffer_rpos = 0;
                     rng->buffer_fill = todo * 4;
