@@ -225,6 +225,7 @@ iso_read_opts_new;
 iso_read_opts_set_default_gid;
 iso_read_opts_set_default_permissions;
 iso_read_opts_set_default_uid;
+iso_read_opts_set_ecma119_map;
 iso_read_opts_set_input_charset;
 iso_read_opts_set_new_inos;
 iso_read_opts_set_no_aaip;

@@ -2853,6 +2853,28 @@ int iso_read_opts_set_new_inos(IsoReadOpts *opts, int new_inos);
 int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet);
 
 /**
+ * How to convert file names if neither Rock Ridge nor Joliet names
+ * are present and acceptable.
+ *
+ * @param opts
+ *      The option set to be manipulated
+ * @param ecma119_map
+ *      The conversion mode to apply:
+ *       0 = unmapped:  Take name as recorded in ECMA-119 directory record
+ *                      (not suitable for writing them to a new ISO filesystem)
+ *       1 = stripped:  Like unmapped, but strip off trailing ";1" or ".;1"
+ *       2 = uppercase: Like stripped, but map {a-z} to {A-Z}
+ *       3 = lowercase: Like stripped, but map {A-Z} to {a-z}
+ * @return
+ *       ISO_SUCCESS if ecma119_map was accepted
+ *       0           if the value was out of range
+ *       < 0         if other error
+ *
+ * @since 1.4.2
+ */
+int iso_read_opts_set_ecma119_map(IsoReadOpts *opts, int ecma119_map);
+
+/**
  * Set default uid for files when RR extensions are not present.
  *
  * @since 0.6.2

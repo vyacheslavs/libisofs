@@ -99,6 +99,17 @@ struct iso_read_opts
      */
     unsigned int preferjoliet : 1;
 
+    /**
+     * If neither Rock Ridge nor Joliet is used, the ECMA-119 names are mapped
+     * according to one of these rules
+     *  0 = unmapped:  show name as recorded in ECMA-119 directory record
+     *                 (not suitable for writing them to a new ISO filesystem)
+     *  1 = stripped:  like unmapped, but strip off trailing ";1" or ".;1"
+     *  2 = uppercase: like stripped, but {a-z} mapped to {A-Z} 
+     *  3 = lowercase: like stripped, but {A-Z} mapped to {a-z} 
+     */
+    unsigned int ecma119_map : 2;
+
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
     mode_t dir_mode; /**< Default mode when no RR (only permissions) */
@@ -283,6 +294,11 @@ typedef struct
 
     /** If ISO 9660:1999 is available on image */
     unsigned int iso1999 : 1;
+
+    /**
+     * See struct iso_read_opts.
+     */
+    unsigned int ecma119_map : 2;
 
     /** Whether AAIP info shall be loaded if it is present.
      *  1 = yes , 0 = no
@@ -1423,6 +1439,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     size_t cs_value_length = 0;
     char *msg = NULL;
     uint8_t *buffer = NULL;
+    char *cpt;
 
     int has_px = 0;
 
@@ -1917,7 +1934,8 @@ if (name != NULL && !namecont) {
 
             /* remove trailing version number */
             len = strlen(name);
-            if (len > 2 && name[len-2] == ';' && name[len-1] == '1') {
+            if (fsdata->ecma119_map >= 1 && fsdata->ecma119_map <= 3 &&
+                len > 2 && name[len-2] == ';' && name[len-1] == '1') {
                 if (len > 3 && name[len-3] == '.') {
                     /*
                      * the "." is mandatory, so in most cases is included only
@@ -1929,16 +1947,17 @@ if (name != NULL && !namecont) {
                 }
             }
 
-#ifdef Libisofs_for_bsd_inst_isoS
-
-            { char *cpt;
-                 for (cpt = name; *cpt != 0; cpt++)
-                     if (isupper(*cpt))
-                         *cpt = tolower(*cpt);
+            if (fsdata->ecma119_map == 2 || fsdata->ecma119_map == 3) {
+                for (cpt = name; *cpt != 0; cpt++) {
+                    if (fsdata->ecma119_map == 2) {
+                        if (islower(*cpt))
+                            *cpt = toupper(*cpt);
+                    } else {
+                        if (isupper(*cpt))
+                            *cpt = tolower(*cpt);
+                    }
+                }
             }
-
-#endif /* Libisofs_for_bsd_inst_isoS */
-
 
         }
     }
@@ -3038,6 +3057,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             data->input_charset = strdup("ASCII");
         }
     }
+    data->ecma119_map = opts->ecma119_map;
 
     if (data->input_charset == NULL) {
         if (opts->input_charset != NULL) {
@@ -6066,6 +6086,7 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
     ropts->file_mode = 0444;
     ropts->dir_mode = 0555;
     ropts->noaaip = 1;
+    ropts->ecma119_map = 1;
     ropts->nomd5 = 1;
     ropts->load_system_area = 0;
     ropts->keep_import_src = 0;
@@ -6154,6 +6175,17 @@ int iso_read_opts_set_preferjoliet(IsoReadOpts *opts, int preferjoliet)
         return ISO_NULL_POINTER;
     }
     opts->preferjoliet = preferjoliet ? 1 :0;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_ecma119_map(IsoReadOpts *opts, int ecma119_map)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    if (ecma119_map < 0 || ecma119_map > 3)
+        return 0;
+    opts->ecma119_map = ecma119_map;
     return ISO_SUCCESS;
 }
 
