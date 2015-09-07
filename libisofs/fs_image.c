@@ -1415,7 +1415,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                             struct ecma119_dir_record *record,
                             IsoFileSource **src, int flag)
 {
-    int ret;
+    int ret, ecma119_map;
     struct stat atts;
     time_t recorded;
     _ImageFsData *fsdata;
@@ -1934,7 +1934,10 @@ if (name != NULL && !namecont) {
 
             /* remove trailing version number */
             len = strlen(name);
-            if (fsdata->ecma119_map >= 1 && fsdata->ecma119_map <= 3 &&
+            ecma119_map = fsdata->ecma119_map;
+            if (fsdata->iso_root_block == fsdata->svd_root_block)
+                ecma119_map = 0;
+            if (ecma119_map >= 1 && ecma119_map <= 3 &&
                 len > 2 && name[len-2] == ';' && name[len-1] == '1') {
                 if (len > 3 && name[len-3] == '.') {
                     /*
@@ -1947,9 +1950,9 @@ if (name != NULL && !namecont) {
                 }
             }
 
-            if (fsdata->ecma119_map == 2 || fsdata->ecma119_map == 3) {
+            if (ecma119_map == 2 || ecma119_map == 3) {
                 for (cpt = name; *cpt != 0; cpt++) {
-                    if (fsdata->ecma119_map == 2) {
+                    if (ecma119_map == 2) {
                         if (islower(*cpt))
                             *cpt = toupper(*cpt);
                     } else {
