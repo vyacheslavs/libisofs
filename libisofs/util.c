@@ -17,6 +17,7 @@
 #include "libisofs.h"
 #include "messages.h"
 #include "joliet.h"
+#include "node.h"
 #include "../version.h"
 
 #include <stdlib.h>
@@ -2343,3 +2344,95 @@ off_t iso_scanf_io_size(char *text, int flag)
         ret += fac - 1;
     return ret;
 }
+
+
+/* Find backward from idx the start byte of a possible UTF-8 character.
+     https://en.wikipedia.org/wiki/UTF-8#Description
+*/
+static
+int find_utf8_start(char *name, int idx, int flag)
+{
+    unsigned char *uname, uch;
+    int i;
+
+    uname= (unsigned char *) name;
+    if ((uname[idx] & 0xc0) != 0x80)
+        return idx;                                /* not an UTF-8 tail byte */
+    for (i = 0; i < 5; i++) {               /* up to deprecated 6-byte codes */
+        uch = uname[idx - 1 - i];
+        if ((uch & 0xe0) == 0xc0 || (uch & 0xf0) == 0xe0 ||
+            (uch & 0xf8) == 0xf0 || (uch & 0xfc) == 0xf8 ||
+            (uch & 0xfe) == 0xfc)
+            return (idx - 1 - i);                  /* UTF-8 start byte found */
+        if ((uch & 0xc0) != 0x80)
+          return idx;                 /* not an UTF-8 tail byte, so no UTF-8 */
+    }
+    return idx;                                      /* no UTF-8 start found */
+}
+
+/* @param flag bit0= do not issue warning message
+*/
+int iso_truncate_rr_name(int truncate_mode, int truncate_length,
+                         char *name, int flag)
+{
+    int neck, goal, ret, l, i;
+    static int hash_size = 32;
+    void *ctx = NULL;
+    char hashval[16];
+
+    l = strlen(name);
+    if (l <= truncate_length)
+        return ISO_SUCCESS;
+    if (truncate_mode == 0)
+        return ISO_RR_NAME_TOO_LONG;
+
+    /* Compute hash */
+    ret = iso_md5_start(&ctx);
+    if (ret < 0)
+        goto ex;
+    ret = iso_md5_compute(ctx, name, l > 4095 ? 4095 : l);
+    if (ret < 0)
+        goto ex;
+    ret = iso_md5_end(&ctx, hashval);
+    if (ret < 0)
+        goto ex;
+
+    if (!(flag & 1))
+        iso_msg_submit(-1, ISO_RR_NAME_TRUNCATED, 0,
+                     "File name had to be truncated and MD5 marked: %s", name);
+
+    /* Avoid to produce incomplete UTF-8 characters */
+    goal = truncate_length - hash_size - 1;
+    neck = find_utf8_start(name, goal, 0);
+    for (; neck < goal; neck++)
+        name[neck] = '_';
+
+    /* Write colon and hash text over end of truncated name */
+    name[goal] = ':';
+    goal++;
+    for (i = 0; goal < truncate_length - 1 && i < hash_size / 2; goal += 2) {
+        sprintf(name + goal, "%2.2x", *((unsigned char *) (hashval + i)));
+        i++;
+    }
+    name[truncate_length] = 0;
+
+    ret = ISO_SUCCESS;
+ex:;
+    if (ctx != NULL)
+        iso_md5_end(&ctx, hashval);
+    return ret;
+}
+
+/* API */
+int iso_truncate_leaf_name(int mode, int length, char *name, int flag)
+{
+    int ret;
+
+    if (mode < 0 || mode > 1)
+        return ISO_WRONG_ARG_VALUE;
+    if (length < 64 || length > LIBISOFS_NODE_NAME_MAX)
+        return ISO_WRONG_ARG_VALUE;
+    ret = iso_truncate_rr_name(mode, length, name, 1);
+    return ret;
+}
+

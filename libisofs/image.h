@@ -160,6 +160,20 @@ struct Iso_Image
     /* TODO
     enum iso_replace_mode (*confirm_replace)(IsoFileSource *src, IsoNode *node);
     */
+
+    /**
+     * What to do in case of name longer than truncate_length:
+     *  0= throw FAILURE
+     *  1= truncate to truncate_length with MD5 of whole name at end
+     */
+    int truncate_mode;
+    int truncate_length;
+
+    /**
+     * This is a convenience buffer for name truncation during image
+     * manipulation where libisofs is not thread-safe anyway.
+     */
+    char truncate_buffer[4096];
     
     /**
      * When this is not NULL, it is a pointer to a function that will
@@ -229,6 +243,14 @@ struct Iso_Image
 
 };
 
+
+/* Apply truncation mode to name, using image->truncate_buffer to perform
+   truncation if needed.
+
+   Warning: Not thread-safe !
+*/
+int iso_image_truncate_name(IsoImage *image, const char *name, char **namept,
+                            int flag);
 
     
 /* Collect the bitmap of used inode numbers in the range of

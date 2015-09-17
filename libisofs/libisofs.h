@@ -3090,8 +3090,86 @@ int iso_image_attach_data(IsoImage *image, void *data, void (*give_up)(void*));
 void *iso_image_get_attached_data(IsoImage *image);
 
 /**
+ * Set the name truncation mode and the maximum name length for nodes from
+ * image importing, creation of new IsoNode objects, and name changing image
+ * manipulations.
+ *
+ * Truncated names are supposed to be nearly unique because they end by the MD5
+ * of the first 4095 characters of the untruncated name. One should treat them
+ * as if they were the untruncated original names.
+ *
+ * For proper processing of truncated names it is necessary to use
+ *   iso_image_set_node_name()   instead of  iso_node_set_name()
+ *   iso_image_add_new_dir()                 iso_tree_add_new_dir()
+ *   iso_image_add_new_file()                iso_tree_add_new_file()
+ *   iso_image_add_new_special()             iso_tree_add_new_special()
+ *   iso_image_add_new_symlink()             iso_tree_add_new_symlink()
+ *   iso_image_tree_clone()                  iso_tree_clone()
+ *   iso_image_dir_get_node()                iso_dir_get_node()
+ *   iso_image_path_to_node()                iso_tree_path_to_node()
+ * 
+ * Beware of ambiguities if both, the full name and the truncated name,
+ * exist in the same directory. Best is to only set truncation parameters
+ * once with an ISO filesystem and to never change them later.
+ * 
+ * @param image
+ *      The image which shall be manipulated.
+ * @param mode
+ *      0= Do not truncate but throw error ISO_RR_NAME_TOO_LONG if a file name
+ *         is longer than parameter length.
+ *      1= Truncate to length and overwrite the last 33 bytes of that length
+ *         by a colon ':' and the hex representation of the MD5 of the first
+ *         4095 bytes of the whole oversized name.
+ *         Potential incomplete UTF-8 characters will get their leading bytes
+ *         replaced by '_'.
+ *         Mode 1 is the default.
+ * @param length
+ *      Maximum byte count of a file name. Permissible values are 64 to 255.
+ *      Default is 255.
+ * @return
+ *      ISO_SUCCESS or ISO_WRONG_ARG_VALUE
+ *
+ * @since 1.4.2
+ */
+int iso_image_set_truncate_mode(IsoImage *img, int mode, int length);
+
+/**
+ * Inquire the current setting of iso_image_set_truncate_mode().
+ *
+ * @param image
+ *      The image which shall be inquired.
+ * @param mode
+ *      Returns the mode value.
+ * @param length
+ *      Returns the length value.
+ * @return
+ *      ISO_SUCCESS or <0 = error
+ *
+ * @since 1.4.2
+ */
+int iso_image_get_truncate_mode(IsoImage *img, int *mode, int *length);
+
+/**
+ * Immediately apply the given truncate mode and length to the given string.
+ * 
+ * @param mode
+ *      See iso_image_set_truncate_mode()
+ * @param length
+ *      See iso_image_set_truncate_mode()
+ * @param name
+ *      The string to be inspected and truncated if mode says so.
+ * @param flag
+ *      Bitfield for control purposes. Unused yet. Submit 0.
+ * @return
+ *      ISO_SUCCESS, ISO_WRONG_ARG_VALUE, ISO_RR_NAME_TOO_LONG
+ *
+ * @since 1.4.2
+ */
+int iso_truncate_leaf_name(int mode, int length, char *name, int flag);
+
+/**
  * Get the root directory of the image.
- * No extra ref is added to it, so you musn't unref it. Use iso_node_ref()
+ * No extra ref is added to it, so you must not unref it. Use iso_node_ref()
  * if you want to get your own reference.
  *
  * @since 0.6.2
@@ -4632,10 +4710,36 @@ int iso_node_xinfo_make_clonable(iso_node_xinfo_func proc,
 int iso_node_xinfo_get_cloner(iso_node_xinfo_func proc,
                               iso_node_xinfo_cloner *cloner, int flag);
 
-
 /**
  * Set the name of a node. Note that if the node is already added to a dir
  * this can fail if dir already contains a node with the new name.
+ * The IsoImage context defines a maximum permissible name length and a mode
+ * how to react on oversized names. See iso_image_set_truncate_mode().
+ *
+ * @param image
+ *      The image object to which the node belongs or shall belong in future.
+ * @param node
+ *      The node of which you want to change the name. One cannot change the
+ *      name of the root directory.
+ * @param name
+ *      The new name for the node. It may not be empty. If it is oversized
+ *      then it will be handled according to iso_image_set_truncate_mode().
+ * @param flag
+ *      bit0= issue warning in case of truncation
+ * @return
+ *      1 on success, < 0 on error
+ *
+ * @since 1.4.2
+ */
+int iso_image_set_node_name(IsoImage *image, IsoNode *node, const char *name,
+                            int flag);
+
+/**
+ *                            *** Deprecated ***
+ *                   use iso_image_set_node_name() instead
+ *
+ * Set the name of a node without taking into respect name truncation mode of
+ * an IsoImage.
  *
  * @param node
  *      The node whose name you want to change. Note that you can't change
@@ -4650,6 +4754,7 @@ int iso_node_xinfo_get_cloner(iso_node_xinfo_func proc,
  * @since 0.6.2
  */
 int iso_node_set_name(IsoNode *node, const char *name);
+
 
 /**
  * Get the name of a node.
@@ -4845,10 +4950,17 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child,
 /**
  * Locate a node inside a given dir.
  *
+ * The IsoImage context defines a maximum permissible name length and a mode
+ * how to react on oversized names. See iso_image_set_truncate_mode().
+ * If the caller looks for an oversized name and image truncate mode is 1,
+ * then this call looks for the truncated name among the nodes of dir.
+ *
+ * @param image
+ *     The image object to which dir belongs.
  * @param dir
  *     The dir where to look for the node.
  * @param name
- *     The name of the node
+ *     The name of the node. (Will not be changed if truncation happens.)
  * @param node
  *     Location for a pointer to the node, it will filled with NULL if the dir
  *     doesn't have a child with the given name.
@@ -4856,6 +4968,33 @@ int iso_dir_add_node(IsoDir *dir, IsoNode *child,
  *     iso_node_ref() to get your own reference to the node.
  *     Note that you can pass NULL is the only thing you want to do is check
  *     if a node with such name already exists on dir.
+ * @param flag
+ *     Bitfield for control purposes.
+ *     bit0= do not truncate name but lookup exactly as given.
+ * @return
+ *     1 node found
+ *     0 no name truncation was needed, name not found in dir
+ *     2 name truncation happened, truncated name not found in dir
+ *     < 0 error, see iso_dir_get_node().
+ *
+ * @since 1.4.2
+ */
+int iso_image_dir_get_node(IsoImage *image, IsoDir *dir, 
+                           const char *name, IsoNode **node, int flag);
+
+/**
+ *                            *** Deprecated ***
+ *             In most cases use iso_image_dir_get_node() instead.
+ *
+ * Locate a node inside a given dir without taking into respect name truncation
+ * mode of an IsoImage.
+ *
+ * @param dir
+ *     The dir where to look for the node.
+ * @param name
+ *     The name of the node
+ * @param node
+ *     Location for a pointer to the node. See iso_image_get_node().
  * @return
  *     1 node found, 0 child has no such node, < 0 error
  *     Possible errors:
@@ -5373,16 +5512,47 @@ int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag);
  * Add a new directory to the iso tree. Permissions, owner and hidden atts
  * are taken from parent, you can modify them later.
  *
+ * @param image
+ *      The image object to which the new directory shall belong.
  * @param parent
- *      the dir where the new directory will be created
+ *      The directory node where the new directory will be grafted in.
  * @param name
- *      name for the new dir. If a node with same name already exists on
- *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ *      Name for the new directory. If truncation mode is set to 1,
+ *      an oversized name gets truncated before further processing.
+ *      If a node with same name already exists on parent, this function
+ *      fails with ISO_NODE_NAME_NOT_UNIQUE.
  * @param dir
  *      place where to store a pointer to the newly created dir. No extra
  *      ref is addded, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer.
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent or name are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
+ *
+ * @since 1.4.2
+ */
+int iso_image_add_new_dir(IsoImage *image, IsoDir *parent, const char *name,
+                          IsoDir **dir);
+
+/**
+ *                            *** Deprecated ***
+ *                   use iso_image_add_new_dir() instead
+ *
+ * Add a new directory to the iso tree without taking into respect name
+ * truncation mode of an IsoImage.
+ * For detailed description of parameters, see above iso_image_add_new_dir().
+ *
+ * @param parent
+ *      the dir where the new directory will be created
+ * @param name
+ *      name for the new dir.
+ * @param dir
+ *      place where to store a pointer to the newly created dir.i
  * @return
  *     number of nodes in parent if success, < 0 otherwise
  *     Possible errors:
@@ -5399,11 +5569,15 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
  * owner and hidden atts are taken from parent. You can modify any of them
  * later.
  *
- * @param parent
- *      the dir where the new file will be created
+ * @param image
+ *      The image object to which the new file shall belong.
+  * @param parent
+ *      The directory node where the new directory will be grafted in.
  * @param name
- *      name for the new file. If a node with same name already exists on
- *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ *      Name for the new file. If truncation mode is set to 1,
+ *      an oversized name gets truncated before further processing.
+ *      If a node with same name already exists on parent, this function
+ *      fails with ISO_NODE_NAME_NOT_UNIQUE.
  * @param stream
  *      IsoStream for the contents of the file. The reference will be taken
  *      by the newly created file, you will need to take an extra ref to it
@@ -5413,6 +5587,35 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
  *      ref is addded, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
+ *
+ * @since 1.4.2
+ */
+int iso_image_add_new_file(IsoImage *image, IsoDir *parent, const char *name,
+                           IsoStream *stream, IsoFile **file);
+
+/**
+ *                            *** Deprecated ***
+ *                   use iso_image_add_new_file() instead
+ *
+ * Add a new regular file to the iso tree without taking into respect name
+ * truncation mode of an IsoImage.
+ * For detailed description of parameters, see above iso_image_add_new_file().
+ *
+ * @param parent
+ *      the dir where the new file will be created
+ * @param name
+ *      name for the new file.
+ * @param stream
+ *      IsoStream for the contents of the file.
+ * @param file
+ *      place where to store a pointer to the newly created file.
  * @return
  *     number of nodes in parent if success, < 0 otherwise
  *     Possible errors:
@@ -5444,22 +5647,58 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream,
 int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
 
 /**
- * Add a new symlink to the directory tree. Permissions are set to 0777,
+ * Add a new symbolic link to the directory tree. Permissions are set to 0777,
  * owner and hidden atts are taken from parent. You can modify any of them
  * later.
+ *
+ * @param image
+ *      The image object to which the new directory shall belong.
+ * @param parent
+ *      The directory node where the new symlink will be grafted in.
+ * @param name
+ *      Name for the new symlink. If truncation mode is set to 1,
+ *      an oversized name gets truncated before further processing.
+ *      If a node with same name already exists on parent, this function
+ *      fails with ISO_NODE_NAME_NOT_UNIQUE.
+ * @param dest
+ *      The destination path of the link. The components of this path are
+ *      not checked for being oversized.
+ * @param link
+ *      Place where to store a pointer to the newly created link. No extra
+ *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      need it. You can pass NULL in this parameter if you don't need the
+ *      pointer
+ * @return
+ *     number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
+ *
+ * @since 1.4.2
+ */
+int iso_image_add_new_symlink(IsoImage *image, IsoDir *parent, 
+                              const char *name, const char *dest, 
+                              IsoSymlink **link);
+
+/**
+ *                            *** Deprecated ***
+ *                  use iso_image_add_new_symlink() instead
+ *
+ * Add a new symlink to the directory tree without taking into respect name
+ * truncation mode of an IsoImage.
+ * For detailed description of parameters, see above
+ * iso_image_add_new_isymlink().
  *
  * @param parent
  *      the dir where the new symlink will be created
  * @param name
- *      name for the new symlink. If a node with same name already exists on
- *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ *      name for the new symlink.
  * @param dest
  *      destination of the link
  * @param link
- *      place where to store a pointer to the newly created link. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
- *      need it. You can pass NULL in this parameter if you don't need the
- *      pointer
+ *      place where to store a pointer to the newly created link.
  * @return
  *     number of nodes in parent if success, < 0 otherwise
  *     Possible errors:
@@ -5474,7 +5713,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
 
 /**
  * Add a new special file to the directory tree. As far as libisofs concerns,
- * an special file is a block device, a character device, a FIFO (named pipe)
+ * a special file is a block device, a character device, a FIFO (named pipe)
  * or a socket. You can choose the specific kind of file you want to add
  * by setting mode propertly (see man 2 stat).
  *
@@ -5485,23 +5724,60 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  * Owner and hidden atts are taken from parent. You can modify any of them
  * later.
  *
+ * @param image
+ *      The image object to which the new special file shall belong.
  * @param parent
- *      the dir where the new special file will be created
+ *      The directory node where the new special file will be grafted in.
  * @param name
- *      name for the new special file. If a node with same name already exists
- *      on parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
+ *      Name for the new special file. If truncation mode is set to 1,
+ *      an oversized name gets truncated before further processing.
+ *      If a node with same name already exists on parent, this function
+ *      fails with ISO_NODE_NAME_NOT_UNIQUE.
  * @param mode
- *      file type and permissions for the new node. Note that you can't
- *      specify any kind of file here, only special types are allowed. i.e,
- *      S_IFSOCK, S_IFBLK, S_IFCHR and S_IFIFO are valid types; S_IFLNK,
- *      S_IFREG and S_IFDIR aren't.
+ *      File type and permissions for the new node. Note that only the file
+ *      types S_IFSOCK, S_IFBLK, S_IFCHR, and S_IFIFO are allowed.
+ *      S_IFLNK, S_IFREG, or S_IFDIR are not.
  * @param dev
- *      device ID, equivalent to the st_rdev field in man 2 stat.
+ *      Device ID, equivalent to the st_rdev field in man 2 stat.
  * @param special
- *      place where to store a pointer to the newly created special file. No
+ *      Place where to store a pointer to the newly created special file. No
  *      extra ref is addded, so you will need to call iso_node_ref() if you
  *      really need it. You can pass NULL in this parameter if you don't need
  *      the pointer.
+ * @return
+ *     Number of nodes in parent if success, < 0 otherwise
+ *     Possible errors:
+ *         ISO_NULL_POINTER, if parent, name or dest are NULL
+ *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
+ *         ISO_WRONG_ARG_VALUE if you select a incorrect mode
+ *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
+ *
+ * @since 1.4.2
+ */
+int iso_image_add_new_special(IsoImage *image, IsoDir *parent,
+                              const char *name, mode_t mode,
+                              dev_t dev, IsoSpecial **special);
+
+/**
+ *                            *** Deprecated ***
+ *                   use iso_image_add_new_special() instead
+ *
+ * Add a new special file to the directory tree without taking into respect name
+ * truncation mode of an IsoImage.
+ * For detailed description of parameters, see above
+ * iso_image_add_new_special().
+ *
+ * @param parent
+ *      the dir where the new special file will be created
+ * @param name
+ *      name for the new special file.
+ * @param mode
+ *      file type and permissions for the new node.
+ * @param dev
+ *      device ID, equivalent to the st_rdev field in man 2 stat.
+ * @param special
+ *      place where to store a pointer to the newly created special file.
  * @return
  *     number of nodes in parent if success, < 0 otherwise
  *     Possible errors:
@@ -5692,7 +5968,8 @@ void iso_tree_set_report_callback(IsoImage *image,
  *      The directory in the image tree where the node will be added.
  * @param path
  *      The absolute path of the file in the local filesystem.
- *      The node will have the same leaf name as the file on disk.
+ *      The node will have the same leaf name as the file on disk, possibly
+ *      truncated according to iso_image_set_truncate_mode().
  *      Its directory path depends on the parent node.
  * @param node
  *      place where to store a pointer to the newly added file. No
@@ -5705,6 +5982,7 @@ void iso_tree_set_report_callback(IsoImage *image,
  *         ISO_NULL_POINTER, if image, parent or path are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
  *
  * @since 0.6.2
  */
@@ -5723,7 +6001,8 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
  * @param parent
  *      The directory in the image tree where the node will be added.
  * @param name
- *      The leaf name that the node will have on image.
+ *      The leaf name that the node will have on image, possibly truncated
+ *      according to iso_image_set_truncate_mode().
  *      Its directory path depends on the parent node.
  * @param path
  *      The absolute path of the file in the local filesystem.
@@ -5738,6 +6017,7 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
  *         ISO_NULL_POINTER, if image, parent or path are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
  *
  * @since 0.6.4
  */
@@ -5754,7 +6034,8 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
  * @param parent
  *      The directory in the image tree where the node will be added.
  * @param name
- *      The leaf name that the node will have on image.
+ *      The leaf name that the node will have on image, possibly truncated
+ *      according to iso_image_set_truncate_mode().
  *      Its directory path depends on the parent node.
  * @param path
  *      The absolute path of the file in the local filesystem. For now
@@ -5775,6 +6056,7 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
  *         ISO_NULL_POINTER, if image, parent or path are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_OUT_OF_MEM
+ *         ISO_RR_NAME_TOO_LONG
  *
  * @since 0.6.4
  */
@@ -5809,6 +6091,42 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
  * cloned if each of the iso_node_xinfo_func instances is associated to a
  * clone function. See iso_node_xinfo_make_clonable().
  * All internally used classes of extended information are clonable.
+ *
+ * The IsoImage context defines a maximum permissible name length and a mode
+ * how to react on oversized names. See iso_image_set_truncate_mode().
+ *
+ * @param image
+ *      The image object to which the node belongs.
+ * @param node
+ *      The node to be cloned.
+ * @param new_parent
+ *      The existing directory node where to insert the cloned node.
+ * @param new_name
+ *      The name for the cloned node. It must not yet exist in new_parent,
+ *      unless it is a directory and node is a directory and flag bit0 is set.
+ * @param new_node
+ *      Will return a pointer (without reference) to the newly created clone.
+ * @param flag
+ *      Bitfield for control purposes. Submit any undefined bits as 0.
+ *      bit0= Merge directories rather than returning ISO_NODE_NAME_NOT_UNIQUE.
+ *            This will not allow to overwrite any existing node.
+ *            Attributes of existing directories will not be overwritten.
+ *      bit1= issue warning in case of new_name truncation
+ * @return
+ *      <0 means error, 1 = new node created,
+ *      2 = if flag bit0 is set: new_node is a directory which already existed.
+ *
+ * @since 1.4.2
+ */
+int iso_image_tree_clone(IsoImage *image, IsoNode *node, IsoDir *new_parent,
+                         char *new_name, IsoNode **new_node, int flag);
+
+/**
+ *                            *** Deprecated ***
+ *                   use iso_image_tree_clone() instead
+ *
+ * Create a copy of the given node under a different path without taking
+ * into respect name truncation mode of an IsoImage.
  * 
  * @param node
  *      The node to be cloned.
@@ -5857,17 +6175,48 @@ int iso_tree_clone(IsoNode *node,
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 
 /**
- * Locate a node by its absolute path on image.
+ * Locate a node by its absolute path in the image.
+ * The IsoImage context defines a maximum permissible name length and a mode
+ * how to react on oversized names. See iso_image_set_truncate_mode().
  *
  * @param image
  *     The image to which the node belongs.
+ * @param path
+ *     File path beginning at the root directory of image. If truncation mode
+ *     is set to 1, oversized path components will be truncated before lookup.
  * @param node
- *     Location for a pointer to the node, it will filled with NULL if the
+ *     Location for a pointer to the node, it will be filled with NULL if the
  *     given path does not exists on image.
  *     The node will be owned by the image and shouldn't be unref(). Just call
  *     iso_node_ref() to get your own reference to the node.
  *     Note that you can pass NULL is the only thing you want to do is check
  *     if a node with such path really exists.
+ *
+ * @return
+ *     1 node found
+ *     0 no truncation was needed, path not found in image
+ *     2 truncation happened, truncated path component not found in parent dir
+ *     < 0 error, see iso_dir_get_node().
+ *
+ * @since 1.4.2
+ */
+int iso_image_path_to_node(IsoImage *image, const char *path, IsoNode **node);
+
+/**
+ *                            *** Deprecated ***
+ *              In most cases use iso_image_path_to_node() instead
+ *
+ * Locate a node by its absolute path on image without taking into respect
+ * name truncation mode of the image.
+ *
+ * @param image
+ *     The image to which the node belongs.
+ * @param path
+ *     File path beginning at the root directory of image. No truncation will
+ *     happen.
+ * @param node
+ *     Location for a pointer to the node, it will be filled with NULL if the
+ *     given path does not exists on image. See iso_image_path_to_node().
  * @return
  *      1 found, 0 not found, < 0 error
  *
@@ -8341,6 +8690,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** Boot image to large to buffer for writing boot info
                                                        (FAILURE, HIGH, -411) */
 #define ISO_PATCH_OVERSIZED_BOOT    0xE830FE65
+
+/** File name had to be truncated and MD5 marked       (WARNING, HIGH, -412) */
+#define ISO_RR_NAME_TRUNCATED       0xD030FE64
 
 
 /* Internal developer note: 

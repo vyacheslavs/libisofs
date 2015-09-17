@@ -21,6 +21,7 @@
 #include "image.h"
 #include "aaip_0_2.h"
 #include "util.h"
+#include "messages.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -72,8 +73,12 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     iso_file_source_ref(src);
     
     name = iso_file_source_get_name(src);
-    if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
-        name[LIBISOFS_NODE_NAME_MAX] = 0;
+    if ((int) strlen(name) > image->truncate_length) {
+        ret = iso_truncate_rr_name(image->truncate_mode,
+                                   image->truncate_length, name, 0);
+        if (ret < 0)
+            return ret;
+    }
     ret = iso_node_new_file(name, stream, &node);
     if (ret < 0) {
         iso_stream_unref(stream);
@@ -131,8 +136,12 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         }
     }
 
-    if (strlen(name) > LIBISOFS_NODE_NAME_MAX)
-        name[LIBISOFS_NODE_NAME_MAX] = 0;
+    if ((int) strlen(name) > image->truncate_length) {
+        ret = iso_truncate_rr_name(image->truncate_mode,
+                                   image->truncate_length, name, 0);
+        if (ret < 0)
+            goto ex;
+    }
     fs = iso_file_source_get_filesystem(src);
     new = NULL;
 

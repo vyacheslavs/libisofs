@@ -543,4 +543,10 @@ int zisofs_zf_xinfo_func(void *data, int flag);
 int zisofs_zf_xinfo_cloner(void *old_data, void **new_data, int flag);
 
 
+/* Performing search for possibly truncated node name.
+ */
+int iso_dir_get_node_trunc(IsoDir *dir, int truncate_length,
+                           const char *name, IsoNode **node);
+
+
 #endif /*LIBISO_NODE_H_*/

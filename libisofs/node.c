@@ -327,32 +327,50 @@ enum IsoNodeType iso_node_get_type(IsoNode *node)
  * Set the name of a node.
  *
  * @param name  The name in UTF-8 encoding
+ * @param truncate_length (<64 = return on oversized name )
+ * @param flag  bit0= issue warning in case of truncation
  */
-int iso_node_set_name(IsoNode *node, const char *name)
+int iso_node_set_name_trunc(IsoNode *node, const char *in_name,
+                           int truncate_length, int flag)
 {
-    char *new;
+    char *new, *name, *trunc = NULL;
     int ret;
 
     if ((IsoNode*)node->parent == node) {
         /* you can't change name of the root node */
-        return ISO_WRONG_ARG_VALUE;
+        ret = ISO_WRONG_ARG_VALUE;
+        goto ex;
     }
 
+    name = (char *) in_name;
+    if (truncate_length >= 64) {
+        trunc = strdup(name);
+        if (trunc == 0) {
+            ret = ISO_OUT_OF_MEM;
+            goto ex;
+        }
+        ret = iso_truncate_rr_name(1, truncate_length, trunc, !(flag & 1));
+        if (ret < 0)
+            goto ex;
+        name = trunc;
+    }
     /* check if the name is valid */
     ret = iso_node_is_valid_name(name);
     if (ret < 0)
-        return ret;
+        goto ex;
 
     if (node->parent != NULL) {
         /* check if parent already has a node with same name */
         if (iso_dir_get_node(node->parent, name, NULL) == 1) {
-            return ISO_NODE_NAME_NOT_UNIQUE;
+            ret = ISO_NODE_NAME_NOT_UNIQUE;
+            goto ex;
         }
     }
 
     new = strdup(name);
     if (new == NULL) {
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
     }
     free(node->name);
     node->name = new;
@@ -364,10 +382,29 @@ int iso_node_set_name(IsoNode *node, const char *name)
         iso_node_take(node);
         res = iso_dir_add_node(parent, node, 0);
         if (res < 0) {
-            return res;
+            ret = res;
+            goto ex;
         }
     }
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:
+    if (trunc != NULL)
+        free(trunc);
+    return ret;
+}
+
+int iso_node_set_name(IsoNode *node, const char *name)
+{
+    return iso_node_set_name_trunc(node, name, 0, 0);
+}
+
+int iso_image_set_node_name(IsoImage *image, IsoNode *node, const char *name,
+                            int flag)
+{
+    if (image->truncate_mode == 0)
+        if ((int) strlen(name) > image->truncate_length)
+            return ISO_RR_NAME_TOO_LONG;
+    return iso_node_set_name_trunc(node, name, image->truncate_length, flag);
 }
 
 /**
@@ -608,6 +645,41 @@ int iso_dir_get_node(IsoDir *dir, const char *name, IsoNode **node)
         *node = *pos;
     }
     return 1;
+}
+
+int iso_dir_get_node_trunc(IsoDir *dir, int truncate_length,
+                           const char *name, IsoNode **node)
+{
+    int ret;
+    char *trunc = NULL;
+
+    if ((int) strlen(name) <= truncate_length) {
+        ret = iso_dir_get_node(dir, name, node);
+        return ret;
+    }
+    trunc = strdup(name);
+    if (trunc == NULL)
+        return ISO_OUT_OF_MEM;
+    ret = iso_truncate_rr_name(1, truncate_length, trunc, 1);
+    if (ret < 0)
+        return ret;
+    ret = iso_dir_get_node(dir, trunc, node);
+    if (ret == 0)
+        return 2;
+    return ret;
+}
+
+/* API */
+int iso_image_dir_get_node(IsoImage *image, IsoDir *dir,
+                           const char *name, IsoNode **node, int flag)
+{
+    int ret;
+
+    if (image->truncate_mode == 0 || (flag & 1))
+        ret = iso_dir_get_node(dir, name, node);
+    else
+        ret = iso_dir_get_node_trunc(dir, image->truncate_length, name, node);
+    return ret;
 }
 
 /**

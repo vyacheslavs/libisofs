@@ -535,6 +535,8 @@ const char *iso_error_to_msg(int errcode)
         return "May not write boot info into filtered stream of boot image";
     case ISO_PATCH_OVERSIZED_BOOT:
         return "Boot image to large to buffer for writing boot info";
+    case ISO_RR_NAME_TRUNCATED:
+        return "File name had to be truncated and MD5 marked";
     default:
         return "Unknown error";
     }

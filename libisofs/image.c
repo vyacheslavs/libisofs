@@ -188,6 +188,9 @@ int iso_image_new(const char *name, IsoImage **image)
     img->import_src = NULL;
     img->builder_ignore_acl = 1;
     img->builder_ignore_ea = 1;
+    img->truncate_mode = 1;
+    img->truncate_length = LIBISOFS_NODE_NAME_MAX;
+    img->truncate_buffer[0] = 0;
     img->inode_counter = 0;
     img->used_inodes = NULL;
     img->used_inodes_start = 0;
@@ -1082,4 +1085,46 @@ int iso_image_get_alpha_boot(IsoImage *img, char **boot_loader_path)
     return ISO_SUCCESS;
 }
 
+
+/* API */
+int iso_image_set_truncate_mode(IsoImage *img, int mode, int length)
+{
+    if (mode < 0 || mode > 1)
+        return ISO_WRONG_ARG_VALUE;
+    if (length < 64 || length > LIBISOFS_NODE_NAME_MAX)
+        return ISO_WRONG_ARG_VALUE;
+    img->truncate_mode = mode;
+    img->truncate_length = length;
+    return ISO_SUCCESS;
+}
+
+/* API */
+int iso_image_get_truncate_mode(IsoImage *img, int *mode, int *length)
+{
+    *mode = img->truncate_mode;
+    *length = img->truncate_length;
+    return ISO_SUCCESS;
+}
+
+/* Warning: Not thread-safe */
+int iso_image_truncate_name(IsoImage *image, const char *name, char **namept,
+                            int flag)
+{
+    int ret;
+
+    if (name == NULL) 
+        return ISO_NULL_POINTER;
+
+    if ((int) strlen(name) <= image->truncate_length) {
+        *namept = (char *) name;
+        return ISO_SUCCESS;
+    }
+    *namept = image->truncate_buffer;
+    if (name != image->truncate_buffer)
+        strncpy(image->truncate_buffer, name, 4095);
+    image->truncate_buffer[4095] = 0;
+    ret = iso_truncate_rr_name(image->truncate_mode, image->truncate_length,
+                               image->truncate_buffer, 0);
+    return ret;
+}
 

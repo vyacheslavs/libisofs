@@ -100,6 +100,19 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
 }
 
+int iso_image_add_new_dir(IsoImage *image, IsoDir *parent, const char *name,
+                          IsoDir **dir)
+{
+    int ret;
+    char *namept;
+
+    ret = iso_image_truncate_name(image, name, &namept, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_tree_add_new_dir(parent, namept, dir);
+    return ret;
+}
+
 /**
  * Add a new symlink to the directory tree. Permissions are set to 0777, 
  * owner and hidden atts are taken from parent. You can modify any of them 
@@ -173,6 +186,20 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
 
     /* add to dir */
     return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
+}
+
+int iso_image_add_new_symlink(IsoImage *image, IsoDir *parent,
+                              const char *name, const char *dest,
+                              IsoSymlink **link)
+{
+    int ret;
+    char *namept;
+
+    ret = iso_image_truncate_name(image, name, &namept, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_tree_add_new_symlink(parent, namept, dest, link);
+    return ret;
 }
 
 /**
@@ -264,6 +291,20 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
 }
 
+int iso_image_add_new_special(IsoImage *image, IsoDir *parent,
+                              const char *name, mode_t mode,
+                              dev_t dev, IsoSpecial **special)
+{
+    int ret;
+    char *namept;
+
+    ret = iso_image_truncate_name(image, name, &namept, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_tree_add_new_special(parent, namept, mode, dev, special);
+    return ret;
+}
+
 /**
  * Add a new regular file to the iso tree. Permissions are set to 0444, 
  * owner and hidden atts are taken from parent. You can modify any of them 
@@ -337,6 +378,19 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream,
 
     /* add to dir */
     return iso_dir_insert(parent, (IsoNode*)node, pos, ISO_REPLACE_NEVER);
+}
+
+int iso_image_add_new_file(IsoImage *image, IsoDir *parent, const char *name,
+                           IsoStream *stream, IsoFile **file)
+{
+    int ret;
+    char *namept;
+
+    ret = iso_image_truncate_name(image, name, &namept, 0);
+    if (ret < 0)
+        return ret;
+    ret = iso_tree_add_new_file(parent, namept, stream, file);
+    return ret;
 }
 
 /**
@@ -503,7 +557,7 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
     int result;
     IsoNode *new;
     IsoNode **pos;
-    char *name = NULL;
+    char *name = NULL, *namept;
 
     if (parent == NULL || src == NULL || builder == NULL) {
         result = ISO_NULL_POINTER; goto ex;
@@ -514,14 +568,18 @@ int iso_tree_add_node_builder(IsoImage *image, IsoDir *parent,
 
     name = iso_file_source_get_name(src);
 
+    result = iso_image_truncate_name(image, name, &namept, 0);
+    if (result < 0)
+        return result;
+
     /* find place where to insert */
-    result = iso_dir_exists(parent, name, &pos);
+    result = iso_dir_exists(parent, namept, &pos);
     if (result) {
         /* a node with same name already exists */
         result = ISO_NODE_NAME_NOT_UNIQUE; goto ex;
     }
 
-    result = builder->create_node(builder, image, src, name, &new);
+    result = builder->create_node(builder, image, src, namept, &new);
     if (result < 0)
         goto ex;
 
@@ -568,6 +626,7 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
     IsoFileSource *file;
     IsoNode *new;
     IsoNode **pos;
+    char *namept;
 
     if (image == NULL || parent == NULL || name == NULL || path == NULL) {
         return ISO_NULL_POINTER;
@@ -577,8 +636,12 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
         *node = NULL;
     }
 
+    result = iso_image_truncate_name(image, name, &namept, 0);
+    if (result < 0)
+        return result;
+
     /* find place where to insert */
-    result = iso_dir_exists(parent, name, &pos);
+    result = iso_dir_exists(parent, namept, &pos);
     if (result) {
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
@@ -591,7 +654,7 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
     }
 
     result = image->builder->create_node(image->builder, image, file,
-                                         (char *) name, &new);
+                                         namept, &new);
     
     /* free the file */
     iso_file_source_unref(file);
@@ -620,6 +683,7 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
     IsoFile *new;
     IsoNode **pos;
     IsoStream *stream;
+    char *namept;
 
     if (image == NULL || parent == NULL || name == NULL || path == NULL) {
         return ISO_NULL_POINTER;
@@ -629,8 +693,12 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
         *node = NULL;
     }
 
+    result = iso_image_truncate_name(image, name, &namept, 0);
+    if (result < 0)
+        return result;
+
     /* find place where to insert */
-    result = iso_dir_exists(parent, name, &pos);
+    result = iso_dir_exists(parent, namept, &pos);
     if (result) {
         /* a node with same name already exists */
         return ISO_NODE_NAME_NOT_UNIQUE;
@@ -673,7 +741,7 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
     iso_stream_unref(new->stream);
     new->stream = stream;
     
-    result = iso_node_set_name((IsoNode*)new, name);
+    result = iso_node_set_name((IsoNode*)new, namept);
     if (result < 0) {
         iso_node_unref((IsoNode*)new);
         return result;
@@ -1106,7 +1174,10 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir)
     return result;
 }
 
-int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
+/* @param flag bit0= truncate according to image truncate mode and length
+*/
+int iso_tree_path_to_node_flag(IsoImage *image, const char *path,
+                               IsoNode **node, int flag)
 {
     int result;
     IsoNode *n;
@@ -1140,7 +1211,12 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
         }
         dir = (IsoDir *)n;
 
-        result = iso_dir_get_node(dir, component, &n);
+        if ((flag & 1) && image->truncate_mode == 1) {
+            result = iso_dir_get_node_trunc(dir, image->truncate_length,
+                                            component, &n);
+        } else {
+            result = iso_dir_get_node(dir, component, &n);
+        }
         if (result != 1) {
             n = NULL;
             break;
@@ -1154,6 +1230,16 @@ int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
         *node = n;
     }
     return result;
+}
+
+int iso_tree_path_to_node(IsoImage *image, const char *path, IsoNode **node)
+{
+    return iso_tree_path_to_node_flag(image, path, node, 0);
+}
+
+int iso_image_path_to_node(IsoImage *image, const char *path, IsoNode **node)
+{
+    return iso_tree_path_to_node_flag(image, path, node, 1);
 }
 
 char *iso_tree_get_node_path(IsoNode *node)
@@ -1397,18 +1483,36 @@ int iso_tree_clone_special(IsoSpecial *node,
     return ISO_SUCCESS;
 }
 
-/* API */
-int iso_tree_clone(IsoNode *node,
-                   IsoDir *new_parent, char *new_name, IsoNode **new_node,
-                   int flag)
+
+/* @param flag bit0= Merge directories rather than ISO_NODE_NAME_NOT_UNIQUE.
+               bit1= issue warning in case of truncation
+*/
+int iso_tree_clone_trunc(IsoNode *node, IsoDir *new_parent, 
+                         char *new_name_in, IsoNode **new_node, 
+                         int truncate_length, int flag)
 {
     int ret = ISO_SUCCESS;
+    char *new_name, *trunc = NULL;
 
+    *new_node = NULL;
+    new_name = new_name_in;
+    if (truncate_length >= 64 && (int) strlen(new_name) > truncate_length) {
+        trunc = strdup(new_name);
+        if (trunc == 0) {
+            ret = ISO_OUT_OF_MEM;
+            goto ex;
+        }
+        ret = iso_truncate_rr_name(1, truncate_length, trunc, !(flag & 2));
+        if (ret < 0)
+            goto ex;
+        new_name = trunc;
+    }
     if (iso_dir_get_node(new_parent, new_name, new_node) == 1) {
         if (! (node->type == LIBISO_DIR && (*new_node)->type == LIBISO_DIR &&
                (flag & 1))) {
             *new_node = NULL;
-            return ISO_NODE_NAME_NOT_UNIQUE;
+            ret = ISO_NODE_NAME_NOT_UNIQUE;
+            goto ex;
         }
     } else
         flag &= ~1;
@@ -1429,10 +1533,42 @@ int iso_tree_clone(IsoNode *node,
         ret = ISO_SUCCESS; /* API says they are silently ignored */
     }
     if (ret < 0)
-        return ret;
-    if (flag & 1)
-        return 2; /* merged two directories, *new_node is not new */
+        goto ex;
+    if (flag & 1) {
+        ret = 2; /* merged two directories, *new_node is not new */
+        goto ex;
+    }
     ret = iso_tree_copy_node_attr(node, *new_node, 0);
+
+ex:;
+    if (trunc != NULL)
+        free(trunc);
+    return ret;
+}
+
+
+/* API */
+int iso_tree_clone(IsoNode *node,
+                   IsoDir *new_parent, char *new_name, IsoNode **new_node,
+                   int flag)
+{
+    return iso_tree_clone_trunc(node, new_parent, new_name, new_node, 0,
+                                flag & 1); 
+}
+
+
+/* API */
+int iso_image_tree_clone(IsoImage *image, IsoNode *node, IsoDir *new_parent,
+                         char *new_name, IsoNode **new_node, int flag)
+{
+    int length, ret;
+
+    if (image->truncate_mode == 0)
+        length = 0;
+    else
+        length = image->truncate_length;
+    ret = iso_tree_clone_trunc(node, new_parent, new_name, new_node, length,
+                               flag & 3);
     return ret;
 }
 

@@ -142,6 +142,14 @@ struct iso_read_opts
      */
     int keep_import_src;
 
+    /**
+     * What to do in case of name longer than truncate_length:
+     *  0= throw FAILURE
+     *  1= truncate to truncate_length with MD5 of whole name at end
+     */
+    int truncate_mode;
+    int truncate_length;
+
 };
 
 /**
@@ -298,6 +306,8 @@ typedef struct
     /**
      * See struct iso_read_opts.
      */
+    int truncate_mode;
+    int truncate_length;
     unsigned int ecma119_map : 2;
 
     /** Whether AAIP info shall be loaded if it is present.
@@ -1415,7 +1425,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                             struct ecma119_dir_record *record,
                             IsoFileSource **src, int flag)
 {
-    int ret, ecma119_map;
+    int ret, ecma119_map, skip_nm = 0;
     struct stat atts;
     time_t recorded;
     _ImageFsData *fsdata;
@@ -1610,11 +1620,15 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                                             "Invalid TF entry");
                 }
             } else if (SUSP_SIG(sue, 'N', 'M')) {
+                if (skip_nm)
+                    continue; /* in NM error bailout mode */
+
                 if (name != NULL && namecont == 0) {
                     /* ups, RR standard violation */
                     ret = iso_rr_msg_submit(fsdata, 2, ISO_WRONG_RR_WARN, 0,
                                  "New NM entry found without previous"
                                  "CONTINUE flag. Ignored");
+                    skip_nm = 1;
                     continue;
                 }
                 ret = read_rr_NM(sue, &name, &namecont);
@@ -1622,6 +1636,14 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                     /* notify and continue */
                     ret = iso_rr_msg_submit(fsdata, 3, ISO_WRONG_RR_WARN, ret,
                                             "Invalid NM entry");
+                    continue;
+                }
+                if (strlen(name) > 4095) {
+                    /* Preliminarily truncate totally oversized name */
+                    ret = iso_rr_msg_submit(fsdata, 3, ISO_WRONG_RR_WARN, ret,
+                                            "Totally oversized NM list");
+                    skip_nm = 1;
+                    continue;
                 }
 
 #ifdef Libisofs_syslinux_tesT
@@ -1962,6 +1984,15 @@ if (name != NULL && !namecont) {
                 }
             }
 
+        }
+    }
+
+    if (name != NULL) {
+        if ((int) strlen(name) > fsdata->truncate_length) {
+            ret = iso_truncate_rr_name(fsdata->truncate_mode,
+                                       fsdata->truncate_length, name, 0);
+            if (ret < 0)
+                goto ex;
         }
     }
 
@@ -3060,6 +3091,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             data->input_charset = strdup("ASCII");
         }
     }
+    data->truncate_mode = opts->truncate_mode;
+    data->truncate_length = opts->truncate_length;
     data->ecma119_map = opts->ecma119_map;
 
     if (data->input_charset == NULL) {
@@ -5670,7 +5703,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         return ISO_NULL_POINTER;
     }
 
-
+    opts->truncate_mode = image->truncate_mode;
+    opts->truncate_length = image->truncate_length;
     ret = iso_image_filesystem_new(src, opts, image->id, &fs);
     if (ret < 0) {
         return ret;

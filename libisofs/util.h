@@ -564,6 +564,8 @@ int iso_util_bin_to_hex(char *target, uint8_t *bytes, int num_bytes, int flag);
 int iso_util_hex_to_bin(char *hex, char *bin, int bin_size, int *bin_count,
                         int flag);
 
+int iso_truncate_rr_name(int truncate_mode, int truncate_length,
+                         char *name, int flag);
 
 /* ------------------------------------------------------------------------- */
 
