@@ -513,6 +513,13 @@ int iso_root_get_isofsca(IsoNode *node, uint32_t *start_lba, uint32_t *end_lba,
 
 
 /**
+ * Record parameters of iso_image_set_truncate_mode() by "isofs.nt".
+ */
+int iso_root_set_isofsnt(IsoNode *node, uint32_t truncate_mode,
+                         uint32_t truncate_length, int flag);
+
+
+/**
  * Copy the xinfo list from one node to the another.
  */
 int iso_node_clone_xinfo(IsoNode *from_node, IsoNode *to_node, int flag);

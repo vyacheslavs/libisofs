@@ -310,6 +310,12 @@ typedef struct
     int truncate_length;
     unsigned int ecma119_map : 2;
 
+    /**
+     * Values read from isofs.nt (isofsnt_truncate_mode == -1) means none read.
+     */
+    int isofsnt_truncate_mode;
+    int isofsnt_truncate_length;
+
     /** Whether AAIP info shall be loaded if it is present.
      *  1 = yes , 0 = no
      */
@@ -1445,11 +1451,15 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     unsigned char *aa_string = NULL;
     size_t aa_size = 0, aa_len = 0, prev_field = 0;
     int aa_done = 0;
-    char *cs_value = NULL;
-    size_t cs_value_length = 0;
+    char *attr_value = NULL;
+    size_t attr_value_length = 0;
     char *msg = NULL;
     uint8_t *buffer = NULL;
     char *cpt;
+
+    int len;
+    uint32_t truncate_mode, truncate_length;
+    char *rpt;
 
     int has_px = 0;
 
@@ -1841,27 +1851,40 @@ if (name != NULL && !namecont) {
             goto ex;
         }
 
-        if ((flag & 1)  && aa_string != NULL) {
+        if (fsdata->aaip_load && (flag & 1)  && aa_string != NULL) {
             ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
-                                     &cs_value_length, &cs_value, 0);
+                                     &attr_value_length, &attr_value, 0);
             if (ret == 1) {
                 LIBISO_FREE_MEM(msg);
                 LIBISO_ALLOC_MEM(msg, char, 160);
                 if (fsdata->auto_input_charset & 1) {
                     if (fsdata->input_charset != NULL)
                         free(fsdata->input_charset);
-                    fsdata->input_charset = cs_value;
+                    fsdata->input_charset = attr_value;
                     sprintf(msg,
                          "Learned from ISO image: input character set '%.80s'",
-                         cs_value);
+                         attr_value);
                 } else {
                     sprintf(msg,
                            "Character set name recorded in ISO image: '%.80s'",
-                           cs_value);
-                    free(cs_value);
+                           attr_value);
+                    free(attr_value);
                 }
                 iso_msgs_submit(0, msg, 0, "NOTE", 0);
-                cs_value = NULL;
+                attr_value = NULL;
+            }
+
+            ret = iso_aa_lookup_attr(aa_string, "isofs.nt",
+                                     &attr_value_length, &attr_value, 0);
+            if (ret == 1) {
+                rpt = attr_value;
+                iso_util_decode_len_bytes(&truncate_mode, rpt, &len,
+                                    attr_value_length - (rpt - attr_value), 0);
+                rpt += len + 1;
+                iso_util_decode_len_bytes(&truncate_length, rpt, &len,
+                                    attr_value_length - (rpt - attr_value), 0);
+                fsdata->isofsnt_truncate_mode = truncate_mode;
+                fsdata->isofsnt_truncate_length = truncate_length;
             }
         }
 
@@ -3094,6 +3117,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->truncate_mode = opts->truncate_mode;
     data->truncate_length = opts->truncate_length;
     data->ecma119_map = opts->ecma119_map;
+    data->isofsnt_truncate_mode = -1;
+    data->isofsnt_truncate_length = 0;
 
     if (data->input_charset == NULL) {
         if (opts->input_charset != NULL) {
@@ -6005,6 +6030,16 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             iso_msg_submit(-1, ISO_SYSAREA_PROBLEMS, 0,
                            iso_error_to_msg(ret));
         }
+    }
+
+    if (data->isofsnt_truncate_mode == image->truncate_mode &&
+        image->truncate_mode == 1 &&
+        image->truncate_length > data->isofsnt_truncate_length &&
+        data->isofsnt_truncate_length >= 64) {
+        iso_msg_submit(image->id, ISO_TRUNCATE_ISOFSNT, 0,
+                "File name truncation length reduced by loaded image info: %d",
+                data->isofsnt_truncate_length);
+        image->truncate_length = data->isofsnt_truncate_length;
     }
 
     ret = ISO_SUCCESS;

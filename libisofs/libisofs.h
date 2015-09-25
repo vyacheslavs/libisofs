@@ -3112,6 +3112,13 @@ void *iso_image_get_attached_data(IsoImage *image);
  * exist in the same directory. Best is to only set truncation parameters
  * once with an ISO filesystem and to never change them later.
  * 
+ * If writing of AAIP is enabled, then the mode and length are recorded in
+ * xattr "isofs.nt" of the root node.
+ * If reading of AAIP is enabled and "isofs.nt" is found, then it gets into
+ * effect if both, the truncate mode value from "isofs.nt" and the current
+ * truncate mode of the IsoImage are 1, and if the truncate length from
+ * "isofs.nt" is smaller than the current truncate length ot the IsoImage.
+ * 
  * @param image
  *      The image which shall be manipulated.
  * @param mode
@@ -8693,6 +8700,10 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** File name had to be truncated and MD5 marked       (WARNING, HIGH, -412) */
 #define ISO_RR_NAME_TRUNCATED       0xD030FE64
+
+/** File name truncation length reduced by loaded image info
+                                                       (WARNING, HIGH, -413) */
+#define ISO_TRUNCATE_ISOFSNT        0xD030FE63
 
 
 /* Internal developer note: 

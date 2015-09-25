@@ -2536,6 +2536,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     break;
        }
 
+    ret = iso_root_set_isofsnt((IsoNode *) (src->root),
+                               (uint32_t) src->truncate_mode,
+                               (uint32_t) src->truncate_length, 0);
+    if (ret < 0)
+       goto target_cleanup;
+
     /*
      * 2. Based on those options, create needed writers: iso, joliet...
      * Each writer inits its structures and stores needed info into

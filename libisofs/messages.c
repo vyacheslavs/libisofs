@@ -537,6 +537,8 @@ const char *iso_error_to_msg(int errcode)
         return "Boot image to large to buffer for writing boot info";
     case ISO_RR_NAME_TRUNCATED:
         return "File name had to be truncated and MD5 marked";
+    case ISO_TRUNCATE_ISOFSNT:
+        return "File name truncation length reduced by loaded image info";
     default:
         return "Unknown error";
     }

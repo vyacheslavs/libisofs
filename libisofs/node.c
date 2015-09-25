@@ -2940,6 +2940,25 @@ ex:;
 }
 
 
+int iso_root_set_isofsnt(IsoNode *node, uint32_t truncate_mode,
+                         uint32_t truncate_length, int flag)
+{
+    char buffer[5 + 5], *wpt = buffer, *valuept = buffer;
+    int result_len, ret;
+    static char *names = "isofs.nt";
+    static size_t value_lengths[1];
+
+    iso_util_encode_len_bytes(truncate_mode, wpt, 0, &result_len, 0);
+    wpt += result_len;
+    iso_util_encode_len_bytes(truncate_length, wpt, 0, &result_len, 0);
+    wpt += result_len;
+    value_lengths[0] = wpt - buffer;
+    ret = iso_node_set_attrs(node, (size_t) 1,
+                             &names, value_lengths, &valuept, 2 | 8);
+    return ret;
+}
+
+
 /* API */
 int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
 {

@@ -8,7 +8,9 @@
 
 
 The following names are defined for AAIP namespace "isofs." as mentioned in
-specification of AAIP :
+specification of AAIP. Unless explicitly stated otherwise, numbers with
+names like *_LEN are 8 bit unsigned integers, those with *_BYTES are 32 bit
+unsigned integers.
 
 -------------------------------------------------------------------------------
 
@@ -22,7 +24,7 @@ Purpose:
       END is also the block address of the start of the checksum recording
       area in the image.
       See also isofs.cx .
-      This attribute shall eventually be attached to the root directory entry
+      This attribute shall be attached to the root directory entry
       and be global for the whole image.
 
 Format of Value:
@@ -65,8 +67,8 @@ Purpose:
       Records the name of the character set that was used as output character
       set when writing the RRIP name tree of the ISO 9660 image. It shall be
       suitable as parameter for function iconv_open(3).
-      This attribute shall eventually be attached to the root directory entry
-      and be global for the whole image.
+      This attribute shall be attached to the root directory entry and be
+      global for the whole image.
 
 Format of Value:
       Shall hold the character set name without terminating 0-byte.
@@ -107,6 +109,7 @@ Name:
 Purpose:
       Records .st_dev and .st_ino of struct stat of the file source in the
       local filesystem. See man 2 stat.
+      Both values may be unsigned integers up to 255 bytes.
 
 Format of Value:
       DEV_LEN | DEV_BYTES | INO_LEN | INO_BYTES
@@ -173,6 +176,26 @@ Registered:
 -------------------------------------------------------------------------------
 
 Name:
+      isofs.nt
+
+Purpose:
+      Records the name truncation mode and the truncation length for Rock Ridge
+      names. See iso_image_set_truncate_mode() in libisofs.h.
+      This attribute shall be attached to the root directory entry and be
+      global for the whole image.
+
+Format of Value:
+      MODE_LEN | MODE_BYTES | LENGTH_LEN | LENGTH_BYTES
+
+Example:
+      { 1, 1, 1, 255 }
+
+Registered:
+      24 Sep 2015 by Thomas Schmitt for libisofs.
+
+-------------------------------------------------------------------------------
+
+Name:
       isofs.st
 
 Purpose:
@@ -183,7 +206,7 @@ Purpose:
       The RRIP timestamps have a blind second during which a change after
       node registration would not be recognizable for incremental backups
       which are based in "isofs.di" rather than on content comparison.
-      This attribute shall eventually be attached to the root directory entry
+      This attribute shall be attached to the root directory entry
       and be global for the whole image.
 
 Format of Value:
