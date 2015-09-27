@@ -3116,8 +3116,7 @@ void *iso_image_get_attached_data(IsoImage *image);
  * xattr "isofs.nt" of the root node.
  * If reading of AAIP is enabled and "isofs.nt" is found, then it gets into
  * effect if both, the truncate mode value from "isofs.nt" and the current
- * truncate mode of the IsoImage are 1, and if the truncate length from
- * "isofs.nt" is smaller than the current truncate length ot the IsoImage.
+ * truncate mode of the IsoImage are 1, and the length is between 64 and 255.
  * 
  * @param image
  *      The image which shall be manipulated.
@@ -8705,9 +8704,12 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** File name had to be truncated and MD5 marked       (WARNING, HIGH, -412) */
 #define ISO_RR_NAME_TRUNCATED       0xD030FE64
 
-/** File name truncation length reduced by loaded image info
-                                                       (WARNING, HIGH, -413) */
-#define ISO_TRUNCATE_ISOFSNT        0xD030FE63
+/** File name truncation length changed by loaded image info
+                                                          (NOTE, HIGH, -413) */
+#define ISO_TRUNCATE_ISOFSNT        0xB030FE63
+
+/** General note                                          (NOTE, HIGH, -414) */
+#define ISO_GENERAL_NOTE            0xB030FE62
 
 
 /* Internal developer note: 

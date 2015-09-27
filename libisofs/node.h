@@ -513,10 +513,13 @@ int iso_root_get_isofsca(IsoNode *node, uint32_t *start_lba, uint32_t *end_lba,
 
 
 /**
- * Record parameters of iso_image_set_truncate_mode() by "isofs.nt".
+ * Record and get truncation parameters as of iso_image_set_truncate_mode() by
+ * "isofs.nt".
  */
 int iso_root_set_isofsnt(IsoNode *node, uint32_t truncate_mode,
                          uint32_t truncate_length, int flag);
+int iso_root_get_isofsnt(IsoNode *node, uint32_t *truncate_mode,
+                         uint32_t *truncate_length, int flag);
 
 
 /**

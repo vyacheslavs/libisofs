@@ -2963,6 +2963,31 @@ int iso_root_set_isofsnt(IsoNode *node, uint32_t truncate_mode,
 }
 
 
+int iso_root_get_isofsnt(IsoNode *node, uint32_t *truncate_mode,
+                         uint32_t *truncate_length, int flag)
+{
+    int ret, len;
+    size_t value_len;
+    char *value = NULL, *rpt;
+
+    ret = iso_node_lookup_attr(node, "isofs.nt", &value_len, &value, 0);
+    if (ret <= 0)
+        goto ex;
+
+    rpt = value;
+    iso_util_decode_len_bytes(truncate_mode, rpt, &len,
+                              value_len - (rpt - value), 0);
+    rpt += len + 1;
+    iso_util_decode_len_bytes(truncate_length, rpt, &len,
+                              value_len - (rpt - value), 0);
+    ret= ISO_SUCCESS;
+ex:;
+    if (value != NULL)
+        free(value);
+    return ret;
+}
+
+
 /* API */
 int iso_file_get_md5(IsoImage *image, IsoFile *file, char md5[16], int flag)
 {

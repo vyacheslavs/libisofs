@@ -538,7 +538,9 @@ const char *iso_error_to_msg(int errcode)
     case ISO_RR_NAME_TRUNCATED:
         return "File name had to be truncated and MD5 marked";
     case ISO_TRUNCATE_ISOFSNT:
-        return "File name truncation length reduced by loaded image info";
+        return "File name truncation length changed by loaded image info";
+    case ISO_GENERAL_NOTE:
+        return "A general note message was issued";
     default:
         return "Unknown error";
     }

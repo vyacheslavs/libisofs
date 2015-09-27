@@ -310,12 +310,6 @@ typedef struct
     int truncate_length;
     unsigned int ecma119_map : 2;
 
-    /**
-     * Values read from isofs.nt (isofsnt_truncate_mode == -1) means none read.
-     */
-    int isofsnt_truncate_mode;
-    int isofsnt_truncate_length;
-
     /** Whether AAIP info shall be loaded if it is present.
      *  1 = yes , 0 = no
      */
@@ -1451,15 +1445,9 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     unsigned char *aa_string = NULL;
     size_t aa_size = 0, aa_len = 0, prev_field = 0;
     int aa_done = 0;
-    char *attr_value = NULL;
-    size_t attr_value_length = 0;
     char *msg = NULL;
     uint8_t *buffer = NULL;
     char *cpt;
-
-    int len;
-    uint32_t truncate_mode, truncate_length;
-    char *rpt;
 
     int has_px = 0;
 
@@ -1849,43 +1837,6 @@ if (name != NULL && !namecont) {
         if (ret < 0) {
             free(name);
             goto ex;
-        }
-
-        if (fsdata->aaip_load && (flag & 1)  && aa_string != NULL) {
-            ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
-                                     &attr_value_length, &attr_value, 0);
-            if (ret == 1) {
-                LIBISO_FREE_MEM(msg);
-                LIBISO_ALLOC_MEM(msg, char, 160);
-                if (fsdata->auto_input_charset & 1) {
-                    if (fsdata->input_charset != NULL)
-                        free(fsdata->input_charset);
-                    fsdata->input_charset = attr_value;
-                    sprintf(msg,
-                         "Learned from ISO image: input character set '%.80s'",
-                         attr_value);
-                } else {
-                    sprintf(msg,
-                           "Character set name recorded in ISO image: '%.80s'",
-                           attr_value);
-                    free(attr_value);
-                }
-                iso_msgs_submit(0, msg, 0, "NOTE", 0);
-                attr_value = NULL;
-            }
-
-            ret = iso_aa_lookup_attr(aa_string, "isofs.nt",
-                                     &attr_value_length, &attr_value, 0);
-            if (ret == 1) {
-                rpt = attr_value;
-                iso_util_decode_len_bytes(&truncate_mode, rpt, &len,
-                                    attr_value_length - (rpt - attr_value), 0);
-                rpt += len + 1;
-                iso_util_decode_len_bytes(&truncate_length, rpt, &len,
-                                    attr_value_length - (rpt - attr_value), 0);
-                fsdata->isofsnt_truncate_mode = truncate_mode;
-                fsdata->isofsnt_truncate_length = truncate_length;
-            }
         }
 
         /* convert name to needed charset */
@@ -3117,8 +3068,6 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->truncate_mode = opts->truncate_mode;
     data->truncate_length = opts->truncate_length;
     data->ecma119_map = opts->ecma119_map;
-    data->isofsnt_truncate_mode = -1;
-    data->isofsnt_truncate_length = 0;
 
     if (data->input_charset == NULL) {
         if (opts->input_charset != NULL) {
@@ -5717,8 +5666,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     IsoNode *node;
     char *old_checksum_array = NULL;
     char checksum_type[81];
-    uint32_t checksum_size;
-    size_t size;
+    uint32_t checksum_size, truncate_mode, truncate_length;
+    size_t size, attr_value_length;
+    char *attr_value;
+    unsigned char *aa_string = NULL;
     void *ctx = NULL;
     char md5[16];
     struct el_torito_boot_catalog *catalog = NULL;
@@ -5761,6 +5712,32 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     ret = fs->get_root(fs, &newroot);
     if (ret < 0) {
         return ret;
+    }
+
+    /* Lookup character set even if no AAIP loading is enabled */
+    ret = iso_file_source_get_aa_string(newroot, &aa_string, 2);
+    if (ret == 1 && aa_string != NULL) {
+        ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
+                                   &attr_value_length, &attr_value, 0);
+        free(aa_string);
+    } else {
+        ret = 0;
+    }
+    if (ret == 1) {
+        if (data->auto_input_charset & 1) {
+            if (data->input_charset != NULL)
+                free(data->input_charset);
+            data->input_charset = attr_value;
+            iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+                         "Learned from ISO image: input character set '%.80s'",
+                          attr_value);
+        } else {
+            iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+                   "Ignored character set name recorded in ISO image: '%.80s'",
+                           attr_value);
+            free(attr_value);
+        }
+        attr_value = NULL;
     }
 
     /* backup image filesystem, builder and root */
@@ -5808,6 +5785,22 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             if (ret < 0)
                 goto import_revert;
         }
+    }
+
+    ret = iso_root_get_isofsnt(&(image->root->node), &truncate_mode,
+                               &truncate_length, 0);
+    if (ret == 1 && (int) truncate_mode == image->truncate_mode &&
+        image->truncate_mode == 1 &&
+        truncate_length >= 64 && truncate_length <= 255 &&
+        (int) truncate_length != image->truncate_length) {
+
+        data->truncate_mode = opts->truncate_mode = image->truncate_mode =
+                                                                 truncate_mode;
+        data->truncate_length = opts->truncate_length =
+                                      image->truncate_length = truncate_length;
+        iso_msg_submit(image->id, ISO_TRUNCATE_ISOFSNT, 0,
+                "File name truncation length changed by loaded image info: %d",
+                (int) truncate_length);
     }
 
     /* if old image has el-torito, add a new catalog */
@@ -6030,16 +6023,6 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             iso_msg_submit(-1, ISO_SYSAREA_PROBLEMS, 0,
                            iso_error_to_msg(ret));
         }
-    }
-
-    if (data->isofsnt_truncate_mode == image->truncate_mode &&
-        image->truncate_mode == 1 &&
-        image->truncate_length > data->isofsnt_truncate_length &&
-        data->isofsnt_truncate_length >= 64) {
-        iso_msg_submit(image->id, ISO_TRUNCATE_ISOFSNT, 0,
-                "File name truncation length reduced by loaded image info: %d",
-                data->isofsnt_truncate_length);
-        image->truncate_length = data->isofsnt_truncate_length;
     }
 
     ret = ISO_SUCCESS;
