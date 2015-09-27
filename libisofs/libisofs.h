@@ -4768,6 +4768,10 @@ int iso_node_set_name(IsoNode *node, const char *name);
  * The returned string belongs to the node and must not be modified nor
  * freed. Use strdup if you really need your own copy.
  *
+ * Up to version 1.4.2 inquiry of the root directory name returned NULL,
+ * which is a bug in the light of above description.
+ * Since 1.4.2 the return value is an empty string.
+ *
  * @since 0.6.2
  */
 const char *iso_node_get_name(const IsoNode *node);

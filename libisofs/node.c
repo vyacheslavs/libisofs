@@ -414,6 +414,10 @@ int iso_image_set_node_name(IsoImage *image, IsoNode *node, const char *name,
  */
 const char *iso_node_get_name(const IsoNode *node)
 {
+    static char *root = {""};
+
+    if (node->name == NULL)
+        return root;
     return node->name;
 }
 
