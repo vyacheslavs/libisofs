@@ -1636,7 +1636,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
                                             "Invalid NM entry");
                     continue;
                 }
-                if (strlen(name) > 4095) {
+                if (name != NULL) if (strlen(name) > 4095) {
                     /* Preliminarily truncate totally oversized name */
                     ret = iso_rr_msg_submit(fsdata, 3, ISO_WRONG_RR_WARN, ret,
                                             "Totally oversized NM list");
