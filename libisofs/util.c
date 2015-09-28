@@ -2358,7 +2358,7 @@ int find_utf8_start(char *name, int idx, int flag)
     uname= (unsigned char *) name;
     if ((uname[idx] & 0xc0) != 0x80)
         return idx;                                /* not an UTF-8 tail byte */
-    for (i = 0; i < 5; i++) {               /* up to deprecated 6-byte codes */
+    for (i = 0; i < 5 && idx - 1 - i >= 0; i++) {                                                                           /* up to deprecated 6-byte codes */
         uch = uname[idx - 1 - i];
         if ((uch & 0xe0) == 0xc0 || (uch & 0xf0) == 0xe0 ||
             (uch & 0xf8) == 0xf0 || (uch & 0xfc) == 0xf8 ||
