@@ -211,29 +211,19 @@ int read_rr_TF(struct susp_sys_user_entry *tf, struct stat *st)
     
     /* 1. Creation time */
     if (tf->data.TF.flags[0] & (1 << 0)) {
-
-#ifdef Libisofs_for_bsd_inst_isoS
-
-        /* FreeBSD installation ISOs represent ctime by Creation time rather
-         * than by Attributes time. If both are given, then Attribute time
-         * will win. Linux 3.16 does not do this for directories.
+        /* Linux accepts ctime by Creation time and by Attributes time.
+         * If both are given, then Attribute time will win.
          */
-        /* >>> ??? shall libisofs follow a Linux inconsistency ? */
-        if ((st->st_mode & S_IFMT) != S_IFDIR) {
-            if (tf->len_sue[0] < 5 + (nts+1) * s) {
-                /* RR TF entry too short. */
-                return ISO_WRONG_RR;
-            }
-            if (s == 7) {
-                time = iso_datetime_read_7(&tf->data.TF.t_stamps[nts*7]);
-            } else {
-                time = iso_datetime_read_17(&tf->data.TF.t_stamps[nts*17]);
-            }
-            st->st_ctime = time;
+        if (tf->len_sue[0] < 5 + (nts+1) * s) {
+            /* RR TF entry too short. */
+            return ISO_WRONG_RR;
         }
-
-#endif /* Libisofs_for_bsd_inst_isoS */
-
+        if (s == 7) {
+            time = iso_datetime_read_7(&tf->data.TF.t_stamps[nts*7]);
+        } else {
+            time = iso_datetime_read_17(&tf->data.TF.t_stamps[nts*17]);
+        }
+        st->st_ctime = time;
         ++nts;
     }
     

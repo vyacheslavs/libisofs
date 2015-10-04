@@ -1465,17 +1465,12 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
     memset(&atts, 0, sizeof(struct stat));
     atts.st_nlink = 1;
 
-#ifdef Libisofs_for_bsd_inst_isoS
-
-    /* >>> ??? see read_rr_TF : shall libisofs follow a Linux inconsistency ? */
     /* Set preliminary file type */
     if (record->flags[0] & 0x02) {
         atts.st_mode = S_IFDIR;
     } else {
         atts.st_mode = S_IFREG;
     }
-
-#endif /* Libisofs_for_bsd_inst_isoS */
 
     /*
      * First of all, check for unsupported ECMA-119 features

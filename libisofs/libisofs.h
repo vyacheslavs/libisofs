@@ -8908,14 +8908,4 @@ struct burn_source {
  #define Libisofs_with_rrip_rR yes
 */
 
-/* Experiment : bring representation of BSD installation ISOs near to
-                their representation by the Linux kernel.
-                Rock Ridge TF has ctime in CREATE rather than ATTRIBUTES.
-                Linux accepts this, but not for directories. 
-                Some files only have ECMA-119 names, which Linux maps
-                to lowercase.
- #define Libisofs_for_bsd_inst_isoS yes
-*/
-
-
 #endif /*LIBISO_LIBISOFS_H_*/
