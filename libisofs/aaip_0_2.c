@@ -62,11 +62,11 @@
 #define Aaip_namespace_trusteD   0x05
 #define Aaip_namespace_securitY  0x06
 
-static char Aaip_namespace_textS[][16]= {"", "", "system.", "user.", "isofs.",
-                                         "trusted.", "security."};
-
 /* maximum expansion:  "security." */
 #define Aaip_max_name_expansioN  9
+
+static char Aaip_namespace_textS[][Aaip_max_name_expansioN + 1]=
+               {"", "", "system.", "user.", "isofs.", "trusted.", "security."};
 
 /* --------------------------------- Encoder ---------------------------- */
 
