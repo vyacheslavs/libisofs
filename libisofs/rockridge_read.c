@@ -421,7 +421,7 @@ int read_rr_PN(struct susp_sys_user_entry *pn, struct stat *st)
 {
     int high_shift= 0;
 
-    if (pn == NULL || pn == NULL) {
+    if (pn == NULL || st == NULL) {
         return ISO_NULL_POINTER;
     }
     if (pn->sig[0] != 'P' || pn->sig[1] != 'N') {
