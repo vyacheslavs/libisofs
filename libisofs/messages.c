@@ -569,7 +569,8 @@ int iso_msg_submit(int imgid, int errcode, int causedby, const char *fmt, ...)
         vsnprintf(msg, MAX_MSG_LEN, fmt, ap);
         va_end(ap);
     } else {
-        strncpy(msg, iso_error_to_msg(errcode), MAX_MSG_LEN);
+        strncpy(msg, iso_error_to_msg(errcode), MAX_MSG_LEN - 1);
+        msg[MAX_MSG_LEN - 1] = 0;
     }
 
     libiso_msgs_submit(libiso_msgr, imgid, ISO_ERR_CODE(errcode),
