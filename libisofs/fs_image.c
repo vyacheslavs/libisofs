@@ -5363,8 +5363,10 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
         if (ret > 0 && section_count > 0)
             lba = sections[0].block;
         lba_mem[i]= lba;
-        if (sections != NULL)
+        if (sections != NULL) {
             free(sections);
+            sections = NULL;
+        }
         sprintf(msg,
          "El Torito boot img : %3d  %4s  %c  %5s  0x%4.4x  0x%2.2x  %5u  %10u",
               i + 1, pltf, img->bootable ? 'y' : 'n', emul_code,
