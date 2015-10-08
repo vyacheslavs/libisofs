@@ -5290,7 +5290,7 @@ int iso_report_help(char **doc, char ***result, int *line_count, int flag)
         return ISO_OUT_OF_MEM;
     buf = calloc(1, count);
     if (buf == NULL) {
-        free(result);
+        free(*result);
         *result = NULL;
         return ISO_OUT_OF_MEM;
     }
