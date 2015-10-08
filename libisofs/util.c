@@ -445,7 +445,9 @@ int str2ascii(const char *icharset, const char *input, char **output)
         conv_ret = iso_iconv_open(&conv, "ASCII", "WCHAR_T", 0);
         if (conv_ret <= 0) {
             free(wsrc_);
+            wsrc_ = NULL;
             free(ret_);
+            ret = ret_ = NULL;
         }
     } else if (result != (int) ISO_CHARSET_CONV_ERROR)
         return result;
