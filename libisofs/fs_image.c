@@ -4860,8 +4860,10 @@ int iso_impsysa_reduce_next_above(IsoImage *image, uint32_t block,
         if (ret > 0 && section_count > 0)
             if (block != sections[0].block)
                 iso_impsysa_reduce_na(block, next_above, sections[0].block);
-        if (sections != NULL)
+        if (sections != NULL) {
             free(sections);
+            sections = NULL;
+        }
     }
 
     iso_impsysa_reduce_na(block, next_above, sai->image_size);
