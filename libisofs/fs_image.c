@@ -5920,6 +5920,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             if (bootcat->size > 0) {
                 bootcat->content = calloc(1, bootcat->size);
                 if (bootcat->content == NULL) {
+                    free(node);
                     ret = ISO_OUT_OF_MEM;
                     goto import_revert;
                 }
