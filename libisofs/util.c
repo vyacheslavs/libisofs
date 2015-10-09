@@ -2302,7 +2302,7 @@ int iso_clone_mem(char *in, char **out, size_t size)
     if (*out == NULL)
         return ISO_OUT_OF_MEM;
     memcpy(*out, in, size);
-    return 1;
+    return ISO_SUCCESS;
 }
     
 
