@@ -666,10 +666,12 @@ int iso_dir_get_node_trunc(IsoDir *dir, int truncate_length,
         return ISO_OUT_OF_MEM;
     ret = iso_truncate_rr_name(1, truncate_length, trunc, 1);
     if (ret < 0)
-        return ret;
+        goto ex;
     ret = iso_dir_get_node(dir, trunc, node);
     if (ret == 0)
-        return 2;
+        ret = 2;
+ex:;
+    LIBISO_FREE_MEM(trunc);
     return ret;
 }
 
