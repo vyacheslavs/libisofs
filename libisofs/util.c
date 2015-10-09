@@ -729,8 +729,10 @@ int str2utf16be(const char *icharset, const char *input, uint16_t **output)
             loop_limit = inbytes + 3;
 
             ret_ = malloc((2 * numchars+1) * sizeof(uint16_t));
-            if (ret_ == NULL)
+            if (ret_ == NULL) {
+                free(wsrc_);
                 return ISO_OUT_OF_MEM;
+            }
             outbytes = 2 * numchars * sizeof(uint16_t);
             ret = ret_;
 
