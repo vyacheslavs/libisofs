@@ -436,6 +436,7 @@ int str2ascii(const char *icharset, const char *input, char **output)
 
         ret_ = malloc(numchars + 1);
         if (ret_ == NULL) {
+            free(wsrc_);
             return ISO_OUT_OF_MEM;
         }
         outbytes = numchars;
