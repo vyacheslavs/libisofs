@@ -2884,6 +2884,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->local_charset = strdup(iso_get_local_charset(0));
     if (data->local_charset == NULL) {
         ret = ISO_OUT_OF_MEM;
+        LIBISO_FREE_MEM(data);
+        data = NULL;
         goto fs_cleanup;
     }
 
