@@ -5697,21 +5697,26 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         if (image->system_area_data != NULL)
             free(image->system_area_data);
         image->system_area_data = calloc(32768, 1);
-        if (image->system_area_data == NULL)
+        if (image->system_area_data == NULL) {
+            iso_filesystem_unref(fs);
             return ISO_OUT_OF_MEM;
+        }
         image->system_area_options = 0;
         /* Read 32768 bytes */
         for (i = 0; i < 16; i++) {
             rpt = (uint8_t *) (image->system_area_data + i * 2048);
             ret = src->read_block(src, opts->block + i, rpt);
-            if (ret < 0)
+            if (ret < 0) {
+                iso_filesystem_unref(fs);
                 return ret;
+            }
         }
     }
 
     /* get root from filesystem */
     ret = fs->get_root(fs, &newroot);
     if (ret < 0) {
+        iso_filesystem_unref(fs);
         return ret;
     }
 
