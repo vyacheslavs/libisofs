@@ -3046,21 +3046,23 @@ int iso_file_make_md5(IsoFile *file, int flag)
 
     if (file->from_old_session)
         dig = 1;
-    md5= calloc(16, 1);
+    md5 = calloc(16, 1);
+    if (md5 == NULL) 
+        return ISO_OUT_OF_MEM;
     ret = iso_stream_make_md5(file->stream, md5, dig);
-    if (ret < 0)
-        goto ex;
+    if (ret < 0) {
+        free(md5);
+        return ret;
+    }
     iso_node_remove_xinfo((IsoNode *) file, checksum_md5_xinfo_func);
     ret = iso_node_add_xinfo((IsoNode *) file, checksum_md5_xinfo_func, md5);
     if (ret == 0)
         ret = ISO_ERROR; /* should not happen after iso_node_remove_xinfo() */
     if (ret < 0) {
         free(md5);
-        goto ex;
+        return ret;
     }
-    ret = 1;
-ex:;
-    return ret;
+    return 1;
 }
 
 
