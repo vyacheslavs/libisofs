@@ -5492,7 +5492,8 @@ int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag);
  * @param section_count
  *      Returns the number of extent entries in sections array.
  * @param sections
- *      Returns the array of file sections. Apply free() to dispose it.
+ *      Returns the array of file sections if section_count > 0.
+ *      In this case, apply free() to dispose it.
  * @param flag
  *      Reserved for future usage, submit 0
  * @return

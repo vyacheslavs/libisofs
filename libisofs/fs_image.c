@@ -3873,7 +3873,7 @@ int iso_analyze_isohybrid(IsoImage *image, int flag)
                                           &sections, 0);
     if (ret < 0)
         return ret;
-    if (section_count > 0)
+    if (ret > 0 && section_count > 0)
         eltorito_lba = sections[0].block;
     free(sections);
     
@@ -4728,7 +4728,7 @@ int iso_analyze_alpha_boot(IsoImage *image, IsoDataSource *src, int flag)
        file = (IsoFile *) node;
        ret = iso_file_get_old_image_sections(file, &section_count,
                                              &sections, 0);
-       if (ret > 0) {
+       if (ret > 0 && section_count > 0) {
            size = sections[0].size / 512 + !!(sections[0].size % 512);
            free(sections);
            if (size != sai->alpha_boot_image_size)
@@ -6387,6 +6387,8 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
     if (flag != 0) {
         return ISO_WRONG_ARG_VALUE;
     }
+    *section_count = 0;
+    *sections = NULL;
     if (file->from_old_session != 0) {
 
         /*
@@ -6419,6 +6421,8 @@ int iso_file_get_old_image_sections(IsoFile *file, int *section_count,
         ifsdata = data->src->data;
 
         *section_count = ifsdata->nsections;
+        if (*section_count <= 0)
+            return 1;
         *sections = malloc(ifsdata->nsections *
                                 sizeof(struct iso_file_section));
         if (*sections == NULL) {

@@ -1193,23 +1193,23 @@ int iso_file_get_old_image_lba(IsoFile *file, uint32_t *lba, int flag)
 {
     int ret;
     int section_count;
-    struct iso_file_section *sections;
+    struct iso_file_section *sections = NULL;
+
     if (file == NULL || lba == NULL) {
         return ISO_NULL_POINTER;
     }
-    ret = iso_file_get_old_image_sections(file, &section_count, &sections, flag);
-    if (ret <= 0) {
+    ret = iso_file_get_old_image_sections(file, &section_count, &sections, 0);
+    if (ret <= 0)
         return ret;
-    }
     if (section_count != 1) {
-        free(sections);
+        if (sections != NULL)
+            free(sections);
         return ISO_WRONG_ARG_VALUE;
     }
     *lba = sections[0].block;
     free(sections);
     return 1;
 }
-
 
 
 /*
