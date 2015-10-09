@@ -361,8 +361,7 @@ int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
                    uint32_t *uncompressed_size, int flag);
 
 /**
- * Convert a RR filename to the requested charset. On any conversion error,
- * the original name will be used.
+ * Convert a RR filename to the requested charset.
  * @param flag   bit0= do not issue error messages
  */
 int iso_get_rr_name(IsoWriteOpts *opts, char *input_charset,

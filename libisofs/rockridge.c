@@ -383,9 +383,7 @@ int iso_get_rr_name(IsoWriteOpts *opts, char *input_charset,
             iso_msg_submit(imgid, ISO_FILENAME_WRONG_CHARSET, ret,
                    "Charset conversion error. Cannot convert %s from %s to %s",
                    str, input_charset, output_charset);
-
-        /* use the original name, it's the best we can do */
-        ret = iso_clone_mem(str, name, 0);
+        *name = NULL;
         return ISO_FILENAME_WRONG_CHARSET;
     }
 
@@ -1179,9 +1177,12 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         }
     }
 
+    namelen = 0;
     name = get_rr_fname(t, n->node->name);
-    namelen = strlen(name);
-    free(name);
+    if (name != NULL) {
+        namelen = strlen(name);
+        free(name);
+    }
 
     if (flag & 1) {
        /* Account for 28 bytes of CE field */
@@ -1741,9 +1742,12 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         uint8_t **comps= NULL; /* components of the SL field */
         size_t n_comp = 0; /* number of components */
 
+        namelen = 0;
         name = get_rr_fname(t, n->node->name);
-        namelen = strlen(name);
-
+        if (name != NULL) {
+            namelen = strlen(name);
+            free(name);
+        }
         sua_free = space - info->suf_len;
 
         /* Try whether NM, SL, AL will fit into SUA */
@@ -1787,6 +1791,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
             int cew = (nm_type == 1); /* are we writing to CE? */
 
             dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
+            if (dest == NULL)
+                dest = strdup("");
+            if (dest == NULL) {
+                ret = ISO_OUT_OF_MEM;
+                goto add_susp_cleanup;
+            }
+
             prev = dest;
             cur = strchr(prev, '/');
             while (1) {
@@ -2123,7 +2134,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
     add_susp_cleanup: ;
     free(name);
-    free(dest);
+    if (dest != NULL)
+        free(dest);
     susp_info_free(info);
     return ret;
 }
