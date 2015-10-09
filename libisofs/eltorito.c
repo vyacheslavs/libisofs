@@ -454,9 +454,7 @@ int create_image(IsoImage *image, const char *image_path,
     boot->platform_id = 0; /* 80x86 */
     memset(boot->id_string, 0, sizeof(boot->id_string));
     memset(boot->selection_crit, 0, sizeof(boot->selection_crit));
-    if (bootimg) {
-        *bootimg = boot;
-    }
+    *bootimg = boot;
 
     return ISO_SUCCESS;
 }
