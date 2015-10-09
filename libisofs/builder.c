@@ -76,8 +76,11 @@ int default_create_file(IsoNodeBuilder *builder, IsoImage *image,
     if ((int) strlen(name) > image->truncate_length) {
         ret = iso_truncate_rr_name(image->truncate_mode,
                                    image->truncate_length, name, 0);
-        if (ret < 0)
+        if (ret < 0) {
+            iso_stream_unref(stream);
+            free(name);
             return ret;
+        }
     }
     ret = iso_node_new_file(name, stream, &node);
     if (ret < 0) {
