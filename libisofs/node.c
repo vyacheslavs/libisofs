@@ -1958,7 +1958,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
 {
     int ret, acl_saved = 0;
     size_t sret, result_len, m_num = 0, *m_value_lengths = NULL, i;
-    unsigned char *result;
+    unsigned char *result = NULL;
     char *a_acl = NULL, *d_acl = NULL, **m_names = NULL, **m_values = NULL;
 
     if (!(flag & 8))
@@ -2003,8 +2003,11 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
     }
 
     ret = iso_node_remove_xinfo(node, aaip_xinfo_func);
-    if (ret < 0)
+    if (ret < 0) {
+        if (result != NULL)
+            free(result);
         goto ex;
+    }
     ret = iso_node_add_xinfo(node, aaip_xinfo_func, result);
     if (ret < 0)
         goto ex;
