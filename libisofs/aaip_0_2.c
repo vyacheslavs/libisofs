@@ -404,7 +404,8 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
          /* >>> Duplicate u:: entry. */;
          /* >>> ??? If it matches the previous one: ignore */
 
-         return((int) ISO_AAIP_ACL_MULT_OBJ);
+         ret = ISO_AAIP_ACL_MULT_OBJ;
+         goto ex;
        }
        has_u++;
      } else {
@@ -449,7 +450,8 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
          /* >>> Duplicate g:: entry. */;
          /* >>> ??? If it matches the previous one: ignore */
 
-         return((int) ISO_AAIP_ACL_MULT_OBJ);
+         ret = ISO_AAIP_ACL_MULT_OBJ;
+         goto ex;
        }
        has_g++;
      } else {
@@ -493,7 +495,8 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
        /* >>> Duplicate o:: entry. */;
        /* >>> ??? If it matches the previous one: ignore */
 
-       return((int) ISO_AAIP_ACL_MULT_OBJ);
+       ret = ISO_AAIP_ACL_MULT_OBJ;
+       goto ex;
      }
      has_o++;
    } else if(strncmp(rpt, "mask:", 5) == 0) {
