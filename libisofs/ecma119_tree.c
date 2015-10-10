@@ -410,11 +410,12 @@ int create_tree(Ecma119Image *image, IsoNode *iso, Ecma119Node **tree,
     int max_path;
     char *iso_name= NULL, *ipath = NULL;
     IsoFileSrc *src = NULL;
-    IsoWriteOpts *opts = image->opts;
+    IsoWriteOpts *opts;
 
     if (image == NULL || iso == NULL || tree == NULL) {
         return ISO_NULL_POINTER;
     }
+    opts = image->opts;
     *tree = NULL;
 
     hidden = flag & 1;
