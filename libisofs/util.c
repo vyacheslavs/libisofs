@@ -1804,6 +1804,7 @@ time_t iso_datetime_read_7(const uint8_t *buf)
     tm.tm_hour = buf[3];
     tm.tm_min = buf[4];
     tm.tm_sec = buf[5];
+    tm.tm_isdst = 0;
 
     return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
