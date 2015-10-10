@@ -4396,7 +4396,7 @@ int iso_analyze_apm(IsoImage *image, IsoDataSource *src, int flag)
         name[32] = 0;
         if (sai->apm_req == NULL) {
             sai->apm_req = calloc(ISO_APM_ENTRIES_MAX,
-                                  sizeof(struct iso_apm_partition_request));
+                                  sizeof(struct iso_apm_partition_request *));
             if (sai->apm_req == NULL)
                 return ISO_OUT_OF_MEM;
         }
