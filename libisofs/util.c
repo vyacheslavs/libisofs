@@ -1821,6 +1821,7 @@ time_t iso_datetime_read_17(const uint8_t *buf)
     sscanf((char*)&buf[12], "%2d", &tm.tm_sec);
     tm.tm_year -= 1900;
     tm.tm_mon -= 1;
+    tm.tm_isdst = 0;
 
     return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
 }
