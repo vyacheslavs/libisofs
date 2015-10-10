@@ -2398,10 +2398,14 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     sa_type = (system_area_options >> 2) & 0x3f;
     if (sa_type != 0 && sa_type != 3)
         for (i = 0; i < ISO_MAX_PARTITIONS; i++)
-            if (opts->appended_partitions[i] != NULL)
-                return ISO_NON_MBR_SYS_AREA;
-    if (sa_type != 0 && opts->prep_partition != NULL)
-        return ISO_NON_MBR_SYS_AREA;
+            if (opts->appended_partitions[i] != NULL) {
+                ret = ISO_NON_MBR_SYS_AREA;
+                goto target_cleanup;
+            }
+    if (sa_type != 0 && opts->prep_partition != NULL) {
+        ret = ISO_NON_MBR_SYS_AREA;
+        goto target_cleanup;
+    }
 
     target->system_area_data = NULL;
     if (system_area != NULL) {
