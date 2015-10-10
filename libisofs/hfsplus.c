@@ -1579,7 +1579,7 @@ int mangle_leafs(Ecma119Image *target, int flag)
 int hfsplus_writer_create(Ecma119Image *target)
 {
     int ret;
-    IsoImageWriter *writer;
+    IsoImageWriter *writer = NULL;
     int max_levels;
     int level = 0;
     IsoNode *pos;
@@ -1589,7 +1589,8 @@ int hfsplus_writer_create(Ecma119Image *target)
 
     writer = calloc(1, sizeof(IsoImageWriter));
     if (writer == NULL) {
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
     }
 
     make_hfsplus_decompose_pages();
@@ -1613,10 +1614,8 @@ int hfsplus_writer_create(Ecma119Image *target)
     target->hfsp_ndirs = 0;
     target->hfsp_cat_id = 16;
     ret = hfsplus_count_tree(target, (IsoNode*)target->image->root);
-    if (ret < 0) {
-        free((char *) writer);
-        return ret;
-    }
+    if (ret < 0)
+        goto ex;
 
     for (i = 0; i < ISO_HFSPLUS_BLESS_MAX; i++)
       target->hfsp_bless_id[i] = 0;
@@ -1626,12 +1625,13 @@ int hfsplus_writer_create(Ecma119Image *target)
 
     target->hfsp_leafs = calloc (target->hfsp_nleafs, sizeof (target->hfsp_leafs[0]));
     if (target->hfsp_leafs == NULL) {
-        return ISO_OUT_OF_MEM;
+        ret = ISO_OUT_OF_MEM;
+        goto ex;
     }
     ret = set_hfsplus_name (target, target->image->volume_id,
                             &target->hfsp_leafs[target->hfsp_curleaf]);
     if (ret < 0)
-        return ret;
+        goto ex;
     target->hfsp_leafs[target->hfsp_curleaf].node = (IsoNode *) target->image->root;
     target->hfsp_leafs[target->hfsp_curleaf].used_size = target->hfsp_leafs[target->hfsp_curleaf].strlen * 2 + 8 + 2 + sizeof (struct hfsplus_catfile_common);
 
@@ -1662,8 +1662,10 @@ int hfsplus_writer_create(Ecma119Image *target)
       {
 	int cret;
 	cret = create_tree(target, pos, 2);
-	if (cret < 0)
-	  return cret;
+	if (cret < 0) {
+	    ret = cret;
+	    goto ex;
+	}
 	pos = pos->next;
 	target->hfsp_leafs[0].nchildren++;
       }
@@ -1673,13 +1675,14 @@ int hfsplus_writer_create(Ecma119Image *target)
 
     ret = mangle_leafs(target, 0);
     if (ret < 0)
-        return ret;
+        goto ex;
 
     for (max_levels = 0; target->hfsp_nleafs >> max_levels; max_levels++);
     max_levels += 2;
     target->hfsp_levels = calloc (max_levels, sizeof (target->hfsp_levels[0]));
     if (target->hfsp_levels == NULL) {
-        return ISO_OUT_OF_MEM;
+	ret = ISO_OUT_OF_MEM;
+	goto ex;
     }
 
     target->hfsp_nnodes = 1;
@@ -1689,9 +1692,10 @@ int hfsplus_writer_create(Ecma119Image *target)
       unsigned bytes_rem = cat_node_size - sizeof (struct hfsplus_btnode) - 2;
 
       target->hfsp_levels[level].nodes = calloc ((target->hfsp_nleafs + 1),  sizeof (target->hfsp_levels[level].nodes[0]));
-      if (!target->hfsp_levels[level].nodes)
-	return ISO_OUT_OF_MEM;
-    
+      if (!target->hfsp_levels[level].nodes) {
+	  ret = ISO_OUT_OF_MEM;
+	  goto ex;
+      }
       target->hfsp_levels[level].level_size = 0;  
       for (i = 0; i < target->hfsp_nleafs; i++)
 	{
@@ -1746,8 +1750,10 @@ int hfsplus_writer_create(Ecma119Image *target)
 	level++;
 
 	target->hfsp_levels[level].nodes = calloc (((last_size + 1) / 2),  sizeof (target->hfsp_levels[level].nodes[0]));
-	if (!target->hfsp_levels[level].nodes)
-	  return ISO_OUT_OF_MEM;
+	if (!target->hfsp_levels[level].nodes) {
+	    ret = ISO_OUT_OF_MEM;
+	    goto ex;
+        }
     
 	target->hfsp_levels[level].level_size = 0;  
 
@@ -1782,16 +1788,21 @@ int hfsplus_writer_create(Ecma119Image *target)
 
     if (target->hfsp_nnodes > (cat_node_size - 0x100) * 8)
       {
-	return iso_msg_submit(target->image->id, ISO_MANGLE_TOO_MUCH_FILES, 0,
-			      "HFS+ map nodes aren't implemented");
-
-	return ISO_MANGLE_TOO_MUCH_FILES;
+	iso_msg_submit(target->image->id, ISO_MANGLE_TOO_MUCH_FILES, 0,
+			"HFS+ map nodes aren't implemented");
+	ret = ISO_MANGLE_TOO_MUCH_FILES;
+	goto ex;
       }
 
     /* add this writer to image */
     target->writers[target->nwriters++] = writer;
+    writer = NULL;
 
-    return ISO_SUCCESS;
+    ret = ISO_SUCCESS;
+ex:;
+    if (writer != NULL)
+        free(writer);
+    return ret;
 }
 
 int hfsplus_tail_writer_create(Ecma119Image *target)
