@@ -137,8 +137,10 @@ int iso_get_hfsplus_name(char *input_charset, int imgid, char *name,
     curlen = ucslen (ucs_name);
     *result = calloc ((curlen * HFSPLUS_MAX_DECOMPOSE_LEN + 1),
                      sizeof (uint16_t));
-    if (*result == NULL)
+    if (*result == NULL) {
+        free(ucs_name);
         return ISO_OUT_OF_MEM;
+    }
 
     for (iptr = ucs_name, optr = *result; *iptr; iptr++)
       {
@@ -208,8 +210,12 @@ int iso_get_hfsplus_name(char *input_charset, int imgid, char *name,
     while (done);
 
     *cmp_name = calloc ((ucslen (*result) + 1), sizeof (uint16_t));
-    if (*cmp_name == NULL)
-      return ISO_OUT_OF_MEM;
+    if (*cmp_name == NULL) {
+        free(ucs_name);
+        free(*result);
+        *result = NULL;
+        return ISO_OUT_OF_MEM;
+    }
 
     for (iptr = *result, optr = *cmp_name; *iptr; iptr++)
       {
