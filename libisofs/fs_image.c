@@ -4281,7 +4281,7 @@ int iso_analyze_gpt(IsoImage *image, IsoDataSource *src, int flag)
         block_count = block_count + 1 - start_block;
         if (sai->gpt_req == NULL) {
             sai->gpt_req = calloc(ISO_GPT_ENTRIES_MAX,
-                                  sizeof(struct iso_gpt_partition_request));
+                                  sizeof(struct iso_gpt_partition_request *));
             if (sai->gpt_req == NULL)
                 return ISO_OUT_OF_MEM;
         }
