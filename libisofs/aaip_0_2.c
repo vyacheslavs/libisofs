@@ -1806,8 +1806,8 @@ int aaip_decode_attrs(struct aaip_state **handle,
    if(aaip->list_mem_used >= memory_limit)
      return(3);
    aaip->list_mem_used+= new_mem;
-   aaip->name_buf= calloc(sizeof(char *), Aaip_initial_name_leN);
-   aaip->value_buf= calloc(sizeof(char *), Aaip_initial_value_leN);
+   aaip->name_buf= calloc(1, Aaip_initial_name_leN);
+   aaip->value_buf= calloc(1, Aaip_initial_value_leN);
    if(aaip->name_buf == NULL || aaip->value_buf == NULL)
      return(-1);
    aaip->name_buf_size= Aaip_initial_name_leN;
