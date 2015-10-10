@@ -106,11 +106,11 @@ static
 int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
                         IsoFileSource *src, char *in_name, IsoNode **node)
 {
-    int ret;
+    int ret, name_is_attached = 0;
     struct stat info;
     IsoNode *new;
     IsoFilesystem *fs;
-    char *name;
+    char *name = NULL;
     unsigned char *aa_string = NULL;
     char *a_text = NULL, *d_text = NULL;
     char *dest = NULL;
@@ -217,10 +217,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
         break;
     }
     
-    if (ret < 0) {
-        free(name);
+    if (ret < 0)
         goto ex;
-    }
+    name_is_attached = 1;
 
     /* fill fields */
     iso_node_set_perms_internal(new, info.st_mode, 1);
@@ -263,6 +262,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
     ret = ISO_SUCCESS;
 ex:;
+    if (name != NULL && !name_is_attached)
+        free(name);
     LIBISO_FREE_MEM(dest);
     return ret;
 }
