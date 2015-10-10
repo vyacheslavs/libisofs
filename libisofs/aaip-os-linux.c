@@ -542,12 +542,10 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  has_default_acl= (ret == 2);
 
 #ifdef Libisofs_with_aaip_acL
+
  ret= aaip_set_acl_text(path, acl_text, flag & 32);
  if(ret <= 0)
    {ret= -3; goto ex;}
-#else
- {ret= -7; goto ex;}
-#endif
                                                             /* "default" ACL */
  if(has_default_acl) {
    free(acl_text);
@@ -582,6 +580,13 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    }
  }
  ret= 1;
+
+#else
+
+ ret= -7;
+
+#endif /* !Libisofs_with_aaip_acL */
+
 ex:;
  if(acl_text != NULL)
    free(acl_text);
