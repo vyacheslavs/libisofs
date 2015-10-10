@@ -3426,8 +3426,7 @@ int iso_write_opts_clone(IsoWriteOpts *in, IsoWriteOpts **out, int flag)
     return ISO_SUCCESS;
 
 out_of_mem:;
-    if (o != NULL)
-        iso_write_opts_free(o);
+    iso_write_opts_free(o);
     return ISO_OUT_OF_MEM;
 }
 
