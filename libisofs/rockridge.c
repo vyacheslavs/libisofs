@@ -577,12 +577,15 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
              * debug purposes
              */
             if (ce == 0) {
+                free(SL);
                 return ISO_ASSERT_FAILURE;
             }
             ret = susp_append_ce(t, susp, SL);
             if (ret < 0) {
+                free(SL);
                 return ret;
             }
+            SL = NULL; /* now owned by susp */
             written = i;
             total_comp_len = comp[i][1] + 2;
         }
