@@ -3797,7 +3797,7 @@ int iso_analyze_mbr_ptable(IsoImage *image, int flag)
         /* Register partition as iso_mbr_partition_request */
         if (sai->mbr_req == NULL) {
             sai->mbr_req = calloc(ISO_MBR_ENTRIES_MAX,
-                                  sizeof(struct iso_mbr_partition_request));
+                                  sizeof(struct iso_mbr_partition_request *));
             if (sai->mbr_req == NULL)
                 {ret = ISO_OUT_OF_MEM; goto ex;}
         }
