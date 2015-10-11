@@ -2037,7 +2037,8 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
             }
             ret = iso_write(target, buf, BLOCK_SIZE);
             if (ret < 0) {
-                fclose(fp);
+                if (fp != NULL)
+                    fclose(fp);
                 goto ex;
             }
         }
