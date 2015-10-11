@@ -4851,20 +4851,22 @@ int iso_impsysa_reduce_next_above(IsoImage *image, uint32_t block,
                                            sai->apm_req[i]->block_count) /
                                            (2048 / sai->apm_block_size)));
     }
-    if (image->bootcat != NULL)
+    if (image->bootcat != NULL) {
         if (image->bootcat->node != NULL)
-            iso_impsysa_reduce_na(block, next_above, image->bootcat->node->lba);
-
-    for (i= 0; i < image->bootcat->num_bootimages; i++) {
-        img = image->bootcat->bootimages[i];
-        ret = iso_file_get_old_image_sections(img->image, &section_count,
-                                              &sections, 0);
-        if (ret > 0 && section_count > 0)
-            if (block != sections[0].block)
-                iso_impsysa_reduce_na(block, next_above, sections[0].block);
-        if (sections != NULL) {
-            free(sections);
-            sections = NULL;
+            iso_impsysa_reduce_na(block, next_above,
+                                  image->bootcat->node->lba);
+        for (i= 0; i < image->bootcat->num_bootimages; i++) {
+            img = image->bootcat->bootimages[i];
+            ret = iso_file_get_old_image_sections(img->image, &section_count,
+                                                  &sections, 0);
+            if (ret > 0 && section_count > 0)
+                if (block != sections[0].block)
+                    iso_impsysa_reduce_na(block, next_above,
+                                          sections[0].block);
+            if (sections != NULL) {
+                free(sections);
+                sections = NULL;
+            }
         }
     }
 
