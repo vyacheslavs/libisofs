@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2241,10 +2241,8 @@ int iso_node_set_acl_text(IsoNode *node, char *access_text, char *default_text,
                 ret = ISO_AAIP_BAD_ACL_TEXT;
                 goto ex;
             }
-            ret = 1;
-            if (a_text != NULL || d_text != NULL)
-                ret = aaip_encode_both_acl(a_text, d_text, st_mode,
-                                           &acl_len, &acl, 2 | 8);
+            ret = aaip_encode_both_acl(a_text, d_text, st_mode,
+                                       &acl_len, &acl, 2 | 8);
         } else {
             ret = 1;
             if (access_text != NULL || default_text != NULL)
