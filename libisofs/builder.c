@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -233,9 +233,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* Eventually set S_IRWXG from ACL */
     if (image->builder_ignore_acl) {
         ret = iso_file_source_get_aa_string(src, &aa_string, 4);
-        if (aa_string != NULL)
+        if (ret >= 0 && aa_string != NULL)
             iso_aa_get_acl_text(aa_string, info.st_mode, &a_text, &d_text, 16);
-        if (a_text != NULL) {
+        if (ret >= 0 && a_text != NULL) {
             aaip_cleanout_st_mode(a_text, &(info.st_mode), 4 | 16);
             iso_node_set_perms_internal(new, info.st_mode, 1);
         }
