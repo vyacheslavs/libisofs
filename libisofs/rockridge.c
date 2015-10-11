@@ -1747,10 +1747,13 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
         namelen = 0;
         name = get_rr_fname(t, n->node->name);
-        if (name != NULL) {
-            namelen = strlen(name);
-            free(name);
+        if (name == NULL)
+            name = strdup("");
+        if (name == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto add_susp_cleanup;
         }
+        namelen = strlen(name);
         sua_free = space - info->suf_len;
 
         /* Try whether NM, SL, AL will fit into SUA */
@@ -2136,7 +2139,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
     return ISO_SUCCESS;
 
     add_susp_cleanup: ;
-    free(name);
+    if (name != NULL)
+        free(name);
     if (dest != NULL)
         free(dest);
     susp_info_free(info);
