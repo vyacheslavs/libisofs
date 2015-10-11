@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2011 - 2014 Thomas Schmitt
+ * Copyright (c) 2011 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -1199,6 +1199,8 @@ int iso_tree_path_to_node_flag(IsoImage *image, const char *path,
     }
 
     ptr = strdup(path);
+    if (ptr == NULL)
+        return ISO_OUT_OF_MEM;
     result = 0;
 
     /* get the first component of the path */
