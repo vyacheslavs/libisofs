@@ -2688,8 +2688,8 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
 
                 /* >>> ts B10703 : need to continue rather than abort */;
 
-                ret = iso_msg_submit(data->msgid, ISO_EL_TORITO_WARN, 0,
-                                "Too many boot images found. List truncated.");
+                iso_msg_submit(data->msgid, ISO_EL_TORITO_WARN, 0,
+                               "Too many boot images found. List truncated.");
                 goto after_bootblocks;
             }
             /* Read bootblock from section entry */
