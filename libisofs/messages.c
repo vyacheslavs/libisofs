@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -541,6 +541,8 @@ const char *iso_error_to_msg(int errcode)
         return "File name truncation length changed by loaded image info";
     case ISO_GENERAL_NOTE:
         return "A general note message was issued";
+    case ISO_BAD_FSRC_FILETYPE:
+        return "Unrecognized file type of IsoFileSrc object";
     default:
         return "Unknown error";
     }

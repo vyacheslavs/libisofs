@@ -8712,6 +8712,8 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** General note                                          (NOTE, HIGH, -414) */
 #define ISO_GENERAL_NOTE            0xB030FE62
 
+/** Unrecognized file type of IsoFileSrc object          (SORRY, HIGH, -415) */
+#define ISO_BAD_FSRC_FILETYPE       0xE030FE61
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

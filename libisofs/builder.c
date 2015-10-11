@@ -215,6 +215,9 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
             }
         }
         break;
+    default:
+        ret = ISO_BAD_FSRC_FILETYPE;
+        goto ex;
     }
     
     if (ret < 0)
