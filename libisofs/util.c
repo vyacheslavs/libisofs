@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -2238,6 +2238,7 @@ unexpected_type:;
         goto ex;
     } else if (range_start != ctx_start_lba) {
         ret = ISO_MD5_TAG_MISPLACED;
+        goto ex;
     }
     ret = iso_md5_clone(ctx, &cloned_ctx);
     if (ret < 0)
