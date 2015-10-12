@@ -2183,7 +2183,7 @@ static
 int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 {
     int ret;
-    IsoFileSource *src;
+    IsoFileSource *src = NULL;
     char *ptr, *brk_info, *component;
 
     if (fs == NULL || fs->data == NULL || path == NULL || file == NULL) {
@@ -2232,6 +2232,7 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 
         ret = ifs_get_file(src, component, &child);
         iso_file_source_unref(src);
+        src = NULL;
         if (ret <= 0) {
             break;
         }
@@ -2242,7 +2243,8 @@ int ifs_get_by_path(IsoFilesystem *fs, const char *path, IsoFileSource **file)
 
     free(ptr);
     if (ret < 0) {
-        iso_file_source_unref(src);
+        if (src != NULL)
+            iso_file_source_unref(src);
     } else if (ret == 0) {
         ret = ISO_FILE_DOESNT_EXIST;
     } else {
