@@ -24,7 +24,9 @@ static char helptext[][80] = {
 "               Output the contents of an iso image.",
 "  -iso_cat  image_file path_in_image",
 "               Extract a file from a given ISO image and put out its content",
-"               to stdout. The file is addressed by path_in_image.",
+"               to stdout. The file is addressed by path_in_image. The ISO",
+"               image does not get loaded but rather the lookups are done",
+"               directly in the image file.",
 "  -iso_modify  image_file absolute_directory_path output_file",
 "               Load an iso image, add a directory, and write complete image.",
 "  -iso_ms  image_lba nwa image_file directory_path output_file",
@@ -670,7 +672,7 @@ int gesture_iso_modify(int argc, char **argv)
 {
     int result;
     IsoImage *image;
-    IsoDataSource *src;
+    IsoDataSource *src = NULL;
     struct burn_source *burn_src;
     unsigned char buf[2048];
     FILE *fp = NULL;
@@ -694,14 +696,14 @@ int gesture_iso_modify(int argc, char **argv)
     /* create the data source to accesss previous image */
     result = iso_data_source_new_from_file(argv[1], &src);
     if (result < 0) {
-        printf ("Error creating data source\n");
+        demo_report_iso_err(result, "Error creating data source");
         goto ex;
     }
     
     /* create the image context */
     result = iso_image_new("volume_id", &image);
     if (result < 0) {
-        printf ("Error creating image\n");
+        demo_report_iso_err(result, "Error creating image");
         goto ex;
     }
     iso_tree_set_follow_symlinks(image, 0);
@@ -710,35 +712,41 @@ int gesture_iso_modify(int argc, char **argv)
     /* import previous image */
     result = iso_read_opts_new(&ropts, 0);
     if (result < 0) {
-        fprintf(stderr, "Error creating read options\n");
+        demo_report_iso_err(result, "Error creating read options");
         goto ex;
     }
     result = iso_image_import(image, src, ropts, NULL);
     iso_read_opts_free(ropts);
     iso_data_source_unref(src);
+    src = NULL;
     if (result < 0) {
-        printf ("Error importing previous session %d\n", result);
+        demo_report_iso_err(result, "Error importing previous session");
         goto ex;
     }
     
     /* add new dir */
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[2]);
     if (result < 0) {
-        printf ("Error adding directory %d\n", result);
+        demo_report_iso_err(result, "Error adding directory");
         goto ex;
     }
     
-    /* generate a new image with both previous and added contents */
+    /* Generate a new image with both previous and added contents.
+       Profile 1 means Rock Ridge and ISO level 3.
+    */
     result = iso_write_opts_new(&opts, 1);
     if (result < 0) {
-        printf("Cant create write opts, error %d\n", result);
+        demo_report_iso_err(result, "Cannot create write opts");
         goto ex;
     }
-    /* for isolinux: iso_write_opts_set_allow_full_ascii(opts, 1); */
-    
+    /* Prefer specs violation over relocation deep directories */
+    iso_write_opts_set_allow_deep_paths(opts, 1);
+
+    /* For MS-Windows readers : iso_write_opts_set_joliet(opts, 1); */
+ 
     result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
-        printf ("Cant create image, error %d\n", result);
+        demo_report_iso_err(result, "Cannot create image object");
         goto ex;
     }
     
@@ -747,7 +755,7 @@ int gesture_iso_modify(int argc, char **argv)
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         result = fwrite(buf, 1, 2048, fp);
         if (result < 2048) {
-            printf ("Cannot write block. errno= %d\n", errno);
+            fprintf (stderr, "Cannot write block. errno= %d\n", errno);
             goto ex;
         }
     }
@@ -761,6 +769,8 @@ int gesture_iso_modify(int argc, char **argv)
 ex:
     if (fp != NULL)
         fclose(fp);
+    if (src != NULL)
+        iso_data_source_unref(src);
     return 1;
 }
 
