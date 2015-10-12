@@ -670,14 +670,14 @@ void iso_modify_usage(char **argv)
 
 int gesture_iso_modify(int argc, char **argv)
 {
-    int result;
-    IsoImage *image;
+    int result, return_val = 1, initialized = 0;
+    IsoImage *image = NULL;
     IsoDataSource *src = NULL;
-    struct burn_source *burn_src;
+    struct burn_source *burn_src = NULL;
     unsigned char buf[2048];
     FILE *fp = NULL;
-    IsoWriteOpts *opts;
-    IsoReadOpts *ropts;
+    IsoWriteOpts *opts = NULL;
+    IsoReadOpts *ropts = NULL;
 	
     if (argc < 4) {
         iso_modify_usage(argv);
@@ -690,7 +690,12 @@ int gesture_iso_modify(int argc, char **argv)
         goto ex;
     }
 
-    iso_init();
+    result = iso_init();
+    if (result < 0) {
+        demo_report_iso_err(result, "Cannot init libisofs");
+        goto ex;
+    }
+    initialized = 1;
     iso_set_msgs_severities("NEVER", "ALL", "");
     
     /* create the data source to accesss previous image */
@@ -716,13 +721,15 @@ int gesture_iso_modify(int argc, char **argv)
         goto ex;
     }
     result = iso_image_import(image, src, ropts, NULL);
-    iso_read_opts_free(ropts);
-    iso_data_source_unref(src);
-    src = NULL;
     if (result < 0) {
         demo_report_iso_err(result, "Error importing previous session");
         goto ex;
     }
+    /* (One could of course keep them alive until cleanup) */
+    iso_read_opts_free(ropts);
+    ropts = NULL;
+    iso_data_source_unref(src);
+    src = NULL;
     
     /* add new dir */
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[2]);
@@ -749,8 +756,8 @@ int gesture_iso_modify(int argc, char **argv)
         demo_report_iso_err(result, "Cannot create image object");
         goto ex;
     }
-    
     iso_write_opts_free(opts);
+    opts = NULL;
     
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         result = fwrite(buf, 1, 2048, fp);
@@ -759,19 +766,26 @@ int gesture_iso_modify(int argc, char **argv)
             goto ex;
         }
     }
-    fclose(fp);
-    burn_src->free_data(burn_src);
-    free(burn_src);
-    
-    iso_image_unref(image);
-    iso_finish();
-    return 0;
+
+    return_val = 0;
 ex:
     if (fp != NULL)
         fclose(fp);
+    if (opts != NULL)
+        iso_write_opts_free(opts);
+    if (burn_src != NULL) {
+        burn_src->free_data(burn_src);
+        free(burn_src);
+    }
+    if (image != NULL)
+        iso_image_unref(image);
+    if (ropts != NULL)
+        iso_read_opts_free(ropts);
     if (src != NULL)
         iso_data_source_unref(src);
-    return 1;
+    if (initialized)
+        iso_finish();
+    return return_val;
 }
 
 
