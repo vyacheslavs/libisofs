@@ -493,37 +493,43 @@ iso_read_print_dir(IsoFileSource *dir, int level)
 
 int gesture_iso_read(int argc, char **argv)
 {
-    int result;
-    IsoImageFilesystem *fs;
-    IsoDataSource *src;
-    IsoFileSource *root;
-    IsoReadOpts *ropts;
+    int result, initialized = 0, return_val = 1;
+    IsoImageFilesystem *fs = NULL;
+    IsoDataSource *src = NULL;
+    IsoFileSource *root = NULL;
+    IsoReadOpts *ropts = NULL;
 
     if (argc != 2) {
         printf ("You need to specify a valid path\n");
-        return 1;
+        goto ex;
     }
 
-    iso_init();
+    result = iso_init();
+    if (result < 0) {
+        demo_report_iso_err(result, "Cannot init libisofs");
+        goto ex;
+    }
+    initialized = 1;
+
     iso_set_msgs_severities("NEVER", "ALL", "");
 
     result = iso_data_source_new_from_file(argv[1], &src);
     if (result < 0) {
-        printf ("Error creating data source\n");
-        return 1;
+        demo_report_iso_err(result, "Error creating data source");
+        goto ex;
     }
-
     result = iso_read_opts_new(&ropts, 0);
     if (result < 0) {
-        fprintf(stderr, "Error creating read options\n");
-        return 1;
+        demo_report_iso_err(result, "Error creating read options");
+        goto ex;
     }
     result = iso_image_filesystem_new(src, ropts, 1, &fs);
-    iso_read_opts_free(ropts);
     if (result < 0) {
-        printf ("Error creating filesystem\n");
-        return 1;
+        demo_report_iso_err(result, "Error creating filesystem");
+        goto ex;
     }
+    iso_read_opts_free(ropts);
+    ropts = NULL;
 
     printf("\nVOLUME INFORMATION\n");
     printf("==================\n\n");
@@ -542,18 +548,27 @@ int gesture_iso_read(int argc, char **argv)
 
     result = fs->get_root(fs, &root);
     if (result < 0) {
-        printf ("Can't get root %d\n", result);
-        return 1;
+        demo_report_iso_err(result, "Cannot get root object");
+        goto ex;
     }
     /* iso_read_print_file_src(root); */
     iso_read_print_dir(root, 0);
-    iso_file_source_unref(root);
 
-    fs->close(fs);
-    iso_filesystem_unref((IsoFilesystem*)fs);
-    iso_data_source_unref(src);
-    iso_finish();
-    return 0;
+    return_val = 0;
+ex:;
+    if (root != NULL)
+        iso_file_source_unref(root);
+    if (ropts != NULL)
+        iso_read_opts_free(ropts);
+    if (fs != NULL) {
+        fs->close(fs);
+        iso_filesystem_unref((IsoFilesystem*)fs);
+    }
+    if (src != NULL)
+        iso_data_source_unref(src);
+    if (initialized)
+        iso_finish();
+    return return_val;
 }
 
 
