@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2007 - 2014 Vreixo Formoso, Thomas Schmitt
+ * Copyright (c) 2007 - 2015 Vreixo Formoso, Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -56,6 +56,22 @@ static char helptext[][80] = {
 #ifndef PATH_MAX
 #define PATH_MAX Libisofs_default_path_maX
 #endif
+
+
+/* ----------------------------- utilities -------------------------- */
+
+
+void demo_report_iso_err(int err, char *occasion)
+{
+    char *severity;
+
+    fprintf(stderr, "%s : err = 0x%X", occasion, (unsigned int) err);
+    if (err < 0) {
+        iso_sev_to_text(iso_error_get_severity(err), &severity);
+        fprintf(stderr, " -> %s '%s'", severity, iso_error_to_msg(err));
+    }
+    fprintf(stderr, "\n");
+}
 
 
 /* ------------------------- from demo/tree.c ----------------------- */
@@ -544,12 +560,12 @@ int gesture_iso_read(int argc, char **argv)
 
 int gesture_iso_cat(int argc, char **argv)
 {
-    int res, write_ret;
-    IsoFilesystem *fs;
-    IsoFileSource *file;
+    int res, write_ret, ret;
+    IsoFilesystem *fs = NULL;
+    IsoFileSource *file = NULL;
     struct stat info;
-    IsoDataSource *src;
-    IsoReadOpts *opts;
+    IsoDataSource *src = NULL;
+    IsoReadOpts *opts = NULL;
 
     if (argc != 3) {
         fprintf(stderr, "Usage: -iso_cat /path/to/image /path/to/file\n");
@@ -558,69 +574,87 @@ int gesture_iso_cat(int argc, char **argv)
 
     res = iso_init();
     if (res < 0) {
-        fprintf(stderr, "Can't init libisofs\n");
+        demo_report_iso_err(res, "Cannot init libisofs");
         return 1;
     }
-    
+
+    /* Important Note:
+       From here on memory objects get created which need to be freed in
+       the end. Therefore in case of problems no direct return, but rather
+       a hop to label "ex:", where cleanup happens.
+     */
+
     res = iso_data_source_new_from_file(argv[1], &src);
     if (res < 0) {
-        fprintf(stderr, "Error creating data source\n");
-        return 1;
+        demo_report_iso_err(res, "Error creating data source object");
+        ret = 1; goto ex;
     }
 
     res = iso_read_opts_new(&opts, 0);
     if (res < 0) {
-        fprintf(stderr, "Error creating read options\n");
-        return 1;
+        demo_report_iso_err(res, "Error creating read options object");
+        ret = 1; goto ex;
     }
     res = iso_image_filesystem_new(src, opts, 1, &fs);
     if (res < 0) {
-        fprintf(stderr, "Error creating filesystem\n");
-        return 1;
+        demo_report_iso_err(res, "Error creating filesystem object");
+        ret = 1; goto ex;
     }
     iso_read_opts_free(opts);
+    opts = NULL;
 
     res = fs->get_by_path(fs, argv[2], &file);
     if (res < 0) {
-        fprintf(stderr, "Can't get file, err = %d\n", res);
-        return 1;
+        demo_report_iso_err(res, "Cannot get file object with given path");
+        ret = 1; goto ex;
     }
 
     res = iso_file_source_lstat(file, &info);
     if (res < 0) {
-        fprintf(stderr, "Can't stat file, err = %d\n", res);
-        return 1;
+        demo_report_iso_err(res,
+                         "Cannot inquire type of file object with given path");
+        ret = 1; goto ex;
     }
 
     if (S_ISDIR(info.st_mode)) {
         fprintf(stderr, "Path refers to a directory!!\n");
-        return 1;
+        ret = 1; goto ex;
     } else {
         char buf[1024];
         res = iso_file_source_open(file);
         if (res < 0) {
-            fprintf(stderr, "Can't open file, err = %d\n", res);
-            return 1;
+            demo_report_iso_err(res,
+                                "Cannot open file object with given path");
+            ret = 1; goto ex;
         }
         while ((res = iso_file_source_read(file, buf, 1024)) > 0) {
             write_ret = fwrite(buf, 1, res, stdout);
             if (write_ret < res) {
                 printf ("Cannot write block to stdout. errno= %d\n", errno);
-                return 1;
+                iso_file_source_close(file);
+                ret = 1; goto ex;
             }
         }
-        if (res < 0) {
-            fprintf(stderr, "Error reading, err = %d\n", res);
-            return 1;
-        }
         iso_file_source_close(file);
+        if (res < 0) {
+            demo_report_iso_err(res, "Error while reading data content");
+            fprintf(stderr, "Error reading, err = 0x%X\n", (unsigned int) res);
+            ret = 1; goto ex;
+        }
     }
-    
-    iso_file_source_unref(file);
-    iso_filesystem_unref(fs);
-    iso_data_source_unref(src);
+
+    ret = 0;
+ex:;
+    if (file != NULL)
+        iso_file_source_unref(file);
+    if (fs != NULL)
+        iso_filesystem_unref(fs);
+    if (opts != NULL)
+        iso_read_opts_free(opts);
+    if (src != NULL)
+        iso_data_source_unref(src);
     iso_finish();
-    return 0;
+    return ret;
 }
 
 
