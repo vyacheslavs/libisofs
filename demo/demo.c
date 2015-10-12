@@ -799,14 +799,14 @@ void iso_ms_usage(char **argv)
 
 int gesture_iso_ms(int argc, char **argv)
 {
-    int result;
-    IsoImage *image;
-    IsoDataSource *src;
-    struct burn_source *burn_src;
+    int result, return_val = 1, initialized = 0;
+    IsoImage *image = NULL;
+    IsoDataSource *src = NULL;
+    struct burn_source *burn_src = NULL;
     unsigned char buf[2048];
     FILE *fp = NULL;
-    IsoWriteOpts *opts;
-    IsoReadOpts *ropts;
+    IsoWriteOpts *opts = NULL;
+    IsoReadOpts *ropts = NULL;
     uint32_t ms_block;
 	
     if (argc < 6) {
@@ -826,20 +826,26 @@ int gesture_iso_ms(int argc, char **argv)
         goto ex;
     }
 
-    iso_init();
+    result = iso_init();
+    if (result < 0) {
+        demo_report_iso_err(result, "Cannot init libisofs");
+        goto ex;
+    }
+    initialized = 1;
+
     iso_set_msgs_severities("NEVER", "ALL", "");
     
     /* create the data source to accesss previous image */
     result = iso_data_source_new_from_file(argv[3], &src);
     if (result < 0) {
-        printf ("Error creating data source\n");
+        demo_report_iso_err(result, "Error creating data source");
         goto ex;
     }
     
     /* create the image context */
     result = iso_image_new("volume_id", &image);
     if (result < 0) {
-        printf ("Error creating image\n");
+        demo_report_iso_err(result, "Error creating image");
         goto ex;
     }
     iso_tree_set_follow_symlinks(image, 0);
@@ -854,23 +860,25 @@ int gesture_iso_ms(int argc, char **argv)
     iso_read_opts_set_start_block(ropts, atoi(argv[1]));
     result = iso_image_import(image, src, ropts, NULL);
     iso_read_opts_free(ropts);
+    ropts = NULL;
     iso_data_source_unref(src);
+    src = NULL;
     if (result < 0) {
-        printf ("Error importing previous session %d\n", result);
+        demo_report_iso_err(result, "Error importing previous session");
         goto ex;
     }
     
     /* add new dir */
     result = iso_tree_add_dir_rec(image, iso_image_get_root(image), argv[4]);
     if (result < 0) {
-        printf ("Error adding directory %d\n", result);
+        demo_report_iso_err(result, "Error adding directory");
         goto ex;
     }
     
     /* generate a multisession image with new contents */
     result = iso_write_opts_new(&opts, 1);
     if (result < 0) {
-        printf("Cant create write opts, error %d\n", result);
+        demo_report_iso_err(result, "Cannot create write opts");
         goto ex;
     }
     
@@ -885,6 +893,7 @@ int gesture_iso_ms(int argc, char **argv)
         goto ex;
     }
     iso_write_opts_free(opts);
+    opts = NULL;
     
     while (burn_src->read_xt(burn_src, buf, 2048) == 2048) {
         result = fwrite(buf, 1, 2048, fp);
@@ -893,17 +902,26 @@ int gesture_iso_ms(int argc, char **argv)
             goto ex;
         }
     }
-    fclose(fp);
-    burn_src->free_data(burn_src);
-    free(burn_src);
-    
-    iso_image_unref(image);
-    iso_finish();
-    return 0;
+
+    return_val = 0;
 ex:;
+    if (burn_src != NULL) {
+        burn_src->free_data(burn_src);
+        free(burn_src);
+    }
+    if (opts != NULL)
+        iso_write_opts_free(opts);
+    if (image)
+        iso_image_unref(image);
+    if (ropts != NULL)
+        iso_read_opts_free(ropts);
+    if (src != NULL)
+        iso_data_source_unref(src);
+    if (initialized)
+        iso_finish();
     if (fp != NULL)
         fclose(fp);
-    return 1;
+    return return_val;
 }
 
 
