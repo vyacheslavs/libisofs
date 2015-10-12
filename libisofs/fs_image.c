@@ -6156,6 +6156,8 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
     ropts->nomd5 = 1;
     ropts->load_system_area = 0;
     ropts->keep_import_src = 0;
+    ropts->truncate_mode = 1;
+    ropts->truncate_length = LIBISOFS_NODE_NAME_MAX;
 
     *opts = ropts;
     return ISO_SUCCESS;
