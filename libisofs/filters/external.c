@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2015 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -243,25 +243,34 @@ int extf_stream_open_flag(IsoStream *stream, int flag)
         ret= ISO_FILE_READ_ERROR;
         */
 
-        if (ret < 0) {
-            /* Dispose pipes and child */
-            extf_stream_close_flag(stream, 1);
-            return ret;
-        }
+        if (ret < 0)
+            goto dispose_pipe_and_child;
         stream_open = 1;
         /* Make filter outlet non-blocking */
         ret = fcntl(recv_pipe[0], F_GETFL);
         if (ret != -1) {
             ret |= O_NONBLOCK;
-            fcntl(recv_pipe[0], F_SETFL, ret);
+            ret = fcntl(recv_pipe[0], F_SETFL, ret);
+            if (ret == -1) {
+                ret = ISO_FILE_ERROR;
+                goto dispose_pipe_and_child;
+            }
         }
         /* Make filter sink non-blocking */
         ret = fcntl(send_pipe[1], F_GETFL);
         if (ret != -1) {
             ret |= O_NONBLOCK;
-            fcntl(send_pipe[1], F_SETFL, ret);
+            ret = fcntl(send_pipe[1], F_SETFL, ret);
+            if (ret == -1) {
+                ret = ISO_FILE_ERROR;
+                goto dispose_pipe_and_child;
+            }
         }
         return 1;
+
+dispose_pipe_and_child:;
+        extf_stream_close_flag(stream, 1);
+        return ret;
     }
 
     /* child */
