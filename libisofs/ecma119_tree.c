@@ -654,6 +654,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
     for (i = 0; i < nchildren; ++i) {
         char *name, *ext;
         char full_name[40];
+        const int full_max_len = 40 - 1;
         int max; /* computed max len for name, without extension */
         int j = i;
         int digits = 1; /* characters to change per name */
@@ -692,7 +693,8 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
             int change = 0; /* number to be written */
 
             /* copy name to buffer */
-            strcpy(full_name, children[i]->iso_name);
+            strncpy(full_name, children[i]->iso_name, full_max_len);
+            full_name[full_max_len] = 0;
 
             /* compute name and extension */
             dot = strrchr(full_name, '.');
