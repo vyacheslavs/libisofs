@@ -30,12 +30,12 @@
                         no longer needed 
    @param flag          Bitfield for control purposes
                         bit0= set CONTINUE bit of last AAIP field to 1
-   @return              >0 is the number of SUSP fields generated,
-                        0 means error 
+   @return              >= 0 is the number of SUSP fields generated,
+                        < 0 means error
 */
-size_t aaip_encode(size_t num_attrs, char **names,
-                   size_t *value_lengths, char **values, 
-                   size_t *result_len, unsigned char **result, int flag);
+ssize_t aaip_encode(size_t num_attrs, char **names,
+                    size_t *value_lengths, char **values, 
+                    size_t *result_len, unsigned char **result, int flag);
 
 
 /* ------ ACL representation ------ */

@@ -7,7 +7,7 @@
  See libisofs/aaip_0_2.h
      http://libburnia-project.org/wiki/AAIP
 
- Copyright (c) 2009 - 2014 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2015 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -88,26 +88,30 @@ static int aaip_encode_pair(char *name, size_t attr_length, char *attr,
                         no longer needed 
    @param flag          Bitfield for control purposes
                         bit0= set CONTINUE bit of last AAIP field to 1
-   @return              >0 is the number of SUSP fields generated,
-                        0 means error 
+   @return              >= 0 is the number of SUSP fields generated,
+                        < 0 means error 
 */
-size_t aaip_encode(size_t num_attrs, char **names,
-                   size_t *value_lengths, char **values, 
-                   size_t *result_len, unsigned char **result, int flag)
+ssize_t aaip_encode(size_t num_attrs, char **names,
+                    size_t *value_lengths, char **values, 
+                    size_t *result_len, unsigned char **result, int flag)
 {
- size_t mem_size= 0, comp_size, ret;
+ size_t mem_size= 0, comp_size;
+ ssize_t ret;
  unsigned int number_of_fields, i, num_recs;
 
  /* Predict memory needs, number of SUSP fields and component records */
+ *result = NULL;
  *result_len= 0;
  for(i= 0; i < num_attrs; i++) {
    ret= aaip_encode_pair(names[i], value_lengths[i], values[i],
                          &num_recs, &comp_size, NULL, (size_t) 0, 1);
-   if(ret <= 0)
+   if(ret < 0)
      return(ret);
    mem_size+= comp_size;
  }
  number_of_fields= mem_size / 250 + !!(mem_size % 250);
+ if(number_of_fields == 0)
+   return(0);
  mem_size+= number_of_fields * 5;
 
 #ifdef Aaip_encode_debuG
@@ -118,14 +122,18 @@ size_t aaip_encode(size_t num_attrs, char **names,
 #endif
 
  if(*result == NULL)
-   return 0;
+   return ISO_OUT_OF_MEM;
 
  /* Encode pairs into result */
  for(i= 0; i < num_attrs; i++) {
    ret= aaip_encode_pair(names[i], value_lengths[i], values[i],
                          &num_recs, &comp_size, *result, *result_len, 0);
-   if(ret <= 0)
+   if(ret < 0) {
+     free(*result);
+     *result = NULL;
+     *result_len = 0;
      return(ret);
+   }
    (*result_len)+= comp_size;
  }
 

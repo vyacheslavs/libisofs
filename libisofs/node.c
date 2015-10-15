@@ -1959,7 +1959,8 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
                        size_t *value_lengths, char **values, int flag)
 {
     int ret, acl_saved = 0;
-    size_t sret, result_len, m_num = 0, *m_value_lengths = NULL, i;
+    ssize_t sret;
+    size_t result_len, m_num = 0, *m_value_lengths = NULL, i;
     unsigned char *result = NULL;
     char *a_acl = NULL, *d_acl = NULL, **m_names = NULL, **m_values = NULL;
 
@@ -1999,8 +2000,8 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
     }
     sret = aaip_encode(num_attrs, names, value_lengths, values,
                        &result_len, &result, 0);
-    if (sret == 0) {
-        ret = ISO_OUT_OF_MEM;
+    if (sret < 0) {
+        ret = sret;
         goto ex;
     }
 
@@ -2010,20 +2011,23 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
             free(result);
         goto ex;
     }
-    ret = iso_node_add_xinfo(node, aaip_xinfo_func, result);
-    if (ret < 0)
-        goto ex;
-    if (ret == 0) {
-
-        /* >>> something is messed up with xinfo: an aa_string still exists */;
-
-        ret = ISO_ERROR;
-        goto ex;
-    }
-    if (acl_saved) {
-        ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
+    if (sret > 0) {
+        ret = iso_node_add_xinfo(node, aaip_xinfo_func, result);
         if (ret < 0)
             goto ex;
+        if (ret == 0) {
+
+            /* >>> something is messed up with xinfo:
+                   an aa_string still exists */;
+
+            ret = ISO_ERROR;
+            goto ex;
+        }
+        if (acl_saved) {
+            ret = iso_node_set_acl_text(node, a_acl, d_acl, 0);
+            if (ret < 0)
+                goto ex;
+        }
     }
     ret = 1;
 ex:;

@@ -500,7 +500,8 @@ static
 int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
 {
     int ret;
-    size_t num_attrs = 0, *value_lengths = NULL, result_len, sret;
+    size_t num_attrs = 0, *value_lengths = NULL, result_len;
+    ssize_t sret;
     char *path = NULL, **names = NULL, **values = NULL;
     unsigned char *result = NULL;
 
@@ -533,10 +534,10 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
     else {
         sret = aaip_encode(num_attrs, names,
                            value_lengths, values, &result_len, &result, 0);
-        if (sret == 0) {
-            ret = ISO_OUT_OF_MEM;
+        if (sret < 0) {
+            ret = sret;
             goto ex;
-         }
+        }
     }
     *aa_string = result;
     ret = 1;
