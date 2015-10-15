@@ -545,7 +545,7 @@ ex:;
     if (path != NULL)
         free(path);
     if (names != NULL || value_lengths != NULL || values != NULL)
-        aaip_get_attr_list(path, &num_attrs, &names, &value_lengths, &values,
+        aaip_get_attr_list(NULL, &num_attrs, &names, &value_lengths, &values,
                            1 << 15); /* free memory */
     return ret;
 }
