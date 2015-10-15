@@ -1609,11 +1609,17 @@ int attrs_cleanout_name(char *del_name, size_t *num_attrs, char **names,
     size_t i, w;
 
     for (w = i = 0; i < *num_attrs; i++) {
-        if ((strcmp(names[i], del_name) == 0) ^ (flag & 1))
-            continue;
+        if ((strcmp(names[i], del_name) == 0) ^ (flag & 1)) {
+            if (names[i] != NULL)
+                free(names[i]);
+            if (values[i] != NULL)
+                free(values[i]);
+             names[i] = values[i] = NULL;
+    continue;
+        }
         if (w == i) {
             w++;
-            continue;
+    continue;
         }
         names[w] = names[i];
         value_lengths[w] = value_lengths[i];
