@@ -1,3 +1,9 @@
+
+bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.4.tar.gz)
+===============================================================================
+- no novelties yet -
+
+
 libisofs-1.4.2.tar.gz Sat Nov 28 2015
 ===============================================================================
 * Bug fix: zisofs compression caused SIGSEGV (by reading) with files larger
