@@ -17,7 +17,6 @@ libisofs-1.4.2.tar.gz Sat Nov 28 2015
   iso_image_add_new_symlink, iso_image_dir_get_node, iso_image_path_to_node
 * Result of a Coverity audit: 50+ code changes, but no easy-to-trigger bugs
 
-
 libisofs-1.4.0.tar.gz Sun May 17 2015
 ===============================================================================
 * Bug fix: iso_image_report_system_area() caused SIGSEGV by NULL if no valid
