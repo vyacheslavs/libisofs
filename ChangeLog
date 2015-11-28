@@ -1,9 +1,24 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.2.tar.gz)
+libisofs-1.4.2.tar.gz Sat Nov 28 2015
 ===============================================================================
-- no novelties yet -
+* Bug fix: zisofs compression caused SIGSEGV (by reading) with files larger
+           than 524160 KiB.
+* Bug fix: iso_node_get_name() of root node returned NULL pointer rather than
+           an empty string
+* Bug fix: Names read from Joliet tree where stripped of trailing ";1"
+* Now sorting the data file content extents by ECMA-119 tree, rather than
+  by the red-black tree which shall consolidate files with identical
+  source object.
+* New API call iso_read_opts_set_ecma119_map().
+* New AAIP variable isofs.nt records name truncation parameters.
+* Rectified handling of oversized filenames by new API calls:
+  iso_image_set_truncate_mode, iso_image_get_truncate_mode,
+  iso_truncate_leaf_name, iso_image_set_node_name, iso_image_tree_clone,
+  iso_image_add_new_dir, iso_image_add_new_file, iso_image_add_new_special,
+  iso_image_add_new_symlink, iso_image_dir_get_node, iso_image_path_to_node
+* Result of a Coverity audit: 50+ code changes, but no easy-to-trigger bugs
 
 
-libisofs-1.4.0.tar.gz Sun May 17 2014
+libisofs-1.4.0.tar.gz Sun May 17 2015
 ===============================================================================
 * Bug fix: iso_image_report_system_area() caused SIGSEGV by NULL if no valid
            ISO 9660 image was loeaded. Thanks to OmegaPhil.
