@@ -342,7 +342,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                        size_t **value_lengths, char ***values, int flag)
 {
  int ret;
- ssize_t i, num_names= 0, acl_names= 0;
+ ssize_t i, num_names= 0;
 
 #ifdef Libisofs_with_aaip_acL
  unsigned char *a_acl= NULL;
@@ -354,6 +354,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  ssize_t value_ret, retry= 0, list_size= 0, user_list_size= 0;
  ssize_t sys_list_size= 0;
  int attrnamespace;
+ int acl_names= 0;
 #endif
 
  if(flag & (1 << 15)) { /* Free memory */
@@ -408,7 +409,11 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 #ifdef Libisofs_with_aaip_acL
  if(flag & 1) {
    num_names++;
+
+#ifdef Libisofs_with_freebsd_extattR
    acl_names= 1;
+#endif
+
  }
 #endif
  
