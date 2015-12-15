@@ -2193,6 +2193,22 @@ ex:;
 #include "aaip-os-freebsd.c"
 
 #else
+#ifdef __FreeBSD_kernel__
+
+#ifdef NIX
+#ifdef Libisofs_with_aaip_xattR
+/* ts B51213: xattr system library calls are only stubs */
+#include "aaip-os-linux.c"
+#else
+/* ts B51213: extattr system library calls are not even present */
+#include "aaip-os-freebsd.c"
+#endif /* ! Libisofs_with_aaip_xattR */
+#else /* NIX */
+/* ts B51213: so we still end up at the dummy */
+#include "aaip-os-dummy.c"
+#endif /* ! NIX */
+
+#else
 #ifdef __NetBSD__
 
 #include "aaip-os-freebsd.c"
@@ -2215,5 +2231,6 @@ ex:;
 
 #endif /* ! __linux */
 #endif /* ! __NetBSD__ */
+#endif /* ! __FreeBSD_kernel__ */
 #endif /* ! __FreeBSD__ */
 
