@@ -16,15 +16,21 @@ AC_DEFUN([TARGET_SHIZZLE],
 
   AC_MSG_CHECKING([target operating system])
 
+  LIBBURNIA_SUPP_ACL=none
+  LIBBURNIA_SUPP_FATTR=none
   LIBBURNIA_LDCONFIG_CMD="echo 'No ldconfig run performed. If needed, configure manually for:'"
   case $target in
     *-*-linux*)
       ARCH=linux
       LIBBURN_ARCH_LIBS=
+      LIBBURNIA_SUPP_ACL=libacl
+      LIBBURNIA_SUPP_FATTR=xattr
       LIBBURNIA_LDCONFIG_CMD=ldconfig
       ;;
     *-*-freebsd*)
       ARCH=freebsd
+      LIBBURNIA_SUPP_ACL=libacl
+      LIBBURNIA_SUPP_FATTR=extattr
       LIBBURN_ARCH_LIBS=-lcam
 
       # This may later be overridden by configure --enable-libdir-pkgconfig

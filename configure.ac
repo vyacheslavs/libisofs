@@ -172,39 +172,66 @@ dnl Add compiler-specific flags
 AC_ARG_ENABLE(libacl,
 [  --enable-libacl         Enable use of ACL functions by libisofs, default=yes],
                , enable_libacl=yes)
-if test "x$enable_libacl" = xyes; then
+LIBACL_DEF=
+has_acl_h_but_no_func=0
+if test x$LIBBURNIA_SUPP_ACL = xlibacl
+then
+    if test x$enable_libacl = xyes; then
 dnl Check whether there is libacl-devel and libacl-runtime.
 dnl If not, erase this macro which would enable use of acl_to_text and others
-    LIBACL_DEF="-DLibisofs_with_aaip_acL"
+        LIBACL_DEF="-DLibisofs_with_aaip_acL"
 dnl The empty yes case obviously causes -lacl to be linked
-    has_acl_h_but_no_func=0
-    AC_CHECK_HEADER(sys/acl.h, AC_CHECK_LIB(acl, acl_to_text, , has_acl_h_but_no_libacl=1 ), LIBACL_DEF= )
-    if test "$has_acl_h_but_no_libacl" = 1
+        AC_CHECK_HEADER(sys/acl.h, AC_CHECK_LIB(acl, acl_to_text, , has_acl_h_but_no_libacl=1 ), LIBACL_DEF= )
+        if test "$has_acl_h_but_no_libacl" = 1
+        then
+            AC_CHECK_LIB(c, acl_to_text, X= , LIBACL_DEF= )
+        fi
+    fi
+fi
+if test x$LIBACL_DEF = x-DLibisofs_with_aaip_acL
+then
+    if test x$has_acl_h_but_no_libacl = x1
     then
-       AC_CHECK_LIB(c, acl_to_text, X= , LIBACL_DEF= )
-     fi
+        echo "enabled  local processing of ACL"
+    else
+        echo "enabled  libacl, local processing of ACL"
+    fi
 else
-    LIBACL_DEF=
+    echo "disabled local processing of ACL"
 fi
 AC_SUBST(LIBACL_DEF)
 
 
-dnl ts A90123
+dnl ts A90123 - B51212
 AC_ARG_ENABLE(xattr,
-[  --enable-xattr          Enable use of xattr by libisofs, default=yes],
-               , enable_xattr=yes)
-if test "x$enable_xattr" = xyes; then
-dnl Check whether there is the header for Linux xattr. 
+              [  --enable-xattr          Enable use of extended file attributes by libisofs, default=yes],
+              , enable_xattr=yes)
+XATTR_DEF=
+if test x"$LIBBURNIA_SUPP_FATTR" = xxattr
+then
+    if test "x$enable_xattr" = xyes; then
+dnl Check whether there is the header for Linux xattr.
 dnl If not, erase this macro which would enable use of listxattr and others
-    XATTR_DEF="-DLibisofs_with_aaip_xattR"
-    AC_CHECK_HEADER(attr/xattr.h, AC_CHECK_LIB(c, listxattr, X= , XATTR_DEF= ), XATTR_DEF= )
-    if test "x$XATTR_DEF" = x
-    then
-       XATTR_DEF="-DLibisofs_with_freebsd_extattR"
-       AC_CHECK_HEADER(sys/extattr.h, AC_CHECK_LIB(c, extattr_list_file, X=, XATTR_DEF= ), XATTR_DEF= )
+        XATTR_DEF="-DLibisofs_with_aaip_xattR"
+        AC_CHECK_HEADER(attr/xattr.h, AC_CHECK_LIB(c, listxattr, X= ,
+                                                   XATTR_DEF= ), XATTR_DEF= )
     fi
+elif test x"$LIBBURNIA_SUPP_FATTR" = xextattr
+then
+    if test "x$enable_xattr" = xyes; then
+        XATTR_DEF="-DLibisofs_with_freebsd_extattR"
+        AC_CHECK_HEADER(sys/extattr.h, AC_CHECK_LIB(c, extattr_list_file, X=,
+                                                    XATTR_DEF= ), XATTR_DEF= )
+    fi
+fi
+if test x$XATTR_DEF = x-DLibisofs_with_aaip_xattR
+then
+    echo "enabled  xattr, local processing of extended file attributes Linux style"
+elif test x$XATTR_DEF = x-DLibisofs_with_freebsd_extattR
+then
+    echo "enabled  extattr, local processing of extended file attributes FreeBSD style"
 else
-    XATTR_DEF=
+    echo "disabled local processing of extended file attributes"
 fi
 AC_SUBST(XATTR_DEF)
 
