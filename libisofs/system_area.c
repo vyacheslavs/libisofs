@@ -1676,7 +1676,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     int ret, int_img_blocks, sa_type, i, will_append = 0, do_isohybrid = 0;
     int first_partition = 1, last_partition = 4, apm_flag, part_type = 0;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, no_boot_mbr = 0;
-    int offset_flag = 0;
+    int offset_flag = 0, risk_of_ee = 0;
     uint32_t img_blocks, gpt_blocks, mbrp1_blocks, pml_blocks;
     uint64_t blk;
     uint8_t *wpt;
@@ -1767,8 +1767,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                        "Cannot set up MBR partition table");
         return ret;
     }
-    if (t->mbr_req_count > 0 && sa_type != 0)
-        return ISO_NON_MBR_SYS_AREA;
+    if (t->mbr_req_count > 0) {
+        if (sa_type != 0)
+            return ISO_NON_MBR_SYS_AREA;
+        risk_of_ee = 1;
+    }
 
     if (t->gpt_backup_outside)
         gpt_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
@@ -1796,6 +1799,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                                         (uint8_t) part_type, buf, 0);
             if (ret != ISO_SUCCESS) /* error should never happen */
                return ISO_ASSERT_FAILURE;
+            risk_of_ee = 1;
         }
     } else if (do_isohybrid) {
         /* Patch externally provided system area as isohybrid MBR */
@@ -1813,6 +1817,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
         if (t->opts->appended_as_gpt && t->have_appended_partitions) {
             part_type = 0xee;
+            risk_of_ee = 1;
             img_blocks = gpt_blocks;
             no_boot_mbr = 2;
         }
@@ -1855,9 +1860,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                                     (uint8_t) 0xcd, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
+        risk_of_ee = 1;
         if (t->opts->appended_as_gpt && t->have_appended_partitions) {
             /* Re-write partion entry 1 : protective MBR for GPT */
             part_type = 0xee;
+            risk_of_ee = 1;
             ret = write_mbr_partition_entry(1, part_type,
                         (uint64_t) 1, ((uint64_t) gpt_blocks) * 4 - 1, 
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
@@ -1881,7 +1888,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
            With t->mbr_req_count > 0 this has already been done,
         */
         img_blocks = t->curblock;                  /* value might be altered */
-        if (part_type == 0xee) {
+        if (part_type == 0xee && t->gpt_req_count > 0) {
             mbrp1_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
             offset_flag |= 2 | 1; /* protective MBR, no other partitions */
         } else {
@@ -1931,6 +1938,19 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         wpt = buf + Libisofs_grub2_mbr_patch_poS;
         for (i = 0; i < 8; i++)
              wpt[i] = blk >> (i * 8);
+    }
+
+    /* Prevent partition type 0xee if no GPT emerged */
+    if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
+        t->gpt_req_count == 0) {
+        for (i = 0; i < 4; i++) {
+            if (buf[446 + 16 * i + 4] == 0xee) {
+                iso_msgs_submit(0,
+                            "Prevented partition type 0xEE in MBR without GPT",
+                            0, "WARNING", 0);
+                buf[446 + 16 * i + 4] = 0xcd;
+            }
+        }
     }
 
     return ISO_SUCCESS;
