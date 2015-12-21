@@ -68,9 +68,9 @@ intervals for:
 - Directory trees, tables, boot catalog, embedded partitions and filesystems.
 - Data file content, including content of El Torito boot images.
 
-The Boot Record is an ECMA-119 Volume Descriptor which is eventually located
-at 2 kB block number 17 (decimal). Its content points to the location of the
-Boot Catalog.
+The Boot Record is an ECMA-119 Volume Descriptor which is located at 2 kB block
+number 17 (decimal), if present at all. Its content points to the location of
+the Boot Catalog.
 The format is described in part by ECMA-119 8.2 "Boot Record" and further
 specified by El Torito figure 7.
 
@@ -177,7 +177,7 @@ Byte Range | Value      | Meaning
            |            |
    5 -   5 |          0 | Unused
            |            |
-   6 -   7 |  sec_count | Sector Count.
+   6 -   7 |  sec_count | Sector Count. Sector size 512:
            |            | "the number of virtual/emulated sectors the system
            |            |  will store at Load Segment during the initial boot
            |            |  procedure."
@@ -232,7 +232,7 @@ Byte Range | Value      | Meaning
            |            | 0 if not emulation == 4.
    5 -   5 |          0 | Unused
            |            |
-   6 -   7 |  sec_count | Sector Count.
+   6 -   7 |  sec_count | Sector Count. Sector size 512.
            |            | See above Initial/Default Entry
            |            | libisofs stores 1 for emulated boot_media and a
            |            | user defined value for boot_media == 0. Often: 4.
