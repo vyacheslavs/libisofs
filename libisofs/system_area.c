@@ -1800,6 +1800,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             if (ret != ISO_SUCCESS) /* error should never happen */
                return ISO_ASSERT_FAILURE;
             risk_of_ee = 1;
+        } else if (t->gpt_req_count > 0) {
+
+           /* >>> ??? change first partition type to 0xee */;
+
         }
     } else if (do_isohybrid) {
         /* Patch externally provided system area as isohybrid MBR */
@@ -1862,6 +1866,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ISO_ASSERT_FAILURE;
         risk_of_ee = 1;
         if (t->opts->appended_as_gpt && t->have_appended_partitions) {
+
+            /* >>> ??? Do this in any case of  t->gpt_req_count > ? */;
+
             /* Re-write partion entry 1 : protective MBR for GPT */
             part_type = 0xee;
             risk_of_ee = 1;
@@ -1941,6 +1948,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
 
     /* Prevent partition type 0xee if no GPT emerged */
+
+    /* >>> check for GPT magic number at byte 512 ff. */;
+
     if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
         t->gpt_req_count == 0) {
         for (i = 0; i < 4; i++) {
@@ -1952,6 +1962,50 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             }
         }
     }
+
+#ifdef Libisofs_protective_msdos_plus_boot_dummY
+
+    if (sa_type == 0 && (t->system_area_options & 3) == 1 &&
+        buf[446 + 4] == 0xee && buf[446] == 0x00) {
+        for (i = 446 + 16 ; i < 510; i++)
+            if(buf[i])
+        break;
+        if (i >= 510) {
+            /* Add a dummy partition of type 0 with boot flag */
+
+#ifdef Libisofs_pmpbd_on_lba0
+
+            /* Start LBA 0, block count 1 */
+            buf[446 + 16 +  0] = 0x80;  /* bootable */
+            buf[446 + 16 +  1] = 0x00;  /* start head */
+            buf[446 + 16 +  2] = 0x01;  /* start sector */
+            buf[446 + 16 +  3] = 0x00;  /* start cylinder */
+            buf[446 + 16 +  4] = 0x00;  /* partition type */
+            buf[446 + 16 +  5] = 0x00;  /* end head */
+            buf[446 + 16 +  6] = 0x01;  /* last sector */
+            buf[446 + 16 +  7] = 0x00;  /* end cylinder */
+            buf[446 + 16 +  8] = 0x00;  /* start LBA */
+            buf[446 + 16 +  9] = 0x00;
+            buf[446 + 16 + 10] = 0x00;
+            buf[446 + 16 + 11] = 0x00;
+            buf[446 + 16 + 12] = 0x01;  /* block count */
+            buf[446 + 16 + 13] = 0x00;
+            buf[446 + 16 + 14] = 0x00;
+            buf[446 + 16 + 15] = 0x00;
+
+#else
+
+            /* copy partition 1 to 2, set boot flag and type 0x00 */
+            memcpy(buf + 446 + 16, buf + 446, 16);
+            buf[446 + 16 +  0] = 0x80;  /* bootable */
+            buf[446 + 16 +  4] = 0x00;  /* partition type */
+
+#endif /* ! Libisofs_pmpbd_on_lba0 */
+
+        }
+    }
+
+#endif /* Libisofs_protective_msdos_plus_boot_dummY */
 
     return ISO_SUCCESS;
 }
