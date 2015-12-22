@@ -2394,7 +2394,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         system_area = src->system_area_data;
         system_area_options = src->system_area_options;
     } else {
-        system_area_options = opts->system_area_options & 0xfffffffc;
+        system_area_options = opts->system_area_options & 0xfffffffd;
     }
     sa_type = (system_area_options >> 2) & 0x3f;
     if (sa_type != 0 && sa_type != 3)
