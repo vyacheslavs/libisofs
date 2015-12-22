@@ -3967,20 +3967,21 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
         is_grub2_mbr = 1;
     }
 
-    if (sai->mbr_req_count == 1 && !is_isohybrid) {
+    if (sai->mbr_req_count >= 1 && !is_isohybrid) {
         part = sai->mbr_req[0];
         if (part->start_block == 1 &&
             part->block_count + 1 == ((uint64_t) sai->image_size) * 4) {
             /* libisofs protective msdos label for GRUB2 */
             is_protective_label = 1;
             sub_type = 0;
-        } else if (part->start_block == 0 &&
+        } else if (sai->mbr_req_count == 1 && part->start_block == 0 &&
                  part->block_count <= ((uint64_t) sai->image_size) * 4 &&
                  part->block_count + 600 >= ((uint64_t) sai->image_size) * 4 &&
                  part->type_byte == 0x96) {
             /* CHRP (possibly without padding) */
             sub_type = 1;
-        } else if (sai->mbr_req[0]->start_block > 0 &&
+        } else if (sai->mbr_req_count == 1 &&
+                   sai->mbr_req[0]->start_block > 0 &&
                    (sai->mbr_req[0]->start_block % 4) == 0 &&
                    (sai->mbr_req[0]->start_block +
                         sai->mbr_req[0]->block_count) / 4 <= sai->image_size &&
