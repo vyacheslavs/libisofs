@@ -2616,8 +2616,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
 
     with_chrp = ((t->system_area_options & 0x3cff) == 0x0400);
     if (t->opts->efi_boot_partition != NULL ||
-        (t->opts->hfsplus && !with_chrp) ||
-        t->gpt_req_count > 0)
+        t->gpt_req_count > 0) /* Might not catch all cases with GPT */
         will_have_gpt = 1;
 
     if (t->opts->efi_boot_partition != NULL) {
