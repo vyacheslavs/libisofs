@@ -1567,6 +1567,69 @@ void iso_ascii_utf_16le(uint8_t gap_name[72])
 }
 
 
+static int intvl_overlap(uint64_t start1, uint64_t end1,
+                         uint64_t start2, uint64_t end2, int second)
+{
+    if (start1 >= start2 && start1 <= end2)
+        return 1;
+    if (end1 >= start2 && end1 <= end2)
+        return 1;
+    if (!second)
+        return intvl_overlap(start2, end2, start1, end1, 1);
+    return 0;
+}
+
+
+/* Check APM HFS+ partitions whether they would fit in gaps.
+   If so, add them as GPT partitions, too.
+ */
+static int iso_copy_apmhfs_to_gpt(Ecma119Image *t, int flag)
+{
+    int a, i, counter = 0, ret;
+    uint64_t bfac = 4;
+    static uint8_t hfs_plus_uuid[16] = {
+        0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
+        0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
+    };
+    static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    uint8_t gpt_name[72];
+    static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
+
+    if ((t->apm_req_flags & 4) && t->opts->apm_block_size / 512 > 0)
+        bfac = t->opts->apm_block_size / 512;
+
+    for (a = 0; a < t->apm_req_count; a++) {
+        if (strcmp((char *) t->apm_req[a]->type, "Apple_HFS") != 0)
+    continue;
+        for (i = 0; i < t->gpt_req_count; i++)
+            if (intvl_overlap(t->apm_req[a]->start_block * bfac,
+                              (t->apm_req[a]->start_block +
+                               t->apm_req[a]->block_count - 1) * bfac,
+                              t->gpt_req[i]->start_block,
+                              t->gpt_req[i]->start_block +
+                              t->gpt_req[i]->block_count - 1, 0))
+        break;
+        if (i >= t->gpt_req_count) {
+            memset(gpt_name, 0, 72);
+            counter++;
+            if (counter > 1)
+                sprintf((char *) gpt_name, "HFSPLUS_%d", counter);
+            else
+                sprintf((char *) gpt_name, "HFSPLUS");
+            iso_ascii_utf_16le(gpt_name);
+            ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+                                      t->apm_req[a]->start_block * bfac,
+                                      t->apm_req[a]->block_count * bfac,
+                                      hfs_plus_uuid, zero_uuid,
+                                      gpt_flags, gpt_name);
+            if (ret < 0)
+                return ret;
+        }
+    }
+    return 1;
+}
+
+
 static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 {
     static uint8_t basic_data_uuid[16] = {
@@ -1586,6 +1649,10 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         return 2;
     backup_end_lba = ((uint64_t) t->gpt_backup_end - t->gpt_backup_size) * 4;
 
+    ret = iso_copy_apmhfs_to_gpt(t, 0);
+    if (ret <= 0)
+        return ret;
+    
     /* Sort and fill gaps */
     qsort(t->gpt_req, t->gpt_req_count,
         sizeof(struct iso_gpt_partition_request *), cmp_partition_request);
