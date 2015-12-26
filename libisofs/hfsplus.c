@@ -405,7 +405,8 @@ int create_tree(Ecma119Image *t, IsoNode *iso, uint32_t parent_id)
 	    if (cret < 0)
 	      return cret;
 	    pos = pos->next;
-	    t->hfsp_leafs[cleaf].nchildren++;
+	    if (cret > 0)
+	      t->hfsp_leafs[cleaf].nchildren++;
 	  }
       }
     return ISO_SUCCESS;
@@ -1667,7 +1668,8 @@ int hfsplus_writer_create(Ecma119Image *target)
 	    goto ex;
 	}
 	pos = pos->next;
-	target->hfsp_leafs[0].nchildren++;
+	if (cret > 0)
+	    target->hfsp_leafs[0].nchildren++;
       }
 
     qsort(target->hfsp_leafs, target->hfsp_nleafs,
