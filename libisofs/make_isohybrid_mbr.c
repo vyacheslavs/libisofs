@@ -400,6 +400,8 @@ int lba512chs_to_buf(char **wpt, off_t lba, int head_count, int sector_count)
 
 /* Find out whether GPT and APM are desired
    flag bit0 = register APM and GPT requests in Ecma119Image
+        bit1 = do not asses and register APM
+        bit2 = do not register overall GPT partition
 */
 int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                              int *apm_count, int flag)
@@ -453,7 +455,7 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                     return ret;
             }
         }
-        if (ilx_opts & 256) {
+        if ((ilx_opts & 256) && !(flag & 2)) {
             (*apm_count)++;
             if ((flag & 1) && t->bootsrc[i] != NULL) {
                 /* Register APM entry */
@@ -471,7 +473,9 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
             }
         }
     }
-    if ((flag & 1) && *gpt_count > 0) {
+    if (*gpt_count > 0 && !(flag & 4))
+        (*gpt_count)++;
+    if ((flag & 1) && *gpt_count > 0 && !(flag & 4)) {
         /* Register overall GPT partition */
         memset(gpt_name, 0, 72);
         sprintf((char *) gpt_name, "ISOHybrid");
