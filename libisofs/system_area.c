@@ -2090,7 +2090,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
 
     /* Prevent MBR partition type 0xee */
-    if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee)) {
+    if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
+        (t->have_appended_partitions || t->gpt_req_count == 0)) {
 
 #else
 
