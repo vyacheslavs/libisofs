@@ -2073,7 +2073,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
 
     if (buf[446 + 4] != 0x00) {
-        if (buf[446 + 4] != 0xef)
+        if (buf[446 + 4] != 0xef && buf[446 + 4] != 0xee)
             buf[446] |= 0x80;
 
 #ifdef Libisofs_protective_msdos_plus_boot_dummY
