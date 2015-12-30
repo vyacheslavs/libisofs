@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2010 - 2014 Thomas Schmitt
+ * Copyright (c) 2010 - 2015 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -19,6 +19,7 @@
 #include "image.h"
 #include "messages.h"
 #include "writer.h"
+#include "ecma119.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -323,36 +324,61 @@ int create_image(IsoImage *image, const char *image_path,
     struct el_torito_boot_image *boot;
     int boot_media_type = 0;
     int load_sectors = 0; /* number of sector to load */
+    int part_idx = -1;
     unsigned char partition_type = 0;
     off_t size;
-    IsoNode *imgfile;
-    IsoStream *stream;
+    IsoNode *imgfile = NULL;
+    IsoStream *stream = NULL;
 
     *bootnode = NULL;
-    ret = iso_tree_path_to_node(image, image_path, &imgfile);
-    if (ret < 0) {
-        return ret;
-    }
-    if (ret == 0) {
-        iso_msg_submit(image->id, ISO_NODE_DOESNT_EXIST, 0,
+
+    if (strncmp(image_path, "--interval:appended_partition_", 30) == 0) {
+        /* --interval:appended_partition_N... */ 
+        if (type != ELTORITO_NO_EMUL) {
+
+            /* >>> ??? lift this ban by making a temporary IsoStream from
+                       partition source, determine size,
+                       and read ELTORITO_HARD_DISC_EMUL MBR ?
+             */
+
+            iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                           "Appended partition cannot serve as El Torito boot image with FD/HD emulation");
+            return ISO_BOOT_IMAGE_NOT_VALID;
+        }
+        sscanf(image_path + 30, "%d", &part_idx);
+        if (part_idx < 1 || part_idx > ISO_MAX_PARTITIONS) {
+            iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+          "Appended partition index for El Torito boot image is out of range");
+            return ISO_BOOT_IMAGE_NOT_VALID;
+        }
+        part_idx--;
+        size = 1;
+    } else {
+        ret = iso_tree_path_to_node(image, image_path, &imgfile);
+        if (ret < 0) {
+            return ret;
+        }
+        if (ret == 0) {
+            iso_msg_submit(image->id, ISO_NODE_DOESNT_EXIST, 0,
                        "El Torito boot image file missing in ISO image: '%s'",
                        image_path);
-        return ISO_NODE_DOESNT_EXIST;
+            return ISO_NODE_DOESNT_EXIST;
+        }
+
+        if (imgfile->type != LIBISO_FILE) {
+            return ISO_BOOT_IMAGE_NOT_VALID;
+        }
+        *bootnode = (IsoFile *) imgfile;
+
+        stream = ((IsoFile*)imgfile)->stream;
+
+        /* we need to read the image at least two times */
+        if (!iso_stream_is_repeatable(stream)) {
+            return ISO_BOOT_IMAGE_NOT_VALID;
+        }
+
+        size = iso_stream_get_size(stream);
     }
-
-    if (imgfile->type != LIBISO_FILE) {
-        return ISO_BOOT_IMAGE_NOT_VALID;
-    }
-    *bootnode = (IsoFile *) imgfile;
-
-    stream = ((IsoFile*)imgfile)->stream;
-
-    /* we need to read the image at least two times */
-    if (!iso_stream_is_repeatable(stream)) {
-        return ISO_BOOT_IMAGE_NOT_VALID;
-    }
-
-    size = iso_stream_get_size(stream);
     if (size <= 0) {
         iso_msg_submit(image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
                        "Boot image file is empty");
@@ -441,7 +467,9 @@ int create_image(IsoImage *image, const char *image_path,
         return ISO_OUT_OF_MEM;
     }
     boot->image = (IsoFile*)imgfile;
-    iso_node_ref(imgfile); /* get our ref */
+    boot->appended_idx = part_idx;
+    if (imgfile != NULL)
+        iso_node_ref(imgfile); /* get our ref */
     boot->bootable = 1;
     boot->seems_boot_info_table = 0;
     boot->seems_grub2_boot_info = 0;
@@ -538,8 +566,9 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
         catalog->bootimages[i] = NULL;
     catalog->node = cat_node;
     catalog->sort_weight = 1000000000;                          /* very high */
-    if (!(boot_node->explicit_weight || boot_node->from_old_session))
-        boot_node->sort_weight = 2;
+    if (boot_node != NULL)
+        if (!(boot_node->explicit_weight || boot_node->from_old_session))
+            boot_node->sort_weight = 2;
     iso_node_ref((IsoNode*)cat_node);
     image->bootcat = catalog;
 
@@ -555,7 +584,8 @@ boot_image_cleanup:;
         iso_node_unref((IsoNode*)cat_node);
     }
     if (boot_image) {
-        iso_node_unref((IsoNode*)boot_image->image);
+        if (boot_image->image != NULL)
+            iso_node_unref((IsoNode*)boot_image->image);
         free(boot_image);
     }
     return ret;
@@ -719,8 +749,9 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
     ret = create_image(image, image_path, type, &boot_img, &boot_node);
     if (ret < 0) 
         return ret;
-    if (!(boot_node->explicit_weight || boot_node->from_old_session))
-        boot_node->sort_weight = 2;
+    if (boot_node != NULL)
+        if (!(boot_node->explicit_weight || boot_node->from_old_session))
+            boot_node->sort_weight = 2;
     catalog->bootimages[catalog->num_bootimages] = boot_img;
     catalog->num_bootimages++;
     if (boot != NULL)
@@ -827,12 +858,13 @@ write_section_header(uint8_t *buf, Ecma119Image *t, int idx, int num_entries)
  * Usable for the Default Entry
  * and for Section Entries with Selection criteria type == 0
  */
-static void
-write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
+static
+int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
 {
     struct el_torito_boot_image *img;
     struct el_torito_section_entry *se =
         (struct el_torito_section_entry*)buf;
+    int app_idx;
 
     img = t->catalog->bootimages[idx];
 
@@ -840,16 +872,37 @@ write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
     se->boot_media_type[0] = img->type;
     iso_lsb(se->load_seg, img->load_seg, 2);
     se->system_type[0] = img->partition_type;
-    iso_lsb(se->sec_count, img->load_size, 2);
-    iso_lsb(se->block, t->bootsrc[idx]->sections[0].block, 4);
+
+    if (t->boot_appended_idx[idx] >= 0) {
+        app_idx = t->boot_appended_idx[idx];
+        if (t->appended_part_size[app_idx] * 4 > 65535) {
+            if (img->platform_id == 0xef)
+                iso_lsb(se->sec_count, 0, 2);
+            else
+                iso_lsb(se->sec_count, 65535, 2);
+        } else {
+            if (t->appended_part_size[app_idx] == 0) {
+                iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+          "Appended partition which shall serve as boot image does not exist");
+                return ISO_BOOT_IMAGE_NOT_VALID;
+            }
+            iso_lsb(se->sec_count, t->appended_part_size[app_idx] * 4, 2);
+        }
+        iso_lsb(se->block, t->appended_part_start[app_idx], 4);
+    } else {
+        iso_lsb(se->sec_count, img->load_size, 2);
+        iso_lsb(se->block, t->bootsrc[idx]->sections[0].block, 4);
+    }
+
     se->selec_criteria[0] = img->selection_crit[0];
     memcpy(se->vendor_sc, img->selection_crit + 1, 19);
+    return ISO_SUCCESS;
 }
 
 static
 int catalog_open(IsoStream *stream)
 {
-    int i, j, k, num_entries;
+    int i, j, k, num_entries, ret;
     struct catalog_stream *data;
     uint8_t *wpt;
     struct el_torito_boot_catalog *cat;
@@ -873,7 +926,9 @@ int catalog_open(IsoStream *stream)
                            boots[0]->platform_id, boots[0]->id_string);
 
     /* write default entry = first boot image */
-    write_section_entry(data->buffer + 32, data->target, 0);
+    ret = write_section_entry(data->buffer + 32, data->target, 0);
+    if (ret < 0)
+        return ret;
 
     /* IMPORTANT: The maximum number of boot images must fit into BLOCK_SIZE */
     wpt = data->buffer + 64;
@@ -894,7 +949,9 @@ int catalog_open(IsoStream *stream)
         write_section_header(wpt, data->target, i, num_entries);
         wpt += 32;
         for (j = 0; j < num_entries; j++) {
-            write_section_entry(wpt,  data->target, i);
+            ret = write_section_entry(wpt,  data->target, i);
+            if (ret < 0)
+                return ret;
             wpt += 32;
             i++;
         }
@@ -1132,6 +1189,9 @@ int patch_boot_info_table(uint8_t *buf, Ecma119Image *t,
         return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
             "Isolinux image too small. We won't patch it.");
     }
+    if (t->bootsrc[idx] == NULL)
+        return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
+            "Cannot apply ISOLINUX patching outside of ISO 9660 filesystem.");
     ret = make_boot_info_table(buf, t->opts->ms_block + (uint32_t) 16,
                                t->bootsrc[idx]->sections[0].block,
                                (uint32_t) imgsize);
@@ -1151,7 +1211,10 @@ int patch_grub2_boot_image(uint8_t *buf, Ecma119Image *t,
 
     if (imgsize < pos + 8)
         return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
-                     "Isolinux image too small for GRUB2. Will not patch it.");
+                     "Boot image too small for GRUB2. Will not patch it.");
+    if (t->bootsrc[idx] == NULL)
+        return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
+            "Cannot apply GRUB2 patching outside of ISO 9660 filesystem.");
     blk = ((uint64_t) t->bootsrc[idx]->sections[0].block) * 4 + offst;
     iso_lsb((buf + pos), blk & 0xffffffff, 4);
     iso_lsb((buf + pos + 4), blk >> 32, 4);
@@ -1174,6 +1237,10 @@ int iso_patch_eltoritos(Ecma119Image *t)
     for (idx = 0; idx < t->catalog->num_bootimages; idx++) {
         if (!(t->catalog->bootimages[idx]->isolinux_options & 0x201))
     continue;
+        if (t->bootsrc[idx] == NULL)
+            return iso_msg_submit(t->image->id, ISO_ISOLINUX_CANT_PATCH, 0,
+            "Cannot apply boot image patching outside of ISO 9660 filesystem");
+
         original = t->bootsrc[idx]->stream;
         size = (size_t) iso_stream_get_size(original);
         if (size > Libisofs_elto_max_patchablE)
@@ -1281,8 +1348,8 @@ int eltorito_writer_create(Ecma119Image *target)
 {
     int ret, idx, outsource_efi = 0;
     IsoImageWriter *writer;
-    IsoFile *bootimg;
-    IsoFileSrc *src;
+    IsoFile *bootimg = NULL;
+    IsoFileSrc *src = NULL;
 
     writer = calloc(1, sizeof(IsoImageWriter));
     if (writer == NULL) {
@@ -1315,6 +1382,19 @@ int eltorito_writer_create(Ecma119Image *target)
         if (strcmp(target->opts->efi_boot_partition, "--efi-boot-image") == 0)
             outsource_efi = 1;
     for (idx = 0; idx < target->catalog->num_bootimages; idx++) {
+        target->bootsrc[idx] = NULL;
+        if (target->catalog->bootimages[idx]->appended_idx >= 0) {
+            /* Use an appended partition as boot image rather than IsoFile */
+            target->boot_appended_idx[idx] =
+                                target->catalog->bootimages[idx]->appended_idx;
+            if (((target->system_area_options >> 2) & 0x3f) == 0 &&
+                (target->system_area_options & 3) == 1) {
+                /* ISO will not be a partition. It can span the whole image. */
+                target->pvd_size_is_total_size = 1;
+            }
+    continue;
+        }
+
         bootimg = target->catalog->bootimages[idx]->image;
         ret = iso_file_src_create(target, bootimg, &src);
         if (ret < 0) {

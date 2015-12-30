@@ -3402,6 +3402,9 @@ int iso_image_get_pvd_times(IsoImage *image,
  *      returns an error and the image remains unmodified.
  * @param image_path
  *      The absolute path of a IsoFile to be used as default boot image.
+
+>>> or  --interval:appended_partition_$number...
+
  * @param type
  *      The boot media type. This can be one of 3 types:
  *             - Floppy emulation: Boot image file must be exactly
@@ -3443,7 +3446,10 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
  *      The image to which the boot image shall be added.
  *      returns an error and the image remains unmodified.
  * @param image_path
- *      The absolute path of a IsoFile to be used as default boot image.
+ *      The absolute path of a IsoFile to be used as boot image.
+
+>>> or  --interval:appended_partition_$number...
+
  * @param type
  *      The boot media type. See iso_image_set_boot_image
  * @param flag
@@ -3488,6 +3494,9 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
  * @param imgnode
  *      When not NULL, it will be filled with the image tree node. No extra ref
  *      is added, you can use iso_node_ref() to get one if you need it.
+
+>>> The returned value is NULL if the boot image source is no IsoFile.
+
  * @param catnode
  *      When not NULL, it will be filled with the catnode tree node. No extra
  *      ref is added, you can use iso_node_ref() to get one if you need it.
@@ -3545,6 +3554,11 @@ int iso_image_get_bootcat(IsoImage *image, IsoBoot **catnode, uint32_t *lba,
  * @param bootnodes
  *      Returns NULL or an allocated array of pointers to the IsoFile nodes
  *      which bear the content of the boot images in boots.
+
+>>> An array entry is NULL if the boot image source is no IsoFile.
+
+>>> Need getter for partition index
+
  * @param flag
  *      Bitfield for control purposes. Unused yet. Submit 0.
  * @return

@@ -554,9 +554,18 @@ struct ecma119_image
 
     time_t now; /**< Time at which writing began. */
 
-    /** Total size of the output. This only includes the current volume. */
+    /* Total size of the output. Counted in bytes.
+     * Includes ISO filesystem and appended data.
+     */
     off_t total_size;
+
+    /** Size actually governed by the ISO filesystem part of the output */
     uint32_t vol_space_size;
+
+    /* 1= write the total size into the PVD of the ISO,
+     * 0= write vol_space_size
+     */
+    int pvd_size_is_total_size;
 
     /* Bytes already written to image output */
     off_t bytes_written;
@@ -639,6 +648,8 @@ struct ecma119_image
 
     int num_bootsrc;
     IsoFileSrc **bootsrc; /* location of the boot images in the new image */
+
+    int *boot_appended_idx; /* Appended partition which serve as boot images */
 
     /*
      * System Area related information

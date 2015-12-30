@@ -104,6 +104,8 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->output_charset);
     if (t->bootsrc != NULL)
         free(t->bootsrc);
+    if (t->boot_appended_idx != NULL)
+        free(t->boot_appended_idx);
     if (t->system_area_data != NULL)
         free(t->system_area_data);
     if (t->checksum_ctx != NULL) { /* dispose checksum context */
@@ -567,8 +569,13 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_version[0] = 1;
     strncpy_pad((char*)vol.system_id, system_id, 32);
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
-    iso_bb(vol.vol_space_size, t->vol_space_size  - t->eff_partition_offset,
-           4);
+    if (t->pvd_size_is_total_size) {
+        iso_bb(vol.vol_space_size,
+               t->total_size / 2048 - t->eff_partition_offset, 4);
+    } else {
+        iso_bb(vol.vol_space_size,
+               t->vol_space_size - t->eff_partition_offset, 4);
+    }
     iso_bb(vol.vol_set_size, (uint32_t) 1, 2);
     iso_bb(vol.vol_seq_number, (uint32_t) 1, 2);
     iso_bb(vol.block_size, (uint32_t) BLOCK_SIZE, 2);
@@ -2376,12 +2383,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         target->num_bootsrc = target->catalog->num_bootimages;
         target->bootsrc = calloc(target->num_bootsrc + 1,
                                     sizeof(IsoFileSrc *));
-        if (target->bootsrc == NULL) {
+        target->boot_appended_idx = calloc(target->num_bootsrc + 1,
+                                           sizeof(int));
+        if (target->bootsrc == NULL || target->boot_appended_idx == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto target_cleanup;
         }
-        for (i= 0; i < target->num_bootsrc; i++)
+        for (i= 0; i < target->num_bootsrc; i++) {
             target->bootsrc[i] = NULL;
+            target->boot_appended_idx[i] = -1;
+        }
     } else {
         target->num_bootsrc = 0;
         target->bootsrc = NULL;
@@ -2447,6 +2458,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         ret = ISO_OUT_OF_MEM;
         goto target_cleanup;
     }
+
+    target->total_size = 0;
+    target->vol_space_size = 0;
+    target->pvd_size_is_total_size = 0;
 
     target->checksum_idx_counter = 0;
     target->checksum_ctx = NULL;

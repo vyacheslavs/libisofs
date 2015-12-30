@@ -37,6 +37,8 @@
 #include "ecma119.h"
 #include "eltorito.h"
 #include "system_area.h"
+#include "image.h"
+#include "messages.h"
 
 
 /* This code stems from syslinux-3.72/utils/isohybrid, a perl script
@@ -60,7 +62,7 @@ license from above stem licenses, typically from LGPL.
 In case its generosity is needed, here is the 2-clause BSD license:
 
 make_isohybrid_mbr.c is copyright 2002-2008 H. Peter Anvin
-                              and 2008-2014 Thomas Schmitt
+                              and 2008-2015 Thomas Schmitt
 
 1. Redistributions of source code must retain the above copyright notice,
    this list of conditions and the following disclaimer.
@@ -408,6 +410,7 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
 {
     int i, ilx_opts, j, ret, num_img;
     uint32_t block_count;
+    uint64_t start_block;
     uint8_t gpt_name[72];
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     static uint8_t basic_data_uuid[16] = {
@@ -430,11 +433,13 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         num_img = 0;
     for (i = 0; i < num_img; i++) {
         ilx_opts = t->catalog->bootimages[i]->isolinux_options;
-        if (((ilx_opts >> 2) & 63) == 1 || ((ilx_opts >> 2) & 63) == 2) {
+        if ((((ilx_opts >> 2) & 63) == 1 || ((ilx_opts >> 2) & 63) == 2) &&
+           !(t->boot_appended_idx[i] >= 0 && t->opts->appended_as_gpt)) {
             if (*gpt_count < 128)
                 gpt_idx[*gpt_count]= i;
             (*gpt_count)++;
-            if ((flag & 1) && t->bootsrc[i] != NULL) {
+            if ((flag & 1) &&
+                (t->bootsrc[i] != NULL || t->boot_appended_idx[i] >= 0)) {
                 /* Register GPT entry */
                 memset(gpt_name, 0, 72);
                 sprintf((char *) gpt_name, "ISOHybrid%d", *gpt_count);
@@ -443,13 +448,21 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
                     uuid = hfs_uuid;
                 else
                     uuid = basic_data_uuid;
-                block_count = 0;
-                for (j = 0; j < t->bootsrc[i]->nsections; j++)
-                     block_count += t->bootsrc[i]->sections[j].size / 2048;
+                if (t->boot_appended_idx[i] >= 0) {
+                    block_count = t->appended_part_size[
+                                                      t->boot_appended_idx[i]];
+                    start_block = ((uint64_t) t->appended_part_start[
+                                                 t->boot_appended_idx[i]]) * 4;
+                } else {
+                    block_count = 0;
+                    for (j = 0; j < t->bootsrc[i]->nsections; j++)
+                        block_count += t->bootsrc[i]->sections[j].size / 2048;
+                    start_block = ((uint64_t) t->bootsrc[i]->sections[0].block)
+                                  * 4;
+                }
                 ret = iso_quick_gpt_entry(
                             t->gpt_req, &(t->gpt_req_count),
-                            ((uint64_t) t->bootsrc[i]->sections[0].block) * 4,
-                            ((uint64_t) block_count) * 4,
+                            start_block, ((uint64_t) block_count) * 4,
                             uuid, zero_uuid, gpt_flags, (uint8_t *) gpt_name);
                 if (ret < 0)
                     return ret;
@@ -457,13 +470,22 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         }
         if ((ilx_opts & 256) && !(flag & 2)) {
             (*apm_count)++;
-            if ((flag & 1) && t->bootsrc[i] != NULL) {
+            if ((flag & 1) &&
+                (t->bootsrc[i] != NULL || t->boot_appended_idx[i] >= 0)) {
                 /* Register APM entry */
-                block_count = 0;
-                for (j = 0; j < t->bootsrc[i]->nsections; j++)
-                     block_count += t->bootsrc[i]->sections[j].size / 2048;
+                if (t->boot_appended_idx[i] >= 0) {
+                    block_count = t->appended_part_size[
+                                                      t->boot_appended_idx[i]];
+                    start_block = t->appended_part_start[
+                                                      t->boot_appended_idx[i]];
+                } else {
+                    block_count = 0;
+                    for (j = 0; j < t->bootsrc[i]->nsections; j++)
+                        block_count += t->bootsrc[i]->sections[j].size / 2048;
+                    start_block = t->bootsrc[i]->sections[0].block;
+                }
                 ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
-                                          t->bootsrc[i]->sections[0].block,
+                                          (uint32_t) start_block,
                                           block_count, "EFI", "Apple_HFS");
                 if (ret < 0)
                     return ret;
@@ -546,13 +568,18 @@ static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
         0xfe, 0xff, 0xff, 
     };
 
+    if (t->bootsrc[gpt_idx[*gpt_cursor]] == NULL) {
+        (*gpt_cursor)++;
+        return 2;
+    }
+
     wpt[0] = 0;
     memcpy(wpt + 1, dummy_chs, 3);
     ilx_opts = t->catalog->bootimages[gpt_idx[*gpt_cursor]]->isolinux_options;
     if (((ilx_opts >> 2) & 63) == 2)
         wpt[4] = 0x00; /* HFS gets marked as "Empty" */
     else
-        ((unsigned char *) wpt)[4] = 0xef; /* "EFI (FAT-12/16/" */
+        ((unsigned char *) wpt)[4] = 0xef; /* "EFI (FAT-12/16)" */
 
     memcpy(wpt + 5, dummy_chs, 3);
 
@@ -588,6 +615,10 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     /* For generating a weak random number */
     struct timeval tv;
     struct timezone tz;
+
+    if (t->bootsrc[0] == NULL)
+        return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+      "Cannot refer by isohybrid MBR to data outside of ISO 9660 filesystem.");
 
     if (flag & 2) {
         part_number = 1;

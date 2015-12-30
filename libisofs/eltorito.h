@@ -53,6 +53,9 @@ struct el_torito_boot_catalog {
 struct el_torito_boot_image {
     IsoFile *image;
 
+    /* Overrides .image if >= 0 : array index of appended partition */
+    int appended_idx;
+
     unsigned int bootable:1; /**< If the entry is bootable. */
     /**
      * Whether the boot image seems to contain a boot_info_table

@@ -1820,6 +1820,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         /* Check for isolinux image with magic number of 3.72 and produce
            an MBR from our built-in template. (Deprecated since 31 Mar 2010)
         */
+        if (t->bootsrc[0] == NULL)
+            return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+      "Cannot refer by isohybrid MBR to data outside of ISO 9660 filesystem.");
         if (img_blocks < 0x80000000) {
             int_img_blocks= img_blocks;
         } else {
@@ -2062,6 +2065,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
     if (sa_type == 0 && (t->system_area_options & 0x4000) && !do_isohybrid) {
         /* Patch MBR for GRUB2 */
+        if (t->bootsrc[0] == NULL)
+            return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+          "Cannot refer by GRUB2 MBR to data outside of ISO 9660 filesystem.");
         blk = t->bootsrc[0]->sections[0].block * 4 +
                                                 Libisofs_grub2_mbr_patch_offsT;
         wpt = buf + Libisofs_grub2_mbr_patch_poS;
