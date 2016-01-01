@@ -2215,8 +2215,9 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *                    @since 1.2.6
  *        bit10-13= System area sub type
  *              @since 1.2.4
- *              With type 0 = MBR:
- *                Gets overridden by bit0 and bit1.
+ *              With type 0:
+ *                bit0 ... MBR with partition start at block 1
+ *                bit1 ... ISOLINUX isohybrid MBR
  *                0 = no particular sub type, use unaltered
  *                1 = CHRP: A single MBR partition of type 0x96 covers the
  *                          ISO image. Not compatible with any other feature
@@ -2228,8 +2229,12 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              Patch system area at byte 0x1b0 to 0x1b7 with
  *              (512-block address + 4)  of the first boot image file.
  *              Little-endian 8-byte.
- *              Should be combined with options bit0.
+ *              Is normally combined with options bit0.
  *              Will not be in effect if options bit1 is set.
+ *        bit15= Only with System area type MBR but not with CHRP
+ *              Enforce MBR "bootable/active" flag. In worst case by dummy
+ *              partition of type 0x00 which occupies block 0.
+ *              @since 1.4.4
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.
@@ -3403,7 +3408,7 @@ int iso_image_get_pvd_times(IsoImage *image,
  * @param image_path
  *      The absolute path of a IsoFile to be used as default boot image.
 
->>> or  --interval:appended_partition_$number...
+>>> or  --interval:appended_partition_$number_start_$start_size_$size:...
 
  * @param type
  *      The boot media type. This can be one of 3 types:

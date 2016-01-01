@@ -1749,38 +1749,33 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 }
 
 
-#ifdef Libisofs_protective_msdos_plus_boot_dummY
-
+/* Add a dummy MBR partition of type 0 with boot flag */
 static void iso_dummy_mbr_partition(uint8_t *buf, int mode)
 {
-    /* Add a dummy partition of type 0 with boot flag */
-    if (mode == 0) {
-        /* Start LBA 0, block count 1 */
-        buf[446 + 16 +  0] = 0x80;  /* bootable */
-        buf[446 + 16 +  1] = 0x00;  /* start head */
-        buf[446 + 16 +  2] = 0x01;  /* start sector */
-        buf[446 + 16 +  3] = 0x00;  /* start cylinder */
-        buf[446 + 16 +  4] = 0x00;  /* partition type */
-        buf[446 + 16 +  5] = 0x00;  /* end head */
-        buf[446 + 16 +  6] = 0x01;  /* last sector */
-        buf[446 + 16 +  7] = 0x00;  /* end cylinder */
-        buf[446 + 16 +  8] = 0x00;  /* start LBA */
-        buf[446 + 16 +  9] = 0x00;
-        buf[446 + 16 + 10] = 0x00;
-        buf[446 + 16 + 11] = 0x00;
-        buf[446 + 16 + 12] = 0x01;  /* block count */
-        buf[446 + 16 + 13] = 0x00;
-        buf[446 + 16 + 14] = 0x00;
-        buf[446 + 16 + 15] = 0x00;
-    } else {
-        /* copy partition 1 to 2, set boot flag and type 0x00 */
-        memcpy(buf + 446 + 16, buf + 446, 16);
-        buf[446 + 16 +  0] = 0x80;  /* bootable */
-        buf[446 + 16 +  4] = 0x00;  /* partition type */
+    int i;
+                             /* bootable , start 0/0/1, type 0x00, end 0/0/1,
+                                start LBA 0, block count 1 */
+    static uint8_t dummy_entry[16] = {
+                              0x80, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+                              0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
+
+    for (i = 0; i < 4; i++) {
+        if (buf[446 + 16 * i + 4] == 0x00) {
+            memcpy(buf + 446 + 16 * i, dummy_entry, 16);
+            return;
+        }
     }
+    /* Abundance of 0xee and 0xef partitions. No other one free. */
+    for (i = 0; i < 4; i++) {
+        if (buf[446 + 16 * i + 4] != 0xef) {
+            buf[446 + 16 * i] |= 0x80;
+            return;
+        }
+    }
+    i = 3;
+    buf[446 + 16 * i] |= 0x80;
 }
 
-#endif /* Libisofs_protective_msdos_plus_boot_dummY */
 
 int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 {
@@ -2077,24 +2072,6 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
 #ifdef Libisofs_mjg_boot_for_grub2
 
-
-    if (buf[446 + 4] != 0x00) {
-        if (buf[446 + 4] != 0xef && buf[446 + 4] != 0xee)
-            buf[446] |= 0x80;
-
-#ifdef Libisofs_protective_msdos_plus_boot_dummY
-
-        else if (buf[446 + 16 + 4] == 0x00 && (buf[446 + 16] & 0x80) == 0)
-#ifdef Libisofs_pmpbd_on_lba0
-            iso_dummy_mbr_partition(buf, 0);
-#else
-            iso_dummy_mbr_partition(buf, 1);
-#endif /* ! Libisofs_pmpbd_on_lba0 */
-
-#endif
-
-    }
-
     /* Prevent MBR partition type 0xee */
     if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
         (t->have_appended_partitions || t->gpt_req_count == 0)) {
@@ -2120,26 +2097,33 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
     }
 
-#ifdef Libisofs_protective_msdos_plus_boot_dummY
-
-    if (sa_type == 0 && (t->system_area_options & 3) == 1 &&
-        buf[446 + 4] == 0xee && buf[446] == 0x00) {
-        for (i = 446 + 16 ; i < 510; i++)
-            if(buf[i])
+    if (sa_type == 0 && (
+        (t->system_area_options & 3) ||
+        (t->system_area_options & (1 << 14)) ||
+        (((t->system_area_options >> 2) & 0x3f) == 2 &&
+         (t->system_area_options & (1 << 15)))
+        )) {
+        /* This is an MBR which shall have a bootable/active flag
+           protective-msdos-label, isohybrid, grub2-mbr, mbr-force-bootable
+         */
+        for (i = 0; i < 4; i++)
+            if (buf[446 + 16 * i] & 0x80)
         break;
-        if (i >= 510) {
-            /* Add a dummy partition of type 0 with boot flag */
-
-#ifdef Libisofs_pmpbd_on_lba0
-            iso_dummy_mbr_partition(buf, 0);
-#else
-            iso_dummy_mbr_partition(buf, 1);
-#endif /* ! Libisofs_pmpbd_on_lba0 */
-
+        if (i >= 4) { /* no bootable/active flag set yet */
+            for (i = 0; i < 4; i++) {
+                if (buf[446 + 16 * i + 4] != 0x00 &&
+                    buf[446 + 16 * i + 4] != 0xee &&
+                    buf[446 + 16 * i + 4] != 0xef) {
+                    buf[446 + 16 * i] |= 0x80;
+            break;
+                }
+            }
+            if (i >= 4) { /* still no bootable/active flag set */
+                if (t->system_area_options & (1 << 15)) /* Force it */
+                    iso_dummy_mbr_partition(buf, 0);
+            }
         }
     }
-
-#endif /* Libisofs_protective_msdos_plus_boot_dummY */
 
     return ISO_SUCCESS;
 }

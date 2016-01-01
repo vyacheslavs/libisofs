@@ -3940,6 +3940,7 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
 {
     int sub_type = 2, ret, is_isohybrid = 0, is_grub2_mbr = 0;
     int is_protective_label = 0;
+    uint64_t part2_start;
     char *sad;
     struct iso_imported_sys_area *sai;
     struct iso_mbr_partition_request *part;
@@ -3969,8 +3970,12 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
 
     if (sai->mbr_req_count >= 1 && !is_isohybrid) {
         part = sai->mbr_req[0];
+        part2_start = 0;
+        if (sai->mbr_req_count >= 2)
+            part2_start = sai->mbr_req[1]->start_block;
         if (part->start_block == 1 &&
-            part->block_count + 1 == ((uint64_t) sai->image_size) * 4) {
+            (part->block_count + 1 == ((uint64_t) sai->image_size) * 4 ||
+             part->block_count + 1 == part2_start)) {
             /* libisofs protective msdos label for GRUB2 */
             is_protective_label = 1;
             sub_type = 0;
