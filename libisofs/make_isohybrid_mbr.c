@@ -436,7 +436,7 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         if ((((ilx_opts >> 2) & 63) == 1 || ((ilx_opts >> 2) & 63) == 2) &&
            !(t->boot_appended_idx[i] >= 0 && t->opts->appended_as_gpt)) {
             if (*gpt_count < 128)
-                gpt_idx[*gpt_count]= i;
+                gpt_idx[*gpt_count] = i;
             (*gpt_count)++;
             if ((flag & 1) &&
                 (t->bootsrc[i] != NULL || t->boot_appended_idx[i] >= 0)) {
@@ -495,8 +495,11 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
             }
         }
     }
-    if (*gpt_count > 0 && !(flag & 4))
+    if (*gpt_count > 0 && !(flag & 4)) {
         (*gpt_count)++;
+        if (*gpt_count < 128)
+            gpt_idx[*gpt_count] = -1;
+    }
     if ((flag & 1) && *gpt_count > 0 && !(flag & 4)) {
         /* Register overall GPT partition */
         memset(gpt_name, 0, 72);
@@ -562,13 +565,17 @@ static int insert_apm_head(uint8_t *buf, int apm_count)
 static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
                                         int gpt_idx[128], int *gpt_cursor)
 {
-    int ilx_opts;
+    int ilx_opts, skip = 0;
     off_t hd_blocks;
     static uint8_t dummy_chs[3] = {
         0xfe, 0xff, 0xff, 
     };
 
-    if (t->bootsrc[gpt_idx[*gpt_cursor]] == NULL) {
+    if (gpt_idx[*gpt_cursor] < 0)
+        skip = 1;
+    else if (t->bootsrc[gpt_idx[*gpt_cursor]] == NULL)
+        skip = 1;
+    if (skip) {
         (*gpt_cursor)++;
         return 2;
     }
@@ -611,7 +618,7 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     char *wpt;
     uint32_t boot_lba;
     int head_count, sector_count, ret;
-    int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor;
+    int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor, i;
     /* For generating a weak random number */
     struct timeval tv;
     struct timezone tz;
@@ -619,6 +626,9 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     if (t->bootsrc[0] == NULL)
         return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
       "Cannot refer by isohybrid MBR to data outside of ISO 9660 filesystem.");
+
+    for (i = 0; i < 128; i++)
+        gpt_idx[i] = -1;
 
     if (flag & 2) {
         part_number = 1;
