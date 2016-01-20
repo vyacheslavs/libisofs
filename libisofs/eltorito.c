@@ -313,6 +313,35 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     return ++parent->nchildren;
 }
 
+/* Get start and size from "%d_start_%lus_size_%lud" */
+static
+void iso_parse_start_size(char *text, unsigned long *part_start,
+                          unsigned long *part_size)
+{
+    char *cpt;
+    unsigned long start, size;
+
+    cpt = strchr(text, '_');
+    if (cpt == NULL)
+        return;
+    if (strncmp(cpt, "_start_", 7) != 0)
+        return;
+    sscanf(cpt + 7, "%lu", &start);
+    cpt = strchr(cpt + 7, '_');
+    if (cpt == NULL)
+        return;
+    if (*(cpt - 1) != 's')
+        return;
+    if (strncmp(cpt, "_size_", 6) != 0)
+        return;
+    sscanf(cpt + 6, "%lu", &size);
+    for (cpt = cpt + 6; *cpt >= '0' && *cpt <= '9'; cpt++);
+    if (*cpt != 'd')
+        return;
+
+    *part_start = start;
+    *part_size = size;
+}
 
 static
 int create_image(IsoImage *image, const char *image_path,
@@ -325,6 +354,7 @@ int create_image(IsoImage *image, const char *image_path,
     int boot_media_type = 0;
     int load_sectors = 0; /* number of sector to load */
     int part_idx = -1;
+    unsigned long part_start = 0, part_size = 0;
     unsigned char partition_type = 0;
     off_t size;
     IsoNode *imgfile = NULL;
@@ -351,6 +381,8 @@ int create_image(IsoImage *image, const char *image_path,
           "Appended partition index for El Torito boot image is out of range");
             return ISO_BOOT_IMAGE_NOT_VALID;
         }
+        iso_parse_start_size((char *) (image_path + 30),
+                              &part_start, &part_size);
         part_idx--;
         size = 1;
     } else {
@@ -468,6 +500,8 @@ int create_image(IsoImage *image, const char *image_path,
     }
     boot->image = (IsoFile*)imgfile;
     boot->appended_idx = part_idx;
+    boot->appended_start = part_start;
+    boot->appended_size = part_size;
     if (imgfile != NULL)
         iso_node_ref(imgfile); /* get our ref */
     boot->bootable = 1;
@@ -864,7 +898,7 @@ int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
     struct el_torito_boot_image *img;
     struct el_torito_section_entry *se =
         (struct el_torito_section_entry*)buf;
-    int app_idx;
+    int app_idx, mode = 0;
 
     img = t->catalog->bootimages[idx];
 
@@ -873,7 +907,44 @@ int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
     iso_lsb(se->load_seg, img->load_seg, 2);
     se->system_type[0] = img->partition_type;
 
-    if (t->boot_appended_idx[idx] >= 0) {
+    if (t->boot_appended_idx[idx] >= 0)
+        if (t->appended_part_size[t->boot_appended_idx[idx]] > 0)
+            mode = 2; /* appended partition */
+    if (mode == 0 && t->opts->appendable &&
+        (t->boot_intvl_start[idx] > 0 || t->boot_intvl_size[idx] > 0) &&
+         t->boot_intvl_start[idx] + (t->boot_intvl_size[idx] + 3) / 4 <=
+         t->opts->ms_block)
+        mode = 1; /* image interval */
+    if (mode == 0 && t->boot_appended_idx[idx] >= 0) {
+        iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+          "Appended partition which shall serve as boot image does not exist");
+        return ISO_BOOT_IMAGE_NOT_VALID;
+    }
+
+    if (mode == 1) {
+        if (t->boot_intvl_start[idx] + (t->boot_intvl_size[idx] + 3) / 4 >
+            t->total_size / 2048 + t->opts->ms_block - t->eff_partition_offset
+           ) {
+            iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+     "Block interval which shall serve as boot image is outside result range");
+            return ISO_BOOT_IMAGE_NOT_VALID;
+        }
+
+        if (t->boot_intvl_size[idx] > 65535) {
+            if (img->platform_id == 0xef)
+                iso_lsb(se->sec_count, 0, 2);
+            else
+                iso_lsb(se->sec_count, 65535, 2);
+        } else {
+            if (t->boot_intvl_size[idx] == 0) {
+                iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+               "Block interval which shall serve as boot image has zero size");
+                return ISO_BOOT_IMAGE_NOT_VALID;
+            }
+            iso_lsb(se->sec_count, t->boot_intvl_size[idx], 2);
+        }
+        iso_lsb(se->block, t->boot_intvl_start[idx], 4);
+    } else if (mode == 2) {
         app_idx = t->boot_appended_idx[idx];
         if (t->appended_part_size[app_idx] * 4 > 65535) {
             if (img->platform_id == 0xef)
@@ -881,11 +952,6 @@ int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
             else
                 iso_lsb(se->sec_count, 65535, 2);
         } else {
-            if (t->appended_part_size[app_idx] == 0) {
-                iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
-          "Appended partition which shall serve as boot image does not exist");
-                return ISO_BOOT_IMAGE_NOT_VALID;
-            }
             iso_lsb(se->sec_count, t->appended_part_size[app_idx] * 4, 2);
         }
         iso_lsb(se->block, t->appended_part_start[app_idx], 4);
@@ -1387,6 +1453,10 @@ int eltorito_writer_create(Ecma119Image *target)
             /* Use an appended partition as boot image rather than IsoFile */
             target->boot_appended_idx[idx] =
                                 target->catalog->bootimages[idx]->appended_idx;
+            target->boot_intvl_start[idx] =
+                              target->catalog->bootimages[idx]->appended_start;
+            target->boot_intvl_size[idx] =
+                               target->catalog->bootimages[idx]->appended_size;
             if (((target->system_area_options >> 2) & 0x3f) == 0 &&
                 (target->system_area_options & 3) == 1) {
                 /* ISO will not be a partition. It can span the whole image. */

@@ -55,6 +55,8 @@ struct el_torito_boot_image {
 
     /* Overrides .image if >= 0 : array index of appended partition */
     int appended_idx;
+    uint32_t appended_start; /* In blocks of 2048 bytes */
+    uint32_t appended_size;  /* In blocks of  512 bytes */
 
     unsigned int bootable:1; /**< If the entry is bootable. */
     /**

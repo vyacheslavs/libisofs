@@ -3453,7 +3453,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
  * @param image_path
  *      The absolute path of a IsoFile to be used as boot image.
 
->>> or  --interval:appended_partition_$number...
+>>> or  --interval:appended_partition_${number}s_start_${start}d_size_$size:...
 
  * @param type
  *      The boot media type. See iso_image_set_boot_image

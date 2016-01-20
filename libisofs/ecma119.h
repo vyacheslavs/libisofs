@@ -651,6 +651,9 @@ struct ecma119_image
 
     int *boot_appended_idx; /* Appended partition which serve as boot images */
 
+    uint32_t *boot_intvl_start;   /* In blocks of 2048 bytes */
+    uint32_t *boot_intvl_size;    /* In blocks of  512 bytes */
+
     /*
      * System Area related information
      */

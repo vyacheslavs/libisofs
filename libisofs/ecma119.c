@@ -106,6 +106,10 @@ void ecma119_image_free(Ecma119Image *t)
         free(t->bootsrc);
     if (t->boot_appended_idx != NULL)
         free(t->boot_appended_idx);
+    if (t->boot_intvl_start != NULL)
+        free(t->boot_intvl_start);
+    if (t->boot_intvl_size != NULL)
+        free(t->boot_intvl_size);
     if (t->system_area_data != NULL)
         free(t->system_area_data);
     if (t->checksum_ctx != NULL) { /* dispose checksum context */
@@ -571,7 +575,8 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
     if (t->pvd_size_is_total_size) {
         iso_bb(vol.vol_space_size,
-               t->total_size / 2048 - t->eff_partition_offset, 4);
+            t->total_size / 2048 + t->opts->ms_block - t->eff_partition_offset,
+            4);
     } else {
         iso_bb(vol.vol_space_size,
                t->vol_space_size - t->eff_partition_offset, 4);
@@ -2385,13 +2390,21 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
                                     sizeof(IsoFileSrc *));
         target->boot_appended_idx = calloc(target->num_bootsrc + 1,
                                            sizeof(int));
-        if (target->bootsrc == NULL || target->boot_appended_idx == NULL) {
+        target->boot_intvl_start = calloc(target->num_bootsrc + 1,
+                                             sizeof(uint32_t));
+        target->boot_intvl_size = calloc(target->num_bootsrc + 1,
+                                            sizeof(uint32_t));
+        if (target->bootsrc == NULL || target->boot_appended_idx == NULL ||
+            target->boot_intvl_start == NULL ||
+            target->boot_intvl_size == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto target_cleanup;
         }
         for (i= 0; i < target->num_bootsrc; i++) {
             target->bootsrc[i] = NULL;
             target->boot_appended_idx[i] = -1;
+            target->boot_intvl_start[i] = 0;
+            target->boot_intvl_size[i] = 0;
         }
     } else {
         target->num_bootsrc = 0;
