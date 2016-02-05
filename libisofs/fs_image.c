@@ -364,7 +364,7 @@ typedef struct
      */
     int px_ino_status;
 
-    /* Which Rock Ridge error messages already have occured
+    /* Which Rock Ridge error messages already have occurred
        bit0= Invalid PX entry
        bit1= Invalid TF entry
        bit2= New NM entry found without previous CONTINUE flag

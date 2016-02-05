@@ -380,7 +380,7 @@ const char *iso_error_to_msg(int errcode)
     case ISO_DATA_SOURCE_MISHAP:
     case ISO_DATA_SOURCE_FAILURE:
     case ISO_DATA_SOURCE_FATAL:
-        return "Read error occured with IsoDataSource";
+        return "Read error occurred with IsoDataSource";
     case ISO_AAIP_IGNORED:
         return "AAIP info with ACL or xattr in ISO image will be ignored";
     case ISO_AAIP_BAD_ACL:

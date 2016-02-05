@@ -2510,7 +2510,7 @@ int iso_interval_reader_destroy(struct iso_interval_reader **ivr, int flag);
  *        Pointer to memory for filling in at least 2048 bytes.
  * @param buf_fill
  *        Will in case of success return the number of valid bytes.
- *        If this is smaller than 2048, then end-of-interval has occured.
+ *        If this is smaller than 2048, then end-of-interval has occurred.
  * @param flag
  *        Unused yet. Submit 0.
  * @return
@@ -8791,16 +8791,16 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /* ! PLACE NEW ERROR CODES ABOVE. NOT AFTER THIS LINE ! */
 
 
-/** Read error occured with IsoDataSource (SORRY,HIGH, -513) */
+/** Read error occurred with IsoDataSource (SORRY,HIGH, -513) */
 #define ISO_DATA_SOURCE_SORRY     0xE030FCFF
 
-/** Read error occured with IsoDataSource (MISHAP,HIGH, -513) */
+/** Read error occurred with IsoDataSource (MISHAP,HIGH, -513) */
 #define ISO_DATA_SOURCE_MISHAP    0xE430FCFF
 
-/** Read error occured with IsoDataSource (FAILURE,HIGH, -513) */
+/** Read error occurred with IsoDataSource (FAILURE,HIGH, -513) */
 #define ISO_DATA_SOURCE_FAILURE   0xE830FCFF
 
-/** Read error occured with IsoDataSource (FATAL,HIGH, -513) */
+/** Read error occurred with IsoDataSource (FATAL,HIGH, -513) */
 #define ISO_DATA_SOURCE_FATAL     0xF030FCFF
 
 
