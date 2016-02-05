@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2015 Thomas Schmitt
+ * Copyright (c) 2009-2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2648,6 +2648,54 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
  * @since 1.4.0
  */
 int iso_write_opts_set_appended_as_gpt(IsoWriteOpts *opts, int gpt);
+
+/**
+ * Control whether partitions created by iso_write_opts_set_partition_img()
+ * are to be represented in Apple Partition Map.
+ * 
+ * @param opts
+ *        The option set to be manipulated.
+ * @param apm
+ *        0= do not represent appended partitions in APM
+ *        1= represent in APM, even if not
+ *           iso_write_opts_set_part_like_isohybrid() enables it and no
+ *           other APM partitions emerge.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.4.4
+ */
+int iso_write_opts_set_appended_as_apm(IsoWriteOpts *opts, int apm);
+
+/**
+ * Control whether bits 2 to 8 of el_torito_set_isolinux_options()
+ * shall apply even if not isohybrid MBR patching is enabled (bit1 of
+ * parameter options of iso_write_opts_set_system_area()):
+ * - Mentioning of El Torito boot images in GPT.
+ * - Mentioning of El Torito boot images in APM.
+ *
+ * In this case some other behavior from isohybrid processing will apply too:
+ * - No MBR partition of type 0xee emerges, even if GPT gets produced.
+ * - Gaps between GPT and APM partitions will not be filled by more partitions.
+ *
+ * An extra feature towards isohybrid is enabled:
+ * - Appended partitions get mentioned in APM if other APM partitions emerge.
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param alike
+ *        0= Apply the described behavior only with ISOLINUX isohybrid.
+ *           Do not mention appended partitions in APM unless
+ *           iso_write_opts_set_appended_as_apm() is enabled.
+ *        1= Apply the described behavior even without ISOLINUX isohybrid.
+ *        
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.4.4
+ */
+int iso_write_opts_set_part_like_isohybrid(IsoWriteOpts *opts, int alike);
+
 
 /**
  * Inquire the start address of the file data blocks after having used

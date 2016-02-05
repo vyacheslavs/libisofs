@@ -487,6 +487,15 @@ struct iso_write_opts {
      */
     int appended_as_gpt;
 
+    /* If 1: With appended partitions: mark by APM partition
+     */
+    int appended_as_apm;
+
+    /* If 1: Obey struct el_torito_boot_image.isolinux_options bit2-7 and bit8.
+             I.e. mention boot image as partition in GPT and/or APM.
+     */
+    int part_like_isohybrid;
+
     /* Eventual name of the non-ISO aspect of the image. E.g. SUN ASCII label.
      */
     char ascii_disc_label[ISO_DISC_LABEL_SIZE];

@@ -3398,6 +3398,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->appended_part_flags[i] = 0;
     }
     wopts->appended_as_gpt = 0;
+    wopts->appended_as_apm = 0;
+    wopts->part_like_isohybrid = 0;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
     wopts->allow_dir_id_ext = 0;
@@ -4116,6 +4118,18 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
 int iso_write_opts_set_appended_as_gpt(IsoWriteOpts *opts, int gpt)
 {
     opts->appended_as_gpt = !!gpt;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_appended_as_apm(IsoWriteOpts *opts, int apm)
+{
+    opts->appended_as_apm = !!apm;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_part_like_isohybrid(IsoWriteOpts *opts, int alike)
+{
+    opts->part_like_isohybrid = !!alike;
     return ISO_SUCCESS;
 }
 

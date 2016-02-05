@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2015 Thomas Schmitt
+ * Copyright (c) 2010 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1187,9 +1187,8 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
     qsort(t->apm_req, t->apm_req_count,
         sizeof(struct iso_apm_partition_request *), cmp_partition_request);
 
-#ifdef Libisofs_mjg_boot_for_grub2
-    return 1;
-#endif
+    if (t->opts->part_like_isohybrid)
+        return 1; /* No filling, only sorting */
 
     /* t->apm_req_count will grow during the loop */
     up_to = t->apm_req_count + 1;
@@ -1665,11 +1664,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     goal = 0;
     part_end = 0;
 
-#ifdef Libisofs_mjg_boot_for_grub2
-
-    up_to = 0; /* No gap filling */
-
-#endif /*  Libisofs_mjg_boot_for_grub2 */
+    if (t->opts->part_like_isohybrid)
+        up_to = 0; /* No gap filling */
 
     for (i = 0; i < up_to; i++) {
         if (i < up_to - 1) {
@@ -1896,24 +1892,13 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         if (t->mbr_req_count == 0){
             /* Write GRUB protective msdos label, i.e. a simple partition
                table */
-
-#ifdef Libisofs_mjg_boot_for_grub2
-
-            part_type = 0xcd;
-            pml_blocks = img_blocks;
-
-#else
-
-            if (t->gpt_req_count > 0) {
+            if (t->gpt_req_count > 0 && ! t->opts->part_like_isohybrid) {
                 part_type = 0xee;
                 pml_blocks = gpt_blocks;
             } else {
                 part_type = 0xcd;
                 pml_blocks = img_blocks;
             }
-
-#endif /* Libisofs_mjg_boot_for_grub2 */
-
             ret = make_grub_msdos_label(pml_blocks, t->partition_secs_per_head,
                                         t->partition_heads_per_cyl,
                                         (uint8_t) part_type, buf, 0);
@@ -2070,23 +2055,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
              wpt[i] = blk >> (i * 8);
     }
 
-#ifdef Libisofs_mjg_boot_for_grub2
-
-    /* Prevent MBR partition type 0xee */
-    if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
-        (t->have_appended_partitions || t->gpt_req_count == 0)) {
-
-#else
-
     /* Prevent partition type 0xee if no GPT emerged */
 
-    /* >>> check for GPT magic number at byte 512 ff. */;
+    /* >>> ??? check for GPT magic number at byte 512 ff. ? */;
 
     if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
-        t->gpt_req_count == 0) {
-
-#endif /* ! Libisofs_mjg_boot_for_grub2 */
-
+        (t->opts->part_like_isohybrid || t->gpt_req_count == 0)) {
         for (i = 0; i < 4; i++) {
             if (buf[446 + 16 * i + 4] == 0xee) {
                 iso_msgs_submit(0,
@@ -2453,14 +2427,6 @@ fallback:;
 
 int assess_appended_gpt(Ecma119Image *t, int flag)
 {
-
-#ifdef Libisofs_mjg_boot_for_grub2
-
-    int i, ret;
-    uint8_t gpt_name[72];
-
-#else
-
     static uint8_t basic_data_uuid[16] = {
         0xa2, 0xa0, 0xd0, 0xeb, 0xe5, 0xb9, 0x33, 0x44,
         0x87, 0xc0, 0x68, 0xb6, 0xb7, 0x26, 0x99, 0xc7
@@ -2470,57 +2436,54 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
        0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b
     };
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    int i, ret;
+    int i, ret, do_apm = 0, do_gpt = 0;
     uint8_t gpt_name[72], *type_uuid;
-
-#endif /* ! Libisofs_mjg_boot_for_grub2 */
 
 #ifndef Libisofs_appended_partitions_inlinE
     if (!t->gpt_backup_outside)
         return 2;
 #endif
 
-    /* Represent in GPT only if other GPT partitions are already registered
-       or if appended partitions are explicitely desired for GPT-only.
-    */
-    if (t->gpt_req_count == 0 &&
-        !(t->have_appended_partitions && t->opts->appended_as_gpt))
-        return 2;
+    if ((t->apm_req_count > 0 && t->opts->part_like_isohybrid) ||
+       (t->have_appended_partitions && t->opts->appended_as_apm))
+       do_apm = 1;
+    if (t->gpt_req_count > 0 ||
+        (t->have_appended_partitions && t->opts->appended_as_gpt))
+       do_gpt = 1;
+
+    if (do_apm == 0 && do_gpt == 0)
+            return 2;
 
     /* Represent appended partitions */
     for (i = 0; i <= 3; i++) {
         if (t->opts->appended_partitions[i] == NULL)
     continue;
-
-#ifdef Libisofs_mjg_boot_for_grub2
-
-        sprintf((char *) gpt_name, "Appended%d", i + 1);
-        ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
+        if (do_apm) {
+            memset(gpt_name, 0, 32);
+            sprintf((char *) gpt_name, "Appended%d", i + 1);
+            ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
                             t->appended_part_start[i] * t->hfsp_iso_block_fac,
                             t->appended_part_size[i] * t->hfsp_iso_block_fac,
                             (char *) gpt_name, "Data");
-        if (ret < 0)
-            return ret;
-
-#else /* Libisofs_mjg_boot_for_grub2 */
-
-        memset(gpt_name, 0, 72);
-        sprintf((char *) gpt_name, "Appended%d", i + 1);
-        iso_ascii_utf_16le(gpt_name);
-        if (t->opts->appended_part_types[i] == 0xef)
-            type_uuid = efi_sys_uuid;
-        else
-            type_uuid = basic_data_uuid;
-        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
+            if (ret < 0)
+                return ret;
+        }
+        if (do_gpt) {
+            memset(gpt_name, 0, 72);
+            sprintf((char *) gpt_name, "Appended%d", i + 1);
+            iso_ascii_utf_16le(gpt_name);
+            if (t->opts->appended_part_types[i] == 0xef)
+                type_uuid = efi_sys_uuid;
+            else
+                type_uuid = basic_data_uuid;
+            ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
                                   ((uint64_t) t->appended_part_start[i]) * 4,
                                   ((uint64_t) t->appended_part_size[i]) * 4,
                                   type_uuid, zero_uuid,
                                   (uint64_t) 0, gpt_name);
-        if (ret < 0)
-            return ret;
-
-#endif /* ! Libisofs_mjg_boot_for_grub2 */
-
+            if (ret < 0)
+                return ret;
+        }
     }
     return ISO_SUCCESS;
 }
@@ -2533,10 +2496,6 @@ static int precompute_gpt(Ecma119Image *t)
     uint32_t gpt_part_start;
     int ret, sa_type;
     int gpt_count, gpt_idx[128], apm_count;
-
-#ifdef Libisofs_mjg_boot_for_grub2X
-    int mjg_gpt_count = 0, mjg_apm_count = 0;
-#endif
 
     /* Avoid repetition by  gpt_tail_writer_compute_data_blocks */
     t->gpt_is_computed = 1;
@@ -2563,14 +2522,12 @@ static int precompute_gpt(Ecma119Image *t)
             return ret;
     }
 
-#ifdef Libisofs_mjg_boot_for_grub2
-
-    /* Experimental:
+    /* With part_like_isohybrid:
        If no GPT is registered yet, and MBR, but neither CHRP nor ISOLINUX
        isohybrid is desired, then try to apply the isohybrid GPT and APM flags
        nevertheless. Avoid an overall ISO image GPT partition.
     */
-    if (t->gpt_req_count <= 0 &&
+    if (t->opts->part_like_isohybrid && t->gpt_req_count <= 0 &&
         ((t->system_area_options >> 2) & 0x3f) == 0 &&
         ((t->system_area_options >> 10) & 0xf) != 1 &&
         (!(t->system_area_options & 2))) {
@@ -2582,8 +2539,6 @@ static int precompute_gpt(Ecma119Image *t)
         t->apm_req_flags |= 2; /* Do not fill APM gaps,
                                   do not adjust final APM partition size */
     }
-#endif /* Libisofs_mjg_boot_for_grub2 */
-
 
     /* Rectify APM requests early in order to learn the size of GPT.
        iso_write_apm() relies on this being already done here.
