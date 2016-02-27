@@ -4578,7 +4578,8 @@ int iso_analyze_sun(IsoImage *image, IsoDataSource *src, int flag)
         iso_read_msb(usad + 144, 2) != 0x10 ||
         iso_read_msb(usad + 444, 4) != 0 ||
         sai->image_size > 0x3fffffff ||
-        iso_read_msb(usad + 448, 4) != sai->image_size * 4)
+        iso_read_msb(usad + 448, 4) < sai->image_size * 4 - 600 ||
+        iso_read_msb(usad + 448, 4) > sai->image_size * 4)
         return 0;
     checksum[0] = checksum[1] = 0;
     for (i = 0; i < 510; i += 2) {
