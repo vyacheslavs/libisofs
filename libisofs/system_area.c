@@ -2354,7 +2354,6 @@ void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
     static uint8_t uuid_urandom[16];
     uint32_t rnd, salt;
     struct timeval tv;
-    struct timezone tz;
     pid_t pid;
     static int counter = 0, use_urandom = 0;
     int i, ret, fd;
@@ -2404,7 +2403,7 @@ fallback:;
        per day.
     */
     memcpy(u, uuid_template, 16);
-    gettimeofday(&tv, &tz);
+    gettimeofday(&tv, NULL);
     for (i = 0; i < 4; i++)
         u[i] = (salt >> (8 * i)) & 0xff;
     for (i = 0; i < 2; i++)

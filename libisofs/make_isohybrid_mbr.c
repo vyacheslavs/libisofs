@@ -158,7 +158,6 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
 
     /* For generating a weak random number */
     struct timeval tv;
-    struct timezone tz;
 
     if (bin_lba < 0 || bin_lba >= (1 << 29))
         return (0); /* 1 TB limit of signed 32 bit addressing of 512 byte blocks */
@@ -213,7 +212,7 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag)
      from. An environment variable ?
      125: Whatever, i use some 32-bit random value with no crypto strength.
      */
-    gettimeofday(&tv, &tz);
+    gettimeofday(&tv, NULL);
     id = 0xffffffff & (tv.tv_sec ^ (tv.tv_usec * 2000));
 
     /*
@@ -621,7 +620,6 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor, i;
     /* For generating a weak random number */
     struct timeval tv;
-    struct timezone tz;
 
     if (t->bootsrc[0] == NULL)
         return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
@@ -670,7 +668,7 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
        (here some 32-bit random value with no crypto strength)
     */
     if (flag & 1) {
-        gettimeofday(&tv, &tz);
+        gettimeofday(&tv, NULL);
         id = 0xffffffff & (tv.tv_sec ^ (tv.tv_usec * 2000));
         lsb_to_buf(&wpt, id, 32, 0);
     } else {

@@ -1,7 +1,7 @@
 
 /* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
-   Copyright (C) 2006 - 2008 Thomas Schmitt <scdbackup@gmx.net>,
+   Copyright (C) 2006 - 2016 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2 or later
 */
 
@@ -33,14 +33,13 @@ static int libiso_msgs_item_new(struct libiso_msgs_item **item,
  int ret;
  struct libiso_msgs_item *o;
  struct timeval tv;
- struct timezone tz;
 
  (*item)= o= 
            (struct libiso_msgs_item *) malloc(sizeof(struct libiso_msgs_item));
  if(o==NULL)
    return(-1);
  o->timestamp= 0.0;
- ret= gettimeofday(&tv,&tz);
+ ret= gettimeofday(&tv, NULL);
  if(ret==0)
    o->timestamp= tv.tv_sec+0.000001*tv.tv_usec;
  o->process_id= getpid();
