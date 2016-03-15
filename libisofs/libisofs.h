@@ -16,6 +16,10 @@
                  libisofs/libisofs.ver 
 */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 
  *
  * Applications must use 64 bit off_t.
@@ -8977,5 +8981,9 @@ struct burn_source {
 
  #define Libisofs_with_rrip_rR yes
 */
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /*LIBISO_LIBISOFS_H_*/
