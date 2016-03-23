@@ -3964,7 +3964,7 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
         sub_type = 0;
         is_isohybrid = 1;
     } else if(ret == 2) {
-        sub_type = 0;
+        /* will become sub_type 0 if protective_label */
         is_grub2_mbr = 1;
     }
 

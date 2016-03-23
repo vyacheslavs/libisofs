@@ -2220,8 +2220,9 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *        bit10-13= System area sub type
  *              @since 1.2.4
  *              With type 0:
- *                bit0 ... MBR with partition start at block 1
- *                bit1 ... ISOLINUX isohybrid MBR
+ *                if options bit0 ... MBR with partition start at block 1
+ *                if options bit1 ... ISOLINUX isohybrid MBR
+ *                else:
  *                0 = no particular sub type, use unaltered
  *                1 = CHRP: A single MBR partition of type 0x96 covers the
  *                          ISO image. Not compatible with any other feature
