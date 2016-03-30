@@ -4238,7 +4238,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
 #define ISO_SYSAREA_REPORT_DOC_ALPHA \
 "If a DEC Alpha SRM boot sector is present:", \
 "  DEC Alpha ldr size : decimal", \
-"       tells the number of 512-byte blocks in DEC Alpha Secondary Bootstrap" \
+"       tells the number of 512-byte blocks in DEC Alpha Secondary Bootstrap", \
 "       Loader file.", \
 "  DEC Alpha ldr adr  : decimal", \
 "       tells the start of the loader file in units of 512-byte blocks.", \
