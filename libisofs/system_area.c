@@ -993,6 +993,24 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
 }
 
 
+static int iso_find_gpt_entry(struct iso_gpt_partition_request **req_array,
+                        int gpt_req_count,
+                        uint64_t start_block, uint64_t block_count,
+                        int *index, int flag)
+{
+    struct iso_gpt_partition_request *entry;
+
+    for (*index = 0; *index < gpt_req_count; (*index)++) {
+        entry = req_array[*index];
+        if (entry->start_block == start_block &&
+            entry->block_count == block_count)
+            return 1;
+    }
+    *index = -1;
+    return 0;
+}
+
+
 /* Convenience frontend for iso_register_gpt_entry().
    name has to be already encoded as UTF-16LE.
 */
@@ -2435,7 +2453,7 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
        0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b
     };
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    int i, ret, do_apm = 0, do_gpt = 0;
+    int i, ret, do_apm = 0, do_gpt = 0, index, already_in_gpt;
     uint8_t gpt_name[72], *type_uuid;
 
 #ifndef Libisofs_appended_partitions_inlinE
@@ -2467,7 +2485,12 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
             if (ret < 0)
                 return ret;
         }
-        if (do_gpt) {
+        if (do_gpt)
+            already_in_gpt = iso_find_gpt_entry(t->gpt_req, t->gpt_req_count,
+                                    ((uint64_t) t->appended_part_start[i]) * 4,
+                                    ((uint64_t) t->appended_part_size[i]) * 4,
+                                    &index, 0);
+        if (do_gpt && !already_in_gpt) {
             memset(gpt_name, 0, 72);
             sprintf((char *) gpt_name, "Appended%d", i + 1);
             iso_ascii_utf_16le(gpt_name);
