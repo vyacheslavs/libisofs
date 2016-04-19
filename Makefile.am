@@ -13,7 +13,7 @@ ACLOCAL_AMFLAGS = -I ./
 # Build libraries
 
 libisofs_libisofs_la_LDFLAGS = \
-	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
+	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) $(LIBLDFLAGS)
 
 # Eventually enabling system adapters for ACL and EA.
 # ts A90409: Eventually enabling use of zlib.

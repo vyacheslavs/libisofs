@@ -147,10 +147,12 @@ AC_DEFUN([LIBISOFS_ASSERT_VERS_LIBS],
     LDFLAGS="$LDFLAGS -Wl,--version-script=libisofs/libisofs.ver"
     AC_TRY_LINK([#include <stdio.h>], [printf("Hello\n");],
                 [vers_libs_test="yes"], [vers_libs_test="no"])
-    if test x$vers_libs_test = xno
+    if test x$vers_libs_test = xyes
     then
-        LDFLAGS="$libburnia_save_LDFLAGS"
+        LIBLDFLAGS="-Wl,--version-script=libisofs/libisofs.ver"
     fi
+    LDFLAGS="$libburnia_save_LDFLAGS"
+    AC_SUBST(LIBLDFLAGS)
 ])
 
 
