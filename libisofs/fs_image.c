@@ -3968,8 +3968,32 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
         is_grub2_mbr = 1;
     }
 
+    if (sai->mbr_req_count == 3 && !is_isohybrid) {
+        /* Check for libisofs PReP partitions :
+               0xee or 0xcd from 0 to a-1
+               0x41 from a to b
+               0x0c or 0xcd from b+1 to end
+        */
+        if ((sai->mbr_req[0]->start_block == 0 &&
+             (sai->mbr_req[0]->type_byte == 0xee ||
+              sai->mbr_req[0]->type_byte == 0xcd)) &&
+            sai->mbr_req[0]->block_count == sai->mbr_req[1]->start_block &&
+            sai->mbr_req[1]->type_byte == 0x41 &&
+            (sai->mbr_req[1]->start_block % 4) == 0 &&
+            sai->mbr_req[1]->start_block + sai->mbr_req[1]->block_count ==
+                                                sai->mbr_req[2]->start_block &&
+            (sai->mbr_req[2]->type_byte == 0x0c ||
+             sai->mbr_req[2]->type_byte == 0xcd) &&
+            (sai->mbr_req[2]->start_block + sai->mbr_req[2]->block_count) / 4
+                                                          == sai->image_size) {
+            sai->prep_part_start = sai->mbr_req[1]->start_block / 4;
+            sai->prep_part_size = (sai->mbr_req[1]->block_count + 3) / 4;
+            sub_type = 0;
+        }
+    }
     if (sai->mbr_req_count >= 1 &&
-        (sai->mbr_req[0]->type_byte == 0xee || !is_isohybrid)) {
+        (sai->mbr_req[0]->type_byte == 0xee || !is_isohybrid) &&
+        !sai->prep_part_start > 0) {
         part = sai->mbr_req[0];
         part2_start = 0;
         if (sai->mbr_req_count >= 2)
@@ -4000,28 +4024,6 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
             /* mkisofs PReP partition */
             sai->prep_part_start = sai->mbr_req[0]->start_block / 4;
             sai->prep_part_size = (sai->mbr_req[0]->block_count + 3) / 4;
-            sub_type = 0;
-        }
-    } else if (sai->mbr_req_count == 3 && !is_isohybrid) {
-        /* Check for libisofs PReP partitions :
-               0xee or 0xcd from 0 to a-1
-               0x41 from a to b
-               0x0c or 0xcd from b+1 to end
-        */
-        if ((sai->mbr_req[0]->start_block == 0 &&
-             (sai->mbr_req[0]->type_byte == 0xee ||
-              sai->mbr_req[0]->type_byte == 0xcd)) &&
-            sai->mbr_req[0]->block_count == sai->mbr_req[1]->start_block &&
-            sai->mbr_req[1]->type_byte == 0x41 &&
-            (sai->mbr_req[1]->start_block % 4) == 0 &&
-            sai->mbr_req[1]->start_block + sai->mbr_req[1]->block_count ==
-                                                sai->mbr_req[2]->start_block &&
-            (sai->mbr_req[2]->type_byte == 0x0c ||
-             sai->mbr_req[2]->type_byte == 0xcd) &&
-            (sai->mbr_req[2]->start_block + sai->mbr_req[2]->block_count) / 4
-                                                          == sai->image_size) {
-            sai->prep_part_start = sai->mbr_req[1]->start_block / 4;
-            sai->prep_part_size = (sai->mbr_req[1]->block_count + 3) / 4;
             sub_type = 0;
         }
     }
