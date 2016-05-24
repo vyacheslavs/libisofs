@@ -16,6 +16,9 @@
 #ifndef Aaip_h_is_includeD
 #define Aaip_h_is_includeD yes
 
+/* For ssize_t */
+#include <unistd.h>
+
 
 /* --------------------------------- Encoder ---------------------------- */
 
