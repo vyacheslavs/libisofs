@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [1.4.3], [http://libburnia-project.org])
+AC_INIT([libisofs], [1.4.4], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -26,8 +26,8 @@ dnl
 dnl LT_CURRENT, LT_REVISION and LT_AGE get set directly now.
 dnl
 dnl SONAME of the emerging library is  LT_CURRENT - LT_AGE.
-dnl The linker will do no finer checks. Especially no age range check for
-dnl the cdrskin binary. If SONAME matches, then the couple starts.
+dnl The linker will do no finer checks. If SONAME matches, then the couple
+dnl starts.
 dnl 
 dnl Therefore a run time check is provided by libisofs function 
 dnl iso_lib_version(). It returns the major, minor and micro revision of the 
@@ -41,7 +41,7 @@ dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
 dnl
 LIBISOFS_MAJOR_VERSION=1
 LIBISOFS_MINOR_VERSION=4
-LIBISOFS_MICRO_VERSION=3
+LIBISOFS_MICRO_VERSION=4
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
@@ -51,10 +51,10 @@ AC_SUBST(LIBISOFS_VERSION)
 
 dnl Libtool versioning
 LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
-# 2015.11.28 development jump has not yet happened
-# SONAME = 84 - 78 = 6 . Library name = libisofs.6.78.0
-LT_CURRENT=84
-LT_AGE=78
+# 2016.07.01 development jump has not yet happened
+# SONAME = 86 - 80 = 6 . Library name = libisofs.6.80.0
+LT_CURRENT=86
+LT_AGE=80
 LT_REVISION=0
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
