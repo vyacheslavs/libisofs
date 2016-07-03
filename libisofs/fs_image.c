@@ -3993,7 +3993,7 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
     }
     if (sai->mbr_req_count >= 1 &&
         (sai->mbr_req[0]->type_byte == 0xee || !is_isohybrid) &&
-        !sai->prep_part_start > 0) {
+        !(sai->prep_part_start > 0)) {
         part = sai->mbr_req[0];
         part2_start = 0;
         if (sai->mbr_req_count >= 2)
