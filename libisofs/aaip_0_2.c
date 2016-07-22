@@ -648,7 +648,7 @@ ex:;
      mission bits.
 
 */
-/* Analyze occurence of ACL tag types in long text form. If not disabled by
+/* Analyze occurrence of ACL tag types in long text form. If not disabled by
    parameter flag remove the entries of type "user::" , "group::" , "other::" ,
    or "other:" from an ACL in long text form if they match the bits in st_mode
    as described by man 2 stat and man 5 acl.

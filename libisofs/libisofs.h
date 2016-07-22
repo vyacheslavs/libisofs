@@ -167,7 +167,7 @@ typedef struct Iso_Image IsoImage;
  * A node in the iso tree, i.e. a file that will be written to image.
  *
  * It can represent any kind of files. When needed, you can get the type with
- * iso_node_get_type() and cast it to the appropiate subtype. Useful macros
+ * iso_node_get_type() and cast it to the appropriate subtype. Useful macros
  * are provided, see below.
  *
  * @since 0.6.2
@@ -1257,7 +1257,7 @@ char *iso_get_local_charset(int flag);
  * @param image
  *     Location where the image pointer will be stored.
  * @return
- *     1 sucess, < 0 error
+ *     1 success, < 0 error
  *
  * @since 0.6.2
  */
@@ -1376,7 +1376,7 @@ int iso_write_opts_set_iso_level(IsoWriteOpts *opts, int level);
  * resulting image will have long filenames (up to 255 characters), deeper
  * directory structure, POSIX permissions and owner info on files and
  * directories, support for symbolic links or special files... All that
- * attributes can be modified/setted with the appropiate function.
+ * attributes can be modified/set with the appropriate function.
  *
  * @param opts
  *      The option set to be manipulated.
@@ -1812,7 +1812,7 @@ int iso_write_opts_set_rrip_1_10_px_ino(IsoWriteOpts *opts, int enable);
 /**
  * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
  * I.e. without announcing it by an ER field and thus without the need
- * to preceed the RRIP fields and the AAIP field by ES fields.
+ * to precede the RRIP fields and the AAIP field by ES fields.
  * This saves 5 to 10 bytes per file and might avoid problems with readers
  * which dislike ER fields other than the ones for RRIP.
  * On the other hand, SUSP 1.12 frowns on such unannounced extensions 
@@ -2358,7 +2358,7 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
 #define iso_libjte_req_micro 0
 
 /** 
- * Associate a libjte environment object to the upcomming write run.
+ * Associate a libjte environment object to the upcoming write run.
  * libjte implements Jigdo Template Extraction as of Steve McIntyre and
  * Richard Atterer.
  * The call will fail if no libjte support was enabled at compile time.
@@ -4255,7 +4255,7 @@ int iso_image_get_system_area(IsoImage *img, char data[32768],
  * Else it will consist of lines as described in ISO_SYSAREA_REPORT_DOC above.
  *
  * File paths and other long texts are reported as "(too long to show here)"
- * if their length plus preceeding text plus trailing 0-byte exceeds the
+ * if their length plus preceding text plus trailing 0-byte exceeds the
  * line length limit of ISO_MAX_SYSAREA_LINE_LENGTH bytes.
  * Texts which may contain whitespace or unprintable characters will start
  * at fixed positions and extend to the end of the line.
@@ -5237,7 +5237,7 @@ int iso_dir_iter_take(IsoDirIter *iter);
  * The node removed will be the one returned by the previous iteration.
  *
  * It is not allowed to call this function twice without calling
- * iso_dir_iter_next inbetween.
+ * iso_dir_iter_next between the calls.
  *
  * @return
  *     1 on succes, < 0 error
@@ -5485,7 +5485,7 @@ int iso_symlink_set_dest(IsoSymlink *link, const char *dest);
  *      or regular files, this function has no effect.
  * @param w
  *      The weight as a integer number, the greater this value is, the
- *      closer from the begining of image the file will be written.
+ *      closer from the beginning of image the file will be written.
  *      Default value at IsoNode creation is 0.
  *
  * @since 0.6.2
@@ -6239,7 +6239,7 @@ int iso_tree_clone(IsoNode *node,
  * Add the contents of a dir to a given directory of the iso tree.
  *
  * There are several options to control what files are added or how they are
- * managed. Take a look at iso_tree_set_* functions to see diferent options
+ * managed. Take a look at iso_tree_set_* functions to see different options
  * for recursive directory addition.
  *
  * TODO comment Builder and Filesystem related issues when exposing both
@@ -6432,7 +6432,7 @@ int iso_set_msgs_severities(char *queue_severity, char *print_severity,
  * will discard the whole queue.
  *
  * @param minimum_severity
- *     Threshhold
+ *     Threshold
  * @param error_code
  *     Will become a unique error code as listed at the end of this header
  * @param imgid
@@ -7260,7 +7260,7 @@ mode_t iso_node_get_perms_wo_acl(const IsoNode *node);
  * @param names
  *      Will return an array of pointers to 0-terminated names
  * @param value_lengths
- *      Will return an arry with the lenghts of values
+ *      Will return an array with the lengths of values
  * @param values
  *      Will return an array of pointers to strings of 8-bit bytes
  * @param flag
@@ -7286,7 +7286,7 @@ int iso_node_get_attrs(IsoNode *node, size_t *num_attrs,
  * @param name
  *      The xattr name that shall be looked up.
  * @param value_length
- *      Will return the lenght of value
+ *      Will return the length of value
  * @param value
  *      Will return a string of 8-bit bytes. free() it when no longer needed.
  * @param flag
@@ -7469,7 +7469,7 @@ int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag);
  * @param names
  *      Will return an array of pointers to 0-terminated names
  * @param value_lengths
- *      Will return an arry with the lenghts of values
+ *      Will return an array with the lengths of values
  * @param values
  *      Will return an array of pointers to 8-bit values
  * @param flag

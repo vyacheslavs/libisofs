@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -31,7 +31,7 @@
  * Global objects such as the message_queues must belogn to that
  * context. Thus we will have, for example, a msg queue per image,
  * so images are completelly independent and can be managed together.
- * (Usefull, for example, in Multiple-Document-Interface GUI apps.
+ * (Useful, for example, in Multiple-Document-Interface GUI apps.
  * [The stuff we have in init belongs really to image!]
  */
 

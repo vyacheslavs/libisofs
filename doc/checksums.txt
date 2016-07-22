@@ -189,7 +189,7 @@ With tag type 2:
 
 Keep the original MD5 context of the data blocks and clone one for obtaining
 the MD5 bytes.
-If the MD5s match, then compute the checksum block and all folowing ones into
+If the MD5s match, then compute the checksum block and all following ones into
 the kept MD5 context and go on with reading and computing for the tree checksum
 tag. This will be found at block address next_tag, verified and parsed by:
   iso_util_decode_md5_tag(block, &tag_type, &pos,
@@ -211,7 +211,7 @@ next_tag. Go on by looking for tag type 2 and follow above prescription.
 
                       Checking the Data Part of the Session
 
-In order to check the trustworthyness of a whole session, continue reading
+In order to check the trustworthiness of a whole session, continue reading
 and checksumming after the tree was verified. 
 
 Read and checksum the blocks. When reaching block address next_tag (from the

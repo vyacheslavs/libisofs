@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -157,7 +157,7 @@ int iso_init_with_flag(int flag)
 #ifdef Libisofs_with_libjtE
 
  /* Ugly compile time check for header version compatibility.
-    If everthing matches, then it produces no C code. In case of mismatch,
+    If everything matches, then it produces no C code. In case of mismatch,
     intentionally faulty C code will be inserted.
  */ 
  /* The indendation is an advise of man gcc to help old compilers ignoring */

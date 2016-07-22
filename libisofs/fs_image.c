@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -3598,7 +3598,7 @@ int iso_image_eval_boot_info_table(IsoImage *image, struct iso_read_opts *opts,
         boot_pvd_found = iso_read_lsb(boot_info_found, 4);
         image_pvd = (uint32_t) (opts->block + 16);
 
-        /* Accomodate to eventually relocated superblock */
+        /* Accommodate to eventually relocated superblock */
         if (image_pvd != boot_pvd_found &&
             image_pvd == 16 && boot_pvd_found < iso_image_size) {
             /* Check whether there is a PVD at boot_pvd_found

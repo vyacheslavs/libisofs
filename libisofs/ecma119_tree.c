@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2014 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -597,7 +597,7 @@ int cmp_node_name(const void *f1, const void *f2)
 
 /**
  * Sorts a the children of each directory in the ECMA-119 tree represented
- * by \p root, acording to the order specified in ECMA-119, section 9.3.
+ * by \p root, according to the order specified in ECMA-119, section 9.3.
  */
 static
 void sort_tree(Ecma119Node *root)
@@ -1270,7 +1270,7 @@ int ecma119_tree_create(Ecma119Image *img)
 
     if (img->opts->rockridge && !img->opts->allow_deep_paths) {
 
-        /* Relocate deep directories, acording to RRIP, 4.1.5 */
+        /* Relocate deep directories, according to RRIP, 4.1.5 */
         ret = reorder_tree(img, root, 1, 0);
         if (ret < 0) {
             return ret;

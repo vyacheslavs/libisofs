@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2007 - 2015 Vreixo Formoso, Thomas Schmitt
+ * Copyright (c) 2007 - 2016 Vreixo Formoso, Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -375,7 +375,7 @@ int gesture_iso(int argc, char **argv)
 
     result = iso_write_opts_new(&opts, 0);
     if (result < 0) {
-        printf ("Cant create write opts, error %d\n", result);
+        printf ("Cannot create write opts, error %d\n", result);
         goto ex;
     }
     iso_write_opts_set_iso_level(opts, level);
@@ -385,7 +385,7 @@ int gesture_iso(int argc, char **argv)
 
     result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
-        printf ("Cant create image, error %d\n", result);
+        printf ("Cannot create image, error %d\n", result);
         goto ex;
     }
 
@@ -904,7 +904,7 @@ int gesture_iso_ms(int argc, char **argv)
 
     result = iso_image_create_burn_source(image, opts, &burn_src);
     if (result < 0) {
-        printf ("Cant create image, error %d\n", result);
+        printf ("Cannot create image, error %d\n", result);
         goto ex;
     }
     iso_write_opts_free(opts);

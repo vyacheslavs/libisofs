@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -487,7 +487,7 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag);
 
 
 /**
- * Set the checksum index (typically comming from IsoFileSrc.checksum_index)
+ * Set the checksum index (typically coming from IsoFileSrc.checksum_index)
  * of a regular file node. The index is encoded as xattr "isofs.cx" with
  * four bytes of value.
  */

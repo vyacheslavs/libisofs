@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2010 - 2015 Thomas Schmitt
+ * Copyright (c) 2010 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -290,7 +290,7 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     node->size = 0;
     node->content = NULL;
 
-    /* atributes from parent */
+    /* attributes from parent */
     node->node.mode = S_IFREG | (parent->node.mode & 0444);
     node->node.uid = parent->node.uid;
     node->node.gid = parent->node.gid;

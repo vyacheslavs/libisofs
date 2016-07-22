@@ -9,7 +9,7 @@
 
  test/aaip_0_2.h - Public declarations
 
- Copyright (c) 2009 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2016 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -93,7 +93,7 @@ int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
                          size_t *result_len, unsigned char **result, int flag);
 
 
-/* Analyze occurence of ACL tag types in long text form. If not disabled by
+/* Analyze occurrence of ACL tag types in long text form. If not disabled by
    parameter flag remove the entries of type "user::" , "group::" , "other::" ,
    or "other:" from an ACL in long text form if they match the bits in st_mode
    as described by man 2 stat and man 5 acl.

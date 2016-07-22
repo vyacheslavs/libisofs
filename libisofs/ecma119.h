@@ -59,7 +59,7 @@
 #define ISO_DISC_LABEL_SIZE 129
 
 
-/* The maximum lenght of an specs violating ECMA-119 file identifier.
+/* The maximum length of an specs violating ECMA-119 file identifier.
    The theoretical limit is  254 - 34 - 28 (len of SUSP CE entry) = 192
    Currently the practical limit is 254 - 34 - 96 (non-CE RR entries) - 28 (CE)
 */
@@ -223,7 +223,7 @@ struct iso_write_opts {
     /**
      * Write AAIP as extension according to SUSP 1.10 rather than SUSP 1.12.
      * I.e. without announcing it by an ER field and thus without the need
-     * to preceed the RRIP fields by an ES and to preceed the AA field by ES.
+     * to precede the RRIP fields by an ES and to precede the AA field by ES.
      * This saves bytes and might avoid problems with readers which dislike
      * ER fields other than the ones for RRIP.
      * On the other hand, SUSP 1.12 frowns on such unannounced extensions

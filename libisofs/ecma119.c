@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -193,7 +193,7 @@ size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
 
 /**
  * Computes the total size of all directory entries of a single dir,
- * acording to ECMA-119 6.8.1.1
+ * according to ECMA-119 6.8.1.1
  *
  * This also take into account the size needed for RR entries and
  * SUSP continuation areas (SUSP, 5.1).
@@ -2338,7 +2338,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     if (target == NULL) {
         return ISO_OUT_OF_MEM;
     }
-    /* This reference will be transfered to the burn_source and released by
+    /* This reference will be transferred to the burn_source and released by
        bs_free_data.
     */
     target->refcount = 1;

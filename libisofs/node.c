@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1114,7 +1114,7 @@ int iso_symlink_set_dest(IsoSymlink *link, const char *dest)
  *      or regular files, this function has no effect.
  * @param w
  *      The weight as a integer number, the greater this value is, the
- *      closer from the begining of image the file will be written.
+ *      closer from the beginning of image the file will be written.
  */
 void iso_node_set_sort_weight(IsoNode *node, int w)
 {
@@ -1818,7 +1818,7 @@ int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
 
 /* Merge attribute list of node and given new attribute list into
    attribute list returned by  m_* parameters.
-   The m_* paramters have finally to be freed by a call with bit15 set.
+   The m_* parameters have finally to be freed by a call with bit15 set.
    @param flag          Bitfield for control purposes
                         bit0= delete all old names which begin by "user."     
                               (but not if bit2 is set)

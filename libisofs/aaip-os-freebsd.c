@@ -5,9 +5,9 @@
  Arbitrary Attribute Interchange Protocol , system adapter for getting and
  setting of ACLs and xattr.
 
- To be included by aaip_0_2.c for FreeBSD and NetBSD
+ To be included by aaip_0_2.c for FreeBSD, NetBSD, and OpenBSD
 
- Copyright (c) 2009 - 2014 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2016 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 

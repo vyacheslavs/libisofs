@@ -1,7 +1,7 @@
 
 /* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
-   Copyright (C) 2006-2008 Thomas Schmitt <scdbackup@gmx.net>,
+   Copyright (C) 2006-2016 Thomas Schmitt <scdbackup@gmx.net>,
    provided under GPL version 2 or later
 */
 
@@ -266,8 +266,9 @@ int libiso_msgs_new(struct libiso_msgs **m, int flag);
 
 /** Destroy a message handling facility and all its eventual messages.
     The submitted pointer gets set to NULL.
-    Actually only the last destroy call of all offical references to the object
-    will really dispose it. All others just decrement the reference counter.
+    Actually only the last destroy call of all official references to the
+    object will really dispose it. All others just decrement the reference
+    counter.
     Call this function only with official reference pointers obtained by
     libiso_msgs_new() or libiso_msgs_refer(), and only once per such pointer.
     @param flag Bitfield for control purposes (unused yet, submit 0)

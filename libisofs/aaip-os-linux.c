@@ -7,7 +7,7 @@
 
  To be included by aaip_0_2.c for Linux
 
- Copyright (c) 2009 - 2011 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2016 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -443,7 +443,7 @@ ex:
                               I.e. those with a name which does not begin
                               by "user."
                         bit5= in case of symbolic link: manipulate link target
-                        bit6= tolerate inappropriate presence or absense of
+                        bit6= tolerate inappropriate presence or absence of
                               directory default ACL
    @return              1 success
                        -1 error memory allocation

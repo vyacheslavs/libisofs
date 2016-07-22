@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -41,7 +41,7 @@ void iso_stream_get_file_name(IsoStream *stream, char *name);
  * take an extra ref.
  *
  * @return
- *      1 sucess, < 0 error
+ *      1 success, < 0 error
  *      Possible errors:
  *
  */
@@ -52,7 +52,7 @@ int iso_file_source_stream_new(IsoFileSource *src, IsoStream **stream);
  * The stream will add a ref. to the IsoFileSource.
  *
  * @return
- *      1 sucess, < 0 error
+ *      1 success, < 0 error
  */
 int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
                            IsoStream **stream);

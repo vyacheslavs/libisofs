@@ -145,7 +145,7 @@ void ds_free_data(IsoDataSource *src)
 
 /**
  * Create a new IsoDataSource from a local file. This is suitable for
- * accessing regular .iso images, or to acces drives via its block device
+ * accessing regular .iso images, or to access drives via its block device
  * and standard POSIX I/O calls.
  * 
  * @param path

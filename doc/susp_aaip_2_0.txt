@@ -235,7 +235,7 @@ An eventually needed qualifier is stored in one or more Qualifier Records.
   [b] "BP 2 - Qualifier Record Head" shall be present only if QUALIFIER is set
       to 1. It shall give the number of Qualifier Bytes and eventually
       indicate that the qualifier continues in a Qualifier Record which comes
-      imediately after this record.
+      immediately after this record.
           0 to 127   Q_LENGTH, the qualifier is complete by this record
         128 to 255   Q_LENGTH+128, the qualifier is continued by next record
       So a Qualifier Record can contain at most 127 Qualifier Bytes.

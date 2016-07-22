@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2016 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -28,7 +28,7 @@
  * Create a new IsoFilesystem to deal with local filesystem.
  * 
  * @return
- *     1 sucess, < 0 error
+ *     1 success, < 0 error
  */
 int iso_local_filesystem_new(IsoFilesystem **fs);
 
