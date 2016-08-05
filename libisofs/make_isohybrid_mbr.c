@@ -604,8 +604,28 @@ static int gpt_images_as_mbr_partitions(Ecma119Image *t, char *wpt,
 }
 
 
+/* For generating a weak random number */
+static uint32_t iso_make_mbr_id(Ecma119Image *t, int flag)
+{
+    uint32_t id;
+    struct timeval tv;
+
+    if(t->opts->vol_uuid[0]) {
+        id = iso_crc32_gpt((unsigned char *) t->opts->vol_uuid, 16, 0);
+    } else if(t->opts->vol_modification_time > 0) {
+        id = iso_crc32_gpt((unsigned char *) &(t->opts->vol_modification_time),
+                           sizeof(time_t), 0);
+    } else {
+        gettimeofday(&tv, NULL);
+        id = 0xffffffff & (tv.tv_sec ^ (tv.tv_usec * 2000));
+    }
+    return id;
+}
+
+
 /*
  * @param flag  bit0= make own random MBR Id from current time
+ *                    >>> or from overridden modification time
  *              bit1= create protective MBR as of UEFI/GPT specs
  */
 int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
@@ -618,8 +638,6 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     uint32_t boot_lba;
     int head_count, sector_count, ret;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor, i;
-    /* For generating a weak random number */
-    struct timeval tv;
 
     if (t->bootsrc[0] == NULL)
         return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
@@ -668,8 +686,7 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
        (here some 32-bit random value with no crypto strength)
     */
     if (flag & 1) {
-        gettimeofday(&tv, NULL);
-        id = 0xffffffff & (tv.tv_sec ^ (tv.tv_usec * 2000));
+        id = iso_make_mbr_id(t, 0);
         lsb_to_buf(&wpt, id, 32, 0);
     } else {
         wpt+= 4;
