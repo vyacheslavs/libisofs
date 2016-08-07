@@ -2320,6 +2320,48 @@ ex:;
     return ret;
 }
 
+/* Determine the alleged time of image production by predicting the volume
+   creation and modification timestamps and taking the maximum of both.
+*/
+static
+void ecma119_determine_now_time(Ecma119Image *target)
+{
+    IsoWriteOpts *o;
+    time_t now = 0, t, t0;
+    uint8_t time_text[18];
+    int i;
+
+    t0 = time(NULL);
+    o = target->opts;
+    if (o->vol_uuid[0]) {
+        for(i = 0; i < 16; i++)
+            if(o->vol_uuid[i] < '0' || o->vol_uuid[i] > '9')
+        break;
+            else
+                time_text[i] = o->vol_uuid[i];
+        for(; i < 16; i++)
+            time_text[i] = '1';
+        time_text[16] = time_text[17] = 0;
+        t = iso_datetime_read_17(time_text);
+        if (t > now)
+            now = t;
+    } else {
+        if (o->vol_creation_time > 0) {
+            if (o->vol_creation_time > now)
+                now = o->vol_creation_time;
+        } else if (t0 > now) {
+            now = t0;
+        }
+        if (o->vol_modification_time > 0) {
+            if (o->vol_modification_time > now)
+                now = o->vol_modification_time;
+        } else if (t0 > now) {
+            now = t0;
+        }
+    } 
+    target->now = now;
+}
+
 static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 {
@@ -2375,7 +2417,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     target->dir_mode = opts->replace_dir_mode == 2 ? opts->dir_mode : 0555;
     target->file_mode = opts->replace_file_mode == 2 ? opts->file_mode : 0444;
 
-    target->now = time(NULL);
+    ecma119_determine_now_time(target);
 
     target->replace_timestamps = opts->replace_timestamps ? 1 : 0;
     target->timestamp = opts->replace_timestamps == 2 ?
