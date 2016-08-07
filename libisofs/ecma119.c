@@ -2448,6 +2448,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
             target->boot_intvl_start[i] = 0;
             target->boot_intvl_size[i] = 0;
         }
+        /* It is not easy to predict when the node gets created and can be
+           manipulated. So it is better for reproducibility to derive its
+           timestamps from the well controllable now-time.
+        */
+        if (target->catalog->node != NULL) {
+            iso_node_set_mtime((IsoNode *) target->catalog->node, target->now);
+            iso_node_set_atime((IsoNode *) target->catalog->node, target->now);
+            iso_node_set_ctime((IsoNode *) target->catalog->node, target->now);
+        }
+
     } else {
         target->num_bootsrc = 0;
         target->bootsrc = NULL;
