@@ -543,6 +543,10 @@ const char *iso_error_to_msg(int errcode)
         return "A general note message was issued";
     case ISO_BAD_FSRC_FILETYPE:
         return "Unrecognized file type of IsoFileSrc object";
+    case ISO_GPT_NO_VOL_UUID:
+        return "Cannot derive GPT GUID from undefined pseudo-UUID volume timestamp";
+    case ISO_BAD_GPT_GUID_MODE:
+        return "Unrecognized GPT disk GUID setup mode";
     default:
         return "Unknown error";
     }

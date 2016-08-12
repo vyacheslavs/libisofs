@@ -513,6 +513,13 @@ struct iso_write_opts {
      */
     int apm_block_size;
 
+    /* User defined GUID for GPT header and base of reproducible partition
+       GUIDs. (Not to be confused with volume "UUID", which is actually a
+       timestamp.)
+       See API call iso_write_opts_set_gpt_guid().
+     */
+    uint8_t gpt_disk_guid[16];
+    int gpt_disk_guid_mode;
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -843,6 +850,11 @@ struct ecma119_image
 
     /* Whether the eventual backup GPT is not part of the ISO filesystem */
     int gpt_backup_outside;
+
+    /* The base UUID for the generated GPT UUIDs */
+    uint8_t gpt_uuid_base[16];
+    /* The counter which distinguishes the GPT UUIDs */
+    uint32_t gpt_uuid_counter;
 
     uint32_t efi_boot_part_size;
     IsoFileSrc *efi_boot_part_filesrc; /* Just a pointer. Do not free. */

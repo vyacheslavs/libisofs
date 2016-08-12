@@ -2596,6 +2596,49 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
                                  int flag);
 
 /**
+ * Control whether the emerging GPT gets a pseudo-randomly generated disk GUID
+ * or * whether it gets a user supplied GUID.
+ * The partition GUIDs will be generated in a reproducible way by exoring a
+ * little-endian 32 bit counter with the disk GUID beginning at byte offset 9.
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param guid
+ *        16 bytes of user supplied GUID.
+ *        The upper 4 bit of guid[6] and guid[7] should bear the value 4 to
+ *        express the version 4 in both endiannesses. Bit 7 of byte[8] should
+ *        be set to 1 and bit 6 be set to 0, in order to express the RFC 4122
+ *        variant of GUID, where version 4 means "random".
+ * @param mode
+ *        0 = ignore parameter guid and produce the GPT disk GUID by a
+ *            pseudo-random algorithm. This is the default setting.
+ *        1 = use parameter guid as GPT disk GUID
+ *        2 = ignore parameter guid and derive the GPT disk GUID from
+ *            parameter vol_uuid of iso_write_opts_set_pvd_times().
+ *            The 16 bytes of vol_uuid get copied and bytes 6, 7, 8 get their
+ *            upper bits changed to comply to RFC 4122.
+ *            Error ISO_GPT_NO_VOL_UUID will occur if image production begins
+ *            before vol_uuid was set.
+ *
+ * @return
+ *        ISO_SUCCESS or ISO_BAD_GPT_GUID_MODE
+ *
+ * @since 1.4.6
+ */
+int iso_write_opts_set_gpt_guid(IsoWriteOpts *opts, uint8_t guid[16],
+                                int mode);
+
+/**
+ * Generate a pseudo-random GUID suitable for iso_write_opts_set_gpt_guid().
+ *
+ * @param guid
+ *        Will be filled by 16 bytes of generated GUID.
+ *
+ * @since 1.4.6
+ */
+void iso_generate_gpt_guid(uint8_t guid[16]);
+
+/**
  * Cause an arbitrary data file to be appended to the ISO image and to be
  * described by a partition table entry in an MBR or SUN Disk Label at the
  * start of the ISO image.
@@ -8786,6 +8829,15 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Unrecognized file type of IsoFileSrc object          (SORRY, HIGH, -415) */
 #define ISO_BAD_FSRC_FILETYPE       0xE030FE61
+
+/** Cannot derive GPT GUID from undefined pseudo-UUID volume timestamp
+                                                       (FAILURE, HIGH, -416) */
+#define ISO_GPT_NO_VOL_UUID         0xE830FE60
+
+/** Unrecognized GPT disk GUID setup mode
+                                                       (FAILURE, HIGH, -417) */
+#define ISO_BAD_GPT_GUID_MODE       0xE830FE5F
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

@@ -2363,6 +2363,31 @@ void ecma119_determine_now_time(Ecma119Image *target)
 }
 
 static
+int gpt_disk_guid_setup(Ecma119Image *target)
+{
+    if (target->opts->gpt_disk_guid_mode == 0) {
+        /* Random UUID production delayed until really needed */
+        return ISO_SUCCESS;
+    } else if (target->opts->gpt_disk_guid_mode == 1) {
+        memcpy(target->gpt_uuid_base, target->opts->gpt_disk_guid, 16);
+    } else if (target->opts->gpt_disk_guid_mode == 2) {
+        if (target->opts->vol_uuid[0] == 0)
+            return ISO_GPT_NO_VOL_UUID;
+        /* Move centi-seconds part to byte 9 and 10 */
+        memcpy(target->gpt_uuid_base, target->opts->vol_uuid, 9);
+        memcpy(target->gpt_uuid_base + 9, target->opts->vol_uuid + 14, 2);
+        memcpy(target->gpt_uuid_base + 11, target->opts->vol_uuid + 9, 5);
+        iso_mark_guid_version_4(target->gpt_uuid_base);
+    } else {
+        return ISO_BAD_GPT_GUID_MODE;
+    }
+    memcpy(target->gpt_disk_guid, target->gpt_uuid_base, 16);
+    target->gpt_disk_guid_set = 1;
+    target->gpt_uuid_counter = 1;
+    return ISO_SUCCESS;
+}
+
+static
 int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 {
     int ret, i, voldesc_size, nwriters, tag_pos;
@@ -2597,7 +2622,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     target->gpt_req_count = 0;
     target->gpt_req_flags = 0;
     target->gpt_backup_outside = 0;
+    memset(target->gpt_uuid_base, 0, 16);
+    target->gpt_uuid_counter = 0;
     target->gpt_disk_guid_set = 0;
+    ret = gpt_disk_guid_setup(target);
+    if (ret < 0)
+        goto target_cleanup;
     target->gpt_part_start = 0;
     target->gpt_backup_end = 0;
     target->gpt_backup_size = 0;
@@ -3430,7 +3460,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->vol_modification_time = 0;
     wopts->vol_expiration_time = 0;
     wopts->vol_effective_time = 0;
-    wopts->vol_uuid[0] = 0;
+    memset(wopts->vol_uuid, 0, 17);
     wopts->partition_offset = 0;
     wopts->partition_secs_per_head = 0;
     wopts->partition_heads_per_cyl = 0;
@@ -3461,6 +3491,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->hfsp_serial_number[i] = 0;
     wopts->apm_block_size = 0;
     wopts->hfsp_block_size = 0;
+    memset(wopts->gpt_disk_guid, 0, 16);
+    wopts->gpt_disk_guid_mode = 0;
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -4209,6 +4241,16 @@ int iso_write_opts_set_hfsp_block_size(IsoWriteOpts *opts,
     if (apm_block_size != 0 && apm_block_size != 512 && apm_block_size != 2048)
         return ISO_BOOT_HFSP_BAD_BSIZE;
     opts->apm_block_size = apm_block_size;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_gpt_guid(IsoWriteOpts *opts, uint8_t guid[16], int mode)
+{
+    if (mode < 0 || mode > 2)
+        return ISO_BAD_GPT_GUID_MODE;
+    opts->gpt_disk_guid_mode = mode;
+    if (opts->gpt_disk_guid_mode == 1)
+        memcpy(opts->gpt_disk_guid, guid, 16);
     return ISO_SUCCESS;
 }
 

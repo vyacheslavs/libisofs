@@ -1476,8 +1476,12 @@ static void iso_write_gpt_entry(Ecma119Image *t, uint8_t *buf,
     for (i = 0; i < 16; i++)
         if (part_uuid[i])
     break;
-    if (i == 16)
-        iso_random_uuid(t, part_uuid);
+    if (i == 16) {
+        if (!t->gpt_disk_guid_set)
+            iso_gpt_uuid(t, t->gpt_disk_guid);
+        t->gpt_disk_guid_set = 1;
+        iso_gpt_uuid(t, part_uuid);
+    }
     memcpy(wpt, part_uuid, 16);
     wpt += 16;
     iso_lsb_to_buf(&wpt, start_lba & 0xffffffff, 4, 0);
@@ -1538,9 +1542,8 @@ int iso_write_gpt_header_block(Ecma119Image *t, uint32_t img_blocks,
                    (uint32_t) ((back_lba - max_entries / 4 - 1) >> 32), 4, 1);
 
     /* Disk GUID */
-    /* >>> Make adjustable */
     if (!t->gpt_disk_guid_set)
-        iso_random_uuid(t, t->gpt_disk_guid);
+        iso_gpt_uuid(t, t->gpt_disk_guid);
     t->gpt_disk_guid_set = 1;
     memcpy(wpt, t->gpt_disk_guid, 16);
     wpt += 16;
@@ -2357,67 +2360,70 @@ uint32_t iso_crc32_gpt(unsigned char *data, int count, int flag)
     return result ^ 0xffffffff;
 }
 
-
-void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16])
+void iso_mark_guid_version_4(uint8_t *u)
 {
+    /* Mark as UUID version 4. RFC 4122 says u[6], but isohybrid swapping
+       effectively puts the 4 into u[7]. So i mark both. 4 bits wasted.
+    */
+    u[6] = (u[6] & 0x0f) | 0x40;
+    u[7] = (u[7] & 0x0f) | 0x40;
+
+    /* Variant is "1 0 x" as described in RFC 4122.
+    */
+    u[8] = (u[8] & 0x3f) | 0x80;
+
+    return;
+}
+
+void iso_generate_gpt_guid(uint8_t guid[16])
+{
+
 #ifdef Libisofs_with_uuid_generatE
+
     uuid_t u;
+
+    uuid_generate(u);
+    swap_uuid((void *) u);
+    memcpy(guid, u, 16);
+
 #else
-    uint8_t u[16];
+
+    uint8_t *u;
     /* produced by uuid_generate() and byte-swapped to isohybrid.c habits */
     static uint8_t uuid_template[16] = {
         0xee, 0x29, 0x9d, 0xfc, 0x65, 0xcc, 0x7c, 0x40,
         0x92, 0x61, 0x5b, 0xcd, 0x6f, 0xed, 0x08, 0x34
     };
-    static uint8_t uuid_urandom[16];
     uint32_t rnd, salt;
     struct timeval tv;
     pid_t pid;
-    static int counter = 0, use_urandom = 0;
     int i, ret, fd;
-#endif
 
-#ifdef Libisofs_with_uuid_generatE
+    u = guid;
 
-    uuid_generate(u);
-    swap_uuid((void *) u);
-    memcpy(uuid, u, 16);
-
-#else
-
-    /* First try /dev/urandom.
-       (Weakening the result by 8 bit saves a lot of pool entropy.)
+    /* First try /dev/urandom
     */
-    if ((counter & 0xff) == 0) {
-        fd = open("/dev/urandom", O_RDONLY | O_BINARY);
-        if (fd == -1)
-            goto fallback;
-        ret = read(fd, uuid_urandom, 16);
-        if (ret != 16) {
-            close(fd);
-            goto fallback;
-        }
-        /* Mark as UUID version 4 */
-        uuid_urandom[7] = (uuid_urandom[7] & 0x0f) | 0x40;
-        uuid_urandom[8] = (uuid_urandom[8] & 0x3f) | 0x80;
-        close(fd);
-        use_urandom = 1;
-    }
-    if (!use_urandom)
+    fd = open("/dev/urandom", O_RDONLY | O_BINARY);
+    if (fd == -1)
         goto fallback;
-    memcpy(uuid, uuid_urandom, 16);
-    uuid[9] ^= counter & 0xff;
-    counter++;
+    ret = read(fd, u, 16);
+    if (ret != 16) {
+        close(fd);
+        goto fallback;
+    }
+    close(fd);
+    iso_mark_guid_version_4(u);
     return;
+
 
 fallback:;
     pid = getpid();
-    salt = iso_crc32_gpt((unsigned char *) t, sizeof(Ecma119Image), 0) ^ pid; 
+    salt = iso_crc32_gpt((unsigned char *) &guid, sizeof(uint8_t *), 0) ^ pid; 
 
     /* This relies on the uniqueness of the template and the rareness of
-       bootable ISO image production via libisofs. Estimated 53 bits of
+       bootable ISO image production via libisofs. Estimated 48 bits of
        entropy should influence the production of a single day. 
-       So first collisions are to be expected with about 100 million images
+       So first collisions are to be expected with about 16 million images
        per day.
     */
     memcpy(u, uuid_template, 16);
@@ -2429,17 +2435,34 @@ fallback:;
     u[6] = ((salt >> 8) ^ (pid >> 16)) & 0xff;
     rnd = ((0xffffff & tv.tv_sec) << 8) |
           (((tv.tv_usec >> 16) ^ (salt & 0xf0)) & 0xff);
-    u[9] ^= counter & 0xff;
     for (i = 0; i < 4; i++)
         u[10 + i] ^= (rnd >> (8 * i)) & 0xff;
     u[14] ^= (tv.tv_usec >> 8) & 0xff;
     u[15] ^= tv.tv_usec & 0xff;
-    counter++;
 
-    memcpy(uuid, u, 16);
+    iso_mark_guid_version_4(u);
+    return;
 
 #endif /* ! Libisofs_with_uuid_generatE */    
 
+}
+
+void iso_gpt_uuid(Ecma119Image *t, uint8_t uuid[16])
+{
+    if (t->gpt_uuid_counter == 0)
+        iso_generate_gpt_guid(t->gpt_uuid_base);
+
+    memcpy(uuid, t->gpt_uuid_base, 16);
+
+    /* Previous implementation changed only byte 9. So i expand it by applying
+       the counter in little-endian style.
+    */
+    uuid[9] ^= t->gpt_uuid_counter & 0xff;
+    uuid[10] ^= (t->gpt_uuid_counter >> 8) & 0xff;
+    uuid[11] ^= (t->gpt_uuid_counter >> 16) & 0xff;
+    uuid[12] ^= (t->gpt_uuid_counter >> 24) & 0xff;
+    t->gpt_uuid_counter++;
+    return;
 }
 
 int assess_appended_gpt(Ecma119Image *t, int flag)

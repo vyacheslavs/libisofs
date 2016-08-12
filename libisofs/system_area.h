@@ -182,10 +182,15 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
    run on other machines with the same process number at the same time.
 */
 
-/* Produces a weakly random variation of a hardcoded real random uuid
+/* Produces a GPT disk or partition GUID.
+   Pseudo-random by iso_generate_gpt_guid() if t->gpt_uuid_counter is 0.
+   Else derived reproducibly by counter number from t->gpt_uuid_base.
 */
-void iso_random_uuid(Ecma119Image *t, uint8_t uuid[16]);
+void iso_gpt_uuid(Ecma119Image *t, uint8_t uuid[16]);
 
+/* Mark a given byte string as UUID version 4, RFC 4122.
+*/
+void iso_mark_guid_version_4(uint8_t *u);
 
 /* The parameter struct for production of a single GPT entry.
    See also the partial GPT description in doc/boot_sectors.txt.
