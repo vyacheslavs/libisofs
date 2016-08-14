@@ -2597,26 +2597,29 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
 
 /**
  * Control whether the emerging GPT gets a pseudo-randomly generated disk GUID
- * or * whether it gets a user supplied GUID.
- * The partition GUIDs will be generated in a reproducible way by exoring a
- * little-endian 32 bit counter with the disk GUID beginning at byte offset 9.
+ * or whether it gets a user supplied GUID.
+ * The partition GUIDs will be generated in a reproducible way by exoring the
+ * little-endian 32 bit partion number with the disk GUID beginning at byte
+ * offset 9.
  *
  * @param opts
  *        The option set to be manipulated.
  * @param guid
- *        16 bytes of user supplied GUID.
- *        The upper 4 bit of guid[6] and guid[7] should bear the value 4 to
- *        express the version 4 in both endiannesses. Bit 7 of byte[8] should
- *        be set to 1 and bit 6 be set to 0, in order to express the RFC 4122
- *        variant of GUID, where version 4 means "random".
+ *        16 bytes of user supplied GUID. Readily byte-swapped as prescribed by
+ *        UEFI specs: 4 byte, 2 byte, 2 byte as little-endian. The rest as
+ *        big-endian.
+ *        The upper 4 bit of guid[7] should bear the value 4 to express the
+ *        RFC 4122 version 4. Bit 7 of byte[8] should  be set to 1 and bit 6
+ *        be set to 0, in order to express the RFC 4122 variant of UUID,
+ *        where version 4 means "pseudo-random uuid".
  * @param mode
  *        0 = ignore parameter guid and produce the GPT disk GUID by a
  *            pseudo-random algorithm. This is the default setting.
  *        1 = use parameter guid as GPT disk GUID
  *        2 = ignore parameter guid and derive the GPT disk GUID from
  *            parameter vol_uuid of iso_write_opts_set_pvd_times().
- *            The 16 bytes of vol_uuid get copied and bytes 6, 7, 8 get their
- *            upper bits changed to comply to RFC 4122.
+ *            The 16 bytes of vol_uuid get copied and bytes 7, 8 get their
+ *            upper bits changed to comply to RFC 4122 and UEFI.
  *            Error ISO_GPT_NO_VOL_UUID will occur if image production begins
  *            before vol_uuid was set.
  *

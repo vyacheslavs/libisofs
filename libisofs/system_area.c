@@ -2362,10 +2362,9 @@ uint32_t iso_crc32_gpt(unsigned char *data, int count, int flag)
 
 void iso_mark_guid_version_4(uint8_t *u)
 {
-    /* Mark as UUID version 4. RFC 4122 says u[6], but isohybrid swapping
-       effectively puts the 4 into u[7]. So i mark both. 4 bits wasted.
+    /* Mark as UUID version 4. RFC 4122 says u[6], but UEFI prescribes
+       bytes 6 and 7 to be swapped.
     */
-    u[6] = (u[6] & 0x0f) | 0x40;
     u[7] = (u[7] & 0x0f) | 0x40;
 
     /* Variant is "1 0 x" as described in RFC 4122.
@@ -2389,7 +2388,7 @@ void iso_generate_gpt_guid(uint8_t guid[16])
 #else
 
     uint8_t *u;
-    /* produced by uuid_generate() and byte-swapped to isohybrid.c habits */
+    /* produced by uuid_generate() and byte-swapped to UEFI specs */
     static uint8_t uuid_template[16] = {
         0xee, 0x29, 0x9d, 0xfc, 0x65, 0xcc, 0x7c, 0x40,
         0x92, 0x61, 0x5b, 0xcd, 0x6f, 0xed, 0x08, 0x34
