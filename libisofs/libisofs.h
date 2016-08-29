@@ -1485,7 +1485,7 @@ int iso_write_opts_set_hfsp_serial_number(IsoWriteOpts *opts,
  * @param hfsp_block_size
  *      The allocation block size to be used by the HFS+ fileystem.
  *      0, 512, or 2048
- * @param hfsp_block_size
+ * @param apm_block_size
  *      The block size to be used for and within the Apple Partition Map.
  *      0, 512, or 2048.
  *      Size 512 is not compatible with options which produce GPT.
@@ -1670,7 +1670,7 @@ int iso_write_opts_set_allow_deep_paths(IsoWriteOpts *opts, int allow);
  *      The name given by this call will be compared with iso_node_get_name()
  *      of the directories in the root directory, not with the final ECMA-119
  *      names of those directories.
- * @parm flags
+ * @param flags
  *      Bitfield for control purposes.
  *      bit0= Mark the relocation directory by a Rock Ridge RE entry, if it
  *            gets created during iso_image_create_burn_source(). This will
@@ -2498,6 +2498,8 @@ int iso_interval_reader_new(IsoImage *img, char *path,
  *
  * @param ivr
  *        The reader object to be disposed. *ivr will be set to NULL.
+ * @param flag
+ *        Unused yet. Submit 0.
  * @return
  *        ISO_SUCCESS or error (which is < 0)
  * 
@@ -2659,15 +2661,15 @@ void iso_generate_gpt_guid(uint8_t guid[16]);
  *        Range with MBR: 1 to 4. 1 will cause the whole ISO image to be
  *                        unclaimable space before partition 1.
  *        Range with SUN Disk Label: 2 to 8.
+ * @param partition_type
+ *        The MBR partition type. E.g. FAT12 = 0x01 , FAT16 = 0x06, 
+ *        Linux Native Partition = 0x83. See fdisk command L.
+ *        This parameter is ignored with SUN Disk Label.
  * @param image_path
  *        File address in the local file system or instructions for interval
  *        reader. See flag bit0.
  *        With SUN Disk Label: an empty name causes the partition to become
  *        a copy of the next lower partition.
- * @param image_type
- *        The MBR partition type. E.g. FAT12 = 0x01 , FAT16 = 0x06, 
- *        Linux Native Partition = 0x83. See fdisk command L.
- *        This parameter is ignored with SUN Disk Label.
  * @param flag
  *        bit0= The path contains instructions for the interval reader
  *              See above.
@@ -3222,7 +3224,7 @@ void *iso_image_get_attached_data(IsoImage *image);
  * effect if both, the truncate mode value from "isofs.nt" and the current
  * truncate mode of the IsoImage are 1, and the length is between 64 and 255.
  * 
- * @param image
+ * @param img
  *      The image which shall be manipulated.
  * @param mode
  *      0= Do not truncate but throw error ISO_RR_NAME_TOO_LONG if a file name
@@ -3246,7 +3248,7 @@ int iso_image_set_truncate_mode(IsoImage *img, int mode, int length);
 /**
  * Inquire the current setting of iso_image_set_truncate_mode().
  *
- * @param image
+ * @param img
  *      The image which shall be inquired.
  * @param mode
  *      Returns the mode value.
@@ -3475,16 +3477,16 @@ const char *iso_image_get_app_use(IsoImage *image);
  *
  * @param image
  *        The image to be inquired.
- * @param vol_creation_time
+ * @param creation_time
  *        Returns a pointer to the Volume Creation time:
  *        When "the information in the volume was created."
- * @param vol_modification_time
+ * @param modification_time
  *        Returns a pointer to Volume Modification time:
  *        When "the information in the volume was last modified."
- * @param vol_expiration_time
+ * @param expiration_time
  *        Returns a pointer to Volume Expiration time:
  *        When "the information in the volume may be regarded as obsolete."
- * @param vol_effective_time
+ * @param effective_time
  *        Returns a pointer to Volume Expiration time:
  *        When "the information in the volume may be used."
  * @return
@@ -3914,7 +3916,7 @@ int el_torito_set_selection_crit(ElToritoBootImage *bootimg, uint8_t crit[20]);
  *
  * @param bootimg
  *      The image to inquire
- * @param id_string
+ * @param crit
  *      Returns 20 bytes of type and data
  * @return
  *      1 = ok , <0 = error
@@ -4457,7 +4459,7 @@ uint32_t iso_crc32_gpt(unsigned char *data, int count, int flag);
  * the first added file gets into effect with this system area type.
  * The data files which shall serve as MIPS boot files have to be brought into
  * the image by the normal means.
- * @param img
+ * @param image
  *        The image to be manipulated.
  * @param path
  *        Absolute path of the boot file in the ISO 9660 Rock Ridge tree.
@@ -4472,7 +4474,7 @@ int iso_image_add_mips_boot_file(IsoImage *image, char *path, int flag);
 /**
  * Obtain the number of added MIPS Big Endian boot files and pointers to
  * their paths in the ISO 9660 Rock Ridge tree.
- * @param img
+ * @param image
  *        The image to be inquired.
  * @param paths
  *        An array of pointers to be set to the registered boot file paths.
@@ -4488,7 +4490,7 @@ int iso_image_get_mips_boot_files(IsoImage *image, char *paths[15], int flag);
 
 /**
  * Clear the list of MIPS Big Endian boot file paths.
- * @param img
+ * @param image
  *        The image to be manipulated.
  * @param flag
  *        Bitfield for control purposes, unused yet, submit 0
@@ -4616,7 +4618,7 @@ int iso_image_set_alpha_boot(IsoImage *img, char *boot_loader_path, int flag);
  *
  * @param img
  *        The image to be inquired.
- * @param cmdline
+ * @param boot_loader_path
  *        Will return the path. NULL if none is currently submitted.
  * @return
  *        1 is success , <0 means error
@@ -5302,8 +5304,9 @@ int iso_dir_iter_remove(IsoDirIter *iter);
  *
  * @param node
  *      The node to be removed.
- * @param iter
- *      If not NULL, then the node will be removed by iso_dir_iter_remove(iter)
+ * @param boss_iter
+ *      If not NULL, then the node will be removed by
+ *      iso_dir_iter_remove(boss_iter)
  *      else it will be removed by iso_node_remove(node).
  * @return
  *      1 is success, <0 indicates error
@@ -5507,10 +5510,10 @@ int iso_dir_find_children(IsoDir* dir, IsoFindCondition *cond,
 const char *iso_symlink_get_dest(const IsoSymlink *link);
 
 /**
- * Set the destination of a link.
+ * Set the destination of a symbolic 
  *
- * @param opts
- *     The option set to be manipulated
+ * @param link
+ *     The link node to be manipulated
  * @param dest
  *     New destination for the link. It must be a non-empty string, otherwise
  *     this function doesn't modify previous destination.
@@ -5764,7 +5767,7 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream,
  *
  * @param buf
  *     The dynamically allocated memory buffer with the stream content.
- * @parm size
+ * @param size
  *     The number of bytes which may be read from buf.
  * @param stream
  *     Will return a reference to the newly created stream.
@@ -6928,7 +6931,7 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  * @param fs
  *      Will be filled with a pointer to the filesystem that can be used
  *      to access image contents.
- * @param
+ * @return
  *      1 on success, < 0 on error
  *
  * @since 0.6.2
@@ -8215,7 +8218,7 @@ enum IsoHfsplusBlessings {
  * Issue a blessing to a particular IsoNode. If the blessing is already issued
  * to some file, then it gets revoked from that one.
  * 
- * @param image
+ * @param img
  *     The image to manipulate.
  * @param blessing
  *      The kind of blessing to be issued.
@@ -8249,7 +8252,7 @@ int iso_image_hfsplus_bless(IsoImage *img, enum IsoHfsplusBlessings blessing,
  *
  * Several usage restrictions apply. See parameter blessed_nodes.
  *
- * @param image
+ * @param img
  *     The image to inquire.
  * @param blessed_nodes
  *     Will return a pointer to an internal node array of image.
