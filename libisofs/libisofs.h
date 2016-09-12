@@ -8447,8 +8447,8 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** File not supported in ECMA-119 tree and thus ignored (WARNING,MEDIUM, -139) */
 #define ISO_FILE_IGNORED                0xD020FF75
 
-/* A file is bigger than supported by used standard  (WARNING,MEDIUM, -140) */
-#define ISO_FILE_TOO_BIG                0xD020FF74
+/* A file is bigger than supported by used standard  (FAILURE,HIGH, -140) */
+#define ISO_FILE_TOO_BIG                0xE830FF74
 
 /* File read error during image creation (MISHAP,HIGH, -141) */
 #define ISO_FILE_CANT_WRITE             0xE430FF73
