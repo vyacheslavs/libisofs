@@ -1,7 +1,9 @@
 
 bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.6.tar.gz)
 ===============================================================================
+* Bug fix: SIGSEGV by NULL when a data file was larger than ISO level allows.
 * New API calls iso_generate_gpt_guid() and +iso_write_opts_set_gpt_guid().
+
 
 libisofs-1.4.4.tar.gz Fri Jul 01 2016
 ===============================================================================

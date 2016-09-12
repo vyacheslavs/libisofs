@@ -241,11 +241,11 @@ int create_file_src(Ecma119Image *img, IsoFile *iso, IsoFileSrc **src)
     size = iso_stream_get_size(iso->stream);
     if (size > (off_t)MAX_ISO_FILE_SECTION_SIZE && img->opts->iso_level != 3) {
         char *ipath = iso_tree_get_node_path(ISO_NODE(iso));
-        ret = iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
-                              "File \"%s\" can't be added to image because "
-                              "is greater than 4GB", ipath);
+        iso_msg_submit(img->image->id, ISO_FILE_TOO_BIG, 0,
+                              "File \"%s\" cannot be added to image because "
+                              "its size is 4 GiB or larger", ipath);
         free(ipath);
-        return ret;
+        return ISO_FILE_TOO_BIG;
     }
     ret = iso_file_src_create(img, iso, src);
     if (ret < 0) {
