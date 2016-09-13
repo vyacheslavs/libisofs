@@ -1823,7 +1823,7 @@ time_t iso_datetime_read_17(const uint8_t *buf)
     tm.tm_mon -= 1;
     tm.tm_isdst = 0;
 
-    return timegm(&tm) - ((int8_t)buf[6]) * 60 * 15;
+    return timegm(&tm) - ((int8_t)buf[16]) * 60 * 15;
 }
 
 /**
