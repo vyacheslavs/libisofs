@@ -94,7 +94,7 @@ extern "C" {
  */
 #define iso_lib_header_version_major  1
 #define iso_lib_header_version_minor  4
-#define iso_lib_header_version_micro  5
+#define iso_lib_header_version_micro  6
 
 /**
  * Get version of the libisofs library at runtime.
@@ -3507,17 +3507,22 @@ int iso_image_get_pvd_times(IsoImage *image,
  *      The image to make bootable. If it was already bootable this function
  *      returns an error and the image remains unmodified.
  * @param image_path
- *      The absolute path of a IsoFile to be used as default boot image.
-
->>> or  --interval:appended_partition_$number_start_$start_size_$size:...
-
+ *      The absolute path of a IsoFile to be used as default boot image or
+ *      --interval:appended_partition_$number[_start_$start_size_$size]:...
+ *      if type is ELTORITO_NO_EMUL. $number gives the partition number.
+ *      If _start_$start_size_$size is present, then it overrides the 2 KiB
+ *      start block of the partition and the partition size counted in
+ *      blocks of 512 bytes.
  * @param type
  *      The boot media type. This can be one of 3 types:
- *             - Floppy emulation: Boot image file must be exactly
- *               1200 kB, 1440 kB or 2880 kB.
- *             - Hard disc emulation: The image must begin with a master
+ *             - ELTORITO_FLOPPY_EMUL.
+ *               Floppy emulation: Boot image file must be exactly
+ *               1200 KiB, 1440 KiB or 2880 KiB.
+ *             - ELTORITO_HARD_DISC_EMUL.
+ *               Hard disc emulation: The image must begin with a master
  *               boot record with a single image.
- *             - No emulation. You should specify load segment and load size
+ *             - ELTORITO_NO_EMUL.
+ *               No emulation. You should specify load segment and load size
  *               of image.
  * @param catalog_path
  *      The absolute path in the image tree where the catalog will be stored.
@@ -3552,12 +3557,11 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
  *      The image to which the boot image shall be added.
  *      returns an error and the image remains unmodified.
  * @param image_path
- *      The absolute path of a IsoFile to be used as boot image.
-
->>> or  --interval:appended_partition_${number}s_start_${start}d_size_$size:...
-
+ *      The absolute path of a IsoFile to be used as boot image or
+ *      --interval:appended_partition_$number[_start_$start_size_$size]:...
+ *      if type is ELTORITO_NO_EMUL. See iso_image_set_boot_image.
  * @param type
- *      The boot media type. See iso_image_set_boot_image
+ *      The boot media type. See iso_image_set_boot_image.
  * @param flag
  *      Bitfield for control purposes. Unused yet. Submit 0.
  * @param boot
@@ -3600,9 +3604,7 @@ int iso_image_add_boot_image(IsoImage *image, const char *image_path,
  * @param imgnode
  *      When not NULL, it will be filled with the image tree node. No extra ref
  *      is added, you can use iso_node_ref() to get one if you need it.
-
->>> The returned value is NULL if the boot image source is no IsoFile.
-
+ *      The returned value is NULL if the boot image source is no IsoFile.
  * @param catnode
  *      When not NULL, it will be filled with the catnode tree node. No extra
  *      ref is added, you can use iso_node_ref() to get one if you need it.
@@ -3660,8 +3662,7 @@ int iso_image_get_bootcat(IsoImage *image, IsoBoot **catnode, uint32_t *lba,
  * @param bootnodes
  *      Returns NULL or an allocated array of pointers to the IsoFile nodes
  *      which bear the content of the boot images in boots.
-
->>> An array entry is NULL if the boot image source is no IsoFile.
+ *      An array entry is NULL if the boot image source is no IsoFile.
 
 >>> Need getter for partition index
 
