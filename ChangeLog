@@ -1,10 +1,11 @@
 
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.6.tar.gz)
+libisofs-1.4.6.tar.gz Fri Sep 16 2016
 ===============================================================================
 * Bug fix: SIGSEGV by NULL when a data file was larger than ISO level allows.
 * Bug fix: Interpretation of 17 digit timestamps was wrong.
-* New API calls iso_generate_gpt_guid() and +iso_write_opts_set_gpt_guid().
-
+* New API calls iso_generate_gpt_guid() and iso_write_opts_set_gpt_guid().
+* Made several pseudo-random ids reproducible by overriding volume modification
+  time.
 
 libisofs-1.4.4.tar.gz Fri Jul 01 2016
 ===============================================================================
