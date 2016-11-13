@@ -3837,6 +3837,26 @@ void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors);
 int el_torito_get_load_size(ElToritoBootImage *bootimg);
 
 /**
+ * State that the load size shall be the size of the boot image automatically.
+ * This overrides el_torito_set_load_size().
+ * @param bootimg
+ *      The image to to manipulate
+ * @param mode
+ *      0= use value of el_torito_set_load_size()
+ *      1= determine value from boot image
+ */
+void el_torito_set_full_load(ElToritoBootImage *bootimg, int mode);
+
+/**
+ * Inquire the setting of el_torito_set_full_load().
+ * @param bootimg
+ *      The image to inquire
+ * @return
+ *      The mode set with el_torito_set_full_load().
+ */
+int el_torito_get_full_load(ElToritoBootImage *bootimg);
+
+/**
  * Marks the specified boot image as not bootable
  *
  * @since 0.6.2

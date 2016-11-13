@@ -113,8 +113,23 @@ void el_torito_set_load_size(ElToritoBootImage *bootimg, short sectors)
 /* API */
 int el_torito_get_load_size(ElToritoBootImage *bootimg)
 {
-   return (int) bootimg->load_size;
+    return (int) bootimg->load_size;
 }
+
+/* API */
+void el_torito_set_full_load(ElToritoBootImage *bootimg, int mode)
+{
+    if (bootimg->type != 0)
+        return;
+    bootimg->load_size_full= !!mode;
+}
+
+/* API */
+int el_torito_get_full_load(ElToritoBootImage *bootimg)
+{
+    return bootimg->load_size_full;
+}
+
 
 /**
  * Marks the specified boot image as not bootable
@@ -513,6 +528,7 @@ int create_image(IsoImage *image, const char *image_path,
     boot->partition_type = partition_type;
     boot->load_seg = 0;
     boot->load_size = load_sectors;
+    boot->load_size_full = 0;
     boot->platform_id = 0; /* 80x86 */
     memset(boot->id_string, 0, sizeof(boot->id_string));
     memset(boot->selection_crit, 0, sizeof(boot->selection_crit));
@@ -887,6 +903,32 @@ write_section_header(uint8_t *buf, Ecma119Image *t, int idx, int num_entries)
            sizeof(e->id_string));
 }
 
+static int
+write_section_load_size(struct el_torito_boot_image *img,
+                        struct el_torito_section_entry *se,
+                        uint16_t load_size, off_t full_byte_size, int flag)
+{
+    uint16_t size;
+    off_t blocks;
+
+    size= load_size;
+    if(img->type == 0 && img->load_size_full) {
+        blocks= ((full_byte_size + 2047) / 2048) * 4;
+        if (blocks > 65535) {
+            if (img->platform_id == 0xef)
+                size= 0;
+            else
+                size= 65535;
+        } else if(blocks <= 0) {
+            size= 1;
+        } else {
+            size= blocks;
+        }
+    }
+    iso_lsb(se->sec_count, size, 2);
+    return(1);
+}
+
 /**
  * Write one section entry.
  * Usable for the Default Entry
@@ -930,6 +972,8 @@ int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
             return ISO_BOOT_IMAGE_NOT_VALID;
         }
 
+        /* >>> check for non-automatic load size */;
+
         if (t->boot_intvl_size[idx] > 65535) {
             if (img->platform_id == 0xef)
                 iso_lsb(se->sec_count, 0, 2);
@@ -946,6 +990,9 @@ int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
         iso_lsb(se->block, t->boot_intvl_start[idx], 4);
     } else if (mode == 2) {
         app_idx = t->boot_appended_idx[idx];
+
+        /* >>> check for non-automatic load size */;
+
         if (t->appended_part_size[app_idx] * 4 > 65535) {
             if (img->platform_id == 0xef)
                 iso_lsb(se->sec_count, 0, 2);
@@ -956,7 +1003,8 @@ int write_section_entry(uint8_t *buf, Ecma119Image *t, int idx)
         }
         iso_lsb(se->block, t->appended_part_start[app_idx], 4);
     } else {
-        iso_lsb(se->sec_count, img->load_size, 2);
+        write_section_load_size(img, se, (uint16_t) img->load_size,
+                                (off_t) t->bootsrc[idx]->sections[0].size, 0);
         iso_lsb(se->block, t->bootsrc[idx]->sections[0].block, 4);
     }
 
