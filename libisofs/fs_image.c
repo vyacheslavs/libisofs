@@ -3017,15 +3017,14 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     } while (buffer[0] != 255);
 
     /* 4. check if RR extensions are being used */
-    ret = read_root_susp_entries(data, data->pvd_root_block);
-    if (ret < 0) {
-        goto fs_cleanup;
-    }
-
-    /* user doesn't want to read RR extensions */
     if (opts->norock) {
+        /* user doesn't want to read RR extensions */
         data->rr = RR_EXT_NO;
     } else {
+        ret = read_root_susp_entries(data, data->pvd_root_block);
+        if (ret < 0) {
+            goto fs_cleanup;
+        }
         data->rr = data->rr_version;
     }
 
