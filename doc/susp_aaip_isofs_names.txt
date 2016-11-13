@@ -4,7 +4,7 @@
                       Directory of Namespace "isofs."
 
           by Thomas Schmitt    - mailto:scdbackup@gmx.net
-          Libburnia project    - mailto:libburn-hackers@pykix.org
+          Libburnia project    - mailto:bug-xorriso@gnu.org
 
 
 The following names are defined for AAIP namespace "isofs." as mentioned in
@@ -227,7 +227,7 @@ This text is under
 Copyright (c) 2009 - 2011 Thomas Schmitt <scdbackup@gmx.net>
 It shall only be modified in sync with libisofs and other software which
 makes use of AAIP. Please mail change requests to mailing list
-<libburn-hackers@pykix.org> or to the copyright holder in private.
+<bug-xorriso@gnu.org> or to the copyright holder in private.
 Only if you cannot reach the copyright holder for at least one month it is
 permissible to modify this text under the same license as the affected
 copy of libisofs.
