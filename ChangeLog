@@ -1,6 +1,9 @@
 bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.8 or higher)
+git clone git@dev.lovelyhq.com:libburnia/libisofs.git
+(to become libisofs-1.4.8 or higher)
 ===============================================================================
-- no novelties yet -
+* Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root SUSP
+* New API calls el_torito_set_full_load(), el_torito_get_full_load()
 
 
 libisofs-1.4.6.tar.gz Fri Sep 16 2016

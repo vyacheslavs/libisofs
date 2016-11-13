@@ -1,0 +1,42 @@
+------------------------------------------------------------------------------
+       libburnia-project.org / dev.lovelyhq.com    libisofs
+------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+                                  Changelog
+------------------------------------------------------------------------------
+
+13 Nov 2016  [8bf32d8]
+doc/susp_aaip_isofs_names.txt
+Prepared some of the documentation for move to dev.lovelyhq.com
+
+13 Nov 2016  [c51efce]
+libisofs/fs_image.c
+Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root SUSP
+
+Nov 13 2016  [dc6cd94]
+libisofs/libisofs.h
+libisofs/eltorito.c
+libisofs/libisofs.ver
+New API calls el_torito_set_full_load(), el_torito_get_full_load()
+
+13 Nov 2016  [ed209e0]
+COPYRIGHT
+Mentioned Vladimir Serbinenko in libisofs copyright list
+
+  []
+ChangeLog
+libisofs/changelog.txt
+Updated change log and web page
+
+
+
+
+
+  []
+ChangeLog
+libisofs/changelog.txt
+Updated change log and web page
+
+------------------------------------ release - libisofs-1.4.7 -
+
