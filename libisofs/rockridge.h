@@ -266,7 +266,8 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
  * @return
  *      1 on success, 0 if no more entries, < 0 error
  */
-int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue);
+int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
+                   int flag);
 
 /**
  * Free a given susp iterator.

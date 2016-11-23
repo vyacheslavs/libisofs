@@ -67,12 +67,26 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
     return iter;
 }
 
-int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
+/* @param flag bit0 = First call on root:
+                      Not yet clear whether this is SUSP at all
+*/
+int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
+                   int flag)
 {
     struct susp_sys_user_entry *entry;
 
     entry = (struct susp_sys_user_entry*)(iter->base + iter->pos);
 
+    if (flag & 1) {
+        /* Yet unclear whether it is SUSP at all */
+        if (iter->size < 7)
+            return 0;
+        if (!SUSP_SIG(entry, 'S', 'P'))
+            return 0;
+        if (entry->len_sue[0] < 7)
+            return 0;
+        /* Looks like SUSP enough to pass the further processing here. */
+    }
     if ( (iter->pos + 4 > iter->size) || (SUSP_SIG(entry, 'S', 'T'))) {
 
         /* 
@@ -134,10 +148,10 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue)
         }
 
         /* we don't want to return CE entry to the user */
-        return susp_iter_next(iter, sue);
+        return susp_iter_next(iter, sue, 0);
     } else if (SUSP_SIG(entry, 'P', 'D')) {
         /* skip padding */
-        return susp_iter_next(iter, sue);
+        return susp_iter_next(iter, sue, 0);
     }
 
     *sue = entry;

@@ -1582,7 +1582,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
             {ret = ISO_OUT_OF_MEM; goto ex;}
         }
 
-        while ((ret = susp_iter_next(iter, &sue)) > 0) {
+        while ((ret = susp_iter_next(iter, &sue, 0)) > 0) {
 
             /* ignore entries from different version */
             if (sue->version[0] != 1)
@@ -2398,7 +2398,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
     }
 
     /* first entry must be an SP system use entry */
-    ret = susp_iter_next(iter, &sue);
+    ret = susp_iter_next(iter, &sue, 1);
     if (ret < 0) {
         /* error */
         susp_iter_free(iter);
@@ -2442,7 +2442,7 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
      * no?), but if we finally need it, it can be easily implemented in
      * the iterator, transparently for the rest of the code.
      */
-    while ((ret = susp_iter_next(iter, &sue)) > 0) {
+    while ((ret = susp_iter_next(iter, &sue, 0)) > 0) {
 
         /* ignore entries from different version */
         if (sue->version[0] != 1)
