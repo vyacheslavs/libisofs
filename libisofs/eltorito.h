@@ -85,6 +85,7 @@ struct el_torito_boot_image {
     unsigned char partition_type; /**< type of partition for HD-emul images */
     uint16_t load_seg; /**< Load segment for the initial boot image. */
     uint16_t load_size; /**< Number of sectors to load. */
+    int load_size_full; /* 1= override load_size by image size */
 
     /* Byte 1 of Validation Entry or Section Header Entry:
        0= 80x86, 1= PowerPC, 2= Mac, 0xef= EFI */
