@@ -3905,10 +3905,12 @@ try_grub2_mbr:;
 
 static
 int iso_analyze_partition_offset(IsoImage *image, IsoDataSource *src,
-                                 uint64_t start_block, int flag)
+                                 uint64_t start_block, uint64_t block_count,
+                                 int flag)
 {
     int ret;
     uint8_t *buf = NULL;
+    uint32_t iso_size;
     off_t p_offset;
     struct ecma119_pri_vol_desc *pvm;
     struct iso_imported_sys_area *sai;
@@ -3921,11 +3923,14 @@ int iso_analyze_partition_offset(IsoImage *image, IsoDataSource *src,
     ret = src->read_block(src, p_offset + 16, buf);
     if (ret > 0) {
         pvm = (struct ecma119_pri_vol_desc *) buf;
+        iso_size = iso_read_lsb(pvm->vol_space_size, 4);
         if (strncmp((char*) pvm->std_identifier, "CD001", 5) == 0 &&
             pvm->vol_desc_type[0] == 1 &&
             pvm->vol_desc_version[0] == 1 &&
             pvm->file_structure_version[0] == 1 &&
-            iso_read_lsb(pvm->vol_space_size, 4) + p_offset == sai->image_size)
+            (iso_size + p_offset == sai->image_size ||
+             iso_size == block_count / 4))
+
             sai->partition_offset = p_offset;
     }
     ret = 1;
@@ -4037,7 +4042,7 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
             (part->start_block + part->block_count) / 4 == sai->image_size) {
 
             ret = iso_analyze_partition_offset(image, src, part->start_block,
-                                               0);
+                                               part->block_count, 0);
             if (ret < 0)
                 goto ex;
         }
@@ -4342,10 +4347,10 @@ int iso_analyze_gpt(IsoImage *image, IsoDataSource *src, int flag)
             block_count = sai->gpt_req[0]->block_count;
             if (start_block >= 64 && block_count >= 72 &&
                 start_block <= 2048 && start_block % 4 == 0 &&
-                block_count % 4 == 0 &&
-                (start_block + block_count) / 4 == sai->image_size) {
+                block_count % 4 == 0) {
 
-                ret = iso_analyze_partition_offset(image, src, start_block, 0);
+                ret = iso_analyze_partition_offset(image, src, start_block,
+                                                   block_count, 0);
                 if (ret < 0)
                     return ret;
             }
