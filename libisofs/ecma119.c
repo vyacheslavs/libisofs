@@ -1417,6 +1417,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
       target->partiton_offset from any LBA pointer.
     */
     target->eff_partition_offset = target->opts->partition_offset;
+    target->pvd_size_is_total_size = 0;
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         /* Not all writers have an entry in the partion volume descriptor set.
