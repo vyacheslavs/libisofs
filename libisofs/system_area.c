@@ -287,7 +287,7 @@ int make_grub_msdos_label(uint32_t img_blocks, int sph, int hpc,
         buf[510] = 0x55;
         buf[511] = 0xAA;
     }
-    if (!(flag & 2)) {
+    if ((!(flag & 2)) && part_type != 0xee && part_type != 0xef) {
       /* 3) Put 0x80 (for bootable partition), */
       *(wpt++) = 0x80;
     } else {
