@@ -184,7 +184,7 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
         }
         t->appended_part_size[i] = size;
         pos += add_pos + size;
-        t->total_size += (add_pos + size) * 2048;
+        t->total_size += (((off_t) add_pos) + size) * 2048;
         if (flag & 1)
             t->curblock = pos;
     }
