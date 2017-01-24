@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2016 Thomas Schmitt
+ * Copyright (c) 2010 - 2017 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
