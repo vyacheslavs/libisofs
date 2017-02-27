@@ -192,6 +192,19 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 }
 
 
+static int mbr_part_slot_is_unused(uint8_t *slot)
+{
+    int i;
+
+    for (i = 0; i < 16; i++)
+        if (slot[i] != 0)
+    break;
+    if (i >= 16)
+        return 1;
+    return 0;
+}
+
+
 /* @param flag
                 bit1= partition_offset and partition_size are counted in
                       blocks of 512 rather than 2048
@@ -1777,7 +1790,7 @@ static void iso_dummy_mbr_partition(uint8_t *buf, int mode)
                               0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
 
     for (i = 0; i < 4; i++) {
-        if (buf[446 + 16 * i + 4] == 0x00) {
+        if (mbr_part_slot_is_unused(buf + 446 + 16 * i)) {
             memcpy(buf + 446 + 16 * i, dummy_entry, 16);
             return;
         }
@@ -2125,7 +2138,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         break;
         if (i >= 4) { /* no bootable/active flag set yet */
             for (i = 0; i < 4; i++) {
-                if (buf[446 + 16 * i + 4] != 0x00 &&
+                if ((!mbr_part_slot_is_unused(buf + 446 + 16 * i)) &&
                     buf[446 + 16 * i + 4] != 0xee &&
                     buf[446 + 16 * i + 4] != 0xef) {
                     buf[446 + 16 * i] |= 0x80;
