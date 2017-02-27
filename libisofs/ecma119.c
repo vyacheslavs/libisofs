@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2016 Thomas Schmitt
+ * Copyright (c) 2009 - 2017 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -3483,6 +3483,7 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->appended_as_gpt = 0;
     wopts->appended_as_apm = 0;
     wopts->part_like_isohybrid = 0;
+    wopts->iso_mbr_part_type = -1;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
     wopts->allow_dir_id_ext = 0;
@@ -4215,6 +4216,14 @@ int iso_write_opts_set_appended_as_apm(IsoWriteOpts *opts, int apm)
 int iso_write_opts_set_part_like_isohybrid(IsoWriteOpts *opts, int alike)
 {
     opts->part_like_isohybrid = !!alike;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_iso_mbr_part_type(IsoWriteOpts *opts, int part_type)
+{
+    if (part_type < -1 || part_type > 255)
+        part_type = -1;
+    opts->iso_mbr_part_type = part_type;
     return ISO_SUCCESS;
 }
 

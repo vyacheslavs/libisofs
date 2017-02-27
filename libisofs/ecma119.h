@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2017 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -495,6 +495,14 @@ struct iso_write_opts {
              I.e. mention boot image as partition in GPT and/or APM.
      */
     int part_like_isohybrid;
+
+    /* The type to use for the mountable ISO partition if there is any and if
+       the type is not mandatorily determined for particular circumstances like
+       compliant GPT, CHRP, or PReP.
+       -1 = use the default value (e.g. 0xcd, 0x83, 0x17)
+       0x00 to 0xff = value to use if possible 
+    */
+    int iso_mbr_part_type;
 
     /* Eventual name of the non-ISO aspect of the image. E.g. SUN ASCII label.
      */

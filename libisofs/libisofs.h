@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2016 Thomas Schmitt
+ * Copyright (c) 2009-2017 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2749,6 +2749,21 @@ int iso_write_opts_set_appended_as_apm(IsoWriteOpts *opts, int apm);
  */
 int iso_write_opts_set_part_like_isohybrid(IsoWriteOpts *opts, int alike);
 
+/**
+ * Set the partition type of the MBR partition which represents the ISO
+ * filesystem or at least protects it.
+ * This is without effect if no such partition emerges by other settings or
+ * if the partition type is prescribed mandatorily like 0xee for GPT protective
+ * MBR or 0x96 for CHRP.
+ * @param opts
+ *        The option set to be manipulated.
+ * @param part_type
+ *        0x00 to 0xff as desired partition type.
+ *        Any other value (e.g. -1) enables the default types of the various
+ *        occasions.
+ * @since 1.4.8
+ */
+int iso_write_opts_set_iso_mbr_part_type(IsoWriteOpts *opts, int part_type);
 
 /**
  * Inquire the start address of the file data blocks after having used

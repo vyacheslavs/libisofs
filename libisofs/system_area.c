@@ -1918,6 +1918,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                 pml_blocks = gpt_blocks;
             } else {
                 part_type = 0xcd;
+                if (t->opts->iso_mbr_part_type >= 0 &&
+                    t->opts->iso_mbr_part_type <= 255)
+                    part_type= t->opts->iso_mbr_part_type;
                 pml_blocks = img_blocks;
             }
             ret = make_grub_msdos_label(pml_blocks, t->partition_secs_per_head,
@@ -1942,8 +1945,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
         if (gpt_count > 0 || apm_count > 0)
             part_type = 0x00;
-        else
+        else {
             part_type = 0x17;
+            if (t->opts->iso_mbr_part_type >= 0 &&
+                t->opts->iso_mbr_part_type <= 255)
+                part_type= t->opts->iso_mbr_part_type;
+        }
 
         if (t->opts->appended_as_gpt && t->have_appended_partitions) {
             part_type = 0xee;
@@ -1985,9 +1992,13 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     } else if ((t->opts->partition_offset > 0 || will_append) &&
                sa_type == 0 && t->mbr_req_count == 0) {
         /* Write a simple partition table. */
+        part_type = 0xcd;
+        if (t->opts->iso_mbr_part_type >= 0 &&
+            t->opts->iso_mbr_part_type <= 255)
+            part_type= t->opts->iso_mbr_part_type;
         ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
                                     t->partition_heads_per_cyl,
-                                    (uint8_t) 0xcd, buf, 2);
+                                    (uint8_t) part_type, buf, 2);
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
         risk_of_ee = 1;
@@ -2007,7 +2018,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         } else if (t->opts->partition_offset == 0) {
             /* Re-write partion entry 1 : start at 0, type Linux */
             blk = ((uint64_t) img_blocks) * 4 - t->post_iso_part_pad / 512;
-            ret = write_mbr_partition_entry(1, 0x83, (uint64_t) 0, blk,
+            part_type = 0x83;
+            if (t->opts->iso_mbr_part_type >= 0 &&
+                t->opts->iso_mbr_part_type <= 255)
+                part_type= t->opts->iso_mbr_part_type;
+            ret = write_mbr_partition_entry(1, part_type, (uint64_t) 0, blk,
                         t->partition_secs_per_head, t->partition_heads_per_cyl,
                         buf, 2);
             if (ret < 0)
@@ -2087,7 +2102,11 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
                 iso_msgs_submit(0,
                             "Prevented partition type 0xEE in MBR without GPT",
                             0, "WARNING", 0);
-                buf[446 + 16 * i + 4] = 0xcd;
+                part_type = 0xcd;
+                if (t->opts->iso_mbr_part_type >= 0 &&
+                    t->opts->iso_mbr_part_type <= 255)
+                    part_type= t->opts->iso_mbr_part_type;
+                buf[446 + 16 * i + 4] = (uint8_t) part_type;
             }
         }
     }
@@ -2821,7 +2840,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
     IsoFileSrc *src;
-    int ret, will_have_gpt = 0, with_chrp = 0, i;
+    int ret, will_have_gpt = 0, with_chrp = 0, i, part_type;
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
     uint8_t gpt_name[72];
@@ -2893,11 +2912,16 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
     }
     if (t->prep_part_size > 0 || t->opts->fat || will_have_gpt) {
         /* Protecting MBR entry for ISO start or whole ISO */
+        part_type = 0xcd;
+        if (t->opts->iso_mbr_part_type >= 0 &&
+            t->opts->iso_mbr_part_type <= 255)
+            part_type= t->opts->iso_mbr_part_type;
+        if (will_have_gpt)
+            part_type = 0xee;
         ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
                                   will_have_gpt ? (uint64_t) 1 :
                                   ((uint64_t) t->opts->partition_offset) * 4,
-                                  (uint64_t) 0,
-                                  will_have_gpt ? 0xee : 0xcd, 0, 0);
+                                  (uint64_t) 0, part_type, 0, 0);
         if (ret < 0)
             return ret;
     }

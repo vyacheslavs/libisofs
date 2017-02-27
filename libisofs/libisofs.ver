@@ -330,6 +330,7 @@ iso_write_opts_set_hfsp_serial_number;
 iso_write_opts_set_hfsplus;
 iso_write_opts_set_iso1999;
 iso_write_opts_set_iso_level;
+iso_write_opts_set_iso_mbr_part_type;
 iso_write_opts_set_joliet;
 iso_write_opts_set_joliet_long_names;
 iso_write_opts_set_joliet_longer_paths;
