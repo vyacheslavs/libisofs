@@ -2109,7 +2109,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     /* >>> ??? check for GPT magic number at byte 512 ff. ? */;
 
     if (sa_type == 0 && ((t->system_area_options & 3) || risk_of_ee) &&
-        (t->opts->part_like_isohybrid || t->gpt_req_count == 0)) {
+        (t->opts->part_like_isohybrid || t->gpt_req_count == 0) &&
+        t->opts->iso_mbr_part_type != 0xee) {
         for (i = 0; i < 4; i++) {
             if (buf[446 + 16 * i + 4] == 0xee) {
                 iso_msgs_submit(0,
