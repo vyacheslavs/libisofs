@@ -4039,7 +4039,7 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
             part->start_block >= 64 && part->block_count >= 72 &&
             part->start_block <= 2048 &&
             part->start_block % 4 == 0 && part->block_count % 4 == 0 &&
-            (part->start_block + part->block_count) / 4 == sai->image_size) {
+            (part->start_block + part->block_count) / 4 <= sai->image_size) {
 
             ret = iso_analyze_partition_offset(image, src, part->start_block,
                                                part->block_count, 0);
