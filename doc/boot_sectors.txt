@@ -340,8 +340,11 @@ Byte Range | Value      | Meaning
            |            |
  446 - 461 | ========== | Partition Table Entry for partition 1
            |            |
- 446 - 446 |     status | Governs bootability:
-           |            | 0x80 = bootable/active , 0x00 non-bootable/inactive
+ 446 - 446 |     status | For some generic MBRs this marks the one partition
+           |            | from which the MBR should load and run more code.
+           |            | 0x80 = bootflag/active , 0x00 = noboot/inactive
+           |            | Some BIOSes ignore MBRs with no bootflag in any of
+           |            | their partition table entries.
            |            |
  447 - 449 | ========== | C/H/S address of partition start
  447 - 447 | start_head | Heads part of start address.
