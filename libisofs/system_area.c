@@ -2508,7 +2508,7 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
        0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b
     };
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-    int i, ret, do_apm = 0, do_gpt = 0, index, already_in_gpt;
+    int i, ret, do_apm = 0, do_gpt = 0, index, already_in_gpt = 0;
     uint8_t gpt_name[72], *type_uuid;
 
 #ifndef Libisofs_appended_partitions_inlinE
