@@ -2641,14 +2641,6 @@ int read_el_torito_boot_catalog(_ImageFsData *data, uint32_t block)
         {ret = ISO_WRONG_EL_TORITO; goto ex;}
     }
 
-    /* check for a valid platform */
-    if (ve->platform_id[0] != 0 && ve->platform_id[0] != 0xef) {
-        iso_msg_submit(data->msgid, ISO_UNSUPPORTED_EL_TORITO, 0,
-                     "Unsupported El-Torito platform. Only 80x86 and EFI are "
-                     "supported. El-Torito info will be ignored.");
-        {ret = ISO_UNSUPPORTED_EL_TORITO; goto ex;}
-    }
-
     /* ok, once we are here we assume it is a valid catalog */
 
     /* parse the default entry */
