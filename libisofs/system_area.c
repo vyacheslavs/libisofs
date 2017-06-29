@@ -2128,7 +2128,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     if (sa_type == 0 && (
         (t->system_area_options & 3) ||
         (t->system_area_options & (1 << 14)) ||
-        (((t->system_area_options >> 2) & 0x3f) == 2 &&
+        (((t->system_area_options >> 10) & 15) != 1 &&
          (t->system_area_options & (1 << 15)))
         )) {
         /* This is an MBR which shall have a bootable/active flag
