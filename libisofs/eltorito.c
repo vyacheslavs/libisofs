@@ -1505,18 +1505,6 @@ int eltorito_writer_create(Ecma119Image *target)
                               target->catalog->bootimages[idx]->appended_start;
             target->boot_intvl_size[idx] =
                                target->catalog->bootimages[idx]->appended_size;
-
-            /* >>> ??? Why only with appended partition as El Torito image ?
-                       Can this be used in all cases of appended partitions ?
-            */
-            if ((((target->system_area_options >> 2) & 0x3f) == 0 &&
-                 (target->system_area_options & 3) == 1) ||
-                target->opts->partition_offset > 0) {
-                /* Protective MBR || partition offset */
-                /* ISO will not be a partition. It can span the whole image. */
-                target->pvd_size_is_total_size = 1;
-            }
-
     continue;
         }
 
