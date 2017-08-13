@@ -305,6 +305,7 @@ Sources:
     Mailing list conversations with H. Peter Anvin and Vladimir Serbinenko.
     Mail conversations with Natalia Portillo.
 
+
 The candidates for MBR booting will normally use El Torito rather than MBR
 if the ISO image is presented on CD, DVD, or BD media.
 The MBR comes into effect if the image is on a media that is interpreted by
@@ -425,6 +426,7 @@ Sources:
     Mail conversations with Vladimir Serbinenko.
     Mail conversations with Natalia Portillo of DiskImageChef,
                             who quoted "Inside Macintosh" Volumes IV and V.
+
 
 APM has an adjustable block size. Because the ISO images shall always work
 on optical media, and in order to make room for the header block of an
