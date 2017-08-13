@@ -301,28 +301,43 @@ Byte Range | Value      | Meaning
 
 Sources:
     http://en.wikipedia.org/wiki/Master_boot_record
+    https://en.wikipedia.org/wiki/INT_13H
     Mailing list conversations with H. Peter Anvin and Vladimir Serbinenko.
-
+    Mail conversations with Natalia Portillo.
 
 The candidates for MBR booting will normally use El Torito rather than MBR
 if the ISO image is presented on CD, DVD, or BD media.
-The eventual MBR comes into effect if the image is on a media that is
-interpreted by the BIOS as some kind of hard disk. Usually real hard disks,
-floppy disks, USB sticks, memory cards.
+The MBR comes into effect if the image is on a media that is interpreted by
+the BIOS as some kind of hard disk. Usually real hard disks, floppy disks,
+USB sticks, memory cards.
 
 An important part of an MBR is the DOS style partition table. It describes up
 to four primary partitions. There are two formats used for block address:
 Cylinder/Head/Sector (C/H/S) and Logical Block Address (LBA). Both are based
 on units of 512 bytes. So MBR_LBA = ISO_LBA * 4.
 
+Contemporary x86 BIOS normally supports LBA addressing directly.
+If INT 0x13 AH 0x41 returns with CX bit0 set, then INT 0x13 AH 0x42 may be used
+for reading. (Sometimes even if the bit is not set to indicate the capability.)
+
 For C/H/S, the sector address is broken up into whole cylinders, remaining
 heads, and remaining sectors + 1. The nomenclature seems to stem from antique
 drum storage.
 There are two parameters, sectors_per_head and heads_per_cylinder which are not
-stored in the MBR. So it is more or less arbitray how to convert a LBA into
-a C/H/S address and vice versa. For maximum range of C/H/S addresses one
-may use sectors_per_head = 63 , heads_per_cylinder = 255.
+stored in the MBR. So at ISO production time it is more or less arbitray how
+to convert a LBA into a C/H/S address and vice versa.
+At boot time the x86 BIOS decides about the two parameters. The boot loader may
+inquire these values by INT 0x13 AH 0x08 and use them to convert LBA to C/H/S
+for the read operation INT 0x13 AH 0x02. So the C/H/S values in an ISO's
+partition table are quite fictional and of few impact on boot loaders.
 
+More important seems to align partition ends to a consistent cylinder size,
+because some partition editors deduce their idea of disk geometry from there
+and raise protest if they deem it inconsistent.
+For maximum range of C/H/S addresses one may use sectors_per_head = 63 ,
+heads_per_cylinder = 255. But that is not divisible by 4 and imposes alignment
+problems with ISO 9660 filesystems. So (32,64) for images up to 1 GiB
+or (63,252) for larger images are better.
 
 Words are composed little-endian style.
 
@@ -331,8 +346,9 @@ Byte Range | Value      | Meaning
    0 - 439 | = opaque = | Code Area filled with bytes for some boot system,
            |            | typically machine code.
            |            |
- 440 - 443 | disk_sgntr | Disc signature, an individual disk id of obscure
-           |            | usability.
+ 440 - 443 | disk_sgntr | Disc signature: An individual disk id. Some software
+           |            | might use it to recognize the same storage medium
+           |            | at different device addresses.
            |            | (The Code Area might extend up to this field.)
            |            |
  444 - 445 |          0 | "usually nulls"
@@ -407,7 +423,8 @@ Sources:
     http://www.informit.com/articles/article.aspx?p=376123&seqNum=3
     syslinux-4.05/utils/isohybrid.c
     Mail conversations with Vladimir Serbinenko.
-
+    Mail conversations with Natalia Portillo of DiskImageChef,
+                            who quoted "Inside Macintosh" Volumes IV and V.
 
 APM has an adjustable block size. Because the ISO images shall always work
 on optical media, and in order to make room for the header block of an
@@ -415,11 +432,19 @@ additional GPT, only block size 2048 is considered here.
 The role of APM in the boot process is to guide the firmware to a
 HFS+ filesystem.
 
-Block0 of an APM begins at byte 0 of the medium. Thus it collides with MBR and
-other boot sector formats. By lucky coincidence it is possible to compose
-a mock-up of a Block0 which is acceptable to firmware which expects APM,
-and is also harmless x86 machine code with no negative side effects.
-So it is possible to combine APM with an especially prepared MBR.
+Block0 (aka Driver Descriptor Map) of an APM begins at byte 0 of the medium.
+Thus it collides with MBR and other boot sector formats. By lucky coincidence
+it is possible to compose a mock-up of a Block0 which is acceptable to firmware
+which expects APM, and is also harmless x86 machine code with no negative
+side effects. So it is possible to combine APM with an especially prepared MBR.
+
+Block0 is optional. But in the context of bootable hybrid ISOs it is not only
+needed to announce block size 2048, but also it is much better suited for
+staging as harmless x86 machine code than is an APM partition entry.
+
+Usually there is no Device Partition Map block (signature "TS"), although it
+is demanded by the book "Inside Macintosh". It would sit where GPT has its
+header block. So DPM is not described here.
 
 The layout of a Block0 of an APM is:
 
@@ -430,13 +455,17 @@ Byte Range | Value      | Meaning (all numbers are stored big endian)
    4 -   7 | block_count| Number of blocks covered by APM
            |            | Often some x86-harmless dummy. E.g. 0x9090 = 37008
            |            | or 0xeb02ffff = 3,942,842,367                         
-   8 -   9 | dev_type   | obscure: "device type"
-  10 -  11 | dev_id     | obscure: "device id"
-  12 -  15 | drv_data   | obscure: "driver data"
-  16 -  17 | drv_count  | obscure: "driver descriptor count"
-  18 -  81 | drv_map    | obscure: "driver descriptor table"
-           |            |          with 8 entries of 16 bytes each
-  82 - 511 | reserved   |
+   8 -   9 | dev_type   | Device type: The id of the Mac driver which is in
+           |            | charge of the storage device.
+  10 -  11 | dev_id     | Device id: Address in an i/o bus system.
+  12 -  15 | drv_data   | Driver data: Not used.
+  16 -  17 | drv_count  | Driver count: Count of entries in drv_map.
+  18 - 505 | drv_map    | Driver descriptor table:
+           |            | Up to 61 entries of 8 bytes each.
+           |            | They contain the 32 bit 512-byte LBA of the driver's
+           |            | storage location, its 16 bit size in 512-byte blocks,
+           |            | and value 0x0001.
+ 506 - 511 | reserved   |
 ---------- | ---------- | ----------------------------------------------------
 
 The SYSLINUX program isohybrid.c overwrites the first 32 bytes of this
@@ -466,9 +495,12 @@ Byte Range | Value      | Meaning (all numbers are stored big endian)
   84 -  87 | lb_count   | Logical block count (same as block_count)
   88 -  91 | flags      | Status flags
            |            | bit0= entry is valid
-           |            | bit1= entry is allocated
+           |            | bit1= partition is allocated
+           |            | bit2= partition is in use
+           |            | bit3= partition contains valid boot information
            |            | bit4= partition is readable
            |            | bit5= partition is writable
+           |            | bit7= boot code is position independent
            |            | bit30= automatic mount (legacy Mac)
   92 -  95 | boot_block | Logical start block number of boot code = 0
   96 -  99 | boot_bytes | Number of bytes in boot code = 0
@@ -652,6 +684,7 @@ Sources:
       There are traces in the web which relate this to specs by
                MIPS Computer Systems, Inc. , 1985
                Silicon Graphics Computer Systems, Inc. , 2000
+   Mail conversations with Natalia Portillo.
 
 
 The first 512 bytes of the media constitute the Volume Header.
@@ -662,7 +695,11 @@ Byte Range | Value      | Meaning
    0 -   3 | 0x0be5a941 | Magic number
    4 -   5 |          0 | Root partition number
    6 -   7 |          0 | Swap partition number
-   8 -  23 |          0 | Name of file to boot (unclear what this means)
+   8 -  23 |          0 | One of the boot_name items from the Volume Directory
+           |            | may be put here to choose for booting the entry with
+           |            | that name.
+           |            | (Obviously it may be empty if only one non-zero entry
+           |            |  exists in the Volume Directory.)
            |            |
   24 -  71 | ========== | Device Parameters
            |            |
