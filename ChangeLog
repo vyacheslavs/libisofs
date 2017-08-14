@@ -2,7 +2,13 @@ bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.8 or higher)
 git clone git@dev.lovelyhq.com:libburnia/libisofs.git
 (to become libisofs-1.4.8 or higher)
 ===============================================================================
-* Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root SUSP
+* Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root
+           SUSP.
+* Bug fix: Non-SUSP data in System Use Area prevented image loading if
+           Rock Ridge was enabled. Thanks to Jonathan Dowland.
+* Bug fix: Protective MBR for GPT could emerge with boot flag set.
+* Bug fix: Appended partitions of size >= 4 GiB led to abort with error message
+           "FATAL : ISO overwrite". Thanks to Sven Haardiek.
 * New API calls el_torito_set_full_load(), el_torito_get_full_load()
 
 

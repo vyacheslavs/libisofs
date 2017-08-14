@@ -6,37 +6,137 @@
                                   Changelog
 ------------------------------------------------------------------------------
 
-13 Nov 2016  [8bf32d8]
+13 Nov 2016  [8bf32d8] [1340]
 doc/susp_aaip_isofs_names.txt
 Prepared some of the documentation for move to dev.lovelyhq.com
 
-13 Nov 2016  [c51efce]
+13 Nov 2016  [c51efce] [1341]
 libisofs/fs_image.c
 Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root SUSP
 
-Nov 13 2016  [dc6cd94]
+13 Nov 2016  [dc6cd94] [1342]
 libisofs/libisofs.h
 libisofs/eltorito.c
 libisofs/libisofs.ver
 New API calls el_torito_set_full_load(), el_torito_get_full_load()
 
-13 Nov 2016  [ed209e0]
+13 Nov 2016  [ed209e0] [1343]
 COPYRIGHT
 Mentioned Vladimir Serbinenko in libisofs copyright list
 
-  []
+13 Nov 2016  [2961bde] [1344]
+ChangeLog
++ libisofs/changelog.txt
+Updated change log
+
+23 Nov 2016  [01020ef] [1345]
+libisofs/eltorito.h
+Committed missing part of rev dc6cd94/1342
+
+23 Nov 2016  [8ec75ee] [1346]
+libisofs/fs_image.c
+libisofs/rockridge.h
+libisofs/rockridge_read.c
+Bug fix: Non-SUSP data in System Use Area prevented image loading if Rock Ridge was enabled. Thanks to Jonathan Dowland.
+
+25 Dec 2016  [76181d0] [1347]
+libisofs/ecma119.c
+Restricted volume size of PVD with non-zero partition offset to filesystem
+size even if the first PVD claims the whole output size
+
+25 Dec 2016  [afb10aa] [1348]
+libisofs/eltorito.c
+Claiming full output size in first PVD if partition offset is non-zero
+
+25 Dec 2016  [3043b5f] [1349]
+libisofs/fs_image.c
+Enabled recognition of partition offset of grub-mkrescue-sed.sh mode "gpt_appended"
+
+03 Jan 2017  [2152804] [1350]
+libisofs/system_area.c
+Bug fix: Protective MBR for GPT could emerge with boot flag set.
+
+24 Jan 2014  [5c1c5cd] [1351]
+libisofs/system_area.c
+Bug fix: Appended partitions of size >= 4 GiB led to abort with error message
+         "FATAL : ISO overwrite". Thanks to Sven Haardiek.
+
+24 Jan 2014  [094b3f7] [1352]
+libisofs/system_area.c
+Updated copyright year in system_area.c
+
+27 Feb 2014  [e66b9bf] [1353]
+libisofs/libisofs.h
+libisofs/ecma119.h
+libisofs/ecma119.c
+libisofs/system_area.c
+libisofs/libisofs.ver
+New API call iso_write_opts_set_iso_mbr_part_type()
+
+27 Feb 2014  [5600f3d] [1354]
+libisofs/system_area.c
+When deciding boot flag, consider MBR partition slot empty only if entirely 0
+
+19 Mar 2017  [86f6ffc] [1355]
+libisofs/system_area.c
+Let iso_mbr_part_type 0xee override ban on 0xee without GPT
+
+09 Apr 2017  [94e4bfb] [1356]
+libisofs/fs_image.c
+Adapted recognizing of partition offset to the changes of rev afb10aa / 1348
+
+10 Apr 2017  [0e7300b] [1357]
+doc/boot_sectors.txt
+Clarified meaning of MBR partition boot flag
+
+25 Apr 2017  [fb86970] [1358]
+libisofs/system_area.c
+Reacted on harmless compiler warning about uninitialized variable.
+
+03 Jun 2017  [d7737e3] []
+libisofs/fs_image.c
+Removed ban on reading El Torito platform ids other than 0 and 0xef
+
+29 Jun 2017  [6282bbc]
+libisofs/system_area.c
+Bug fix: Bit 15 of iso_write_opts_set_system_area did not work with generic MBR
+
+01 Jul 2017  [18ab601]
+libisofs/eltorito.c
+libisofs/system_area.c
+Let ISO size cover appended partitions if --protective-msdos-label or nonzero -partition_offset is given
+
+13 Aug 2017  [c6e4035]
+doc/boot_sectors.txt
+Added boot sector knowledge gained from Natalia Portillo
+
+13 Aug 2017  [e19a338]
+doc/boot_sectors.txt
+Re-added two empty lines which were lost by previous commit
+
+14 Aug 2014  [1e40ed3]
+libisofs/fs_image.c
+Bug fix: Keeping and patching of loaded boot images failed. Regression by version 1.4.4.
+
+  [] []
 ChangeLog
 libisofs/changelog.txt
-Updated change log and web page
+Updated change log
+
+------------------------------------ release - libisofs-1.4.8 -
+* Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root SUSP
+* Bug fix: Non-SUSP data in System Use Area prevented image loading if
+           Rock Ridge was enabled. Thanks to Jonathan Dowland.
+* Bug fix: Protective MBR for GPT could emerge with boot flag set.
+* Bug fix: Bit 15 of iso_write_opts_set_system_area did not work with
+           generic MBR.
+* Bug fix: Keeping and patching of loaded boot images failed. Regression by version 1.4.4.
 
 
-
-
-
-  []
+  [] []
 ChangeLog
 libisofs/changelog.txt
-Updated change log and web page
+Updated change log
 
------------------------------------- release - libisofs-1.4.7 -
+------------------------------------ release - libisofs-1.4.8 -
 
