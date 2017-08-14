@@ -5849,6 +5849,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             boot_image->platform_id = data->platform_ids[idx];
             memcpy(boot_image->id_string, data->id_strings[idx], 28);
             memcpy(boot_image->selection_crit, data->selection_crits, 20);
+            boot_image->appended_idx = -1;
 
             catalog->bootimages[catalog->num_bootimages] = boot_image;
             boot_image = NULL;
