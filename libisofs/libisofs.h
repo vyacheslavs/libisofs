@@ -8880,6 +8880,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
                                                        (FAILURE, HIGH, -417) */
 #define ISO_BAD_GPT_GUID_MODE       0xE830FE5F
 
+/** Unable to obtain root directory                       (FATAL,HIGH, -418) */
+#define ISO_NO_ROOT_DIR             0xF030FE5E
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

@@ -547,6 +547,8 @@ const char *iso_error_to_msg(int errcode)
         return "Cannot derive GPT GUID from undefined pseudo-UUID volume timestamp";
     case ISO_BAD_GPT_GUID_MODE:
         return "Unrecognized GPT disk GUID setup mode";
+    case ISO_NO_ROOT_DIR:
+        return "Unable to obtain root directory";
     default:
         return "Unknown error";
     }

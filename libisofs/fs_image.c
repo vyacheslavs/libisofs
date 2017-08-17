@@ -1699,6 +1699,12 @@ if (name != NULL && !namecont) {
                  */
                 susp_iter_free(iter);
                 free(name);
+                if (flag & 1) {
+                    ret = iso_rr_msg_submit(fsdata, 3, ISO_NO_ROOT_DIR, 0,
+                           "Root directory is marked by RRIP RE as relocated");
+                    ret= ISO_NO_ROOT_DIR;
+                    goto ex;
+                }
                 {ret = 0; goto ex;} /* it's not an error */
             } else if (SUSP_SIG(sue, 'C', 'L')) {
                 /*
@@ -5733,6 +5739,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     if (ret < 0) {
         iso_filesystem_unref(fs);
         return ret;
+    }
+    if (newroot == NULL) {
+        iso_filesystem_unref(fs);
+        return ISO_NO_ROOT_DIR;
     }
 
     /* Lookup character set even if no AAIP loading is enabled */
