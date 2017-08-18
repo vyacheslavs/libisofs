@@ -384,6 +384,7 @@ typedef struct
       bit16= Incomplete SL
       bit17= Charset conversion error
       bit18= Link without destination
+      bit19= SL with a non-link file
     */
     int rr_err_reported;
     int rr_err_repeated;
@@ -2093,6 +2094,11 @@ if (name != NULL && !namecont) {
 
     if (S_ISLNK(atts.st_mode)) {
         ifsdata->data.content = linkdest;
+    } else if (linkdest != NULL) {
+        ret = iso_rr_msg_submit(fsdata, 19, ISO_WRONG_RR_WARN, 0,
+                     "RRIP SL link destination with file that is not a link.");
+        free(linkdest);
+        linkdest = NULL;
     }
 
     ifsrc->class = &ifs_class;
