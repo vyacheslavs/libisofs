@@ -482,24 +482,27 @@ int read_aaip_AA(struct susp_sys_user_entry *sue,
      if (*is_done) {
 
          /* To coexist with Apple ISO :
-            Gracefully react on eventually trailing Apple AA
+            Gracefully react on possibly trailing Apple AA
          */
          if (sue->version[0] != 1 || sue->len_sue[0] == 7)
              return ISO_SUCCESS;
 
          return ISO_WRONG_RR;
      }
-
-
-     /* Eventually create or grow storage */
      if (*aa_size == 0 || *aa_string == NULL) {
-
-         /* Gracefully react on eventually leading Apple AA
+         /* Gracefully react on possibly leading Apple AA
          */
-         if (sue->version[0] != 1 || sue->len_sue[0] < 9) {
+         if (sue->version[0] != 1 || sue->len_sue[0] < 9)
              return ISO_SUCCESS;
-         }
+     }
 
+     /* A valid AAIP AA entry has 5 header bytes and at least 1 component byte
+      */
+     if (sue->len_sue[0] < 6)
+         return ISO_WRONG_RR;
+
+     /* Possibly create or grow storage */
+     if (*aa_size == 0 || *aa_string == NULL) {
          *aa_size = *aa_len + sue->len_sue[0];
          *aa_string = calloc(*aa_size, 1);
          *aa_len = 0;
@@ -555,7 +558,12 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
      if (sue->version[0] != 1)
          return ISO_WRONG_RR;
 
-     /* Eventually create or grow storage */
+     /* A valid AL entry has 5 header bytes and at least 1 component byte
+      */
+     if (sue->len_sue[0] < 6)
+         return ISO_WRONG_RR;
+
+     /* Possibly create or grow storage */
      if (*aa_size == 0 || *aa_string == NULL) {
          *aa_size = *aa_len + sue->len_sue[0];
          *aa_string = calloc(*aa_size, 1);
