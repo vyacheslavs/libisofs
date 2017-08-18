@@ -388,12 +388,18 @@ int read_rr_SL(struct susp_sys_user_entry *sl, char **dest, int *cont)
         if (*cont == 1) {
             /* new component */
             size_t size = strlen(*dest);
+            int has_slash;
+
             *dest = realloc(*dest, strlen(*dest) + len + 2);
             if (*dest == NULL) {
                 return ISO_OUT_OF_MEM;
             }
             /* it is a new compoenent, add the '/' */
-            if ((*dest)[size-1] != '/') {
+            has_slash = 0;
+            if (size > 0)
+                if ((*dest)[size - 1] == '/')
+                    has_slash = 1;
+            if (!has_slash) {
                 (*dest)[size] = '/';
                 (*dest)[size+1] = '\0';
             }
