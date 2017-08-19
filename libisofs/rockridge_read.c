@@ -67,6 +67,10 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
     return iter;
 }
 
+/* More than 1 MiB in a single file's CE area is suspicious */
+#define ISO_SUSP_MAX_CE_BYTES (1024 * 1024)
+
+
 /* @param flag bit0 = First call on root:
                       Not yet clear whether this is SUSP at all
 */
@@ -95,24 +99,28 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
          * (IEEE 1281, SUSP. section 4) 
          */
         if (iter->ce_len) {
-            uint32_t block, nblocks;
+            uint32_t block, nblocks, skipped_blocks, skipped_bytes;
 
             /* A CE was found, there is another continuation area */
-            nblocks = DIV_UP(iter->ce_off + iter->ce_len, BLOCK_SIZE);
-            if (nblocks <= 0)
+            skipped_blocks = iter->ce_off / BLOCK_SIZE;
+            skipped_bytes = skipped_blocks * BLOCK_SIZE;
+            nblocks = DIV_UP(iter->ce_off - skipped_bytes + iter->ce_len,
+                             BLOCK_SIZE);
+            if (nblocks <= 0 || iter->ce_len > ISO_SUSP_MAX_CE_BYTES)
                 return ISO_SUSP_WRONG_CE_SIZE;
             iter->buffer = realloc(iter->buffer, nblocks * BLOCK_SIZE);
 
-            /* read all blocks needed to cache the full CE */
+            /* Read blocks needed to cache the given CE area range */
             for (block = 0; block < nblocks; ++block) {
                 int ret;
-                ret = iter->src->read_block(iter->src, iter->ce_block + block,
-                                            iter->buffer + block * BLOCK_SIZE);
+                ret = iter->src->read_block(iter->src,
+                                       iter->ce_block + skipped_blocks + block,
+                                       iter->buffer + block * BLOCK_SIZE);
                 if (ret < 0) {
                     return ret;
                 }
             }
-            iter->base = iter->buffer + iter->ce_off;
+            iter->base = iter->buffer + (iter->ce_off - skipped_bytes);
             iter->pos = 0;
             iter->size = iter->ce_len;
             iter->ce_len = 0;
