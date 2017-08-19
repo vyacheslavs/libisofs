@@ -1577,8 +1577,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         SuspIterator *iter;
 
 
-        iter = susp_iter_new(fsdata->src, record, fsdata->len_skp,
-                             fsdata->msgid);
+        iter = susp_iter_new(fsdata->src, record, fsdata->nblocks,
+                             fsdata->len_skp, fsdata->msgid);
         if (iter == NULL) {
             {ret = ISO_OUT_OF_MEM; goto ex;}
         }
@@ -2404,7 +2404,8 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
      * In that case, we need to set info->len_skp to 15!!
      */
 
-    iter = susp_iter_new(data->src, record, data->len_skp, data->msgid);
+    iter = susp_iter_new(data->src, record, data->nblocks, data->len_skp,
+                         data->msgid);
     if (iter == NULL) {
         ret = ISO_OUT_OF_MEM; goto ex;
     }

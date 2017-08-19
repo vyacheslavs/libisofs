@@ -35,6 +35,9 @@ struct susp_iterator
     IsoDataSource *src;
     int msgid;
 
+    /* Number of blocks in the ISO 9660 filesystem */
+    uint32_t fs_blocks;
+
     /* block and offset for next continuation area */
     uint32_t ce_block;
     uint32_t ce_off;
@@ -47,7 +50,7 @@ struct susp_iterator
 
 SuspIterator*
 susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
-              uint8_t len_skp, int msgid)
+              uint32_t fs_blocks, uint8_t len_skp, int msgid)
 {
     int pad = (record->len_fi[0] + 1) % 2;
     struct susp_iterator *iter = malloc(sizeof(struct susp_iterator));
@@ -60,6 +63,7 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
     iter->size = record->len_dr[0] - record->len_fi[0] - 33 - pad;
     iter->src = src;
     iter->msgid = msgid;
+    iter->fs_blocks = fs_blocks;
 
     iter->ce_len = 0;
     iter->buffer = NULL;
@@ -107,6 +111,9 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
             nblocks = DIV_UP(iter->ce_off - skipped_bytes + iter->ce_len,
                              BLOCK_SIZE);
             if (nblocks <= 0 || iter->ce_len > ISO_SUSP_MAX_CE_BYTES)
+                return ISO_SUSP_WRONG_CE_SIZE;
+            if (((uint64_t) iter->ce_block) + skipped_blocks + nblocks >
+                (uint64_t) iter->fs_blocks)
                 return ISO_SUSP_WRONG_CE_SIZE;
             iter->buffer = realloc(iter->buffer, nblocks * BLOCK_SIZE);
 
