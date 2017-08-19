@@ -549,6 +549,8 @@ const char *iso_error_to_msg(int errcode)
         return "Unrecognized GPT disk GUID setup mode";
     case ISO_NO_ROOT_DIR:
         return "Unable to obtain root directory";
+    case ISO_SUSP_WRONG_CE_SIZE:
+        return "Zero sized or oversized SUSP CE area found";
     default:
         return "Unknown error";
     }
