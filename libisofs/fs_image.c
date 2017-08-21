@@ -376,7 +376,7 @@ typedef struct
        bit3= Invalid NM entry
        bit4= New SL entry found without previous CONTINUE flag
        bit5= Invalid SL entry
-       bit6= Invalid SL entry, no child location
+       bit6= Invalid CL entry, no child location / found in CL target
        bit7= Invalid PN entry
        bit8= Sparse files not supported
        bit9= SP entry found in a directory entry other than '.' entry of root
@@ -1421,6 +1421,7 @@ int iso_rr_msg_submit(_ImageFsData *fsdata, int rr_err_bit,
  * @param flag
  *      bit0= this is the root node attribute load call
  *            (parameter parent is not reliable for this)
+ *      bit1= this is a call caused by CL. Do not obey CL again.
  * @return
  *      2 node is still incomplete (multi-extent)
  *      1 success, 0 record ignored (not an error, can be a relocated dir),
@@ -1713,6 +1714,10 @@ if (name != NULL && !namecont) {
                     goto ex;
                 }
                 {ret = 0; goto ex;} /* it's not an error */
+            } else if (SUSP_SIG(sue, 'C', 'L') && (flag & 2)) {
+                ret = iso_rr_msg_submit(fsdata, 6, ISO_WRONG_RR, 0,
+                                       "Invalid CL entry, found in CL target");
+
             } else if (SUSP_SIG(sue, 'C', 'L')) {
                 /*
                  * This entry is a placeholder for a relocated dir.
@@ -1723,7 +1728,7 @@ if (name != NULL && !namecont) {
                 relocated_dir = iso_read_bb(sue->data.CL.child_loc, 4, NULL);
                 if (relocated_dir == 0) {
                     ret = iso_rr_msg_submit(fsdata, 6, ISO_WRONG_RR, 0,
-                                  "Invalid SL entry, no child location");
+                                  "Invalid CL entry, no child location");
                     break;
                 }
             } else if (SUSP_SIG(sue, 'P', 'N')) {
@@ -1992,8 +1997,9 @@ if (name != NULL && !namecont) {
             goto ex;
         }
 
+        /* Call with flag bit1 to prevent further CL relocation */
         ret = iso_file_source_new_ifs(fs, parent, (struct ecma119_dir_record*)
-                                      buffer, src, 0);
+                                      buffer, src, flag | 2);
         if (ret <= 0) {
             goto ex;
         }
