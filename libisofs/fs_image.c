@@ -2006,6 +2006,8 @@ if (name != NULL && !namecont) {
 
         /* but the real name is the name of the placeholder */
         ifsdata = (ImageFileSourceData*) (*src)->data;
+        if (ifsdata->name != NULL)
+            free(ifsdata->name);
         ifsdata->name = name;
 
         {ret = ISO_SUCCESS; goto ex;}
