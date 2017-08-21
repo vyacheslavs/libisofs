@@ -326,6 +326,11 @@ typedef struct
     int aaip_version;
 
     /**
+     * Start block of loaded session.
+     */
+    uint32_t session_lba;
+
+    /**
      * Number of blocks of the volume, as reported in the PVM.
      */
     uint32_t nblocks;
@@ -1577,7 +1582,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         SuspIterator *iter;
 
 
-        iter = susp_iter_new(fsdata->src, record, fsdata->nblocks,
+        iter = susp_iter_new(fsdata->src, record,
+                             fsdata->session_lba + fsdata->nblocks,
                              fsdata->len_skp, fsdata->msgid);
         if (iter == NULL) {
             {ret = ISO_OUT_OF_MEM; goto ex;}
@@ -2404,8 +2410,8 @@ int read_root_susp_entries(_ImageFsData *data, uint32_t block)
      * In that case, we need to set info->len_skp to 15!!
      */
 
-    iter = susp_iter_new(data->src, record, data->nblocks, data->len_skp,
-                         data->msgid);
+    iter = susp_iter_new(data->src, record, data->session_lba + data->nblocks,
+                         data->len_skp, data->msgid);
     if (iter == NULL) {
         ret = ISO_OUT_OF_MEM; goto ex;
     }
@@ -2602,6 +2608,9 @@ int read_pvm(_ImageFsData *data, uint32_t block)
     data->effective_time =
             iso_util_strcopy_untail((char*) pvm->vol_effective_time, 17);
 
+    data->session_lba = 0;
+    if (block >= 16) /* The session begins 16 blocks before the PVD */
+        data->session_lba = block - 16;
     data->nblocks = iso_read_bb(pvm->vol_space_size, 4, NULL);
 
     rootdr = (struct ecma119_dir_record*) pvm->root_dir_record;
