@@ -1498,9 +1498,6 @@ static int finish_libjte(Ecma119Image *target)
 }
 
 
-/* >>> need opportunity to just mark a partition in the older sessions
-*/
-
 
 struct iso_interval_zeroizer {
     int z_type; /* 0= $zero_start"-"$zero_end ,
@@ -2001,6 +1998,49 @@ process_pending:;
 }
 
 
+/* Tells whether ivr is a reader from imported_iso in a multi-session
+   add-on situation, and thus to be kept in place.
+*/
+int iso_interval_reader_keep(Ecma119Image *target, 
+                             struct iso_interval_reader *ivr,
+                             int flag)
+{
+    /* Source must be "imported_iso" */
+    if (!(ivr->flags & 1))
+        return 0;
+
+    /* It must not be a new ISO */
+    if (!target->opts->appendable)
+        return 0;
+
+    /* multi-session write offset must be larger than interval end */
+    if (target->opts->ms_block <= ivr->end_byte / BLOCK_SIZE)
+
+        /* >>> ??? return error ??? */
+
+        return 0;
+
+    return 1;
+}
+
+
+int iso_interval_reader_start_size(Ecma119Image *t, char *path,
+                                   off_t *start_byte, off_t *byte_count,
+                                   int flag)
+{
+    struct iso_interval_reader *ivr;
+    int keep, ret;
+
+    ret = iso_interval_reader_new(t->image, path, &ivr, byte_count, 0);
+    if (ret < 0)
+        return ret;
+    *start_byte = ivr->start_byte;
+    keep = iso_interval_reader_keep(t, ivr, 0);
+    iso_interval_reader_destroy(&ivr, 0);
+    return ISO_SUCCESS + (keep > 0);
+}
+
+
 int iso_write_partition_file(Ecma119Image *target, char *path,
                              uint32_t prepad, uint32_t blocks, int flag)
 {
@@ -2026,6 +2066,11 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
                                       &ivr, &byte_count, 0);
         if (ret < 0)
             goto ex;
+        if (iso_interval_reader_keep(target, ivr, 0)) {
+            /* From imported_iso and for add-on session. Leave it in place. */
+            ret = ISO_SUCCESS;
+            goto ex;
+        }
         for (i = 0; i < blocks; i++) {
             ret = iso_interval_reader_read(ivr, buf, &buf_fill, 0);
             if (ret < 0)

@@ -108,11 +108,14 @@ void iso_compute_cyl_head_sec(uint64_t img_blocks, int hpc, int sph,
 }
 
 /* @param flag bit0= The path contains instructions for the interval reader
+   @return ISO_SUCCESS     = ok, partition will be written
+           ISO_SUCCESS + 1 = interval which shall be kept in place
+           else : error code
 */
 static int compute_partition_size(Ecma119Image *t, char *disk_path,
                                   uint32_t *size, int flag)
 {
-    int ret;
+    int ret, keep;
     off_t num;
     struct stat stbuf;
     struct iso_interval_reader *ivr;
@@ -124,8 +127,9 @@ static int compute_partition_size(Ecma119Image *t, char *disk_path,
         if (ret < 0)
             return ret;
         *size = (byte_count + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        keep = iso_interval_reader_keep(t, ivr, 0);
         iso_interval_reader_destroy(&ivr, 0);
-        return ISO_SUCCESS;
+        return ISO_SUCCESS + (keep > 0);
     }
 
     *size = 0;
@@ -148,6 +152,7 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 {
     int ret, i, sa_type, cyl_align, cyl_size = 0;
     uint32_t pos, size, add_pos = 0;
+    off_t start_byte, byte_count;
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     cyl_align = (t->system_area_options >> 8) & 0x3;
@@ -168,6 +173,20 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
                                      t->opts->appended_part_flags[i]);
         if (ret < 0)
             return ret;
+        if (ret == ISO_SUCCESS + 1) {
+            /* Interval from imported_iso in add-on session */
+            t->appended_part_prepad[i] = 0;
+            ret = iso_interval_reader_start_size(t,
+                                               t->opts->appended_partitions[i],
+                                               &start_byte, &byte_count, 0);
+            if (ret < 0)
+                return ret;
+            t->appended_part_start[i] = start_byte / 2048;
+            t->appended_part_size[i] = size;
+            t->opts->iso_mbr_part_type = 0;
+    continue;
+        }
+
         add_pos = 0;
         if (sa_type == 3 && (pos % ISO_SUN_CYL_SIZE)) {
             add_pos = ISO_SUN_CYL_SIZE - (pos % ISO_SUN_CYL_SIZE);
@@ -2862,10 +2881,12 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     Ecma119Image *t;
     IsoFileSrc *src;
-    int ret, will_have_gpt = 0, with_chrp = 0, i, part_type;
+    int ret, will_have_gpt = 0, with_chrp = 0, i, part_type, keep;
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
     uint8_t gpt_name[72];
+    uint64_t part_start;
+    off_t start_byte, byte_count;
 
     /* <<< ??? Move to system_area.h and publish as macro ? */
     static uint8_t efi_sys_uuid[16] = {
@@ -2883,6 +2904,7 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         will_have_gpt = 1;
 
     if (t->opts->efi_boot_partition != NULL) {
+        keep = 0;
         if (t->efi_boot_part_filesrc != NULL) {
             /* A file in the emerging ISO image shall store its content
                as prepended partition.
@@ -2894,23 +2916,35 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
                 src->sections[i].block = t->curblock + t->efi_boot_part_size;
                 t->efi_boot_part_size += (src->sections[i].size + 2047) / 2048;
             }
+            part_start = t->curblock * 4;
         } else {
             ret = compute_partition_size(t, t->opts->efi_boot_partition,
                                          &(t->efi_boot_part_size),
                                          t->opts->efi_boot_part_flag & 1);
             if (ret < 0)
                 return ret;
+            part_start = t->curblock * 4;
+            if (ret == ISO_SUCCESS + 1) {
+                /* Interval from imported_iso in add-on session will be kept */
+                ret = iso_interval_reader_start_size(t,
+                                                  t->opts->efi_boot_partition,
+                                                  &start_byte, &byte_count, 0);
+                if (ret < 0)
+                    return ret;
+                part_start = start_byte / 512;
+                keep = 1;
+            }
         }
         memset(gpt_name, 0, 72);
         strcpy((char *) gpt_name, "EFI boot partition");
         iso_ascii_utf_16le(gpt_name);
-        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
-                                 ((uint64_t) t->curblock) * 4,
+        ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count), part_start,
                                  ((uint64_t) t->efi_boot_part_size) * 4,
                                  efi_sys_uuid, zero_uuid, gpt_flags, gpt_name);
         if (ret < 0)
             return ret;
-        t->curblock += t->efi_boot_part_size;
+        if (!keep)
+            t->curblock += t->efi_boot_part_size;
     }
 
     if (with_chrp) {
@@ -2925,12 +2959,24 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
         return ISO_SUCCESS;
     }
 
+    part_start = t->curblock * 4;
+    keep = 0;
     if (t->opts->prep_partition != NULL) {
         ret = compute_partition_size(t, t->opts->prep_partition,
                                      &(t->prep_part_size),
                                      t->opts->prep_part_flag & 1);
         if (ret < 0)
             return ret;
+        if (ret == ISO_SUCCESS + 1) {
+            /* Interval from imported_iso in add-on session will be kept */
+            ret = iso_interval_reader_start_size(t,
+                                                 t->opts->prep_partition,
+                                                 &start_byte, &byte_count, 0);
+            if (ret < 0)
+                return ret;
+            part_start = start_byte / 512;
+            keep = 1;
+        }
     }
     if (t->prep_part_size > 0 || t->opts->fat || will_have_gpt) {
         /* Protecting MBR entry for ISO start or whole ISO */
@@ -2948,18 +2994,24 @@ static int partprepend_writer_compute_data_blocks(IsoImageWriter *writer)
             return ret;
     }
     if (t->prep_part_size > 0) {
-        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
-                                  ((uint64_t) t->curblock) * 4,
+        ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count), part_start,
                                   ((uint64_t) t->prep_part_size) * 4,
                                   0x41, 0, 0);
         if (ret < 0)
             return ret;
-        t->curblock += t->prep_part_size;
+        if (!keep) {
+            t->curblock += t->prep_part_size;
+            part_start = t->curblock * 4;
+        } else {
+            part_start += t->prep_part_size * 4;
+        }
+    } else {
+        part_start = t->curblock * 4;
     }
     if (t->prep_part_size > 0 || t->opts->fat) {
         /* FAT partition or protecting MBR entry for ISO end */
         ret = iso_quick_mbr_entry(t->mbr_req, &(t->mbr_req_count),
-                                  ((uint64_t) t->curblock) * 4, (uint64_t) 0,
+                                  part_start, (uint64_t) 0,
                                   t->opts->fat ? 0x0c : 0xcd, 0, 0);
         if (ret < 0)
             return ret;

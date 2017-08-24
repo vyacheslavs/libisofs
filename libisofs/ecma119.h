@@ -1032,5 +1032,18 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
 
 void issue_ucs2_warning_summary(size_t failures);
 
+/* Tells whether ivr is a reader from imported_iso in a multi-session
+   add-on situation, and thus to be kept in place.
+*/
+int iso_interval_reader_keep(Ecma119Image *target,
+                             struct iso_interval_reader *ivr,
+                             int flag);
+
+/* @return: ISO_SUCCESS = ok, ISO_SUCCESS + 1 = keep , < 0 = error */
+int iso_interval_reader_start_size(Ecma119Image *t, char *path,
+                                   off_t *start_byte, off_t *byte_count,
+                                   int flag);
+
+
 
 #endif /*LIBISO_ECMA119_H_*/
