@@ -8887,6 +8887,10 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
                                                        (FAILURE, HIGH, -419) */
 #define ISO_SUSP_WRONG_CE_SIZE      0xE830FE5D
 
+/** Multi-session would overwrite imported_iso interval
+                                                       (FAILURE, HIGH, -420) */
+#define ISO_MULTI_OVER_IMPORTED     0xE830FE5C
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

@@ -2013,12 +2013,11 @@ int iso_interval_reader_keep(Ecma119Image *target,
     if (!target->opts->appendable)
         return 0;
 
+    /* --- From here on return either 1 or <0 --- */
+
     /* multi-session write offset must be larger than interval end */
     if (target->opts->ms_block <= ivr->end_byte / BLOCK_SIZE)
-
-        /* >>> ??? return error ??? */
-
-        return 0;
+        return ISO_MULTI_OVER_IMPORTED;
 
     return 1;
 }
@@ -2036,6 +2035,8 @@ int iso_interval_reader_start_size(Ecma119Image *t, char *path,
         return ret;
     *start_byte = ivr->start_byte;
     keep = iso_interval_reader_keep(t, ivr, 0);
+    if (keep < 0)
+        return(keep);
     iso_interval_reader_destroy(&ivr, 0);
     return ISO_SUCCESS + (keep > 0);
 }
@@ -2066,7 +2067,10 @@ int iso_write_partition_file(Ecma119Image *target, char *path,
                                       &ivr, &byte_count, 0);
         if (ret < 0)
             goto ex;
-        if (iso_interval_reader_keep(target, ivr, 0)) {
+        ret = iso_interval_reader_keep(target, ivr, 0);
+        if (ret < 0)
+            goto ex;
+        if (ret > 0) {
             /* From imported_iso and for add-on session. Leave it in place. */
             ret = ISO_SUCCESS;
             goto ex;

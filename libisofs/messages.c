@@ -551,6 +551,8 @@ const char *iso_error_to_msg(int errcode)
         return "Unable to obtain root directory";
     case ISO_SUSP_WRONG_CE_SIZE:
         return "Zero sized, oversized, or mislocated SUSP CE area found";
+    case ISO_MULTI_OVER_IMPORTED:
+        return "Multi-session would overwrite imported_iso interval";
     default:
         return "Unknown error";
     }

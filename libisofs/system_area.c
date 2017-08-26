@@ -129,6 +129,8 @@ static int compute_partition_size(Ecma119Image *t, char *disk_path,
         *size = (byte_count + BLOCK_SIZE - 1) / BLOCK_SIZE;
         keep = iso_interval_reader_keep(t, ivr, 0);
         iso_interval_reader_destroy(&ivr, 0);
+        if (keep < 0)
+            return keep;
         return ISO_SUCCESS + (keep > 0);
     }
 
