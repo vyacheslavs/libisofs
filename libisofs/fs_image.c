@@ -5001,12 +5001,13 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
     if (sa_type == 0) {
         if ((sao & 3) || sa_sub == 1 || sa_sub == 2) {
             strcat(msg, " MBR");
-            if (sao & 1)
-                strcat(msg, " protective-msdos-label");
-            else if (sao & 2)
+            if (sao & 2)
                 strcat(msg, " isohybrid");
-            else if (sa_sub == 1)
+            else if (sao & 1)
+                strcat(msg, " protective-msdos-label");
+            else if (sa_sub == 1) {
                 strcat(msg, " CHRP");
+            }
             if ((sao & (1 << 14)) && !(sao & 2))
                 strcat(msg, " grub2-mbr");
             sprintf(msg + strlen(msg), " cyl-align-%s",
