@@ -118,25 +118,117 @@ Re-added two empty lines which were lost by previous commit
 libisofs/fs_image.c
 Bug fix: Keeping and patching of loaded boot images failed. Regression by version 1.4.4.
 
-  [] []
+14 Aug 2017  [280108d]
 ChangeLog
 libisofs/changelog.txt
 Updated change log
 
------------------------------------- release - libisofs-1.4.8 -
+17 Aug 2017  [860a91d]
+libisofs/libisofs.h
+libisofs/fs_image.c
+libisofs/messages.c
+Preventing NULL dereference if root directory bears a RRIP RE entry
+
+18 Aug 2017  [36c8800]
+libisofs/rockridge_read.c
+Preventing buffer underread with empty RRIP SL component.
+Debian bug 872475. Thanks Jakub Wilk and American Fuzzy Lop.
+
+18 Aug 2017  [16bde11]
+libisofs/fs_image.c
+Preventing memory leak caused by RRIP SL entry without PX entry that marks
+the file as symbolic link
+
+18 Aug 2017  [661b68c]
+libisofs/rockridge_read.c
+Preventing buffer overflow with AAIP AL entry of insufficient size.
+Debian bug 872545. Thanks Jakub Wilk and American Fuzzy Lop.
+
+19 Aug 2017  [91490d5]
+libisofs/libisofs.h
+libisofs/messages.c
+libisofs/rockridge_read.c
+Preventing use of zero sized SUSP CE entry which causes SIGSEGV.
+Debian bug 872590. Thanks Jakub Wilk and American Fuzzy Lop.
+
+19 Aug 2017  [31088d9]
+libisofs/rockridge_read.c
+Avoid to read blocks from start of CE area which do not belong to the given file
+
+19 Aug 2017  [2a64d89]
+libisofs/libisofs.h
+libisofs/rockridge.h
+libisofs/fs_image.c
+libisofs/rockridge_read.c
+libisofs/messages.c
+Refuse to read CE data blocks from after the end of ISO filesystem
+
+21 Aug 2017  [a7152f5]
+libisofs/fs_image.c
+Correcting previous commit for supporting multi-session
+
+21 Aug 2017  [78b0a7b]
+libisofs/fs_image.c
+Disallowed RRIP CL chaining in order to break any endless loops.
+Debian bug 872761. Thanks Jakub Wilk and American Fuzzy Lop.
+
+21 Aug 2017  [e599a57]
+libisofs/fs_image.c
+Closed a memory leak about RRIP CL following
+
+24 Aug 2017  [cace41e]
+libisofs/ecma119.h
+libisofs/ecma119.c
+libisofs/system_area.c
+Enabled partition intervals with source "imported_iso" with ISO growing
+
+26 Aug 2017  [028f927]
+libisofs/libisofs.h
+libisofs/ecma119.c
+libisofs/system_area.c
+libisofs/messages.c
+Throw error if imported_iso interval would be overwritten by multi-session
+
+09 Sep 2017  [4e5a54c]
+libisofs/fs_image.c
+Swapped at recognition time the precendence of MBR properties "isohybrid"
+and "protective-msdos-label"
+
+12 Sep 2017  [7234425]
+ChangeLog
+Updated change log
+
+  []
+configure.ac
+libisofs/libisofs.h
+Version leap to 1.4.8.
+
+  []
+libisofs/changelog.txt
+Updated change log
+
+------------------------------------ release - libisofs-1.4.8 - 12 Sep 2017
 * Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root SUSP
 * Bug fix: Non-SUSP data in System Use Area prevented image loading if
            Rock Ridge was enabled. Thanks to Jonathan Dowland.
 * Bug fix: Protective MBR for GPT could emerge with boot flag set.
+* Bug fix: Appended partitions of size >= 4 GiB led to abort with error message
+           "FATAL : ISO overwrite". Thanks to Sven Haardiek.
 * Bug fix: Bit 15 of iso_write_opts_set_system_area did not work with
            generic MBR.
-* Bug fix: Keeping and patching of loaded boot images failed. Regression by version 1.4.4.
+* Bug fix: Keeping and patching of loaded boot images failed.
+           Regression by version 1.4.4.
+* Bug fix: Program crashes by intentionally wrong ISO image input.
+           Found by American Fuzzy Lop and Jakub Wilk.
+           Debian bug reports: 872372, 872475, 872545, 872590, 872761.
+* New API calls el_torito_set_full_load(), el_torito_get_full_load().
+* New API call iso_write_opts_set_iso_mbr_part_type().
 
 
-  [] []
+  []
 ChangeLog
 libisofs/changelog.txt
 Updated change log
 
------------------------------------- release - libisofs-1.4.8 -
+------------------------------------ release - libisofs-1.5.0 -
 
