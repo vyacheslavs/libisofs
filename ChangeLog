@@ -1,3 +1,8 @@
+git clone git@dev.lovelyhq.com:libburnia/libisofs.git
+(to become libisofs-1.5.0 or higher)
+===============================================================================
+- no novelties yet -
+
 libisofs-1.4.8.tar.gz Tue Sep 12 2017
 ===============================================================================
 * Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root

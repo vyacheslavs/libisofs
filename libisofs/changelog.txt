@@ -198,12 +198,12 @@ and "protective-msdos-label"
 ChangeLog
 Updated change log
 
-  []
+12 Sep 2017  [dfc6de9]
 configure.ac
 libisofs/libisofs.h
 Version leap to 1.4.8.
 
-  []
+12 Sep 2017  [bdfd4c4]
 libisofs/changelog.txt
 Updated change log
 
@@ -224,6 +224,18 @@ Updated change log
 * New API calls el_torito_set_full_load(), el_torito_get_full_load().
 * New API call iso_write_opts_set_iso_mbr_part_type().
 
+
+12 Sep 2017  [48ee49a]
+configure.ac
+libisofs/libisofs.h
+Version leap to 1.4.9
+
+  []
+ChangeLog
+libisofs/changelog.txt
+Updated change log
+
+  
 
   []
 ChangeLog
