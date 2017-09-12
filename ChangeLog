@@ -1,6 +1,4 @@
-bzr branch lp:libisofs/for-libisoburn (to become libisofs-1.4.8 or higher)
-git clone git@dev.lovelyhq.com:libburnia/libisofs.git
-(to become libisofs-1.4.8 or higher)
+libisofs-1.4.8.tar.gz Tue Sep 12 2017
 ===============================================================================
 * Bug fix: iso_read_opts_set_no_rockridge() did not prevent reading of root
            SUSP.
@@ -9,7 +7,15 @@ git clone git@dev.lovelyhq.com:libburnia/libisofs.git
 * Bug fix: Protective MBR for GPT could emerge with boot flag set.
 * Bug fix: Appended partitions of size >= 4 GiB led to abort with error message
            "FATAL : ISO overwrite". Thanks to Sven Haardiek.
-* New API calls el_torito_set_full_load(), el_torito_get_full_load()
+* Bug fix: Bit 15 of iso_write_opts_set_system_area did not work with generic
+           MBR.
+* Bug fix: Keeping and patching of loaded boot images failed.
+           Regression by version 1.4.4.
+* Bug fix: Program crashes by intentionally wrong ISO image input.
+           Found by American Fuzzy Lop and Jakub Wilk.
+           Debian bug reports: 872372, 872475, 872545, 872590, 872761.
+* New API calls el_torito_set_full_load(), el_torito_get_full_load().
+* New API call iso_write_opts_set_iso_mbr_part_type().
 
 
 libisofs-1.4.6.tar.gz Fri Sep 16 2016
