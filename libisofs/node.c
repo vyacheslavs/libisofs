@@ -1365,7 +1365,11 @@ int iso_dir_insert(IsoDir *dir, IsoNode *node, IsoNode **pos,
                 /* old file is newer */
                 return ISO_NODE_NAME_NOT_UNIQUE;
             }
-            /* fall down */
+            if ((node->mode & S_IFMT) != ((*pos)->mode & S_IFMT)) {
+                /* different file types */
+                return ISO_NODE_NAME_NOT_UNIQUE;
+            }
+            break;
         case ISO_REPLACE_IF_SAME_TYPE:
             if ((node->mode & S_IFMT) != ((*pos)->mode & S_IFMT)) {
                 /* different file types */
