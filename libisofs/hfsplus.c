@@ -91,7 +91,7 @@ int filesrc_block_and_size(Ecma119Image *t, IsoFileSrc *src,
         *total_size += src->sections[i].size;
         if (pos != src->sections[i].block) {
             iso_msg_submit(t->image->id, ISO_SECT_SCATTERED, 0,
-                      "File sections do not form consequtive array of blocks");
+                      "File sections do not form consecutive array of blocks");
             return ISO_SECT_SCATTERED;
         }
         /* If .size is not aligned to blocks then there is a byte gap.
