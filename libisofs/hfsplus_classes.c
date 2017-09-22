@@ -438,7 +438,7 @@ void make_hfsplus_class_pages()
     uint16_t *rpt, *page_pt;
     int page_count = 0;
 
-    memset(class_pages, 0, 19 * 256);
+    memset(class_pages, 0, 19 * 256 * sizeof(uint16_t));
     for (i = 0; i < 256; i++)
         hfsplus_class_pages[i] = NULL;  
 
