@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2011 Thomas Schmitt
+ * Copyright (c) 2009 - 2017 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -507,7 +507,7 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
 
     *aa_string = NULL;
 
-    if ((flag & 3 ) == 3) {
+    if ((flag & 6 ) == 6) { /* Neither ACL nor xattr shall be read */
         ret = 1;
         goto ex;
     }
@@ -521,7 +521,7 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
     }
     ret = aaip_get_attr_list(path, &num_attrs, &names,
                              &value_lengths, &values,
-                             (!(flag & 2)) | 2 | (flag & 4) | 16);
+                             (!(flag & 2)) | 2 | (flag & 4) | (flag & 8) | 16);
     if (ret <= 0) {
         if (ret == -2)
             ret = ISO_AAIP_NO_GET_LOCAL;

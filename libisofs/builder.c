@@ -252,7 +252,8 @@ int default_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* Obtain ownership of eventual AAIP string */
     ret = iso_file_source_get_aa_string(src, &aa_string,
             1 | (image->builder_ignore_acl << 1) |
-                (image->builder_ignore_ea << 2 ));
+                (image->builder_ignore_ea << 2) |
+                (image->builder_take_all_ea << 3));
     if (ret == 1 && aa_string != NULL) {
         ret = iso_node_add_xinfo(new, aaip_xinfo_func, aa_string);
         if (ret < 0)

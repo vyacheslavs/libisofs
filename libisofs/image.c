@@ -610,6 +610,15 @@ void iso_image_set_ignore_aclea(IsoImage *image, int what)
 {
     image->builder_ignore_acl = (what & 1);
     image->builder_ignore_ea = !!(what & 2);
+    image->builder_take_all_ea = !!(what & 8);
+}
+
+
+int iso_image_get_ignore_aclea(IsoImage *image)
+{
+    return image->builder_ignore_acl |
+           (image->builder_ignore_ea << 1) |
+           (image->builder_take_all_ea << 3);
 }
 
 

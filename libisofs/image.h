@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2016 Thomas Schmitt
+ * Copyright (c) 2009 - 2017 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -144,6 +144,12 @@ struct Iso_Image
      * manipulation. ACL does not count as EA.
      */
     unsigned int builder_ignore_ea : 1;
+
+    /**
+     * If not builder_ignore_ea : import all xattr namespaces from local
+     *                            filesystem, not only "user.
+     */
+    unsigned int builder_take_all_ea : 1;
 
     /**
      * Files to exclude. Wildcard support is included.

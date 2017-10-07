@@ -1280,11 +1280,26 @@ int iso_image_new(const char *name, IsoImage **image);
  *     A bit field which sets the behavior:
  *     bit0= ignore ACLs if the external file object bears some
  *     bit1= ignore xattr if the external file object bears some
+ *     bit3= if not bit1: import all xattr namespaces, not only "user."
+ *           @since 1.5.0
  *     all other bits are reserved
  *
  * @since 0.6.14
  */
 void iso_image_set_ignore_aclea(IsoImage *image, int what);
+
+
+/**
+ * Obtain the current setting of iso_image_set_ignore_aclea().
+ *
+ * @param image
+ *     The image to be inquired
+ * @return
+ *    The currently set value.
+ * 
+ * @since 1.5.0
+ */
+int iso_image_get_ignore_aclea(IsoImage *image);
 
 
 /**
@@ -6918,6 +6933,9 @@ int iso_file_source_readlink(IsoFileSource *src, char *buf, size_t bufsiz);
  *                         not be able to produce it again.
  *                   bit1= No need to get ACL (but no guarantee of exclusion)
  *                   bit2= No need to get xattr (but no guarantee of exclusion)
+ *                   bit3= if not bit2: import all xattr namespaces from
+ *                                      local filesystem, not only "user."
+ *                         @since 1.5.0
  * @return           1 means success (*aa_string == NULL is possible)
  *                  <0 means failure and must b a valid libisofs error code
  *                     (e.g. ISO_FILE_ERROR if no better one can be found).
