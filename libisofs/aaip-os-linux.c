@@ -159,6 +159,41 @@ int aaip_get_acl_text(char *path, char **text, int flag)
 }
 
 
+#ifdef Libisofs_with_aaip_xattR
+
+static int get_single_attr(char *path, char *name, size_t *value_length,
+                           char **value_bytes, int flag)
+{
+ ssize_t value_ret;
+
+ *value_bytes= NULL;
+ *value_length= 0;
+ if(flag & 32)
+   value_ret= getxattr(path, name, NULL, 0);
+ else
+   value_ret= lgetxattr(path, name, NULL, 0);
+ if(value_ret == -1)
+   return(0);
+ *value_bytes= calloc(value_ret + 1, 1);
+ if(*value_bytes == NULL)
+   return(-1);
+ if(flag & 32)
+   value_ret= getxattr(path, name, *value_bytes, value_ret);
+ else
+   value_ret= lgetxattr(path, name, *value_bytes, value_ret);
+ if(value_ret == -1) {
+   free(*value_bytes);
+   *value_bytes= NULL;
+   *value_length= 0;
+   return(0);
+ }
+ *value_length= value_ret;
+ return(1);
+}
+
+#endif /* Libisofs_with_aaip_xattR */
+
+
 /* Obtain the Extended Attributes and/or the ACLs of the given file in a form
    that is ready for aaip_encode().
    @param path          Path to the file
@@ -176,7 +211,9 @@ int aaip_get_acl_text(char *path, char **text, int flag)
                         bit4=  do not return trivial ACL that matches st_mode
                         bit5=  in case of symbolic link: inquire link target
                         bit15= free memory of names, value_lengths, values
-   @return              >0  ok
+   @return              1  ok
+                        (reserved for FreeBSD: 2 ok, no permission to inspect
+                                                 non-user namespaces.)
                         <=0 error
                         -1= out of memory
                         -2= program error with prediction of result size
@@ -195,7 +232,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 #endif
 #ifdef Libisofs_with_aaip_xattR
  char *list= NULL;
- ssize_t value_ret, retry= 0, list_size= 0;
+ ssize_t value_ret, list_size= 0;
 #define Libisofs_aaip_get_attr_activE yes
 #endif
 #ifdef Libisofs_aaip_get_attr_activE
@@ -288,27 +325,10 @@ ex:;
      if(!(flag & 8))
        if(strncmp((*names)[i], "user.", 5))
    continue;
-     if(flag & 32)
-       value_ret= getxattr(path, (*names)[i], NULL, 0);
-     else
-       value_ret= lgetxattr(path, (*names)[i], NULL, 0);
-     if(value_ret == -1)
- continue;
-     (*values)[i]= calloc(value_ret + 1, 1);
-     if((*values)[i] == NULL)
+     value_ret= get_single_attr(path, (*names)[i], *value_lengths + i,
+                                *values + i, flag & 32);
+     if(value_ret <= 0)
        {ret= -1; goto ex;}
-     if(flag & 32)
-       value_ret= getxattr(path, (*names)[i], (*values)[i], value_ret);
-     else
-       value_ret= lgetxattr(path, (*names)[i], (*values)[i], value_ret);
-     if(value_ret == -1) { /* there could be a race condition */
-       if(retry++ > 5)
-         {ret= -1; goto ex;}
-       i--;
- continue;
-     }
-     (*value_lengths)[i]= value_ret;
-     retry= 0;
    }
  }
 
@@ -434,6 +454,15 @@ ex:
 }
 
 
+static void register_errno(int *errnos, int i)
+{
+ if(errno > 0)
+   errnos[i]= errno;
+ else
+   errnos[i]= -1;
+}
+
+
 /* Bring the given attributes and/or ACLs into effect with the given file.
    @param flag          Bitfield for control purposes
                         bit0= decode and set ACLs
@@ -445,6 +474,9 @@ ex:
                         bit5= in case of symbolic link: manipulate link target
                         bit6= tolerate inappropriate presence or absence of
                               directory default ACL
+                        bit7= @since 1.5.0
+                              avoid setting a name value pair if it already
+                              exists and has the desired value.
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
@@ -457,20 +489,25 @@ ex:
     ISO_AAIP_ACL_MULT_OBJ multiple entries of user::, group::, other::
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
-                       size_t *value_lengths, char **values, int flag)
+                       size_t *value_lengths, char **values,
+                       int *errnos, int flag)
 {
- int ret;
+ int ret, end_ret= 1;
  size_t i, consumed, acl_text_fill, acl_idx= 0;
  char *acl_text= NULL;
 #ifdef Libisofs_with_aaip_xattR
- char *list= NULL;
- ssize_t list_size= 0;
+ char *list= NULL, *old_value;
+ ssize_t list_size= 0, value_ret;
+ size_t old_value_l;
+ int skip;
 #endif
 #ifdef Libisofs_with_aaip_acL
  size_t h_consumed;
  int has_default_acl= 0;
 #endif
 
+ for(i= 0; i < num_attrs; i++)
+   errnos[i]= 0;
 
 #ifdef Libisofs_with_aaip_xattR
 
@@ -525,12 +562,28 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
 
 #ifdef Libisofs_with_aaip_xattR
 
-   if(flag & 32)
-     ret= setxattr(path, names[i], values[i], value_lengths[i], 0);
-   else
-     ret= lsetxattr(path, names[i], values[i], value_lengths[i], 0);
-   if(ret == -1)
-     {ret= -4; goto ex;}
+   skip= 0;
+   if(flag & 128) {
+     value_ret= get_single_attr(path, names[i], &old_value_l,
+                                &old_value, flag & 32);
+     if(value_ret > 0 && old_value_l == value_lengths[i]) {
+       if(memcmp(old_value, values[i], value_lengths[i]) == 0)
+         skip= 1;
+     }
+     if(old_value != NULL)
+       free(old_value);
+   }
+   if(!skip) {
+     if(flag & 32)
+       ret= setxattr(path, names[i], values[i], value_lengths[i], 0);
+     else
+       ret= lsetxattr(path, names[i], values[i], value_lengths[i], 0);
+     if(ret == -1) {
+       register_errno(errnos, i);
+       end_ret= -4;
+ continue;
+     }
+   }
 
 #else
 
@@ -540,9 +593,13 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
 
  }
 
-/* Decode ACLs */
+ /* Decode ACLs */
+ /* It is important that this happens after restoring xattr which might be
+    representations of ACL, too. If isofs ACL are enabled, then they shall
+    override the xattr ones.
+ */
  if(acl_idx == 0)
-   {ret= 1; goto ex;}
+   {ret= end_ret; goto ex;}
  i= acl_idx - 1;
                                                              /* "access" ACL */
  ret= aaip_decode_acl((unsigned char *) values[i], value_lengths[i],
@@ -566,6 +623,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  has_default_acl= (ret == 2);
 
  ret= aaip_set_acl_text(path, acl_text, flag & 32);
+ if(ret == -1)
+   register_errno(errnos, i);
  if(ret <= 0)
    {ret= -3; goto ex;}
                                                             /* "default" ACL */
@@ -590,6 +649,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
    if(ret <= 0)
      {ret= -2; goto ex;}
    ret= aaip_set_acl_text(path, acl_text, 1 | (flag & 32));
+   if(ret == -1)
+     register_errno(errnos, i);
    if(ret <= 0)
      {ret= -3; goto ex;}
  } else {
@@ -601,7 +662,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
 
    }
  }
- ret= 1;
+ ret= end_ret;
 
 #else
 

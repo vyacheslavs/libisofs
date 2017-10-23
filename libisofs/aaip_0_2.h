@@ -507,7 +507,8 @@ int aaip_set_acl_text(char *path, char *text, int flag);
     ISO_AAIP_ACL_MULT_OBJ multiple entries of user::, group::, other::
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
-                       size_t *value_lengths, char **values, int flag);
+                       size_t *value_lengths, char **values,
+                       int *errnos, int flag);
 
 #endif /* ! Aaip_h_is_includeD */
 

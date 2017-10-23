@@ -99,9 +99,13 @@ int aaip_set_acl_text(char *path, char *text, int flag)
                        -7 support of ACL not enabled at compile time
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
-                       size_t *value_lengths, char **values, int flag)
+                       size_t *value_lengths, char **values, int *errnos,
+                       int flag)
 {
  size_t i;
+
+ for(i= 0; i < num_attrs; i++)
+   errnos[i]= 0;
 
  for(i= 0; i < num_attrs; i++) {
    if(names[i] == NULL || values[i] == NULL)

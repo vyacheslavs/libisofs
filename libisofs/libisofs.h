@@ -867,6 +867,10 @@ struct IsoFileSource_Iface
      *                   The caller is responsible for finally calling free()
      *                   on non-NULL results.
      * @return           1 means success (*aa_string == NULL is possible)
+     *                   2 means success, but it is possible that attributes
+     *                     exist in non-user namespaces which could not be
+     *                     explored due to lack of permission.
+     *                     @since 1.5.0
      *                  <0 means failure and must b a valid libisofs error code
      *                     (e.g. ISO_FILE_ERROR if no better one can be found).
      * @since 0.6.14
@@ -6358,6 +6362,28 @@ int iso_tree_clone(IsoNode *node,
 int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 
 /**
+ * Inquire whether some local filesystem xattr namespace could not be explored
+ * during node building. This may happen due to lack of adminstrator privileges
+ * e.g. on FreeBSD namespace "system".
+ * It may well be that the processed local files have no attributes which
+ * would require special privileges. But already their existence was neither
+ * denied nor confirmed.
+ *
+ * @param image
+ *      The image to inquire.
+ * @param flag
+ *      Bitfield for control purposes:
+ *      bit0 = reset internal value to 0
+ * @return
+ *      1 = Exploration was prevented
+ *      0 = No such prevention occured
+ *
+ * @since 1.5.0
+ */
+int iso_image_was_blind_attrs(IsoImage *image, int flag);
+
+
+/**
  * Locate a node by its absolute path in the image.
  * The IsoImage context defines a maximum permissible name length and a mode
  * how to react on oversized names. See iso_image_set_truncate_mode().
@@ -7585,6 +7611,9 @@ int iso_local_get_perms_wo_acl(char *disk_path, mode_t *st_mode, int flag);
  *      bit15= free memory
  * @return
  *        1 ok
+ *        2 ok, but it is possible that attributes exist in non-user namespaces
+ *              which could not be explored due to lack of permission.
+ *              @since 1.5.0
  *      < 0 failure
  *
  * @since 0.6.14
@@ -7608,6 +7637,11 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
  *      Array of byte lengths for each attribute payload
  * @param values
  *      Array of pointers to the attribute payload bytes
+ * @param errnos
+ *      Array of integers to return error numbers if encountered at the attempt
+ *      to process the name-value pair at the given array index number:
+ *      0 = no error , -1 = unknown error
+ *      >0 = errno as of local system calls to set xattr and ACLs
  * @param flag
  *      Bitfield for control purposes
  *      bit0=  do not attach ACLs from an eventual attribute with empty name
@@ -7615,11 +7649,23 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
  *             I.e. those with a name which does not begin by "user."
  *      bit5=  in case of symbolic link: manipulate link target
  *      bit6=  @since 1.1.6
-               tolerate inappropriate presence or absence of
+ *             tolerate inappropriate presence or absence of
  *             directory "default" ACL
+ *      bit7=  @since 1.5.0
+ *             avoid setting a name value pair if it already exists and
+ *             has the desired value.
  * @return
  *      1 = ok 
  *    < 0 = error
+ *
+ * @since 1.5.0
+ */
+int iso_local_set_attrs_errno(char *disk_path, size_t num_attrs, char **names,
+                              size_t *value_lengths, char **values,
+                              int *errnos, int flag);
+/**
+ * Older version of iso_local_set_attrs_errno() without the errnos array.
+ * All other parameters and the return value have the same meaning.
  *
  * @since 0.6.14
  */

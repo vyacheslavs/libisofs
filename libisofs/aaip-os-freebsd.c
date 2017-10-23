@@ -228,6 +228,10 @@ static int aaip_extattr_make_list(char *path, int attrnamespace,
      *list_size = 0;
      return(2);
    }
+   if(errno == EPERM && attrnamespace == EXTATTR_NAMESPACE_SYSTEM) {
+     *list_size = 0;
+     return(3);
+   }
    return(0);
  }
  if(*list_size == 0)
@@ -312,6 +316,54 @@ static int aaip_extattr_make_namelist(char *path, char *attrnamespace,
  return(1);
 }
 
+
+static int get_single_attr(char *path, char *name, size_t *value_length,
+                           char **value_bytes, int flag)
+{
+ char *namept;
+ int attrnamespace;
+ ssize_t value_ret;
+ 
+ *value_bytes= NULL;
+ *value_length= 0;
+ if(strncmp(name, "user.", 5) == 0) {
+   attrnamespace= EXTATTR_NAMESPACE_USER;
+   namept= name + 5;
+ } else {
+   if(!(flag & 8))
+     return(0);
+   attrnamespace= EXTATTR_NAMESPACE_SYSTEM;
+   namept= name + 7;
+ }
+ /* Predict length of value */
+ if(flag & 32) /* follow link */
+   value_ret= extattr_get_file(path, attrnamespace, namept, NULL, (size_t) 0);
+ else
+   value_ret= extattr_get_link(path, attrnamespace, namept, NULL, (size_t) 0);
+ if(value_ret == -1)
+   return(0);
+
+ *value_bytes= calloc(value_ret + 1, 1);
+ if(*value_bytes == NULL)
+   return(-1);
+
+ /* Obtain value */
+ if(flag & 32) /* follow link */
+   value_ret= extattr_get_file(path, attrnamespace, namept,
+                               *value_bytes, (size_t) value_ret);
+ else
+   value_ret= extattr_get_link(path, attrnamespace, namept,
+                               *value_bytes, (size_t) value_ret);
+ if(value_ret == -1) {
+   free(*value_bytes);
+   *value_bytes= NULL;
+   *value_length= 0;
+   return(0);
+ }
+ *value_length= value_ret;
+ return(1);
+}
+
 #endif /* Libisofs_with_freebsd_extattR */
 
 
@@ -332,7 +384,8 @@ static int aaip_extattr_make_namelist(char *path, char *attrnamespace,
                         bit4=  do not return trivial ACL that matches st_mode
                         bit5=  in case of symbolic link: inquire link target
                         bit15= free memory of names, value_lengths, values
-   @return              >0  ok
+   @return              1   ok
+                        2   ok, no permission to inspect non-user namespaces
                         <=0 error
                         -1= out of memory
                         -2= program error with prediction of result size
@@ -350,11 +403,10 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  size_t a_acl_len= 0;
 #endif
 #ifdef Libisofs_with_freebsd_extattR
- char *list= NULL, *user_list= NULL, *sys_list= NULL, *namept;
- ssize_t value_ret, retry= 0, list_size= 0, user_list_size= 0;
+ char *list= NULL, *user_list= NULL, *sys_list= NULL;
+ ssize_t value_ret, list_size= 0, user_list_size= 0;
  ssize_t sys_list_size= 0;
- int attrnamespace;
- int acl_names= 0;
+ int acl_names= 0, no_perm_for_system= 0;
 #endif
 
  if(flag & (1 << 15)) { /* Free memory */
@@ -391,6 +443,8 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
                                  &sys_list, &sys_list_size, flag & 32);
      if(ret <= 0)
        {ret= -1; goto ex;}
+     if(ret == 3)
+       no_perm_for_system= 1;
    }
 
    /* Check for NUL in names, convert into a linuxish list of namespace.name */
@@ -445,45 +499,10 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
    }
  
    for(i= 0; (size_t) i < *num_attrs; i++) {
-     if(strncmp((*names)[i], "user.", 5) == 0) {
-       attrnamespace= EXTATTR_NAMESPACE_USER;
-       namept= (*names)[i] + 5;
-     } else {
-       if(!(flag & 8))
-   continue;
-       attrnamespace= EXTATTR_NAMESPACE_SYSTEM;
-       namept= (*names)[i] + 7;
-     }
-     /* Predict length of value */
-     if(flag & 32) /* follow link */
-       value_ret= extattr_get_file(path, attrnamespace, namept,
-                                   NULL, (size_t) 0);
-     else
-       value_ret= extattr_get_link(path, attrnamespace, namept,
-                                   NULL, (size_t) 0);
-     if(value_ret == -1)
- continue;
-
-     (*values)[i]= calloc(value_ret + 1, 1);
-     if((*values)[i] == NULL)
+     value_ret= get_single_attr(path, (*names)[i], *value_lengths + i,
+                                *values + i, flag & (8 | 32));
+     if(value_ret <= 0)
        {ret= -1; goto ex;}
-
-     /* Obtain value */
-     if(flag & 32) /* follow link */
-       value_ret= extattr_get_file(path, attrnamespace, namept,
-                                   (*values)[i], (size_t) value_ret);
-     else
-       value_ret= extattr_get_link(path, attrnamespace, namept,
-                                   (*values)[i], (size_t) value_ret);
-     if(value_ret == -1) { /* there could be a race condition */
-
-       if(retry++ > 5)
-         {ret= -1; goto ex;}
-       i--;
- continue;
-     }
-     (*value_lengths)[i]= value_ret;
-     retry= 0;
    }
  }
 
@@ -494,8 +513,11 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  if(flag & 1) { /* Obtain ACL */
   /* access-ACL */
    aaip_get_acl_text(path, &a_acl_text, flag & (16 | 32));
-   if(a_acl_text == NULL)
-     {ret= 1; goto ex;} /* empty ACL / only st_mode info was found in ACL */
+   if(a_acl_text == NULL) {
+     /* empty ACL / only st_mode info was found in ACL */
+     ret= 1 + no_perm_for_system;
+     goto ex;
+   }
    ret= aaip_encode_acl(a_acl_text, (mode_t) 0, &a_acl_len, &a_acl, flag & 2);
    if(ret <= 0)
      goto ex;
@@ -514,7 +536,7 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
 
 #endif /* Libisofs_with_aaip_acL */
 
- ret= 1;
+ ret= 1 + no_perm_for_system;
 ex:;
 #ifdef Libisofs_with_aaip_acL
  if(a_acl != NULL)
@@ -773,6 +795,15 @@ static int aaip_extattr_delete_names(char *path, int attrnamespace,
 #endif /* Libisofs_with_freebsd_extattR */
 
 
+static void register_errno(int *errnos, int i, int in_errno)
+{
+ if(in_errno > 0)
+   errnos[i]= in_errno;
+ else
+   errnos[i]= -1;
+}
+
+
 /* Bring the given attributes and/or ACLs into effect with the given file.
    @param flag          Bitfield for control purposes
                         bit0= decode and set ACLs
@@ -784,6 +815,8 @@ static int aaip_extattr_delete_names(char *path, int attrnamespace,
                         bit5= in case of symbolic link: manipulate link target
                         bit6= tolerate inappropriate presence or absence of
                               directory default ACL
+                        bit7= void setting a name value pair if it already
+                              exists and has the desired value.
    @return              1 success
                        -1 error memory allocation
                        -2 error with decoding of ACL
@@ -796,16 +829,22 @@ static int aaip_extattr_delete_names(char *path, int attrnamespace,
     ISO_AAIP_ACL_MULT_OBJ multiple entries of user::, group::, other::
 */
 int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
-                       size_t *value_lengths, char **values, int flag)
+                       size_t *value_lengths, char **values,
+                       int *errnos,  int flag)
 {
- int ret, has_default_acl= 0;
+ int ret, has_default_acl= 0, end_ret= 1;
  size_t i, consumed, acl_text_fill, acl_idx= 0;
  char *acl_text= NULL;
 #ifdef Libisofs_with_freebsd_extattR
- char *user_list= NULL, *sys_list= NULL, *namept;
- ssize_t user_list_size= 0, sys_list_size= 0;
+ char *user_list= NULL, *sys_list= NULL, *namept, *old_value;
+ ssize_t user_list_size= 0, sys_list_size= 0, value_ret;
  int attrnamespace;
+ size_t old_value_l;
+ int skip;
 #endif
+
+ for(i= 0; i < num_attrs; i++)
+   errnos[i]= 0;
 
 #ifdef Libisofs_with_freebsd_extattR
 
@@ -855,16 +894,35 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
      attrnamespace= EXTATTR_NAMESPACE_SYSTEM;
      namept= names[i] + 7;
    } else {
-     {ret= -8; goto ex;}
+     register_errno(errnos, i, (int) EFAULT);
+     end_ret= -8;
+ continue;
    }
-   if(flag & 32)
-     ret= extattr_set_file(path, attrnamespace, namept,
-                           values[i], value_lengths[i]);
-   else
-     ret= extattr_set_link(path, attrnamespace, namept,
-                           values[i], value_lengths[i]);
-   if(ret == -1)
-     {ret= -4; goto ex;}
+   skip= 0;
+   if(flag & 128) {
+     value_ret= get_single_attr(path, names[i], &old_value_l,
+                                &old_value, flag & (8 | 32));
+     if(value_ret > 0 && old_value_l == value_lengths[i]) {
+       if(memcmp(old_value, values[i], value_lengths[i]) == 0)
+         skip= 1;
+     }
+     if(old_value != NULL)
+       free(old_value);
+   }
+   if(!skip) {
+     if(flag & 32)
+       ret= extattr_set_file(path, attrnamespace, namept,
+                             values[i], value_lengths[i]);
+     else
+       ret= extattr_set_link(path, attrnamespace, namept,
+                             values[i], value_lengths[i]);
+     if(ret == -1) {
+       register_errno(errnos, i, errno);
+       if(end_ret != 1)
+         end_ret= -4;
+ continue;
+     }
+   }
 
 #else
 
@@ -879,8 +937,12 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  }
 
  /* Decode ACLs */
+ /* It is important that this happens after restoring xattr which might be
+    representations of ACL, too. If isofs ACL are enabled, then they shall
+    override the xattr ones.
+ */
  if(acl_idx == 0)
-   {ret= 1; goto ex;}
+   {ret= end_ret; goto ex;}
  i= acl_idx - 1; 
 
  ret= aaip_decode_acl((unsigned char *) values[i], value_lengths[i],
@@ -902,6 +964,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
 
 #ifdef Libisofs_with_aaip_acL
  ret= aaip_set_acl_text(path, acl_text, flag & (32 | 64));
+ if(ret == -1)
+    register_errno(errnos, i, errno);
  if(ret <= 0)
    {ret= -3; goto ex;}
 #else
@@ -911,7 +975,7 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
  if(has_default_acl && !(flag & 64))
    {ret= -3; goto ex;}
 
- ret= 1;
+ ret= end_ret;
 ex:;
  if(acl_text != NULL)
    free(acl_text);

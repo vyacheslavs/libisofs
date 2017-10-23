@@ -2188,6 +2188,11 @@ ex:;
 /* ----------------------- Adapter for operating systems ----------------- */
 
 
+#ifdef Libisofs_use_os_dummY
+
+#include "aaip-os-dummy.c"
+
+#else
 #ifdef __FreeBSD__
 
 #include "aaip-os-freebsd.c"
@@ -2239,4 +2244,5 @@ ex:;
 #endif /* ! __NetBSD__ */
 #endif /* ! __FreeBSD_kernel__ */
 #endif /* ! __FreeBSD__ */
+#endif /* ! Libisofs_use_os_dummY */
 

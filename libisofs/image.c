@@ -203,6 +203,7 @@ int iso_image_new(const char *name, IsoImage **image)
         img->hfsplus_blessed[i] = NULL;
     img->collision_warnings = 0;
     img->imported_sa_info = NULL;
+    img->blind_on_local_get_attrs = 0;
 
     *image = img;
     return ISO_SUCCESS;
@@ -1134,6 +1135,18 @@ int iso_image_truncate_name(IsoImage *image, const char *name, char **namept,
     image->truncate_buffer[4095] = 0;
     ret = iso_truncate_rr_name(image->truncate_mode, image->truncate_length,
                                image->truncate_buffer, 0);
+    return ret;
+}
+
+
+/* API */
+int iso_image_was_blind_attrs(IsoImage *image, int flag)
+{
+    int ret;
+
+    ret = image->blind_on_local_get_attrs;
+    if (flag & 1)
+        image->blind_on_local_get_attrs = 0;
     return ret;
 }
 

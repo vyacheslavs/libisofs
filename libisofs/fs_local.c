@@ -499,7 +499,7 @@ void lfs_free(IsoFileSource *src)
 static 
 int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
 {
-    int ret;
+    int ret, no_non_user_perm= 0;
     size_t num_attrs = 0, *value_lengths = NULL, result_len;
     ssize_t sret;
     char *path = NULL, **names = NULL, **values = NULL;
@@ -529,6 +529,9 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
             ret = ISO_FILE_ERROR;
         goto ex;
     }
+    if(ret == 2)
+        no_non_user_perm= 1;
+      
     if (num_attrs == 0)
         result = NULL;
     else {
@@ -540,7 +543,7 @@ int lfs_get_aa_string(IsoFileSource *src, unsigned char **aa_string, int flag)
         }
     }
     *aa_string = result;
-    ret = 1;
+    ret = 1 + no_non_user_perm;
 ex:;
     if (path != NULL)
         free(path);
@@ -867,17 +870,19 @@ int iso_local_get_attrs(char *disk_path, size_t *num_attrs, char ***names,
                              (flag & (1 | 4 | 8 | 32 | (1 << 15))) | 2 | 16);
     if (ret <= 0)
         return ISO_AAIP_NO_GET_LOCAL;
-    return 1;
+    return 1 + (ret == 2);
 }
 
 
-int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
-                        size_t *value_lengths, char **values, int flag)
+int iso_local_set_attrs_errno(char *disk_path, size_t num_attrs, char **names,
+                              size_t *value_lengths, char **values,
+                              int *errnos, int flag)
 {
     int ret;
 
     ret = aaip_set_attr_list(disk_path, num_attrs, names, value_lengths,
-                             values, (flag & (8 | 32 | 64)) | !(flag & 1));
+                             values, errnos,
+                             (flag & (8 | 32 | 64 | 128)) | !(flag & 1));
     if (ret <= 0) {
         if (ret == -1)
             return ISO_OUT_OF_MEM;
@@ -892,6 +897,25 @@ int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
         return ret;
     }
     return 1;
+}
+
+
+int iso_local_set_attrs(char *disk_path, size_t num_attrs, char **names,
+                        size_t *value_lengths, char **values, int flag)
+{
+    int ret;
+    int *errnos = NULL;
+
+    if(num_attrs > 0) {
+      errnos= calloc(num_attrs, sizeof(int));
+      if(errnos == NULL)
+        return ISO_OUT_OF_MEM;
+    }
+    ret= iso_local_set_attrs_errno(disk_path, num_attrs, names, value_lengths,
+                                   values, errnos, flag);
+    if(errnos != NULL)
+      free(errnos);
+    return ret;
 }
 
 

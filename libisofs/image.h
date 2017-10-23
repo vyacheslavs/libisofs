@@ -247,6 +247,11 @@ struct Iso_Image
     /* Contains the assessment of boot aspects of the loaded image */
     struct iso_imported_sys_area *imported_sa_info;
 
+    /* Whether some local filesystem xattr namespace could not be explored
+     * during node building.
+     */
+    int blind_on_local_get_attrs;
+
 };
 
 
