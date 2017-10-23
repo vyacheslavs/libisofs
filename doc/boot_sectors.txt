@@ -4,8 +4,9 @@
             Collection of Boot Sector Formats for ISO 9660 Images
 
 
-            by Thomas Schmitt    - mailto:scdbackup@gmx.net
-            Libburnia project    - mailto:libburn-hackers@pykix.org
+            by Thomas Schmitt    - scdbackup@gmx.net
+            Libburnia project    - bug-xorriso@gnu.org
+                                   pkg-libburnia-devel@lists.alioth.debian.org
 
 This information is collected from various sources. Some is backed by
 specifications, some is just rumor which happens to work (maybe not even that).
