@@ -474,8 +474,7 @@ static void register_errno(int *errnos, int i)
                         bit5= in case of symbolic link: manipulate link target
                         bit6= tolerate inappropriate presence or absence of
                               directory default ACL
-                        bit7= @since 1.5.0
-                              avoid setting a name value pair if it already
+                        bit7= avoid setting a name value pair if it already
                               exists and has the desired value.
    @return              1 success
                        -1 error memory allocation
