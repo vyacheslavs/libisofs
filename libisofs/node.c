@@ -1828,6 +1828,7 @@ int attr_enlarge_list(char ***names, size_t **value_lengths, char ***values,
                               (but not if bit2 is set)
                         bit2= delete the given names rather than overwrite
                               their content
+                        bit3= with bit0: delete all old non-"isofs." names
                         bit4= do not overwrite value of empty name
                         bit5= do not overwrite isofs attributes 
                         bit15= release memory and return 1
@@ -1853,9 +1854,11 @@ int iso_node_merge_xattr(IsoNode *node, size_t num_attrs, char **names,
         return ret;
 
     if ((flag & 1) && (!(flag & 4))) {
-        /* Delete unmatched user space pairs */
+        /* Delete unmatched settable pairs */
         for (j = 0; j < *m_num_attrs; j++) {
-            if (strncmp((*m_names)[j], "user.", 5) != 0)
+            if (strncmp((*m_names)[j], "isofs.", 6) == 0)
+                continue;
+            if (strncmp((*m_names)[j], "user.", 5) != 0 && !(flag & 8))
                 continue;
             for (i = 0; i < num_attrs; i++) {
                 if (names[i] == NULL || (*m_names)[j] == NULL)
@@ -1984,7 +1987,7 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
                   node, num_attrs, names, value_lengths, values,
                   &m_num, &m_names, &m_value_lengths, &m_values,
                   (flag & 4) | (!(flag & 2)) | ((!(flag & 1)) << 4) |
-                  ((flag & 16) << 1));
+                  ((flag & 16) << 1) | (flag & 8));
         if (ret < 0)
             goto ex;
         num_attrs = m_num;
