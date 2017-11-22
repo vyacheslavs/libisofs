@@ -3136,7 +3136,7 @@ static int partappend_writer_write_data(IsoImageWriter *writer)
                                        target->opts->appended_partitions[i],
                                        target->appended_part_prepad[i],
                                        target->appended_part_size[i],
-                                       target->appended_part_flags[i] & 1);
+                                     target->opts->appended_part_flags[i] & 1);
         if (res < 0)
             return res;
         target->curblock += target->appended_part_size[i];
