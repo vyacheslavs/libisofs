@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2017 Thomas Schmitt
+ * Copyright (c) 2009 - 2018 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -573,7 +573,7 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_version[0] = 1;
     strncpy_pad((char*)vol.system_id, system_id, 32);
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
-    if (t->pvd_size_is_total_size) {
+    if (t->pvd_size_is_total_size > 0) {
         iso_bb(vol.vol_space_size,
             t->total_size / 2048 + t->opts->ms_block - t->eff_partition_offset,
             4);
@@ -1417,7 +1417,8 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
       target->partiton_offset from any LBA pointer.
     */
     target->eff_partition_offset = target->opts->partition_offset;
-    target->pvd_size_is_total_size = 0;
+    if (target->pvd_size_is_total_size != -1)
+        target->pvd_size_is_total_size = 0;
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         /* Not all writers have an entry in the partion volume descriptor set.
@@ -3127,6 +3128,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
                           "Error reading overwrite volume descriptors");
             goto target_cleanup;
         }
+
+        /* The possible urge to use the total image size as filesystem size
+           is fulfilled now. The session PVD should bear the usual size.
+           So ban pvd_size_is_total_size from being set again.
+        */
+        target->pvd_size_is_total_size = -1;
     }
 
     /* This was possibly altered by above overwrite buffer production */

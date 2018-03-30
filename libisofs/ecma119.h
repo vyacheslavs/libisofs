@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2017 Thomas Schmitt
+ * Copyright (c) 2009 - 2018 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -588,6 +588,7 @@ struct ecma119_image
 
     /* 1= write the total size into the PVD of the ISO,
      * 0= write vol_space_size
+     * -1= write vol_space_size, do not set to 1 or 0
      */
     int pvd_size_is_total_size;
 

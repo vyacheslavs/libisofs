@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2017 Thomas Schmitt
+ * Copyright (c) 2010 - 2018 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2174,11 +2174,14 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
     }
 
-    if ((((t->system_area_options >> 2) & 0x3f) == 0 &&
-         (t->system_area_options & 3) == 1) ||
-        t->opts->partition_offset > 0) {
-        /* Protective MBR || partition offset */
-        /* ISO will not be a partition. It can span the whole image. */
+    if (((((t->system_area_options >> 2) & 0x3f) == 0 &&
+          (t->system_area_options & 3) == 1) ||
+         t->opts->partition_offset > 0) &&
+        t->pvd_size_is_total_size != -1) {
+        /* Protective MBR || partition offset
+           ISO will not be a partition or add-on session.
+           It can span the whole image.
+        */
         t->pvd_size_is_total_size = 1;
     }
 
