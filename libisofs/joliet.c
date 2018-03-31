@@ -401,6 +401,20 @@ int joliet_create_mangled_name(uint16_t *dest, uint16_t *src, int digits,
     return ISO_SUCCESS;
 }
 
+/*
+ * From Joliet specs:
+ * "ISO 9660 (Section 7.5.1) states that the sum of the following shall not
+ *  exceed 30:
+ *  - If there is a file name, the length of the file name.
+ *  - If there is a file name extension, the length of the file name extension.
+ *  On Joliet compliant media, however, the sum as calculated above shall not
+ *  exceed 128 [bytes], to allow for longer file identifiers."
+ *
+ * I.e. the dot does not count.
+ *
+ * (We have an option to lift the limit from 64*2 to 103*2, which is the
+ *  maximum to fit into an ISO 9660 directory record.)
+ */
 static
 int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
 {
@@ -481,25 +495,26 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
                 ext = dot + 1;
 
                 extlen = ucslen(ext);
-                max = maxchar + 1 - extlen - 1 - digits;
+                max = maxchar - extlen - digits;
                 if (max <= 0) {
-                    /* this can happen if extension is too long */
-                    if (extlen + max > 3) {
+                    /*
+                     * This can happen if the extension is too long.
+                     * Reduce its length, to give name at least one
+                     * original character, if it has any.
+                     */
+                    max = (dot > full_name);
+                    extlen = maxchar - max - digits;
+                    if (extlen < 3) {
                         /*
-                         * reduce extension len, to give name an extra char
-                         * note that max is negative or 0
-                         */
-                        extlen = extlen + max - 1;
-                        ext[extlen] = 0;
-                        max = maxchar + 2 - extlen - 1 - digits;
-                    } else {
-                        /*
-                         * error, we don't support extensions < 3
-                         * This can't happen with current limit of digits.
+                         * error, we do not reduce extensions to length < 3
+                         *
+                         * This cannot happen with current limit of digits
+                         * because maxchar is at least 64 and digits at most 7.
                          */
                         ret = ISO_ERROR;
                         goto mangle_cleanup;
                     }
+                    ext[extlen] = 0;
                 }
                 /* ok, reduce name by digits */
                 if (name + max < dot) {
