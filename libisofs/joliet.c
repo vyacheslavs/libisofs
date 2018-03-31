@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2011-2014 Thomas Schmitt
+ * Copyright (c) 2011-2018 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -508,10 +508,10 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
             } else {
                 /* Directory, or file without extension */
                 if (children[i]->type == JOLIET_DIR) {
-                    max = maxchar + 1 - digits;
+                    max = maxchar - digits;
                     dot = NULL; /* dots have no meaning in dirs */
                 } else {
-                    max = maxchar + 1 - digits;
+                    max = maxchar - digits;
                 }
                 name = full_name;
                 if ((size_t) max < ucslen(name)) {
