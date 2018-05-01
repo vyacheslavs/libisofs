@@ -573,10 +573,8 @@ int ecma119_writer_write_vol_desc(IsoImageWriter *writer)
     vol.vol_desc_version[0] = 1;
     strncpy_pad((char*)vol.system_id, system_id, 32);
     strncpy_pad((char*)vol.volume_id, vol_id, 32);
-    if (t->pvd_size_is_total_size > 0) {
-        iso_bb(vol.vol_space_size,
-            t->total_size / 2048 + t->opts->ms_block - t->eff_partition_offset,
-            4);
+    if (t->pvd_size_is_total_size && t->eff_partition_offset <= 0) {
+        iso_bb(vol.vol_space_size, t->total_size / 2048, 4);
     } else {
         iso_bb(vol.vol_space_size,
                t->vol_space_size - t->eff_partition_offset, 4);
@@ -1417,8 +1415,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
       target->partiton_offset from any LBA pointer.
     */
     target->eff_partition_offset = target->opts->partition_offset;
-    if (target->pvd_size_is_total_size != -1)
-        target->pvd_size_is_total_size = 0;
+    target->pvd_size_is_total_size = 0;
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
         /* Not all writers have an entry in the partion volume descriptor set.
@@ -2450,6 +2447,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     int system_area_options = 0;
     char *system_area = NULL;
     int write_count = 0, write_count_mem;
+    uint32_t vol_space_size_mem;
+    off_t total_size_mem;
 
     /* 1. Allocate target and attach a copy of in_opts there */
     target = calloc(1, sizeof(Ecma119Image));
@@ -3050,6 +3049,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     }
 
     /* check if we need to provide a copy of volume descriptors */
+    vol_space_size_mem = target->vol_space_size;
     if (opts->overwrite != NULL) {
 
         /* opts->overwrite must be larger by partion_offset
@@ -3061,12 +3061,15 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
          * In the PVM to be written in the 16th sector of the disc, we
          * need to specify the full size.
          */
-        target->vol_space_size = target->curblock;
+        target->vol_space_size += opts->ms_block;
 
         /* System area and volume descriptors */
         target->opts_overwrite = (char *) opts->overwrite;
+        total_size_mem = target->total_size;
+        target->total_size += target->opts->ms_block * BLOCK_SIZE;
         ret = write_head_part1(target, &write_count, 1 | 2);
         target->opts_overwrite = NULL;
+        target->total_size = total_size_mem;
         if (ret < 0)
             goto target_cleanup;
 
@@ -3129,15 +3132,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
             goto target_cleanup;
         }
 
-        /* The possible urge to use the total image size as filesystem size
-           is fulfilled now. The session PVD should bear the usual size.
-           So ban pvd_size_is_total_size from being set again.
-        */
-        target->pvd_size_is_total_size = -1;
     }
 
     /* This was possibly altered by above overwrite buffer production */
-    target->vol_space_size = target->curblock - opts->ms_block;
+    target->vol_space_size = vol_space_size_mem;
 
 /*
 */

@@ -588,7 +588,6 @@ struct ecma119_image
 
     /* 1= write the total size into the PVD of the ISO,
      * 0= write vol_space_size
-     * -1= write vol_space_size, do not set to 1 or 0
      */
     int pvd_size_is_total_size;
 

@@ -2174,10 +2174,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
     }
 
-    if (((((t->system_area_options >> 2) & 0x3f) == 0 &&
-          (t->system_area_options & 3) == 1) ||
-         t->opts->partition_offset > 0) &&
-        t->pvd_size_is_total_size != -1) {
+    if ((((t->system_area_options >> 2) & 0x3f) == 0 &&
+         (t->system_area_options & 3) == 1) ||
+        t->opts->partition_offset > 0) {
         /* Protective MBR || partition offset
            ISO will not be a partition or add-on session.
            It can span the whole image.
