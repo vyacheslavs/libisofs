@@ -7,7 +7,7 @@
 
  To be included by aaip_0_2.c for Linux
 
- Copyright (c) 2009 - 2016 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2018 Thomas Schmitt, libburnia project, GPLv2+
 
 */
 
@@ -30,7 +30,11 @@
 #endif
 
 #ifdef Libisofs_with_aaip_xattR
+#ifdef Libisofs_with_sys_xattR
+#include <sys/xattr.h>
+#else
 #include <attr/xattr.h>
+#endif
 #endif
 
 

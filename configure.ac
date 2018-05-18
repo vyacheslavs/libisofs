@@ -202,19 +202,68 @@ fi
 AC_SUBST(LIBACL_DEF)
 
 
-dnl ts A90123 - B51212
+dnl ts A90123 - B80508
 AC_ARG_ENABLE(xattr,
               [  --enable-xattr          Enable use of extended file attributes by libisofs, default=yes],
               , enable_xattr=yes)
+AC_ARG_ENABLE(xattr_h_pref_attr,
+              [  --enable-xattr-h-pref-attr   Prefer include file attr/xattr.h over sys/xattr.h, default=no],
+              , enable_xattr_h_pref_attr=no)
+
 XATTR_DEF=
+XATTR_ADDON_DEF=
 if test x"$LIBBURNIA_SUPP_FATTR" = xxattr
 then
     if test "x$enable_xattr" = xyes; then
 dnl Check whether there is the header for Linux xattr.
 dnl If not, erase this macro which would enable use of listxattr and others
-        XATTR_DEF="-DLibisofs_with_aaip_xattR"
-        AC_CHECK_HEADER(attr/xattr.h, AC_CHECK_LIB(c, listxattr, X= ,
-                                                   XATTR_DEF= ), XATTR_DEF= )
+
+        XATTR_A_DEF=
+        XATTR_S_DEF=
+        if test x"$enable_xattr_h_pref_attr" = xyes
+        then
+            echo "prefering include file attr/xattr.h over sys/attr.h"
+            XATTR_A_DEF=1
+            AC_CHECK_HEADER(attr/xattr.h, AC_CHECK_LIB(c, listxattr, X= ,
+                                                 XATTR_A_DEF= ), XATTR_A_DEF= )
+            if test x"$XATTR_A_DEF" = x1
+            then
+                XATTR_DEF="-DLibisofs_with_aaip_xattR"
+            else
+                XATTR_S_DEF=1
+                AC_CHECK_HEADER(sys/xattr.h, AC_CHECK_LIB(c, listxattr, X= ,
+                                                 XATTR_S_DEF= ), XATTR_S_DEF= )
+                if test x"$XATTR_S_DEF" = x1
+                then
+                    XATTR_DEF="-DLibisofs_with_aaip_xattR"
+                    XATTR_ADDON_DEF="-DLibisofs_with_sys_xattR"
+                fi
+            fi
+        else
+            XATTR_S_DEF=1
+            AC_CHECK_HEADER(sys/xattr.h, AC_CHECK_LIB(c, listxattr, X= ,
+                                                 XATTR_S_DEF= ), XATTR_S_DEF= )
+            if test x"$XATTR_S_DEF" = x1
+            then
+                XATTR_DEF="-DLibisofs_with_aaip_xattR"
+                XATTR_ADDON_DEF="-DLibisofs_with_sys_xattR"
+            else
+                XATTR_A_DEF=1
+                AC_CHECK_HEADER(attr/xattr.h, AC_CHECK_LIB(c, listxattr, X= ,
+                                                 XATTR_A_DEF= ), XATTR_A_DEF= )
+                if test x"$XATTR_A_DEF" = x1
+                then
+                    XATTR_DEF="-DLibisofs_with_aaip_xattR"
+                fi
+            fi
+        fi
+        if test x"$XATTR_S_DEF" = x1
+        then
+            echo "decided  to include file sys/attr.h"
+        elif test x"$XATTR_A_DEF" = x1
+        then
+            echo "decided  to include file attr/xattr.h"
+        fi
     fi
 elif test x"$LIBBURNIA_SUPP_FATTR" = xextattr
 then
@@ -233,6 +282,8 @@ then
 else
     echo "disabled local processing of extended file attributes"
 fi
+XATTR_DEF="$XATTR_DEF $XATTR_ADDON_DEF"
+
 AC_SUBST(XATTR_DEF)
 
 
