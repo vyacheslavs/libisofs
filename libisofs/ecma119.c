@@ -1188,6 +1188,13 @@ int tail_writer_compute_data_blocks(IsoImageWriter *writer)
 {
     int ret;
     Ecma119Image *target;
+
+#ifdef Libisofs_part_align_writeR
+
+    target = writer->target;
+
+#else
+
     struct iso_zero_writer_data_struct *data;
     char msg[80];
 
@@ -1202,21 +1209,57 @@ int tail_writer_compute_data_blocks(IsoImageWriter *writer)
         iso_msgs_submit(0, msg, 0, "NOTE", 0);
         data->num_blocks = target->opts->tail_blocks;
     }
+
+#endif /* ! Libisofs_part_align_writeR */
+
     if (target->opts->tail_blocks <= 0)
         return ISO_SUCCESS;
     ret = zero_writer_compute_data_blocks(writer);
     return ret;
 }
 
+static
+int part_align_writer_compute_data_blocks(IsoImageWriter *writer)
+{
+    int ret;
+    Ecma119Image *target;
+    struct iso_zero_writer_data_struct *data;
+    char msg[80];
+
+    target = writer->target;
+
+    /* Default setting in case no alignment is needed */
+    target->alignment_end_block = target->curblock;
+
+    ret = iso_align_isohybrid(target, 0);
+    if (ret < 0)
+        return ret;
+    data = (struct iso_zero_writer_data_struct *) writer->data;
+    if (target->part_align_blocks != 0) {
+        sprintf(msg, "Aligned image size to cylinder size by %d blocks",
+                     target->part_align_blocks);
+        iso_msgs_submit(0, msg, 0, "NOTE", 0);
+        data->num_blocks = target->part_align_blocks;
+    }
+    if (target->part_align_blocks <= 0)
+        return ISO_SUCCESS;
+    ret = zero_writer_compute_data_blocks(writer);
+    target->alignment_end_block = target->curblock;
+    return ret;
+}
+
 /*
-  @param flag bit0= use tail_writer_compute_data_blocks rather than
-                    zero_writer_compute_data_blocks
+  @param flag bit0-3= compute_data_blocks mode:
+                      0= zero_writer_compute_data_blocks
+                      1= tail_writer_compute_data_blocks
+                      2= part_align_writer_compute_data_blocks
 */
 static
 int zero_writer_create(Ecma119Image *target, uint32_t num_blocks, int flag)
 {
     IsoImageWriter *writer;
     struct iso_zero_writer_data_struct *data;
+    int mode;
 
     writer = malloc(sizeof(IsoImageWriter));
     if (writer == NULL) {
@@ -1229,8 +1272,11 @@ int zero_writer_create(Ecma119Image *target, uint32_t num_blocks, int flag)
     }
     data->num_blocks = num_blocks;
 
-    if (flag & 1) {
+    mode = (flag & 15);
+    if (mode == 1) {
         writer->compute_data_blocks = tail_writer_compute_data_blocks;
+    } else if (mode == 2) {
+        writer->compute_data_blocks = part_align_writer_compute_data_blocks;
     } else {
         writer->compute_data_blocks = zero_writer_compute_data_blocks;
     }
@@ -2132,7 +2178,7 @@ void *write_function(void *arg)
 {
     int res, i;
 #ifndef Libisofs_appended_partitions_inlinE
-    int first_partition = 1, last_partition = 0, sa_type;
+    int first_partition = 1, last_partition = 0;
 #endif
     IsoImageWriter *writer;
 
@@ -2161,14 +2207,7 @@ void *write_function(void *arg)
 #ifndef Libisofs_appended_partitions_inlinE
 
     /* Append partition data */
-    sa_type = (target->system_area_options >> 2) & 0x3f;
-    if (sa_type == 0) { /* MBR */
-        first_partition = 1;
-        last_partition = 4;
-    } else if (sa_type == 3) { /* SUN Disk Label */
-        first_partition = 2;
-        last_partition = 8;
-    }
+    iso_count_appended_partitions(target, &first_partition, &last_partition);
     for (i = first_partition - 1; i <= last_partition - 1; i++) {
         if (target->opts->appended_partitions[i] == NULL)
     continue;
@@ -2450,6 +2489,10 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     uint32_t vol_space_size_mem;
     off_t total_size_mem;
 
+#ifdef Libisofs_appended_partitions_inlinE
+    int fap, lap, app_part_count;
+#endif
+
     /* 1. Allocate target and attach a copy of in_opts there */
     target = calloc(1, sizeof(Ecma119Image));
     if (target == NULL) {
@@ -2643,6 +2686,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 
     target->wthread_is_running = 0;
 
+    target->part_align_blocks = 0;
+    target->alignment_end_block = 0;
     target->post_iso_part_pad = 0;
     target->prep_part_size = 0;
     target->efi_boot_part_size = 0;
@@ -2740,6 +2785,12 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     if (opts->hfsplus || opts->fat) {
         nwriters+= 2;
     }
+
+#ifdef Libisofs_part_align_writeR
+
+    nwriters++; /* part_align_blocks writer */
+
+#endif
 
 #ifdef Libisofs_appended_partitions_inlinE
 
@@ -2867,33 +2918,25 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
         goto target_cleanup;
 #endif /* ! Libisofs_gpt_writer_lasT */
 
-
-/* >>> Should not the checksum writer come before the zero writer ?
-*/
-#define Libisofs_checksums_before_paddinG yes
-#ifndef Libisofs_checksums_before_paddinG
-
-    /* >>> ??? Why is this important ? */
-    /* IMPORTANT: This must be the last writer before the checksum writer */
-    ret = zero_writer_create(target, opts->tail_blocks, 1);
-    if (ret < 0)
-        goto target_cleanup;
-
-#endif /* !Libisofs_checksums_before_paddinG */
-
     if ((opts->md5_file_checksums & 1) || opts->md5_session_checksum) {
         ret = checksum_writer_create(target);
         if (ret < 0)
             goto target_cleanup;
     }
-    
-#ifdef Libisofs_checksums_before_paddinG
 
+#ifdef Libisofs_part_align_writeR
+
+    /* Alignment padding before appended partitions */
+    ret = zero_writer_create(target, 0, 2);
+
+#else
+    
     ret = zero_writer_create(target, opts->tail_blocks, 1);
+
+#endif /* ! Libisofs_part_align_writeR */
+
     if (ret < 0)
         goto target_cleanup;
-
-#endif /* Libisofs_checksums_before_paddinG */
 
 #ifdef Libisofs_appended_partitions_inlinE
 
@@ -2903,9 +2946,18 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
 
 #endif /* Libisofs_appended_partitions_inlinE */
 
+#ifdef Libisofs_part_align_writeR
+
+    ret = zero_writer_create(target, opts->tail_blocks, 0);
+    if (ret < 0)
+        goto target_cleanup;
+
+#endif /*  Libisofs_part_align_writeR */
+
 #ifdef Libisofs_gpt_writer_lasT
-    /* This writer shall be the last one in the list, because it protects the
-       image on media which are seen as GPT partitioned.
+    /* This writer shall be the last one in the list of writers of valuable
+       data, because it protects the image on media which are seen as GPT
+       partitioned.
        In any case it has to come after any writer which might request
        production of APM or GPT partition entries by its compute_data_blocks()
        method.
@@ -2989,13 +3041,6 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
             goto target_cleanup;
         }
 
-#ifdef Libisofs_appended_partitions_inlinE
-
-        target->vol_space_size = target->curblock - opts->ms_block;
-        target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
-
-#endif
-
     }
 
     ret = iso_patch_eltoritos(target);
@@ -3007,12 +3052,24 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
             goto target_cleanup;
     }
 
-#ifndef Libisofs_appended_partitions_inlinE
-
     /*
      * The volume space size is just the size of the last session, in
      * case of ms images.
      */
+
+#ifdef Libisofs_appended_partitions_inlinE
+
+    app_part_count = iso_count_appended_partitions(target, &fap, &lap);
+    if (app_part_count == 0)
+       target->vol_space_size = target->curblock - opts->ms_block;
+    else
+       target->vol_space_size = target->alignment_end_block - opts->ms_block;
+
+    target->total_size = (off_t) (target->curblock - opts->ms_block) *
+                         BLOCK_SIZE;
+
+#else /* Libisofs_appended_partitions_inlinE */
+
     target->vol_space_size = target->curblock - opts->ms_block;
     target->total_size = (off_t) target->vol_space_size * BLOCK_SIZE;
 
@@ -3299,11 +3356,6 @@ int bs_set_size(struct burn_source *bs, off_t size)
 {
     Ecma119Image *target = (Ecma119Image*)bs->data;
 
-    /*
-     * just set the value to be returned by get_size. This is not used at
-     * all by libisofs, it is here just for helping libburn to correctly pad
-     * the image if needed.
-     */
     target->total_size = size;
     return 1;
 }
@@ -4543,5 +4595,32 @@ IsoFileSrc **iso_ecma119_to_filesrc_array(Ecma119Image *t,
 ex: /* LIBISO_ALLOC_MEM failed */
     *size = 0;
     return NULL;
+}
+
+
+/* Obtains start and end number of appended partition range and returns
+   the number of valid entries in the list of appended partitions.
+*/
+int iso_count_appended_partitions(Ecma119Image *target,
+                                  int *first_partition, int *last_partition)
+{
+    int sa_type, i, count= 0;
+
+    sa_type = (target->system_area_options >> 2) & 0x3f;
+    if (sa_type == 3) { /* SUN Disk Label */
+        *first_partition = 2;
+        *last_partition = 8;
+    }  else {
+        *first_partition = 1;
+        *last_partition = 4;
+    }
+    for (i = *first_partition - 1; i <= *last_partition - 1; i++) {
+        if (target->opts->appended_partitions[i] == NULL)
+    continue;
+        if (target->opts->appended_partitions[i][0] == 0)
+    continue;
+        count++;
+    }
+    return(count);
 }
 

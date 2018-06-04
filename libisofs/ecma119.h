@@ -799,6 +799,11 @@ struct ecma119_image
     */
     IsoFileSrc *sparc_core_src;
 
+    /* Trailing padding of ISO filesystem partition for cylinder alignment */
+    /* Only in effect with Libisofs_part_align_writeR */
+    uint32_t part_align_blocks;
+    uint32_t alignment_end_block;
+
     /* Counted in blocks of 2048 */
     uint32_t appended_part_prepad[ISO_MAX_PARTITIONS];
     uint32_t appended_part_start[ISO_MAX_PARTITIONS];
@@ -1044,6 +1049,10 @@ int iso_interval_reader_start_size(Ecma119Image *t, char *path,
                                    off_t *start_byte, off_t *byte_count,
                                    int flag);
 
-
+/* Obtains start and end number of appended partition range and returns
+   the number of valid entries in the list of appended partitions.
+*/
+int iso_count_appended_partitions(Ecma119Image *target,
+                                  int *first_partition, int *last_partition);
 
 #endif /*LIBISO_ECMA119_H_*/

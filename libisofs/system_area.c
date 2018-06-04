@@ -165,7 +165,17 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
         else
             cyl_size /= 4;
     }
+
+#ifdef Libisofs_appended_partitions_inlinE
+
+    pos = t->curblock;
+
+#else
+
     pos = (t->vol_space_size + t->opts->ms_block);
+
+#endif
+
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         if (t->opts->appended_partitions[i] == NULL)
     continue;
@@ -1856,7 +1866,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     break;
         }
 
+#ifdef Libisofs_appended_partitions_inlinE
+    img_blocks = t->vol_space_size;
+#else
     img_blocks = t->curblock;
+#endif
+
     if (t->system_area_data != NULL) {
         /* Write more or less opaque boot image */
         memcpy(buf, t->system_area_data, 16 * BLOCK_SIZE);
@@ -2069,7 +2084,17 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         /* Adjust partition table to partition offset.
            With t->mbr_req_count > 0 this has already been done,
         */
-        img_blocks = t->curblock;                  /* value might be altered */
+
+#ifndef Libisofs_appended_partitions_inlinE
+
+        img_blocks = t->curblock;          /* value might have been altered */
+
+#else
+
+        /* A change of t->curblock does not matter in this case */
+
+#endif
+
         if (part_type == 0xee && t->gpt_req_count > 0) {
             mbrp1_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
             offset_flag |= 2 | 1; /* protective MBR, no other partitions */
@@ -2223,6 +2248,10 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
     off_t imgsize, cylsize = 0, frac;
     char *msg = NULL;
 
+#ifdef Libisofs_part_align_writeR
+    int fap, lap, app_part_count;
+#endif
+
     LIBISO_ALLOC_MEM(msg, char, 160);
     sa_type = (t->system_area_options >> 2) & 0x3f;
     if (sa_type != 0)
@@ -2236,7 +2265,22 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
             goto ex;
     }
 
+#ifdef Libisofs_part_align_writeR
+
+    /* If partitions get appended then t->opts->tail_blocks and
+       t->gpt_backup_size come after the alignment padding.
+    */
+    app_part_count = iso_count_appended_partitions(t, &fap, &lap);
+    img_blocks = t->curblock;
+    if (app_part_count == 0)
+        img_blocks += t->opts->tail_blocks + t->gpt_backup_size;
+
+#else
+
     img_blocks = t->curblock + t->opts->tail_blocks + t->gpt_backup_size;
+
+#endif
+
     imgsize = ((off_t) img_blocks) * (off_t) 2048;
     if ((!(t->opts->appended_as_gpt && t->have_appended_partitions))
         && ((t->system_area_options & 3) || always_align)
@@ -2315,7 +2359,17 @@ int iso_align_isohybrid(Ecma119Image *t, int flag)
                 t->post_iso_part_pad);
         iso_msgs_submit(0, msg, 0, "WARNING", 0);
     }
+
+#ifdef Libisofs_part_align_writeR
+
+    t->part_align_blocks = (frac + 2047) / 2048;
+
+#else
+
     t->opts->tail_blocks += (frac + 2047) / 2048;
+
+#endif /* ! Libisofs_part_align_writeR */
+
     ret = ISO_SUCCESS;
 ex:;
     LIBISO_FREE_MEM(msg);

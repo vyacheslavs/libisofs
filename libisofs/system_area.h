@@ -317,9 +317,13 @@ void iso_ascii_utf_16le(uint8_t gap_name[72]);
 #define Libisofs_grub2_sparc_patch_size_poS   0x230    
 
 
-/* >>> It is unclear whether there is a use case for appended partitions
-       inside the ISO filesystem range. 
- # define Libisofs_appended_partitions_inlinE yes
+/* Put appended partitions into the writer range
 */
+#define Libisofs_appended_partitions_inlinE yes
+#ifdef Libisofs_appended_partitions_inlinE
+/* For padding after appended partitions (and also after backup GPT)
+*/
+#define Libisofs_part_align_writeR yes
+#endif
 
 #endif /* SYSTEM_AREA_H_ */
