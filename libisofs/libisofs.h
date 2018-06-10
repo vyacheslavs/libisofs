@@ -8955,6 +8955,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
                                                        (FAILURE, HIGH, -420) */
 #define ISO_MULTI_OVER_IMPORTED     0xE830FE5C
 
+/** El-Torito EFI image is hidden                         (NOTE,HIGH, -421) */
+#define ISO_ELTO_EFI_HIDDEN         0xB030FE5B
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 

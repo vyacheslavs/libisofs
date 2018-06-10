@@ -5885,6 +5885,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             memcpy(boot_image->id_string, data->id_strings[idx], 28);
             memcpy(boot_image->selection_crit, data->selection_crits, 20);
             boot_image->appended_idx = -1;
+            boot_image->appended_start = data->bootblocks[idx];
 
             catalog->bootimages[catalog->num_bootimages] = boot_image;
             boot_image = NULL;
@@ -5956,10 +5957,21 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             
 
             /* warn about hidden images */
-            iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
+            if (image->bootcat->bootimages[idx]->platform_id == 0xef) {
+                iso_msg_submit(image->id, ISO_ELTO_EFI_HIDDEN, 0,
+                               "Found hidden El-Torito image for EFI.");
+                iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+                            "EFI image start and size: %lu * 2048 , %lu * 512",
+                               (unsigned long int)
+                               image->bootcat->bootimages[idx]->appended_start,
+                               (unsigned long int)
+                               image->bootcat->bootimages[idx]->load_size);
+            } else {
+                iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
                            "Found hidden El-Torito image. Its size could not "
                            "be figured out, so image modify or boot image "
                            "patching may lead to bad results.");
+            }
         }
         if (image->bootcat->node == NULL) {
             IsoNode *node;

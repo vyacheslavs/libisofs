@@ -553,6 +553,8 @@ const char *iso_error_to_msg(int errcode)
         return "Zero sized, oversized, or mislocated SUSP CE area found";
     case ISO_MULTI_OVER_IMPORTED:
         return "Multi-session would overwrite imported_iso interval";
+    case ISO_ELTO_EFI_HIDDEN:
+        return "El-Torito EFI image is hidden";
     default:
         return "Unknown error";
     }
