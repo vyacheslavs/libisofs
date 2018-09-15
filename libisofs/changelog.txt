@@ -230,17 +230,132 @@ configure.ac
 libisofs/libisofs.h
 Version leap to 1.4.9
 
-  []
+12 Sep 2017  [ce831f1]
 ChangeLog
 libisofs/changelog.txt
 Updated change log
 
-  
+15 Sep 2017  [34e3586]
+libisofs/node.c
+Silenced harmless compiler warning -Wimplicit-fallthrough
 
-  []
+16 Sep 2017  [874dc16]
+libisofs/hfsplus.c
+Fixed a message typo found by lintian
+
+22 Sep 2017  [53b2d6d]
+libisofs/hfsplus_classes.c
+Bug fix: Reading beyond array end for HFS+ production caused SIGSEGV with
+         FreeBSD 11 CLANG -O2. Thanks ASX of GhostBSD.
+
+22 Sep 2017  [79baab3]
+libisofs/hfsplus_classes.c
+Fixed a harmless lapse with static array initialization
+
+07 Oct 2017  [7d45c88]
+libisofs/libisofs.h
+libisofs/image.h
+libisofs/image.c
+libisofs/builder.c
+libisofs/fs_local.c
+libisofs/libisofs.ver
+New API call iso_image_get_ignore_aclea(),
+new iso_image_set_ignore_aclea() and iso_file_source_get_aa_string() flag bit3
+to import all xattr namespaces
+
+23 Oct 2017  [4b031b5]
+libisofs/libisofs.h
+libisofs/image.h
+libisofs/image.c
+libisofs/fs_local.c
+libisofs/builder.c
+libisofs/aaip_0_2.h
+libisofs/aaip_0_2.c
+libisofs/aaip-os-linux.c
+libisofs/aaip-os-freebsd.c
+libisofs/aaip-os-dummy.c
+libisofs/libisofs.ver
+New flag bit7 with iso_local_set_attrs() to avoid unnecessary write attempts.
+New return value 2 of IsoFileSource.get_aa_string() and iso_local_get_attrs().
+New API calls iso_image_was_blind_attrs(), iso_local_set_attrs_errno().
+
+23 Oct 2017  [633b4d5]
+doc/boot_sectors.txt
+Updated project mail addresses 
+
+31 Oct 2017  [1da3b17]
+libisofs/aaip-os-linux.c
+Changed a comment in Linux OS adapter
+
+31 Oct 2017  [580b154]
+libisofs/node.c
+Adapted iso_node_merge_xattr to handling of all namespaces
+
+22 Nov 2017  [a936409]
+libisofs/system_area.c
+Fixed failure to compile with experimental Libisofs_appended_partitions_inlinE
+
+30 Mar 2018  [615dc7e]
+libisofs/ecma119.h
+libisofs/ecma119.c
+libisofs/system_area.c
+Bug fix: Add-on sessions with partition offset claimed too many blocks as size.
+         Regression of version 1.4.8.
+
+31 Mar 2018  [ad843f1]
+libisofs/joliet.c
+Bug fix: Long Joliet names without dot were mangled with one character too many
+
+31 Mar 2018  [3106121]
+libisofs/joliet.c
+Bug fix: Long Joliet names with leading dot were mangled one char too short
+
+01 May 2018  [c5a9cc5]
+libisofs/ecma119.h
+libisofs/ecma119.c
+libisofs/system_area.c
+Changed bug fix 615dc7e9978ea0ba1eed7b4b661fe4e9f6f2769e of Mar 30 13:51:21 2018 +0200
+
+18 May 2018  [848e039]
+configure.ac
+libisofs/aaip-os-linux.c
+Preferring Linux include file sys/xattr.h over attr/attr.h
+
+04 Jun 2018  [f39d4ee]
+libisofs/ecma119.h
+libisofs/system_area.h
+libisofs/ecma119.c
+libisofs/system_area.c
+Putting user defined padding after appended partitions
+
+10 Jun 2018  [69c8c54]
+libisofs/libisofs.h
+libisofs/messages.c
+libisofs/fs_image.c
+Improved message at image load time about hidden El Torito images for EFI
+
+15 Sep 2018  [d3c17d0]
+libisofs/libisofs.h
+Version leap to 1.5.0.
+
+15 Sep 2018  []
 ChangeLog
 libisofs/changelog.txt
 Updated change log
 
------------------------------------- release - libisofs-1.5.0 -
+------------------------------------ release - libisofs-1.5.0 - 15 Sep 2018
+* New API call iso_image_get_ignore_aclea(),
+  new iso_image_set_ignore_aclea() and iso_file_source_get_aa_string()
+  flag bit3 to import all xattr namespaces
+* New API calls iso_image_was_blind_attrs(), iso_local_set_attrs_errno().
+* New flag bit7 with iso_local_set_attrs() to avoid unnecessary write attempts.
+* New return value 2 of IsoFileSource.get_aa_string() and iso_local_get_attrs().
+* Now putting user defined padding after appended partitions.
+* Bug fix: Add-on sessions with partition offset claimed too many blocks as
+           size. Regression of version 1.4.8.
+* Bug fix: Long Joliet names without dot were mangled with one character too
+           many. Long Joliet names with leading dot were mangled one char
+           too short.
+* Bug fix: Reading beyond array end for HFS+ production caused SIGSEGV with
+           FreeBSD 11 CLANG -O2. Thanks ASX of GhostBSD.
 
