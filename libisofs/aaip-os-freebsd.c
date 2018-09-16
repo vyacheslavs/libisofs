@@ -406,8 +406,9 @@ int aaip_get_attr_list(char *path, size_t *num_attrs, char ***names,
  char *list= NULL, *user_list= NULL, *sys_list= NULL;
  ssize_t value_ret, list_size= 0, user_list_size= 0;
  ssize_t sys_list_size= 0;
- int acl_names= 0, no_perm_for_system= 0;
+ int acl_names= 0;
 #endif
+ int no_perm_for_system= 0;
 
  if(flag & (1 << 15)) { /* Free memory */
    {ret= 1; goto ex;}
