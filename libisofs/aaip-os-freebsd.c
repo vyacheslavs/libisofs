@@ -7,7 +7,12 @@
 
  To be included by aaip_0_2.c for FreeBSD, NetBSD, and OpenBSD
 
- Copyright (c) 2009 - 2016 Thomas Schmitt, libburnia project, GPLv2+
+ Copyright (c) 2009 - 2016 Thomas Schmitt
+
+ This file is part of the libisofs project; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License version 2
+ or later as published by the Free Software Foundation.
+ See COPYING file for details.
 
 */
 

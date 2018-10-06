@@ -1,3 +1,8 @@
+
+dnl Copyright (c) 2009 - 2018 Thomas Schmitt
+dnl Provided under the terms of the GNU General Public License version 2 or later.
+
+
 AC_DEFUN([LIBBURNIA_SET_FLAGS],
 [
 case $target_os in

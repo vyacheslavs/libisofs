@@ -1,4 +1,8 @@
 
+# Copyright (c) 2007 Vreixo Formoso
+# Copyright (c) 2009 - 2018 Thomas Schmitt
+# Provided under the terms of the GNU General Public License version 2 or later.
+
 # ts A90315 : LIBBURNIA_PKGCONFDIR is defined OS specific in acinclude.m4
 # was: pkgconfigdir=$(libdir)/pkgconfig
 pkgconfigdir=$(LIBBURNIA_PKGCONFDIR)

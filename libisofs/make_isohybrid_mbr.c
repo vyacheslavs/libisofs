@@ -1,7 +1,7 @@
 /*
+ * Copyright (c) 2002 - 2008 H. Peter Anvin
  * Copyright (c) 2008 - 2015 Thomas Schmitt
- * with special credits to H. Peter Anvin for isohybrid
- * and to Matthew Garrett for isohybrid with GPT and APM 
+ * with special credits to Matthew Garrett for isohybrid with GPT and APM
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
