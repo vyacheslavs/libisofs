@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2010 - 2014 Thomas Schmitt
+ * Copyright (c) 2010 - 2018 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -81,8 +81,15 @@ struct el_torito_boot_image {
      *  bit8= Mention in isohybrid Apple partition map
      */
     unsigned int isolinux_options;
-    unsigned char type; /**< The type of image */
+
+    unsigned char type; /**< The type of image :
+                              0=no emulation , 1=fd 1.2 MB , 2=fd 1.4 MB
+                              3=fd 3.8 MB , 4=hdd (size in partition table)
+                         */
     unsigned char partition_type; /**< type of partition for HD-emul images */
+    uint32_t emul_hdd_size; /* 512-bytes LBA after highest partition end from
+                               HD-emul partition table
+                             */
     uint16_t load_seg; /**< Load segment for the initial boot image. */
     uint16_t load_size; /**< Number of sectors to load. */
     int load_size_full; /* 1= override load_size by image size */

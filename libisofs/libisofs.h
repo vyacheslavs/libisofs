@@ -4440,6 +4440,12 @@ int iso_image_report_system_area(IsoImage *image,
 "       The boot image is supposed to end before the start block of any", \
 "       other entity of the ISO filesystem.", \
 "       (This line is not reported if no limiting entity is found.)", \
+"  El Torito hdsiz/512:   X  decimal", \
+"       gives with a boot image of emulation type \"hd\" the lowest block", \
+"       number which is above any partition end in the boot image's MBR", \
+"       partition table. This can be considered the claimed size of the", \
+"       emulated hard disk given in blocks of 512 bytes.", \
+"       (This line is not reported if no partition is found in the image.)", \
 ""
 
 /**

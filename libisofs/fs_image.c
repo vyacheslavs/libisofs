@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2016 Thomas Schmitt
+ * Copyright (c) 2009 - 2018 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -4946,7 +4946,7 @@ void iso_impsysa_report_blockpath(IsoImage *image,
             return;
         size = next_above - start_block;
 
-        /* Replace in msg "path" by "blks", report number in bytes */
+        /* Replace in msg "path" by "blks", report number in blocks of 2048 */
         cpt = strstr(msg, "path");
         if (cpt == NULL)
             return;
@@ -5353,6 +5353,35 @@ int iso_report_help(char **doc, char ***result, int *line_count, int flag)
 }
 
 static
+uint32_t iso_impsysa_hdd_emul_size(IsoImage *image, IsoDataSource *src,
+                                   uint32_t lba, int flag)
+{
+    uint32_t max_size = 0, start_lba, num_blocks;
+    int i, ret;
+    uint8_t *buffer = NULL;
+
+    /* Obtain first block of image */
+    LIBISO_ALLOC_MEM(buffer, uint8_t, 2048);
+    ret = src->read_block(src, lba, buffer);
+    if (ret < 0)
+        goto ex;
+
+    /* Check for magic number of MBR */
+    if (buffer[510] != 0x55 || buffer[511] != 0xaa)
+        goto ex;
+
+    for (i = 0; i < 4; i++) {
+      start_lba = iso_read_lsb(buffer + 454 + 16 * i, 4);
+      num_blocks = iso_read_lsb(buffer + 458 + 16 * i, 4);
+      if (start_lba + num_blocks > max_size)
+          max_size = start_lba + num_blocks;
+    }
+ex:;
+    LIBISO_FREE_MEM(buffer);
+    return max_size;
+}
+
+static
 int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
                         int flag)
 {
@@ -5428,6 +5457,11 @@ int iso_eltorito_report(IsoImage *image, struct iso_impsysa_result *target,
         if (lba_mem[i] != 0xffffffff) {
             sprintf(msg, "El Torito img path : %3d  ", i + 1);
             iso_impsysa_report_blockpath(image, target, msg, lba_mem[i], 1);
+            if (img->type == 4 && img->emul_hdd_size > 0) {
+                sprintf(msg, "El Torito hdsiz/512: %3d  %u",
+                             i + 1, (unsigned int) img->emul_hdd_size);
+                iso_impsysa_line(target, msg);
+            }
         }
         sprintf(msg, "El Torito img opts : %3d  ", i + 1);
         if (img->seems_boot_info_table)
@@ -5886,6 +5920,13 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             memcpy(boot_image->selection_crit, data->selection_crits, 20);
             boot_image->appended_idx = -1;
             boot_image->appended_start = data->bootblocks[idx];
+            if (boot_image->type == 4) {
+                boot_image->emul_hdd_size = iso_impsysa_hdd_emul_size(
+                                                image, src,
+                                                data->bootblocks[idx], 0);
+            } else {
+                boot_image->emul_hdd_size = 0;
+            }
 
             catalog->bootimages[catalog->num_bootimages] = boot_image;
             boot_image = NULL;
