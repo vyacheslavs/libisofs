@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2018 Thomas Schmitt
+ * Copyright (c) 2009 - 2019 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -3189,6 +3189,9 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
             goto target_cleanup;
         }
 
+        /* Delete the filler partitions of GPT and APM so that write_function()
+           can insert new ones for a possibly different total_size */;
+        iso_delete_gpt_apm_fillers(target, 0);
     }
 
     /* This was possibly altered by above overwrite buffer production */

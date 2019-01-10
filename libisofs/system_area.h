@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2012 - 2015 Thomas Schmitt
+ * Copyright (c) 2012 - 2019 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -155,6 +155,11 @@ struct iso_apm_partition_request {
     */
     uint8_t name[32];
     uint8_t type[32];
+
+    /* Status of the request object itself:
+       bit0= this is an automatically placed filler partition
+    */
+    uint32_t req_status;
 };
 
 /* Copies the content of req and registers it in t.apm_req[].
@@ -239,6 +244,11 @@ struct iso_gpt_partition_request {
     /* Only if read from imported image: Table index of partition (first = 1)
     */
     uint32_t idx;
+
+    /* Status of the request object itself:
+       bit0= this is an automatically placed filler partition
+    */
+    uint32_t req_status;
 };
 
 /* Copies the content of req and registers it in t.gpt_req[].
@@ -258,6 +268,11 @@ int iso_quick_gpt_entry(struct iso_gpt_partition_request **req_array,
                         uint8_t type_guid[16], uint8_t partition_guid[16],
                         uint64_t flags, uint8_t name[72]);
 
+/* Deletes the partition requests for gap filling in GPT and APM.
+   Purpose is to get the request list clean again after a multi-session
+   emulation superblock was created and handed to the application.
+*/
+void iso_delete_gpt_apm_fillers(Ecma119Image *target, int flag);
 
 /* Internal helper that will be used by system_area.c and make_isohybrid_mbr.c
 */

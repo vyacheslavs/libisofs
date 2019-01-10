@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2018 Thomas Schmitt
+ * Copyright (c) 2010 - 2019 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1031,6 +1031,7 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
     entry->block_count = block_count;
     strncpy((char *) entry->name, name, 32);
     strncpy((char *) entry->type, type, 32);
+    entry->req_status = 0;
     ret = iso_register_apm_entry(req_array, apm_req_count, entry, 0);
     free(entry);
     return ret;
@@ -1076,6 +1077,7 @@ int iso_quick_gpt_entry(struct iso_gpt_partition_request **req_array,
     memcpy(entry->partition_guid, partition_guid, 16);
     entry->flags = flags;
     memcpy(entry->name, name, 72);
+    entry->req_status = 0;
     ret = iso_register_gpt_entry(req_array, gpt_req_count, entry, 0);
     free(entry);
     return ret;
@@ -1287,6 +1289,8 @@ static int fill_apm_gaps(Ecma119Image *t, uint32_t img_blocks)
                                       gap_name, "ISO9660_data");
             if (ret < 0)
                 return ret;
+            /* Mark as automatically placed filler request */
+            t->apm_req[t->apm_req_count - 1]->req_status |= 1;
         }
     }
 
@@ -1772,6 +1776,8 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
                                       gpt_flags, gpt_name);
             if (ret < 0)
                 return ret;
+            /* Mark as automatically placed filler request */
+            t->gpt_req[t->gpt_req_count - 1]->req_status |= 1;
         }
     }
     /* Merge list of gap partitions with list of already sorted entries */
@@ -3245,4 +3251,43 @@ int partappend_writer_create(Ecma119Image *target)
 }
 
 #endif /* Libisofs_appended_partitions_inlinE */
+
+
+void iso_delete_gpt_apm_fillers(Ecma119Image *target, int flag)
+{
+    int i, widx;
+
+    /* Dispose the requests with req_status bit0 */
+    for (i = 0; i < target->gpt_req_count; i++) {
+        if (target->gpt_req[i]->req_status & 1) {
+            free(target->gpt_req[i]);
+            target->gpt_req[i] = NULL;
+        }
+    }
+    /* Densify the request arrays */
+    widx = 0;
+    for (i = 0; i < target->gpt_req_count; i++) {
+        if (target->gpt_req[i] != NULL) {
+            target->gpt_req[widx] = target->gpt_req[i];
+            widx++;
+        }
+    }
+    target->gpt_req_count = widx;
+
+    /* And again for APM */
+    for (i = 0; i < target->apm_req_count; i++) {
+        if (target->apm_req[i]->req_status & 1) {
+            free(target->apm_req[i]);
+            target->apm_req[i] = NULL;
+        }
+    }
+    widx = 0;
+    for (i = 0; i < target->apm_req_count; i++) {
+        if (target->apm_req[i] != NULL) {
+            target->apm_req[widx] = target->apm_req[i];
+            widx++;
+        }
+    }
+    target->apm_req_count = widx;
+}
 
