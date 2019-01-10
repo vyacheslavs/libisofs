@@ -2079,6 +2079,21 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
         }
     }
 
+    /* Check for protective MBR in mbr_req and adjust to GPT size */
+    if (t->gpt_req_count > 0 && sa_type == 0 && t->mbr_req_count == 1) {
+        if (t->mbr_req[0]->type_byte == 0xee && buf[450] == 0xee &&
+            t->mbr_req[0]->desired_slot <= 1) {
+            part_type = 0xee;
+            risk_of_ee = 1;
+            ret = write_mbr_partition_entry(1, part_type,
+                        (uint64_t) 1, ((uint64_t) gpt_blocks) * 4 - 1, 
+                        t->partition_secs_per_head, t->partition_heads_per_cyl,
+                        buf, 2);
+            if (ret < 0)
+                return ret;
+        }
+    }
+
     if (t->opts->partition_offset > 0 && sa_type == 0 &&
         t->mbr_req_count == 0) {
         /* Adjust partition table to partition offset.
