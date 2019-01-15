@@ -1058,7 +1058,8 @@ int iso_count_appended_partitions(Ecma119Image *target,
 /* Determines the range of valid partition numbers depending on partition
    table type.
 */
-void iso_tell_max_part_range(Ecma119Image *target,
-                             int *first_partition, int *last_partition);
+void iso_tell_max_part_range(IsoWriteOpts *opts,
+                             int *first_partition, int *last_partition,
+                             int flag);
 
 #endif /*LIBISO_ECMA119_H_*/

@@ -4604,12 +4604,13 @@ ex: /* LIBISO_ALLOC_MEM failed */
 /* Determines the range of valid partition numbers depending on partition
    table type.
 */
-void iso_tell_max_part_range(Ecma119Image *target,
-                             int *first_partition, int *last_partition)
+void iso_tell_max_part_range(IsoWriteOpts *opts,
+                             int *first_partition, int *last_partition,
+                             int flag)
 {
     int sa_type;
 
-    sa_type = (target->system_area_options >> 2) & 0x3f;
+    sa_type = (opts->system_area_options >> 2) & 0x3f;
     if (sa_type == 3) { /* SUN Disk Label */
         *first_partition = 2;
         *last_partition = 8;
@@ -4628,7 +4629,7 @@ int iso_count_appended_partitions(Ecma119Image *target,
 {
     int i, count= 0;
 
-    iso_tell_max_part_range(target, first_partition, last_partition);
+    iso_tell_max_part_range(target->opts, first_partition, last_partition, 0);
     for (i = *first_partition - 1; i <= *last_partition - 1; i++) {
         if (target->opts->appended_partitions[i] == NULL)
     continue;

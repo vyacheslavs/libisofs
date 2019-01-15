@@ -156,7 +156,7 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
     int first_partition, last_partition;
     uint32_t pos, size, add_pos = 0;
     off_t start_byte, byte_count;
-    char msg[80];
+    char msg[128];
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     cyl_align = (t->system_area_options >> 8) & 0x3;
@@ -178,7 +178,7 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 
 #endif
 
-    iso_tell_max_part_range(t, &first_partition, &last_partition);
+    iso_tell_max_part_range(t->opts, &first_partition, &last_partition, 0);
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         if (t->opts->appended_partitions[i] == NULL)
     continue;
@@ -1874,7 +1874,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
 
-    iso_tell_max_part_range(t, &first_partition, &last_partition);
+    iso_tell_max_part_range(t->opts, &first_partition, &last_partition, 0);
     for (i = first_partition - 1; i <= last_partition - 1; i++)
         if (t->opts->appended_partitions[i] != NULL) {
             will_append = 1;
@@ -3205,7 +3205,8 @@ static int partappend_writer_write_data(IsoImageWriter *writer)
     target = writer->target;
 
     /* Append partition data */
-    iso_tell_max_part_range(target, &first_partition, &last_partition);
+    iso_tell_max_part_range(target->opts,
+                            &first_partition, &last_partition, 0);
     
     for (i = first_partition - 1; i <= last_partition - 1; i++) {
         if (target->opts->appended_partitions[i] == NULL)
