@@ -4601,13 +4601,13 @@ ex: /* LIBISO_ALLOC_MEM failed */
 }
 
 
-/* Obtains start and end number of appended partition range and returns
-   the number of valid entries in the list of appended partitions.
+/* Determines the range of valid partition numbers depending on partition
+   table type.
 */
-int iso_count_appended_partitions(Ecma119Image *target,
-                                  int *first_partition, int *last_partition)
+void iso_tell_max_part_range(Ecma119Image *target,
+                             int *first_partition, int *last_partition)
 {
-    int sa_type, i, count= 0;
+    int sa_type;
 
     sa_type = (target->system_area_options >> 2) & 0x3f;
     if (sa_type == 3) { /* SUN Disk Label */
@@ -4617,6 +4617,18 @@ int iso_count_appended_partitions(Ecma119Image *target,
         *first_partition = 1;
         *last_partition = 4;
     }
+}
+
+
+/* Obtains start and end number of appended partition range and returns
+   the number of valid entries in the list of appended partitions.
+*/
+int iso_count_appended_partitions(Ecma119Image *target,
+                                  int *first_partition, int *last_partition)
+{
+    int i, count= 0;
+
+    iso_tell_max_part_range(target, first_partition, last_partition);
     for (i = *first_partition - 1; i <= *last_partition - 1; i++) {
         if (target->opts->appended_partitions[i] == NULL)
     continue;

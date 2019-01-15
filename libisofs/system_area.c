@@ -153,8 +153,10 @@ static int compute_partition_size(Ecma119Image *t, char *disk_path,
 int iso_compute_append_partitions(Ecma119Image *t, int flag)
 {
     int ret, i, sa_type, cyl_align, cyl_size = 0;
+    int first_partition, last_partition;
     uint32_t pos, size, add_pos = 0;
     off_t start_byte, byte_count;
+    char msg[80];
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
     cyl_align = (t->system_area_options >> 8) & 0x3;
@@ -176,11 +178,20 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag)
 
 #endif
 
+    iso_tell_max_part_range(t, &first_partition, &last_partition);
     for (i = 0; i < ISO_MAX_PARTITIONS; i++) {
         if (t->opts->appended_partitions[i] == NULL)
     continue;
         if (t->opts->appended_partitions[i][0] == 0)
     continue;
+        if (i + 1 > last_partition || i + 1 < first_partition) {
+            sprintf(msg,
+         "Partition number %d of appended partition is out of range [%d - %d]",
+                    i + 1, first_partition, last_partition);
+            iso_msgs_submit(0, msg, 0, "FAILURE", 0);
+            return ISO_BAD_PARTITION_NO;
+        }
+
         ret = compute_partition_size(t, t->opts->appended_partitions[i], &size,
                                      t->opts->appended_part_flags[i]);
         if (ret < 0)
@@ -1862,10 +1873,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     memset(buf, 0, 16 * BLOCK_SIZE);
 
     sa_type = (t->system_area_options >> 2) & 0x3f;
-    if (sa_type == 3) {
-        first_partition = 2;
-        last_partition = 8;
-    }
+
+    iso_tell_max_part_range(t, &first_partition, &last_partition);
     for (i = first_partition - 1; i <= last_partition - 1; i++)
         if (t->opts->appended_partitions[i] != NULL) {
             will_append = 1;
@@ -3190,20 +3199,14 @@ static int partappend_writer_write_vol_desc(IsoImageWriter *writer)
 static int partappend_writer_write_data(IsoImageWriter *writer)
 {
     Ecma119Image *target;
-    int res, first_partition = 1, last_partition = 0, sa_type;
+    int res, first_partition = 1, last_partition = 0;
     int i;
 
     target = writer->target;
 
     /* Append partition data */
-    sa_type = (target->system_area_options >> 2) & 0x3f;
-    if (sa_type == 0) { /* MBR */
-        first_partition = 1;
-        last_partition = 4;
-    } else if (sa_type == 3) { /* SUN Disk Label */
-        first_partition = 2;
-        last_partition = 8;
-    }
+    iso_tell_max_part_range(target, &first_partition, &last_partition);
+    
     for (i = first_partition - 1; i <= last_partition - 1; i++) {
         if (target->opts->appended_partitions[i] == NULL)
     continue;

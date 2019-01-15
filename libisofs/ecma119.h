@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2018 Thomas Schmitt
+ * Copyright (c) 2009 - 2019 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1054,5 +1054,11 @@ int iso_interval_reader_start_size(Ecma119Image *t, char *path,
 */
 int iso_count_appended_partitions(Ecma119Image *target,
                                   int *first_partition, int *last_partition);
+
+/* Determines the range of valid partition numbers depending on partition
+   table type.
+*/
+void iso_tell_max_part_range(Ecma119Image *target,
+                             int *first_partition, int *last_partition);
 
 #endif /*LIBISO_ECMA119_H_*/
