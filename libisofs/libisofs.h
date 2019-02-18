@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2018 Thomas Schmitt
+ * Copyright (c) 2009-2019 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2626,9 +2626,10 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
  * @param opts
  *        The option set to be manipulated.
  * @param guid
- *        16 bytes of user supplied GUID. Readily byte-swapped as prescribed by
- *        UEFI specs: 4 byte, 2 byte, 2 byte as little-endian. The rest as
- *        big-endian.
+ *        16 bytes of user supplied GUID. Readily byte-swapped from the text
+ *        form as prescribed by UEFI specs:
+ *          4 byte, 2 byte, 2 byte as little-endian. 
+ *          2 byte, 6 byte as big-endian.
  *        The upper 4 bit of guid[7] should bear the value 4 to express the
  *        RFC 4122 version 4. Bit 7 of byte[8] should  be set to 1 and bit 6
  *        be set to 0, in order to express the RFC 4122 variant of UUID,
@@ -2722,6 +2723,32 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
 int iso_write_opts_set_appended_as_gpt(IsoWriteOpts *opts, int gpt);
 
 /**
+ * Set the GPT Type GUID for a partition defined by
+ * iso_write_opts_set_partition_img().
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param partition_number
+ *        Depicts the partition table entry which shall get the Type GUID.
+ * @param guid
+ *        16 bytes of user supplied GUID. Readily byte-swapped from the text
+ *        form as prescribed by UEFI specs:
+ *          4 byte, 2 byte, 2 byte as little-endian.
+ *          2 byte, 6 byte as big-endian.
+ * @param valid
+ *        Set to 1 to make this Type GUID valid.
+ *        Set to 0 in order to invalidate a previously made setting. In this
+ *        case MBR type 0xEF will become the EFI Type GUID. All others will
+ *        become the Basic Data Partition Type GUID.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.5.2
+ */
+int iso_write_opts_set_part_type_guid(IsoWriteOpts *opts, int partition_number,
+                                      uint8_t guid[16], int valid);
+
+/**
  * Control whether partitions created by iso_write_opts_set_partition_img()
  * are to be represented in Apple Partition Map.
  * 
@@ -2780,9 +2807,34 @@ int iso_write_opts_set_part_like_isohybrid(IsoWriteOpts *opts, int alike);
  *        0x00 to 0xff as desired partition type.
  *        Any other value (e.g. -1) enables the default types of the various
  *        occasions.
+ * @return
+ *        ISO_SUCCESS or error
  * @since 1.4.8
  */
 int iso_write_opts_set_iso_mbr_part_type(IsoWriteOpts *opts, int part_type);
+
+/**
+ * Set the GPT Type GUID for the partition which represents the ISO 9660
+ * filesystem, if such a partition emerges in GPT.
+ * @param opts
+ *        The option set to be manipulated.
+ * @param guid
+ *        16 bytes of user supplied GUID. Readily byte-swapped from the text
+ *        form as prescribed by UEFI specs:
+ *          4 byte, 2 byte, 2 byte as little-endian.
+ *          2 byte, 6 byte as big-endian.
+ * @param valid
+ *        Set to 1 to make this Type GUID valid.
+ *        Set to 0 in order to invalidate a previously made setting. In this
+ *        case the setting of iso_write_opts_set_iso_mbr_part_type() or its
+ *        default will get into effect.
+ * @return
+ *        ISO_SUCCESS or error
+ *
+ * @since 1.5.2
+ */
+int iso_write_opts_set_iso_type_guid(IsoWriteOpts *opts, uint8_t guid[16],
+                                     int valid);
 
 /**
  * Inquire the start address of the file data blocks after having used

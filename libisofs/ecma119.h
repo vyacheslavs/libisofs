@@ -476,12 +476,19 @@ struct iso_write_opts {
     char *efi_boot_partition;
     int efi_boot_part_flag;
 
-    /* Eventual disk file paths of prepared images which shall be appended
-       after the ISO image and described by partiton table entries in a MBR
+    /* Disk file paths of prepared images which shall be appended
+       after the ISO image and described by partiton table entries in a MBR.
+       NULL means unused.
     */
     char *appended_partitions[ISO_MAX_PARTITIONS]; 
     uint8_t appended_part_types[ISO_MAX_PARTITIONS];
     int appended_part_flags[ISO_MAX_PARTITIONS];
+    uint8_t appended_part_type_guids[ISO_MAX_PARTITIONS][16];
+
+    /* Flags in case that appended partitions show up in GPT:
+       bit0= appended_part_type_guids is valid
+    */
+    uint8_t appended_part_gpt_flags[ISO_MAX_PARTITIONS];
 
     /* If 1: With appended partitions: create protective MBR and mark by GPT
      */
@@ -503,6 +510,14 @@ struct iso_write_opts {
        0x00 to 0xff = value to use if possible 
     */
     int iso_mbr_part_type;
+
+    /* iso_write_opts_set_iso_type_guid
+     */
+    uint8_t iso_gpt_type_guid[16];
+    /* bit0= iso_gpt_type_guid is valid
+    */
+    int iso_gpt_flag;
+
 
     /* Eventual name of the non-ISO aspect of the image. E.g. SUN ASCII label.
      */

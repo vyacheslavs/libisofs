@@ -3588,11 +3588,15 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
         wopts->appended_partitions[i] = NULL;
         wopts->appended_part_types[i] = 0;
         wopts->appended_part_flags[i] = 0;
+        memset(wopts->appended_part_type_guids[i], 0, 16);
+        wopts->appended_part_gpt_flags[i] = 0;
     }
     wopts->appended_as_gpt = 0;
     wopts->appended_as_apm = 0;
     wopts->part_like_isohybrid = 0;
     wopts->iso_mbr_part_type = -1;
+    memset(wopts->iso_gpt_type_guid, 0, 16);
+    wopts->iso_gpt_flag= 0;
     wopts->ascii_disc_label[0] = 0;
     wopts->will_cancel = 0;
     wopts->allow_dir_id_ext = 0;
@@ -4310,6 +4314,20 @@ int iso_write_opts_set_partition_img(IsoWriteOpts *opts, int partition_number,
     return ISO_SUCCESS;
 }
 
+int iso_write_opts_set_part_type_guid(IsoWriteOpts *opts, int partition_number,
+                                      uint8_t guid[16], int valid)
+{
+    if (partition_number < 1 || partition_number > ISO_MAX_PARTITIONS)
+        return ISO_BAD_PARTITION_NO;
+    if (valid)
+        memcpy(opts->appended_part_type_guids[partition_number - 1], guid, 16);
+    if (valid)
+        opts->appended_part_gpt_flags[partition_number - 1]|= 1;
+    else
+        opts->appended_part_gpt_flags[partition_number - 1]&= ~1;
+    return ISO_SUCCESS;
+}
+
 int iso_write_opts_set_appended_as_gpt(IsoWriteOpts *opts, int gpt)
 {
     opts->appended_as_gpt = !!gpt;
@@ -4333,6 +4351,15 @@ int iso_write_opts_set_iso_mbr_part_type(IsoWriteOpts *opts, int part_type)
     if (part_type < -1 || part_type > 255)
         part_type = -1;
     opts->iso_mbr_part_type = part_type;
+    return ISO_SUCCESS;
+}
+
+int iso_write_opts_set_iso_type_guid(IsoWriteOpts *opts, uint8_t guid[16],
+                                     int valid)
+{
+    if (valid)
+        memcpy(opts->iso_gpt_type_guid, guid, 16);
+    opts->iso_gpt_flag = (opts->iso_gpt_flag & ~1) | !!valid;
     return ISO_SUCCESS;
 }
 

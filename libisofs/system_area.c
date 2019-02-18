@@ -1726,6 +1726,7 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
     struct iso_gpt_partition_request *req;
     uint8_t gpt_name[72];
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    static uint8_t *type_guid;
     static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
 
     if (t->gpt_req_count == 0)
@@ -1774,16 +1775,20 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
             }
         } else if (part_end < goal) {
             memset(gpt_name, 0, 72);
+            type_guid = basic_data_uuid;
             if (goal == t->vol_space_size * (uint64_t) 4 &&
-                part_end == t->opts->partition_offset * (uint64_t) 4)
+                part_end == t->opts->partition_offset * (uint64_t) 4) {
                 sprintf((char *) gpt_name, "ISO9660");
-            else
+                if (t->opts->iso_gpt_flag & 1)
+                    type_guid = t->opts->iso_gpt_type_guid;
+            } else {
                 sprintf((char *) gpt_name, "Gap%d", gap_counter);
+            }
             iso_ascii_utf_16le(gpt_name);
             gap_counter++;
             ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
                                       part_end, goal - part_end,
-                                      basic_data_uuid, zero_uuid,
+                                      type_guid, zero_uuid,
                                       gpt_flags, gpt_name);
             if (ret < 0)
                 return ret;
@@ -2664,7 +2669,9 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
             memset(gpt_name, 0, 72);
             sprintf((char *) gpt_name, "Appended%d", i + 1);
             iso_ascii_utf_16le(gpt_name);
-            if (t->opts->appended_part_types[i] == 0xef)
+            if (t->opts->appended_part_gpt_flags[i] & 1)
+                type_uuid = t->opts->appended_part_type_guids[i];
+            else if (t->opts->appended_part_types[i] == 0xef)
                 type_uuid = efi_sys_uuid;
             else
                 type_uuid = basic_data_uuid;
