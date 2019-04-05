@@ -1,6 +1,6 @@
 
 # Copyright (c) 2007 Vreixo Formoso
-# Copyright (c) 2009 - 2018 Thomas Schmitt
+# Copyright (c) 2009 - 2019 Thomas Schmitt
 # Provided under the terms of the GNU General Public License version 2 or later.
 
 # ts A90315 : LIBBURNIA_PKGCONFDIR is defined OS specific in acinclude.m4
@@ -11,6 +11,7 @@ libincludedir=$(includedir)/libisofs
 
 lib_LTLIBRARIES = libisofs/libisofs.la
 ACLOCAL_AMFLAGS = -I ./
+AM_CPPFLAGS = -I $(top_builddir)/libisofs
 
 ## ========================================================================= ##
 
@@ -118,7 +119,7 @@ noinst_PROGRAMS = \
 
 # ts A90807
 # Consolidated demo code for having less linker mesages with a make run.
-demo_demo_CPPFLAGS = -Ilibisofs
+demo_demo_CPPFLAGS = -I $(top_srcdir)/libisofs
 demo_demo_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
 demo_demo_SOURCES = demo/demo.c
 

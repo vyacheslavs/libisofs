@@ -1,5 +1,5 @@
 
-dnl Copyright (c) 2009 - 2018 Thomas Schmitt
+dnl Copyright (c) 2009 - 2019 Thomas Schmitt
 dnl Provided under the terms of the GNU General Public License version 2 or later.
 
 
@@ -149,12 +149,12 @@ dnl It tests whether -Wl,--version-script=... works with the compiler
 AC_DEFUN([LIBISOFS_ASSERT_VERS_LIBS],
 [
     libburnia_save_LDFLAGS="$LDFLAGS"
-    LDFLAGS="$LDFLAGS -Wl,--version-script=libisofs/libisofs.ver"
+    LDFLAGS="$LDFLAGS -Wl,--version-script=$srcdir/libisofs/libisofs.ver"
     AC_TRY_LINK([#include <stdio.h>], [printf("Hello\n");],
                 [vers_libs_test="yes"], [vers_libs_test="no"])
     if test x$vers_libs_test = xyes
     then
-        LIBLDFLAGS="-Wl,--version-script=libisofs/libisofs.ver"
+        LIBLDFLAGS="-Wl,--version-script=$srcdir/libisofs/libisofs.ver"
     fi
     LDFLAGS="$libburnia_save_LDFLAGS"
     AC_SUBST(LIBLDFLAGS)
