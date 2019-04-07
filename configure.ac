@@ -67,7 +67,8 @@ AC_SUBST(LT_CURRENT_MINUS_AGE)
 AC_PREFIX_DEFAULT([/usr/local])
 test "$prefix" = "NONE" && prefix=$ac_default_prefix
 
-AM_MAINTAINER_MODE
+dnl ts B90405 : Disabled on advise of Ross Burton
+dnl AM_MAINTAINER_MODE
 
 AM_PROG_CC_C_O
 AC_C_CONST
