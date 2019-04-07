@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2019 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -18,7 +18,6 @@
 #include "messages.h"
 #include "joliet.h"
 #include "node.h"
-#include "../version.h"
 
 #include <stdlib.h>
 #include <wchar.h>
@@ -1978,9 +1977,18 @@ ex:;
 
 void iso_lib_version(int *major, int *minor, int *micro)
 {
+
+    *major = iso_lib_header_version_major;
+    *minor = iso_lib_header_version_minor;
+    *micro = iso_lib_header_version_micro;
+
+/* No more: values from version.h generated from version.h.in and
+            macro values defined in configure.ac
+
     *major = LIBISOFS_MAJOR_VERSION;
     *minor = LIBISOFS_MINOR_VERSION;
     *micro = LIBISOFS_MICRO_VERSION;
+*/
 }
 
 int iso_lib_is_compatible(int major, int minor, int micro)

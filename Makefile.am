@@ -11,7 +11,9 @@ libincludedir=$(includedir)/libisofs
 
 lib_LTLIBRARIES = libisofs/libisofs.la
 ACLOCAL_AMFLAGS = -I ./
-AM_CPPFLAGS = -I $(top_builddir)/libisofs
+
+# Enable this if the source includes generated files like version.h
+# AM_CPPFLAGS = -I $(top_builddir)/libisofs
 
 ## ========================================================================= ##
 
@@ -118,7 +120,7 @@ noinst_PROGRAMS = \
 
 
 # ts A90807
-# Consolidated demo code for having less linker mesages with a make run.
+# Consolidated demo code for having less linker messages with a make run.
 demo_demo_CPPFLAGS = -I $(top_srcdir)/libisofs
 demo_demo_LDADD = $(libisofs_libisofs_la_OBJECTS) $(libisofs_libisofs_la_LIBADD)
 demo_demo_SOURCES = demo/demo.c
