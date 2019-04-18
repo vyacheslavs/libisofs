@@ -2145,7 +2145,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             return ISO_ASSERT_FAILURE;
     }
 
-    /* This eventually overwrites the non-mbr_req partition table entries
+    /* This possibly overwrites the non-mbr_req partition table entries
        made so far. Overwriting those from t->mbr_req is not allowed.
     */
     if (sa_type == 3 || !t->opts->appended_as_gpt) {
@@ -2175,6 +2175,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
     if (sa_type == 0 && (t->system_area_options & 0x4000) && !do_isohybrid) {
         /* Patch MBR for GRUB2 */
+	if (t->num_bootsrc <= 0)
+            return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
+                          "No boot image found as jump target for GRUB2 MBR.");
         if (t->bootsrc[0] == NULL)
             return iso_msg_submit(t->image->id, ISO_BOOT_IMAGE_NOT_VALID, 0,
           "Cannot refer by GRUB2 MBR to data outside of ISO 9660 filesystem.");
