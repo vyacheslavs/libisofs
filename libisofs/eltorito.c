@@ -312,7 +312,7 @@ int iso_tree_add_boot_node(IsoDir *parent, const char *name, IsoBoot **boot)
     node->node.hidden = parent->node.hidden;
 
     /* current time */
-    now = time(NULL);
+    iso_nowtime(&now, 0);
     node->node.atime = now;
     node->node.ctime = now;
     node->node.mtime = now;

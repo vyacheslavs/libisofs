@@ -87,7 +87,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir)
     iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
-    now = time(NULL);
+    iso_nowtime(&now, 0);
     iso_node_set_atime((IsoNode*)node, now);
     iso_node_set_ctime((IsoNode*)node, now);
     iso_node_set_mtime((IsoNode*)node, now);
@@ -175,7 +175,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
     iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
-    now = time(NULL);
+    iso_nowtime(&now, 0);
     iso_node_set_atime((IsoNode*)node, now);
     iso_node_set_ctime((IsoNode*)node, now);
     iso_node_set_mtime((IsoNode*)node, now);
@@ -278,7 +278,7 @@ int iso_tree_add_new_special(IsoDir *parent, const char *name, mode_t mode,
     iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
-    now = time(NULL);
+    iso_nowtime(&now, 0);
     iso_node_set_atime((IsoNode*)node, now);
     iso_node_set_ctime((IsoNode*)node, now);
     iso_node_set_mtime((IsoNode*)node, now);
@@ -367,7 +367,7 @@ int iso_tree_add_new_file(IsoDir *parent, const char *name, IsoStream *stream,
     iso_node_set_hidden((IsoNode*)node, parent->node.hidden);
 
     /* current time */
-    now = time(NULL);
+    iso_nowtime(&now, 0);
     iso_node_set_atime((IsoNode*)node, now);
     iso_node_set_ctime((IsoNode*)node, now);
     iso_node_set_mtime((IsoNode*)node, now);

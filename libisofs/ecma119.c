@@ -2418,7 +2418,7 @@ void ecma119_determine_now_time(Ecma119Image *target)
     uint8_t time_text[18];
     int i;
 
-    t0 = time(NULL);
+    iso_nowtime(&t0, 0);
     o = target->opts;
     if (o->vol_uuid[0]) {
         for(i = 0; i < 16; i++)

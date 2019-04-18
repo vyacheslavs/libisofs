@@ -226,6 +226,7 @@ iso_node_unref;
 iso_node_xinfo_get_cloner;
 iso_node_xinfo_make_clonable;
 iso_node_zf_by_magic;
+iso_nowtime;
 iso_obtain_msgs;
 iso_read_image_features_destroy;
 iso_read_image_features_get_size;

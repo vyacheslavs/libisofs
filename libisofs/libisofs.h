@@ -1252,6 +1252,27 @@ int iso_set_local_charset(char *name, int flag);
 char *iso_get_local_charset(int flag);
 
 /**
+ * Inquire and maybe define the time which is considered to be "now" and
+ * used for timestamps of freshly created ISO nodes and as default of
+ * image timestamps.
+ * If ever, this should normally be enabled and defined before iso_image_new().
+ * If it is disabled, time(NULL) is considered to be "now".
+ *
+ * @param now
+ *      Returns the "now" value and maybe submits it as definition.
+ * @param flag
+ *      Bitfield for control purposes
+ *      bit0= *now contains the time to be set as nowtime override.
+              Enable the override if not bit1 is set, too.
+ *      bit1= Disable the nowtime override
+ * @return 1= *now is not overridden , 2= *now is overridden
+ *
+ * @since 1.5.2
+ */
+int iso_nowtime(time_t *now, int flag);
+
+
+/**
  * Create a new image, empty.
  *
  * The image will be owned by you and should be unref() when no more needed.

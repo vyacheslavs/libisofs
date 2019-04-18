@@ -2456,3 +2456,27 @@ int iso_truncate_leaf_name(int mode, int length, char *name, int flag)
     return ret;
 }
 
+/* API */
+/* @param flag bit0= *now contains the time to be set as nowtime override
+               bit1= disable the nowtime override
+   @return 1= *now is not overridden , 2= *now is overridden
+*/
+int iso_nowtime(time_t *now, int flag)
+{
+    static int now_time_overridden = 0;
+    static time_t now_time_override = 0;
+
+    if (flag & 1) {
+        now_time_overridden = 1;
+        now_time_override = *now;
+    }
+    if (flag & 2) {
+        now_time_overridden = 0;
+    }
+    *now = time(NULL);
+    if (!now_time_overridden)
+        return 1;
+    *now = now_time_override;
+    return 2;
+}
+

@@ -1460,6 +1460,7 @@ void iso_notify_dir_iters(IsoNode *node, int flag)
 int iso_node_new_root(IsoDir **root)
 {
     IsoDir *dir;
+    time_t now;
 
     dir = calloc(1, sizeof(IsoDir));
     if (dir == NULL) {
@@ -1467,7 +1468,8 @@ int iso_node_new_root(IsoDir **root)
     }
     dir->node.refcount = 1;
     dir->node.type = LIBISO_DIR;
-    dir->node.atime = dir->node.ctime = dir->node.mtime = time(NULL);
+    iso_nowtime(&now, 0);
+    dir->node.atime = dir->node.ctime = dir->node.mtime = now;
     dir->node.mode = S_IFDIR | 0555;
 
     /* set parent to itself, to prevent root to be added to another dir */
