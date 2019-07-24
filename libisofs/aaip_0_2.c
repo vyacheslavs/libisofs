@@ -7,7 +7,7 @@
  See libisofs/aaip_0_2.h
      http://libburnia-project.org/wiki/AAIP
 
- Copyright (c) 2009 - 2016 Thomas Schmitt
+ Copyright (c) 2009 - 2019 Thomas Schmitt
 
  This file is part of the libisofs project; you can redistribute it and/or
  modify it under the terms of the GNU General Public License version 2
@@ -32,6 +32,7 @@
 
 #include "libisofs.h"
 #include "util.h"
+#include "messages.h"
 
 /*
 #define Aaip_encode_debuG 1
@@ -280,6 +281,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                         bit2= this is a default ACL, prepend SWITCH_MARK
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
+                        bit4= be verbous about failure causes
    @return              >0 means ok
                         <=0 means error 
                         -1= out of memory
@@ -295,7 +297,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  *result= NULL;
  *result_len= 0;
  bytes= aaip_encode_acl_text(acl_text, st_mode,
-                             (size_t) 0, NULL, 1 | (flag & (2 | 4 | 8)));
+                             (size_t) 0, NULL, 1 | (flag & (2 | 4 | 8 | 16)));
  if(bytes < -2)
    return(bytes);
  if(bytes < 0)
@@ -310,7 +312,7 @@ int aaip_encode_acl(char *acl_text, mode_t st_mode,
  (*result)[bytes]= 0;
  *result_len= bytes;
  bytes= aaip_encode_acl_text(acl_text, st_mode, *result_len, *result,
-                             (flag & (2 | 4 | 8)));
+                             (flag & (2 | 4 | 8 | 16)));
  if(bytes < -2)
    return(bytes);
  if(bytes < 0)
@@ -362,6 +364,7 @@ static int aaip_make_aaip_perms(int r, int w, int x)
                         bit2= this is a default ACL, prepend SWITCH_MARK 1
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
+                        bit4= be verbous about failure causes
    @return              >=0 number of bytes produced resp. counted
                         <0 means error 
                         -1: result size overflow
@@ -388,7 +391,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
    /* set SWITCH_MARK to indicate a default ACL */;
    if(!(flag & 1)) {
      if((size_t) count >= result_size)
-       {ret= -1; goto ex;}
+       goto result_size_overflow;
      result[count]= (Aaip_SWITCH_MARK << 4) | Aaip_EXEC;
    }
    count++;
@@ -417,6 +420,9 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
          /* >>> Duplicate u:: entry. */;
          /* >>> ??? If it matches the previous one: ignore */
 
+         if(flag & 16)
+           iso_msg_submit(-1, ISO_AAIP_ACL_MULT_OBJ, 0,
+                          "Duplicate u:: entry detected in ACL text");
          ret = ISO_AAIP_ACL_MULT_OBJ;
          goto ex;
        }
@@ -434,6 +440,9 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
            num= aaip_numeric_id(name, 0);
            if(num <= 0) {
              /* ACL_USER is not part of AAIP 2.0 */
+             if(flag & 16)
+               iso_msg_submit(-1, ISO_AAIP_BAD_ACL_TEXT, 0,
+                            "Unknown user name found in ACL text: '%s'", name);
              {ret= -2; goto ex;}
            }
            uid= huid= num;
@@ -463,6 +472,9 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
          /* >>> Duplicate g:: entry. */;
          /* >>> ??? If it matches the previous one: ignore */
 
+         if(flag & 16)
+           iso_msg_submit(-1, ISO_AAIP_ACL_MULT_OBJ, 0,
+                          "Duplicate g:: entry detected in ACL text");
          ret = ISO_AAIP_ACL_MULT_OBJ;
          goto ex;
        }
@@ -480,6 +492,9 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
            num= aaip_numeric_id(name, 0);
            if(num <= 0) {
              /* ACL_GROUP is not part of AAIP 2.0 */
+             if(flag & 16)
+               iso_msg_submit(-1, ISO_AAIP_BAD_ACL_TEXT, 0,
+                           "Unknown group name found in ACL text: '%s'", name);
              {ret= -2; goto ex;}
            }
            gid= hgid= num;
@@ -508,6 +523,9 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
        /* >>> Duplicate o:: entry. */;
        /* >>> ??? If it matches the previous one: ignore */
 
+       if(flag & 16)
+         iso_msg_submit(-1, ISO_AAIP_ACL_MULT_OBJ, 0,
+                        "Duplicate o:: entry detected in ACL text");
        ret = ISO_AAIP_ACL_MULT_OBJ;
        goto ex;
      }
@@ -524,7 +542,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
 
    if(!(flag & 1)) {
      if((size_t) count >= result_size)
-       {ret= -1; goto ex;}
+       goto result_size_overflow;
      result[count]= perms | ((!!qualifier) << 3) | (type << 4);
    }
    count++;
@@ -533,7 +551,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
      num_recs= (qualifier_len / 127) + !!(qualifier_len % 127);
      if(!(flag & 1)) {
        if((size_t) (count + 1) > result_size)
-         {ret= -1; goto ex;}
+         goto result_size_overflow;
        for(i= 0; i < num_recs; i++) {
          if(i < num_recs - 1)
            result[count++]= 255;
@@ -543,7 +561,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
              result[count - 1]= 127;
          }
          if((size_t) (count + (result[count - 1] & 127)) > result_size)
-           {ret= -1; goto ex;}
+           goto result_size_overflow;
          memcpy(result + count, name + i * 127, result[count - 1] & 127);
          count+= result[count - 1] & 127;
        }
@@ -558,7 +576,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
      count+= needed;
    else {
      if((size_t) (count + needed) > result_size)
-       {ret= -1; goto ex;}
+       goto result_size_overflow;
    }
  }
  if ((flag & 8) && needed > 0 && !(flag & 1)) {
@@ -587,6 +605,13 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
 ex:;
  LIBISO_FREE_MEM(name);
  return(ret);
+
+result_size_overflow:;
+ if(flag & 16)
+   iso_msg_submit(-1, ISO_ASSERT_FAILURE, 0,
+                 "Program error: Text to ACL conversion result size overflow");
+ ret= -1;
+ goto ex;
 }
 
 
@@ -598,13 +623,14 @@ int aaip_encode_both_acl(char *a_acl_text, char *d_acl_text, mode_t st_mode,
  unsigned char *a_acl= NULL, *d_acl= NULL, *acl= NULL;
 
  if(a_acl_text != NULL) {
-   ret= aaip_encode_acl(a_acl_text, st_mode, &a_acl_len, &a_acl, flag & 11);
+   ret= aaip_encode_acl(a_acl_text, st_mode, &a_acl_len, &a_acl,
+                        flag & (1 | 2 | 8 | 16));
    if(ret <= 0)
      goto ex;
  }
  if(d_acl_text != NULL) {
    ret= aaip_encode_acl(d_acl_text, (mode_t) 0, &d_acl_len, &d_acl,
-                        (flag & 3) | 4);
+                        (flag & (1 | 2 | 16)) | 4);
    if(ret <= 0)
      goto ex;
  }

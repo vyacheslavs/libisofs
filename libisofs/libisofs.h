@@ -7416,9 +7416,13 @@ int iso_node_get_acl_text(IsoNode *node,
  *       the permissions of newly created files.)
  * @param flag
  *      Bitfield for control purposes
- *      bit1=  ignore text parameters but rather update eventual "access" ACL
+ *      bit0=  Do not change the stat(2) permissions.
+ *             Caution: This can make the node's permission set inconsistent.
+ *      bit1=  Ignore text parameters but rather update the "access" ACL
  *             to the stat(2) permissions of node. If no "access" ACL exists,
  *             then do nothing and return success.
+ *      bit2=  Be verbous about failure causes.
+ *             @since 1.5.2
  * @return
  *      > 0 success
  *      < 0 failure
