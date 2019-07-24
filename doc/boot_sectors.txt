@@ -38,6 +38,8 @@ Common Hardware Reference Platform (CHRP), for IBM PowerPC
 HP-PA via PALO header version 4
 HP-PA via PALO header version 5
 
+DEC Alpha SRM boot sector, for Alpha architecture
+
 Combinations of boot mechanisms:
 - SYSLINUX isohybrid MBR
 - SYSLINUX isohybrid for MBR, UEFI and x86-Mac
