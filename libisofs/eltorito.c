@@ -711,13 +711,14 @@ int iso_image_get_bootcat(IsoImage *image, IsoBoot **catnode, uint32_t *lba,
         return 0;
     *catnode = bootcat;
     *lba = bootcat->lba;
-    *size = bootcat->size;
     if (bootcat->size > 0 && bootcat->content != NULL) {
         *content = calloc(1, bootcat->size);
         if (*content == NULL) 
             return ISO_OUT_OF_MEM;
         memcpy(*content, bootcat->content, bootcat->size);
     }
+    if (*content != NULL)
+        *size = bootcat->size;
     return 1;
 }
 
