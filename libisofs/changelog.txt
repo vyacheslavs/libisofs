@@ -479,7 +479,7 @@ configure.ac
 libisofs/libisofs.h
 Version leap to 1.5.2.
 
-26 Oct 2019  []
+26 Oct 2019  [4d8a467]
 ChangeLog
 libisofs/changelog.txt
 Updated change log
@@ -499,6 +499,17 @@ Updated change log
 * Bug fix: SIGSEGV happened if options bit 14 of
            iso_write_opts_set_system_area() is set and no El Torito boot image
            is defined
+
+27 Oct 2019  [fa43a5a]
+configure.ac
+libisofs/libisofs.h
+Version leap to 1.5.3
+
+27 Oct 2019  []
+ChangeLog
+libisofs/changelog.txt
+Updated change log
+
 
 ------------------------------------ release - libisofs-      - 
 
