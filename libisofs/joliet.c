@@ -469,7 +469,7 @@ int mangle_single_dir(Ecma119Image *t, JolietNode *dir)
         }
 
         /*
-         * A max of 7 characters is good enought, it allows handling up to
+         * A max of 7 characters is good enough, it allows handling up to
          * 9,999,999 files with same name.
          */
          /* Important: joliet_create_mangled_name() relies on digits < 8 */
@@ -1108,7 +1108,7 @@ int write_path_table(Ecma119Image *t, JolietNode **pathlist, int l_type)
     int ret= ISO_SUCCESS;
     uint8_t *zeros = NULL;
 
-    /* 256 is just a convenient size large enought */
+    /* 256 is just a convenient size large enough */
     LIBISO_ALLOC_MEM(buf, uint8_t, 256);
     LIBISO_ALLOC_MEM(zeros, uint8_t, BLOCK_SIZE);
     path_table_size = 0;

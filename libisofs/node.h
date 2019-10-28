@@ -284,7 +284,7 @@ int iso_node_new_symlink(char *name, char *dest, IsoSymlink **link);
  * Create a new special file node. As far as libisofs concerns,
  * an special file is a block device, a character device, a FIFO (named pipe)
  * or a socket. You can choose the specific kind of file you want to add
- * by setting mode propertly (see man 2 stat).
+ * by setting mode properly (see man 2 stat).
  *
  * Note that special files are only written to image when Rock Ridge
  * extensions are enabled. Moreover, a special file is just a directory entry

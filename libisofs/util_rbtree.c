@@ -277,7 +277,7 @@ size_t rbtree_to_array_aux(struct iso_rbnode *root, void **array, size_t pos,
  *    NULL pointer.
  * @return
  *    A sorted array with the contents of the tree, or NULL if there is not
- *    enought memory to allocate the array. You should free(3) the array when
+ *    enough memory to allocate the array. You should free(3) the array when
  *    no more needed. Note that the array is NULL-terminated, and thus it
  *    has size + 1 length.
  */

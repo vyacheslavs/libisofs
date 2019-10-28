@@ -758,7 +758,7 @@ static
 int write_path_table(Ecma119Image *t, Ecma119Node **pathlist, int l_type)
 {
     size_t i, len;
-    uint8_t buf[64]; /* 64 is just a convenient size larger enought */
+    uint8_t buf[64]; /* 64 is just a convenient size larger enough */
     struct ecma119_path_table_record *rec;
     void (*write_int)(uint8_t*, uint32_t, int);
     Ecma119Node *dir;
@@ -1464,7 +1464,7 @@ int write_head_part2(Ecma119Image *target, int *write_count, int flag)
     target->pvd_size_is_total_size = 0;
     for (i = 0; i < (int) target->nwriters; ++i) {
         writer = target->writers[i];
-        /* Not all writers have an entry in the partion volume descriptor set.
+        /* Not all writers have an entry in the partition volume descriptor set.
            It must be guaranteed that they write exactly one block.
         */
 
@@ -3015,7 +3015,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
      * 3.
      * Call compute_data_blocks() in each Writer.
      * That function computes the size needed by its structures and
-     * increments image current block propertly.
+     * increments image current block properly.
      */
     for (i = 0; i < (int) target->nwriters; ++i) {
         IsoImageWriter *writer = target->writers[i];
@@ -4408,7 +4408,7 @@ int iso_write_opts_set_gpt_guid(IsoWriteOpts *opts, uint8_t guid[16], int mode)
  *                   0= generic (to_charset is valid, no reserved characters,
  *                               no length limits)
  *                   1= Rock Ridge (to_charset is valid)
- *                   2= Joliet (to_charset gets overriden by UCS-2 or UTF-16)
+ *                   2= Joliet (to_charset gets overridden by UCS-2 or UTF-16)
  *                   3= ECMA-119 (dull ISO 9660 character set)
  *                   4= HFS+ (to_charset gets overridden by UTF-16BE) 
  *        bit8=  Treat input text as directory name

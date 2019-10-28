@@ -1942,7 +1942,7 @@ char *ucs2str(const char *buf, size_t len)
     
     outbytes = (inbytes+1) * MB_LEN_MAX;
     
-    /* ensure enought space */
+    /* ensure enough space */
     out = calloc(outbytes, 1);
     if (out == NULL)
         return NULL;
@@ -1995,7 +1995,7 @@ int iso_lib_is_compatible(int major, int minor, int micro)
 {
     int cmajor, cminor, cmicro;
     
-    /* for now, the rule is that library is compitable if requested
+    /* for now, the rule is that library is compatible if requested
      * version is lower */
     iso_lib_version(&cmajor, &cminor, &cmicro);
 
@@ -2332,7 +2332,7 @@ int iso_clone_mgtd_mem(char *in, char **out, size_t size)
     (Also accepts capital letters.)
     @param text Input like "42", "223062s", "3m" or "-1g"
     @param flag Bitfield for control purposes:
-                bit0= return -1 rathern than 0 on failure
+                bit0= return -1 rather than 0 on failure
                 bit1= if scaled then compute the last byte of the last unit
     @return The derived value
 */

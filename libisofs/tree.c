@@ -43,11 +43,11 @@
  *      parent, this functions fails with ISO_NODE_NAME_NOT_UNIQUE.
  * @param dir
  *      place where to store a pointer to the newly created dir. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      ref is added, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer.
  * @return
- *     number of nodes in dir if succes, < 0 otherwise
+ *     number of nodes in dir if success, < 0 otherwise
  *     Possible errors:
  *         ISO_NULL_POINTER, if parent or name are NULL
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
@@ -127,7 +127,7 @@ int iso_image_add_new_dir(IsoImage *image, IsoDir *parent, const char *name,
  *      destination of the link
  * @param link
  *      place where to store a pointer to the newly created link. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      ref is added, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer
  * @return
@@ -206,7 +206,7 @@ int iso_image_add_new_symlink(IsoImage *image, IsoDir *parent,
  * Add a new special file to the directory tree. As far as libisofs concerns,
  * an special file is a block device, a character device, a FIFO (named pipe)
  * or a socket. You can choose the specific kind of file you want to add
- * by setting mode propertly (see man 2 stat).
+ * by setting mode properly (see man 2 stat).
  * 
  * Note that special files are only written to image when Rock Ridge 
  * extensions are enabled. Moreover, a special file is just a directory entry
@@ -229,7 +229,7 @@ int iso_image_add_new_symlink(IsoImage *image, IsoDir *parent,
  *      device ID, equivalent to the st_rdev field in man 2 stat.
  * @param special
  *      place where to store a pointer to the newly created special file. No 
- *      extra ref is addded, so you will need to call iso_node_ref() if you 
+ *      extra ref is added, so you will need to call iso_node_ref() if you 
  *      really need it. You can pass NULL in this parameter if you don't need 
  *      the pointer.
  * @return
@@ -319,7 +319,7 @@ int iso_image_add_new_special(IsoImage *image, IsoDir *parent,
  *      IsoStream for the contents of the file
  * @param file
  *      place where to store a pointer to the newly created file. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      ref is added, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer
  * @return
@@ -768,7 +768,7 @@ int check_excludes(IsoImage *image, const char *path)
                 return 1;
             }
         } else {
-            /* relative exclude, it is enought if a part of the path matches */
+            /* relative exclude, it is enough if a part of the path matches */
             char *pos = (char*)path;
             while (pos != NULL) {
                 pos++;

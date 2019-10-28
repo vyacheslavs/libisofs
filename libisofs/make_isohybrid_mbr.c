@@ -702,7 +702,7 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     for (part = 1 ; part <= 4; part++) {
         if ((int) part != part_number) {
             /* if this_partition != partition_number: write 16 zero bytes
-               (this is now overriden by the eventual desire to announce
+               (this is now overridden by the eventual desire to announce
                 EFI and HFS boot images.)
             */
             memset(wpt, 0, 16);

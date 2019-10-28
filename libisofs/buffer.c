@@ -12,7 +12,7 @@
  *
  * TODO #00010 : optimize ring buffer
  *  - write/read at the end of buffer requires a second mutex_lock, even if
- *    there's enought space/data at the beginning
+ *    there's enough space/data at the beginning
  *  - pre-buffer for writes < BLOCK_SIZE
  *
  */
@@ -145,7 +145,7 @@ void iso_ring_buffer_free(IsoRingBuffer *buf)
  * @param
  *      Number of bytes to write
  * @return
- *      1 succes, 0 read finished, < 0 error
+ *      1 success, 0 read finished, < 0 error
  */
 int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
 {
@@ -165,7 +165,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
             /*
              * Note. There's only a writer, so we have no race conditions.
              * Thus, the while(buf->size == buf->cap) is used here
-             * only to propertly detect the reader has been cancelled
+             * only to properly detect the reader has been cancelled
              */
 
             if (buf->rend) {
@@ -219,7 +219,7 @@ int iso_ring_buffer_read(IsoRingBuffer *buf, uint8_t *dest, size_t count)
             /*
              * Note. There's only a reader, so we have no race conditions.
              * Thus, the while(buf->size == 0) is used here just to ensure
-             * a reader detects the EOF propertly if the writer has been
+             * a reader detects the EOF properly if the writer has been
              * canceled while the reader was waiting
              */
 

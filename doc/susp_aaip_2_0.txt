@@ -45,7 +45,7 @@ more data bytes than with SL, though, and any of the 256 possible byte values.
 The reader shall be prepared to detect and handle oversized data.
 
 One or more AL entries form the Attribute List of a file object with
-an even number of components. Each two consequtive components form a pair of
+an even number of components. Each two consecutive components form a pair of
 Name and Value.
 
 The empty name indicates that the value is a compact representation of ACLs.
@@ -359,7 +359,7 @@ SUSP-1.10 does not specify ES entries at all and allows to have extension
 entries without announcing them by an ER entry. So if a second ER entry is
 not bearable, then the SUSP-1.10 downgrade of AAIP allows to omit the
 AAIP ER and the ES entries. But if there is the AAIP ER then there must be ES
-at the appropriate places. Else the format would explicitely violate SUSP-1.12.
+at the appropriate places. Else the format would explicitly violate SUSP-1.12.
 
 -------------------------------------------------------------------------------
 Model Relations:

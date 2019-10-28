@@ -378,7 +378,7 @@ int iso_get_rr_name(IsoWriteOpts *opts, char *input_charset,
 
     ret = strconv(str, input_charset, output_charset, name);
     if (ret < 0) {
-        /* TODO we should check for possible cancelation */
+        /* TODO we should check for possible cancellation */
         if (!(flag & 1))
             iso_msg_submit(imgid, ISO_FILENAME_WRONG_CHARSET, ret,
                    "Charset conversion error. Cannot convert %s from %s to %s",
@@ -573,7 +573,7 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
             }
 
             /*
-             * In this case we are sure we're writting to CE. Check for
+             * In this case we are sure we're writing to CE. Check for
              * debug purposes
              */
             if (ce == 0) {
@@ -1249,7 +1249,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                     /* 
                      * ok, we need a Continuation Area anyway
                      * TODO this can be handled better, but for now SL
-                     * will be completelly moved into the CA
+                     * will be completely moved into the CA
                      */
                     if (!(flag & 1)) {
                         free(dest);
@@ -1600,7 +1600,7 @@ void susp_info_free(struct susp_info* susp)
  *      Pointer to the struct susp_info where the entries will be stored.
  *      If some entries need to go to a Continuation Area, they will be added
  *      to the existing ce_susp_fields, and ce_len will be incremented
- *      propertly. Please ensure ce_block is initialized propertly.
+ *      properly. Please ensure ce_block is initialized properly.
  * @return
  *      1 success, < 0 error
  */
@@ -1837,7 +1837,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
                         /* 
                          * ok, we need a Continuation Area anyway
                          * TODO this can be handled better, but for now SL
-                         * will be completelly moved into the CA
+                         * will be completely moved into the CA
                          */
 
                         /* sua_free, ce_len, nm_type already account for CE */
@@ -2201,7 +2201,7 @@ int susp_update_CE_sizes(Ecma119Image *t, struct susp_info *info, int flag)
  * fields are not written.
  * If info does not contain any SUSP entry this function just return. 
  * After written, the info susp_fields array will be freed, and the counters
- * updated propertly.
+ * updated properly.
  */
 void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
                             uint8_t *buf)

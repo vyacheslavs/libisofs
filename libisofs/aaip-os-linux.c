@@ -208,7 +208,7 @@ static int get_single_attr(char *path, char *name, size_t *value_length,
    @param path          Path to the file
    @param num_attrs     Will return the number of name-value pairs
    @param names         Will return an array of pointers to 0-terminated names
-   @param value_lengths Will return an arry with the lenghts of values
+   @param value_lengths Will return an array with the lengths of values
    @param values        Will return an array of pointers to 8-bit values
    @param flag          Bitfield for control purposes
                         bit0=  obtain ACL (access and eventually default)

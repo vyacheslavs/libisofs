@@ -35,7 +35,7 @@ struct dir_iter_data
     IsoNode *pos;
 
     /* Some control flags.
-     * bit 0 -> 1 if next called, 0 reseted at start or on deletion
+     * bit 0 -> 1 if next called, 0 reset at start or on deletion
      */
     int flag;
 };
@@ -49,7 +49,7 @@ void iso_node_ref(IsoNode *node)
 }
 
 /**
- * Decrements the reference couting of the given node.
+ * Decrements the reference counting of the given node.
  * If it reach 0, the node is free, and, if the node is a directory,
  * its children will be unref() too.
  */
@@ -586,7 +586,7 @@ int iso_node_get_hidden(IsoNode *node)
  *     if the dir already contains a node with the same name, whether to
  *     replace or not the old node with this.
  * @return
- *     number of nodes in dir if succes, < 0 otherwise
+ *     number of nodes in dir if success, < 0 otherwise
  */
 int iso_dir_add_node(IsoDir *dir, IsoNode *child,
                      enum iso_replace_mode replace)
@@ -2746,7 +2746,7 @@ int iso_node_cmp_flag(IsoNode *n1, IsoNode *n2, int flag)
     if (n1->type != n2->type)
         return (n1->type < n2->type ? -1 : 1);
 
-    /* Imported or explicite ISO image node id has priority */
+    /* Imported or explicit ISO image node id has priority */
     ret1 = (iso_node_get_id(n1, &fs_id1, &dev_id1, &ino_id1, 1) > 0);
     ret2 = (iso_node_get_id(n2, &fs_id2, &dev_id2, &ino_id2, 1) > 0);
     if (ret1 != ret2)

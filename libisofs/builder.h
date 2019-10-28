@@ -34,7 +34,7 @@ struct Iso_Node_Builder
      * always be created, even if src is another kind of file.
      * 
      * In that case, if the implementation can't do the conversion, it
-     * should fail propertly.
+     * should fail properly.
      * 
      * Note that the src is never unref, so you need to free it.
      * 

@@ -682,7 +682,7 @@ int mangle_single_dir(Ecma119Image *img, Ecma119Node *dir, int max_file_len,
         }
 
         /*
-         * A max of 7 characters is good enought, it allows handling up to
+         * A max of 7 characters is good enough, it allows handling up to
          * 9,999,999 files with same name. We can increment this to
          * max_name_len, but the int_pow() function must then be modified
          * to return a bigger integer.

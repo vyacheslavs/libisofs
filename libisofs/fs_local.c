@@ -50,7 +50,7 @@ typedef struct
     /** reference to the parent (if root it points to itself) */
     IsoFileSource *parent;
     char *name;
-    unsigned int openned :2; /* 0: not openned, 1: file, 2:dir */
+    unsigned int openned :2; /* 0: not opened, 1: file, 2:dir */
     union
     {
         int fd;
@@ -483,7 +483,7 @@ void lfs_free(IsoFileSource *src)
 
     data = src->data;
 
-    /* close the file if it is already openned */
+    /* close the file if it is already opened */
     if (data->openned) {
         src->class->close(src);
     }

@@ -281,7 +281,7 @@ static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
                         bit2= this is a default ACL, prepend SWITCH_MARK
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
-                        bit4= be verbous about failure causes
+                        bit4= be verbose about failure causes
    @return              >0 means ok
                         <=0 means error 
                         -1= out of memory
@@ -364,11 +364,11 @@ static int aaip_make_aaip_perms(int r, int w, int x)
                         bit2= this is a default ACL, prepend SWITCH_MARK 1
                         bit3= check for completeness of list and eventually
                               fill up with entries deduced from st_mode
-                        bit4= be verbous about failure causes
+                        bit4= be verbose about failure causes
    @return              >=0 number of bytes produced resp. counted
                         <0 means error 
                         -1: result size overflow
-                        -2: conversion errror with user name or group name
+                        -2: conversion error with user name or group name
      ISO_AAIP_ACL_MULT_OBJ: multiple entries of user::, group::, other::
 */
 static ssize_t aaip_encode_acl_text(char *acl_text, mode_t st_mode,
@@ -1960,7 +1960,7 @@ int aaip_decode_attrs(struct aaip_state **handle,
    @param handle        The decoding context created by aaip_decode_attrs()
    @param num_attrs     Will return the number of name-value pairs
    @param names         Will return an array of pointers to 0-terminated names
-   @param value_lengths Will return an arry with the lenghts of values
+   @param value_lengths Will return an array with the lengths of values
    @param values        Will return an array of pointers to 8-bit values
    @param flag          Bitfield for control purposes
                         bit15= free memory of names, value_lengths, values

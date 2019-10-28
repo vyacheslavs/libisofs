@@ -79,7 +79,7 @@ Tag_id distinguishes the following tag types
   "libisofs_checksum_tag_v1"            Session tag
 
 A relocated superblock may appear at LBA 0 of an image which was produced for
-being stored in a disk file or on overwriteable media (e.g. DVD+RW, BD-RE).
+being stored in a disk file or on overwritable media (e.g. DVD+RW, BD-RE).
 Typically there is a first session recorded with a superblock at LBA 32 and
 the next session may follow shortly after its session tag. (Typically at the
 next block address which is divisible by 32.) Normally no session starts after 
@@ -131,10 +131,10 @@ checksums as strings of 32 hex digits.
   range_start=
   The block address where the session is supposed to start. If this does not
   match the session start on media then the volume descriptors of the
-  image have been relocated. (This can happen with overwriteable media. If
+  image have been relocated. (This can happen with overwritable media. If
   checksumming started at LBA 0 and finds range_start=32, then one has to
   restart checksumming at LBA 32. See libburn/doc/cookbook.txt
-  "ISO 9660 multi-session emulation on overwriteable media" for background
+  "ISO 9660 multi-session emulation on overwritable media" for background
   information.)
 
   range_size=
@@ -232,7 +232,7 @@ If the media is sequentially recordable, obtain a table of content and check
 the first track of each session as prescribed above in Checking Before Image
 Tree Loading and in Checking the Data Part of the Session.
 
-With disk files or overwriteable media, look for a relocated superblock tag
+With disk files or overwritable media, look for a relocated superblock tag
 but do not hop to address next_tag (given by session_start=). Instead look at
 LBA 32 for the first session and check it as prescribed above.
 After reaching its end, round up the read address to the next multiple of 32

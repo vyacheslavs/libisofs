@@ -123,7 +123,7 @@ Optional:
            |            | Entries
 ---------- | ---------- | ----------------------------------------------------
 
-An architecture is refered by a Platform Id number.
+An architecture is referred by a Platform Id number.
 Defined by El Torito are:
     0 = "80x86" which is used for standard PCs with Intel x86 or compatible CPU
     1 = "PowerPC" (possibly for IBM machines with PowerPC CPU)
@@ -328,7 +328,7 @@ For C/H/S, the sector address is broken up into whole cylinders, remaining
 heads, and remaining sectors + 1. The nomenclature seems to stem from antique
 drum storage.
 There are two parameters, sectors_per_head and heads_per_cylinder which are not
-stored in the MBR. So at ISO production time it is more or less arbitray how
+stored in the MBR. So at ISO production time it is more or less arbitrary how
 to convert a LBA into a C/H/S address and vice versa.
 At boot time the x86 BIOS decides about the two parameters. The boot loader may
 inquire these values by INT 0x13 AH 0x08 and use them to convert LBA to C/H/S
@@ -382,7 +382,7 @@ Byte Range | Value      | Meaning
            |            | Bits 6 to 7 : Bits 8 to 9 of cylinders part.
  453 - 453 |    end_cyl | Lower 8 bits of cylinders part of end address
            |            |
- 454 - 457 |  start_lba | LBA of first absolute sector in partiton. 
+ 454 - 457 |  start_lba | LBA of first absolute sector in partition. 
            |            | Block size is 512. Counting starts at 0.
            |            |
  458 - 461 | num_blocks | Number of sectors in partition.
@@ -739,7 +739,7 @@ Byte Range | Value      | Meaning
   72 - 311 | ========== | Volume Directory with 15 entries of 16 bytes each
            |            |
   72 -  87 | ========== | Volume Directory Entry 1
-  72 -  79 |  boot_name | Boot file basename, eventually padded by 0 to lenght 8
+  72 -  79 |  boot_name | Boot file basename, eventually padded by 0 to length 8
   80 -  83 | boot_block | ISO 9660 LBA of boot file * 4, i.e. in blocks of 512
   84 -  87 | boot_bytes | File length in bytes
            |            |
@@ -1310,7 +1310,7 @@ intentionally non-essential:
    90  90  90  90  90  90  90  90  90  90  90  90  90  90  90  90
 They may be overwritten by other bytes which must not produce errors or
 undesirable side effects when executed as x86 machine code.
-The following 32 bytes from block 0 of an Apple Partiton Map (APM) are such
+The following 32 bytes from block 0 of an Apple Partition Map (APM) are such
 harmless code. They stem from Fedora-LiveCD.iso by Matthew Garrett:
    45  52  08  00  00  00  90  90  00  00  00  00  00  00  00  00
    00  00  00  00  00  00  00  00  00  00  00  00  00  00  00  00

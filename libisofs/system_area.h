@@ -72,7 +72,7 @@ int iso_compute_append_partitions(Ecma119Image *t, int flag);
    in the table. 
    Requested entries with block_count == 0 get expanded to the start of
    the next requested entry resp. to image end, if no entry follows.
-   start_block of a follwing entry must be at least a high as the sum of
+   start_block of a following entry must be at least a high as the sum of
    start_block and block_count of the previous entry.
    Empty requested entries will be represented as 16 bytes of 0.
 */

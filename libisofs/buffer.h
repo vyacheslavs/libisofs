@@ -55,13 +55,13 @@ void iso_ring_buffer_free(IsoRingBuffer *buf);
  * @param
  *      Number of bytes to write
  * @return
- *      1 succes, 0 read finished, < 0 error
+ *      1 success, 0 read finished, < 0 error
  */
 int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count);
 
 /**
  * Read count bytes from the buffer into dest. It blocks until the desired
- * bytes has been read. If the writer finishes before outputting enought
+ * bytes has been read. If the writer finishes before outputting enough
  * bytes, 0 (EOF) is returned, the number of bytes already read remains
  * unknown.
  * 
@@ -94,7 +94,7 @@ int iso_ring_buffer_get_buf_status(IsoRingBuffer *buf, size_t *size,
 
 /** 
  * Close the buffer (to be called by the writer).
- * You have to explicity close the buffer when you don't have more data to
+ * You have to explicitly close the buffer when you don't have more data to
  * write, otherwise reader will be waiting forever.
  * 
  * @param error

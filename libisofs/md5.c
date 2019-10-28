@@ -781,7 +781,7 @@ ex:;
  *               1= session tag (End checksumming.)
  *               2= superblock tag (System Area and Volume Descriptors)
  *               3= tree tag (ECMA-119 and Rock Ridge tree)
- *               4= relocated superblock tag (at LBA 0 of overwriteable media)
+ *               4= relocated superblock tag (at LBA 0 of overwritable media)
  *                  Write to target->opts_overwrite rather than to iso_write().
  */
 int iso_md5_write_tag(Ecma119Image *t, int flag)

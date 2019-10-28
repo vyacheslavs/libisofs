@@ -212,7 +212,7 @@ typedef struct
     unsigned int id;
 
     /**
-     * Counter of the times the filesystem has been openned still pending of
+     * Counter of the times the filesystem has been opened still pending of
      * close. It is used to keep track of when we need to actually open or
      * close the IsoDataSource.
      */
@@ -598,7 +598,7 @@ int read_dir(ImageFileSourceData *data)
         record = (struct ecma119_dir_record *)(buffer + pos);
         if (pos == 2048 || record->len_dr[0] == 0) {
             /*
-             * The directory entries are splitted in several blocks
+             * The directory entries are split in several blocks
              * read next block
              */
             ret = fsdata->src->read_block(fsdata->src, ++block, buffer);
@@ -710,7 +710,7 @@ int ifs_open(IsoFileSource *src)
     }
 
     if (S_ISDIR(data->info.st_mode)) {
-        /* ensure fs is openned */
+        /* ensure fs is opened */
         ret = data->fs->open(data->fs);
         if (ret < 0) {
             return ret;
@@ -719,7 +719,7 @@ int ifs_open(IsoFileSource *src)
         /*
          * Cache all directory entries.
          * This can waste more memory, but improves as disc is read in much more
-         * sequencially way, thus reducing jump between tracks on disc
+         * sequentially way, thus reducing jump between tracks on disc
          */
         ret = read_dir(data);
         data->fs->close(data->fs);
@@ -733,7 +733,7 @@ int ifs_open(IsoFileSource *src)
 
         return ret;
     } else if (S_ISREG(data->info.st_mode)) {
-        /* ensure fs is openned */
+        /* ensure fs is opened */
         ret = data->fs->open(data->fs);
         if (ret < 0) {
             return ret;
@@ -745,7 +745,7 @@ int ifs_open(IsoFileSource *src)
         data->data.offset = 0;
         data->opened = 1;
     } else {
-        /* symlinks and special files inside image can't be openned */
+        /* symlinks and special files inside image can't be opened */
         return ISO_FILE_ERROR;
     }
     return ISO_SUCCESS;
@@ -1108,7 +1108,7 @@ void ifs_free(IsoFileSource *src)
 
     data = src->data;
 
-    /* close the file if it is already openned */
+    /* close the file if it is already opened */
     if (data->opened) {
         src->class->close(src);
     }
@@ -2334,7 +2334,7 @@ void ifs_fs_free(IsoFilesystem *fs)
 
     data = (_ImageFsData*) fs->data;
 
-    /* close data source if already openned */
+    /* close data source if already opened */
     if (data->open_count > 0) {
         data->src->close(data->src);
     }
@@ -2367,7 +2367,7 @@ void ifs_fs_free(IsoFilesystem *fs)
 
 /**
  * Read the SUSP system user entries of the "." entry of the root directory,
- * indentifying when Rock Ridge extensions are being used.
+ * identifying when Rock Ridge extensions are being used.
  *
  * @return
  *      1 success, 0 ignored, < 0 error
@@ -2984,7 +2984,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
             }
             break;
         case 2:
-            /* suplementary volume descritor */
+            /* supplementary volume descritor */
             {
                 struct ecma119_sup_vol_desc *sup;
                 struct ecma119_dir_record *root;

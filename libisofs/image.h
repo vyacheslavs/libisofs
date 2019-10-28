@@ -30,7 +30,7 @@
  * Image is a context for image manipulation.
  * Global objects such as the message_queues must belogn to that
  * context. Thus we will have, for example, a msg queue per image,
- * so images are completelly independent and can be managed together.
+ * so images are completely independent and can be managed together.
  * (Useful, for example, in Multiple-Document-Interface GUI apps.
  * [The stuff we have in init belongs really to image!]
  */

@@ -571,7 +571,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
             return ISO_WRONG_ARG_VALUE;
         }
         if (catname == catdir) {
-            /* we are apending catalog to root node */
+            /* we are appending catalog to root node */
             parent = image->root;
         } else {
             IsoNode *p;

@@ -119,7 +119,7 @@ int iso_lib_is_compatible(int major, int minor, int micro);
  * Usage discussion:
  *
  * Some developers of the libburnia project have differing opinions how to
- * ensure the compatibility of libaries and applications.
+ * ensure the compatibility of libraries and applications.
  *
  * It is about whether to use at compile time and at runtime the version
  * numbers provided here. Thomas Schmitt advises to use them. Vreixo Formoso
@@ -319,7 +319,7 @@ enum IsoHideNodeFlag {
      *                            not visible in any tree.
      *  With directory nodes    : Write data content of IsoNode and IsoBoot
      *                            in the directory's tree unless they are
-     *                            explicitely marked LIBISO_HIDE_ON_RR
+     *                            explicitly marked LIBISO_HIDE_ON_RR
      *                            without LIBISO_HIDE_BUT_WRITE.
      *  @since 0.6.34
      */
@@ -338,7 +338,7 @@ enum eltorito_boot_media_type {
 };
 
 /**
- * Replace mode used when addding a node to a directory.
+ * Replace mode used when adding a node to a directory.
  * This controls how libisofs will act when you tried to add to a dir a file
  * with the same name that an existing file.
  *
@@ -452,7 +452,7 @@ struct iso_data_source
      * @return
      *      1 if success,
      *    < 0 if error. This function has to emit a valid libisofs error code.
-     *        Predifined (but not mandatory) for this purpose are:
+     *        Predefined (but not mandatory) for this purpose are:
      *          ISO_DATA_SOURCE_SORRY ,   ISO_DATA_SOURCE_MISHAP,
      *          ISO_DATA_SOURCE_FAILURE , ISO_DATA_SOURCE_FATAL
      */
@@ -593,9 +593,9 @@ struct iso_filesystem
     unsigned int (*get_id)(IsoFilesystem *fs);
 
     /**
-     * Opens the filesystem for several read operations. Calling this funcion
+     * Opens the filesystem for several read operations. Calling this function
      * is not needed at all, each time that the underlying system resource
-     * needs to be accessed, it is openned propertly.
+     * needs to be accessed, it is opened property.
      * However, if you plan to execute several operations on the filesystem,
      * it is a good idea to open it previously, to prevent several open/close
      * operations to occur.
@@ -727,7 +727,7 @@ struct IsoFileSource_Iface
     int (*open)(IsoFileSource *src);
 
     /**
-     * Close a previuously openned file
+     * Close a previously opened file
      * @return 1 on success, < 0 on error
      *      Error codes:
      *         ISO_FILE_ERROR
@@ -809,7 +809,7 @@ struct IsoFileSource_Iface
 
     /**
      * Get the filesystem for this source. No extra ref is added, so you
-     * musn't unref the IsoFilesystem.
+     * must not unref the IsoFilesystem.
      *
      * @return
      *     The filesystem, NULL on error
@@ -1523,7 +1523,7 @@ int iso_write_opts_set_hfsp_serial_number(IsoWriteOpts *opts,
  * @param opts
  *      The option set to be manipulated.
  * @param hfsp_block_size
- *      The allocation block size to be used by the HFS+ fileystem.
+ *      The allocation block size to be used by the HFS+ filesystem.
  *      0, 512, or 2048
  * @param apm_block_size
  *      The block size to be used for and within the Apple Partition Map.
@@ -1553,7 +1553,7 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
  * Control generation of non-unique inode numbers for the emerging image.
  * Inode numbers get written as "file serial number" with PX entries as of
  * RRIP-1.12. They may mark families of hardlinks.
- * RRIP-1.10 prescribes a PX entry without file serial number. If not overriden
+ * RRIP-1.10 prescribes a PX entry without file serial number.If not overridden
  * by iso_write_opts_set_rrip_1_10_px_ino() there will be no file serial number
  * written into RRIP-1.10 images.
  *
@@ -1582,7 +1582,7 @@ int iso_write_opts_set_iso1999(IsoWriteOpts *opts, int enable);
 int iso_write_opts_set_hardlinks(IsoWriteOpts *opts, int enable);
 
 /**
- * Control writing of AAIP informations for ACL and xattr.
+ * Control writing of AAIP information for ACL and xattr.
  * For importing ACL and xattr when inserting nodes from external filesystems
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
  * For loading of this information from images see iso_read_opts_set_no_aaip().
@@ -1794,7 +1794,7 @@ int iso_write_opts_set_allow_7bit_ascii(IsoWriteOpts *opts, int allow);
 
 /**
  * Allow all characters to be part of Volume and Volset identifiers on
- * the Primary Volume Descriptor. This breaks ISO-9660 contraints, but
+ * the Primary Volume Descriptor. This breaks ISO-9660 constraints, but
  * should work on modern systems.
  *
  * @since 0.6.2
@@ -2124,7 +2124,7 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
 
 /**
  * Sets the buffer where to store the descriptors which shall be written
- * at the beginning of an overwriteable media to point to the newly written
+ * at the beginning of an overwritable media to point to the newly written
  * image.
  * This is needed if the write start address of the image is not 0.
  * In this case the first 64 KiB of the media have to be overwritten
@@ -2144,15 +2144,15 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
  *   This allows appending of a new session to non-multisession media, such
  *   as DVD+RW. The new session will refer to the data of previous sessions
  *   on the same media.
- *   libisoburn emulates multisession appendability on overwriteable media
+ *   libisoburn emulates multisession appendability on overwritable media
  *   and disk files by performing this use case.
  *
  * - Together with iso_write_opts_set_appendable(opts, 0) the buffer allows
- *   to write the first session on overwriteable media to start addresses
+ *   to write the first session on overwritable media to start addresses
  *   other than 0.
  *   This address must not be smaller than 32 blocks plus the eventual
  *   partition offset as defined by iso_write_opts_set_part_offset().
- *   libisoburn in most cases writes the first session on overwriteable media
+ *   libisoburn in most cases writes the first session on overwritable media
  *   and disk files to LBA (32 + partition_offset) in order to preserve its
  *   descriptors from the subsequent overwriting by the descriptor buffer of
  *   later sessions.
@@ -2162,10 +2162,10 @@ int iso_write_opts_set_ms_block(IsoWriteOpts *opts, uint32_t ms_block);
  * @param overwrite
  *      When not NULL, it should point to at least 64KiB of memory, where
  *      libisofs will install the contents that shall be written at the
- *      beginning of overwriteable media.
+ *      beginning of overwritable media.
  *      You should initialize the buffer either with 0s, or with the contents
  *      of the first 32 blocks of the image you are growing. In most cases,
- *      0 is good enought.
+ *      0 is good enough.
  *      IMPORTANT: If you use iso_write_opts_set_part_offset() then the
  *                 overwrite buffer must be larger by the offset defined there.
  *
@@ -2310,7 +2310,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
 int iso_write_opts_set_disc_label(IsoWriteOpts *opts, char *label);
 
 /**
- * Explicitely set the four timestamps of the emerging Primary Volume
+ * Explicitly set the four timestamps of the emerging Primary Volume
  * Descriptor and in the volume descriptors of Joliet and ISO 9660:1999,
  * if those are to be generated.
  * Default with all parameters is 0.
@@ -2641,7 +2641,7 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
  * Control whether the emerging GPT gets a pseudo-randomly generated disk GUID
  * or whether it gets a user supplied GUID.
  * The partition GUIDs will be generated in a reproducible way by exoring the
- * little-endian 32 bit partion number with the disk GUID beginning at byte
+ * little-endian 32 bit partition number with the disk GUID beginning at byte
  * offset 9.
  *
  * @param opts
@@ -2995,7 +2995,7 @@ int iso_read_opts_set_no_joliet(IsoReadOpts *opts, int nojoliet);
 int iso_read_opts_set_no_iso1999(IsoReadOpts *opts, int noiso1999);
 
 /**
- * Control reading of AAIP informations about ACL and xattr when loading
+ * Control reading of AAIP information about ACL and xattr when loading
  * existing images.
  * For importing ACL and xattr when inserting nodes from external filesystems
  * (e.g. the local POSIX filesystem) see iso_image_set_ignore_aclea().
@@ -3266,7 +3266,7 @@ int iso_read_image_features_has_eltorito(IsoReadImageFeatures *f);
 void iso_image_ref(IsoImage *image);
 
 /**
- * Decrements the reference couting of the given image.
+ * Decrements the reference counting of the given image.
  * If it reaches 0, the image is free, together with its tree nodes (whether
  * their refcount reach 0 too, of course).
  *
@@ -3289,7 +3289,7 @@ void iso_image_unref(IsoImage *image);
  *      any more. It receives the data pointer as an argumente, and eventually
  *      causes data to be freed. It can be NULL if you don't need it.
  * @return
- *      1 on succes, < 0 on error
+ *      1 on success, < 0 on error
  *
  * @since 0.6.2
  */
@@ -4878,7 +4878,7 @@ int iso_node_get_xinfo(IsoNode *node, iso_node_xinfo_func proc, void **data);
 
 /**
  * Get the next pair of function pointer and data of an iteration of the
- * list of extended informations. Like:
+ * list of extended information. Like:
  *     iso_node_xinfo_func proc;
  *     void *handle = NULL, *data; 
  *     while (iso_node_get_next_xinfo(node, &handle, &proc, &data) == 1) {
@@ -5199,7 +5199,7 @@ int iso_node_cmp_ino(IsoNode *n1, IsoNode *n2, int flag);
  *     if the dir already contains a node with the same name, whether to
  *     replace or not the old node with this.
  * @return
- *     number of nodes in dir if succes, < 0 otherwise
+ *     number of nodes in dir if success, < 0 otherwise
  *     Possible errors:
  *         ISO_NULL_POINTER, if dir or child are NULL
  *         ISO_NODE_ALREADY_ADDED, if child is already added to other dir
@@ -5328,7 +5328,7 @@ IsoDir *iso_node_get_parent(IsoNode *node);
  *
  * You can iterate over the children with iso_dir_iter_next. When finished,
  * you should free the iterator with iso_dir_iter_free.
- * You musn't delete a child of the same dir, using iso_node_take() or
+ * You must not delete a child of the same dir, using iso_node_take() or
  * iso_node_remove(), while you're using the iterator. You can use
  * iso_dir_iter_take() or iso_dir_iter_remove() instead.
  *
@@ -5403,7 +5403,7 @@ void iso_dir_iter_free(IsoDirIter *iter);
  * them is not allowed and you will get an ISO_ERROR in second call.
  *
  * @return
- *     1 on succes, < 0 error
+ *     1 on success, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if iter is NULL
  *         ISO_ERROR, on wrong iter usage, for example by call this before
@@ -5422,7 +5422,7 @@ int iso_dir_iter_take(IsoDirIter *iter);
  * iso_dir_iter_next between the calls.
  *
  * @return
- *     1 on succes, < 0 error
+ *     1 on success, < 0 error
  *     Possible errors:
  *         ISO_NULL_POINTER, if iter is NULL
  *         ISO_ERROR, on wrong iter usage, for example by calling this before
@@ -5789,7 +5789,7 @@ int iso_node_get_old_image_lba(IsoNode *node, uint32_t *lba, int flag);
  *      fails with ISO_NODE_NAME_NOT_UNIQUE.
  * @param dir
  *      place where to store a pointer to the newly created dir. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      ref is added, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer.
  * @return
@@ -5850,7 +5850,7 @@ int iso_tree_add_new_dir(IsoDir *parent, const char *name, IsoDir **dir);
  *      if you need it.
  * @param file
  *      place where to store a pointer to the newly created file. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      ref is added, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer
  * @return
@@ -5931,7 +5931,7 @@ int iso_memory_stream_new(unsigned char *buf, size_t size, IsoStream **stream);
  *      not checked for being oversized.
  * @param link
  *      Place where to store a pointer to the newly created link. No extra
- *      ref is addded, so you will need to call iso_node_ref() if you really
+ *      ref is added, so you will need to call iso_node_ref() if you really
  *      need it. You can pass NULL in this parameter if you don't need the
  *      pointer
  * @return
@@ -5981,7 +5981,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  * Add a new special file to the directory tree. As far as libisofs concerns,
  * a special file is a block device, a character device, a FIFO (named pipe)
  * or a socket. You can choose the specific kind of file you want to add
- * by setting mode propertly (see man 2 stat).
+ * by setting mode properly (see man 2 stat).
  *
  * Note that special files are only written to image when Rock Ridge
  * extensions are enabled. Moreover, a special file is just a directory entry
@@ -6007,7 +6007,7 @@ int iso_tree_add_new_symlink(IsoDir *parent, const char *name,
  *      Device ID, equivalent to the st_rdev field in man 2 stat.
  * @param special
  *      Place where to store a pointer to the newly created special file. No
- *      extra ref is addded, so you will need to call iso_node_ref() if you
+ *      extra ref is added, so you will need to call iso_node_ref() if you
  *      really need it. You can pass NULL in this parameter if you don't need
  *      the pointer.
  * @return
@@ -6239,7 +6239,7 @@ void iso_tree_set_report_callback(IsoImage *image,
  *      Its directory path depends on the parent node.
  * @param node
  *      place where to store a pointer to the newly added file. No
- *      extra ref is addded, so you will need to call iso_node_ref() if you
+ *      extra ref is added, so you will need to call iso_node_ref() if you
  *      really need it. You can pass NULL in this parameter if you don't need
  *      the pointer.
  * @return
@@ -6274,7 +6274,7 @@ int iso_tree_add_node(IsoImage *image, IsoDir *parent, const char *path,
  *      The absolute path of the file in the local filesystem.
  * @param node
  *      place where to store a pointer to the newly added file. No
- *      extra ref is addded, so you will need to call iso_node_ref() if you
+ *      extra ref is added, so you will need to call iso_node_ref() if you
  *      really need it. You can pass NULL in this parameter if you don't need
  *      the pointer.
  * @return
@@ -6313,7 +6313,7 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
  *      byte offset to the end of the file in the local filesystem.
  * @param node
  *      place where to store a pointer to the newly added file. No
- *      extra ref is addded, so you will need to call iso_node_ref() if you
+ *      extra ref is added, so you will need to call iso_node_ref() if you
  *      really need it. You can pass NULL in this parameter if you don't need
  *      the pointer.
  * @return
@@ -6442,7 +6442,7 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
 
 /**
  * Inquire whether some local filesystem xattr namespace could not be explored
- * during node building. This may happen due to lack of adminstrator privileges
+ * during node building.This may happen due to lack of administrator privileges
  * e.g. on FreeBSD namespace "system".
  * It may well be that the processed local files have no attributes which
  * would require special privileges. But already their existence was neither
@@ -6455,7 +6455,7 @@ int iso_tree_add_dir_rec(IsoImage *image, IsoDir *parent, const char *dir);
  *      bit0 = reset internal value to 0
  * @return
  *      1 = Exploration was prevented
- *      0 = No such prevention occured
+ *      0 = No such prevention occurred
  *
  * @since 1.5.0
  */
@@ -6715,7 +6715,7 @@ int iso_sev_to_text(int severity_number, char **severity_name);
 /**
  * Get the id of an IsoImage, used for message reporting. This message id,
  * retrieved with iso_obtain_msgs(), can be used to distinguish what
- * IsoImage has isssued a given message.
+ * IsoImage has issued a given message.
  *
  * @since 0.6.2
  */
@@ -6903,7 +6903,7 @@ int iso_file_source_stat(IsoFileSource *src, struct stat *info);
 int iso_file_source_open(IsoFileSource *src);
 
 /**
- * Close a previuously openned file
+ * Close a previously opened file
  * @return 1 on success, < 0 on error
  *      Error codes:
  *         ISO_FILE_ERROR
@@ -6959,7 +6959,7 @@ int iso_file_source_read(IsoFileSource *src, void *buf, size_t count);
  *      2 The offset is set to the size of the file plus offset bytes
  *        (SEEK_END).
  * @return
- *      Absolute offset posistion on the file, or < 0 on error. Cast the
+ *      Absolute offset position on the file, or < 0 on error. Cast the
  *      returning value to int to get a valid libisofs error.
  * @since 0.6.4
  */
@@ -7051,7 +7051,7 @@ int iso_file_source_get_aa_string(IsoFileSource *src,
 
 /**
  * Get the filesystem for this source. No extra ref is added, so you
- * musn't unref the IsoFilesystem.
+ * must not unref the IsoFilesystem.
  *
  * @return
  *     The filesystem, NULL on error
@@ -7083,7 +7083,7 @@ void iso_filesystem_unref(IsoFilesystem *fs);
  * @param opts
  *      Image read options
  * @param msgid
- *      An image identifer, obtained with iso_image_get_msg_id(), used to
+ *      An image identifier, obtained with iso_image_get_msg_id(), used to
  *      associated messages issued by the filesystem implementation with an
  *      existent image. If you are not using this filesystem in relation with
  *      any image context, just use 0x1fffff as the value for this parameter.
@@ -7198,7 +7198,7 @@ void iso_stream_unref(IsoStream *stream);
 int iso_stream_open(IsoStream *stream);
 
 /**
- * Close a previously openned IsoStream.
+ * Close a previously opened IsoStream.
  *
  * @return
  *      1 on success, < 0 on error
@@ -7421,7 +7421,7 @@ int iso_node_get_acl_text(IsoNode *node,
  *      bit1=  Ignore text parameters but rather update the "access" ACL
  *             to the stat(2) permissions of node. If no "access" ACL exists,
  *             then do nothing and return success.
- *      bit2=  Be verbous about failure causes.
+ *      bit2=  Be verbose about failure causes.
  *             @since 1.5.2
  * @return
  *      > 0 success
@@ -8198,7 +8198,7 @@ int iso_file_make_md5(IsoFile *file, int flag);
  *      1= session tag
  *      2= superblock tag
  *      3= tree tag
- *      4= relocated 64 kB superblock tag (at LBA 0 of overwriteable media)
+ *      4= relocated 64 kB superblock tag (at LBA 0 of overwritable media)
  * @param pos
  *      Returns the LBA where the tag supposes itself to be stored.
  *      If this does not match the data block LBA then the tag might be
@@ -8606,7 +8606,7 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** The file does not exist in the filesystem (FAILURE,HIGH, -132) */
 #define ISO_FILE_DOESNT_EXIST           0xE830FF7C
 
-/** Trying to read or close a file not openned (FAILURE,HIGH, -133) */
+/** Trying to read or close a file not opened (FAILURE,HIGH, -133) */
 #define ISO_FILE_NOT_OPENED             0xE830FF7B
 
 /* @deprecated use ISO_FILE_NOT_OPENED instead */

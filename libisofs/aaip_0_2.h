@@ -199,7 +199,7 @@ int aaip_get_acl_text(char *path, char **text, int flag);
    @param path          Path to the file
    @param num_attrs     Will return the number of name-value pairs
    @param names         Will return an array of pointers to 0-terminated names
-   @param value_lengths Will return an arry with the lenghts of values
+   @param value_lengths Will return an array with the lengths of values
    @param values        Will return an array of pointers to 8-bit values
    @param flag          Bitfield for control purposes
                         bit0=  obtain ACLs (access and eventually default) via
@@ -435,7 +435,7 @@ int aaip_decode_attrs(struct aaip_state **handle,
    @param handle        The decoding context created by aaip_decode_attrs()
    @param num_attrs     Will return the number of name-value pairs
    @param names         Will return an array of pointers to 0-terminated names
-   @param value_lengths Will return an arry with the lenghts of values
+   @param value_lengths Will return an array with the lengths of values
    @param values        Will return an array of pointers to 8-bit values
    @param flag          Bitfield for control purposes
                         bit15= free memory of names, value_lengths, values

@@ -55,7 +55,7 @@ int iso_init_locale(int flag);
  * @param ocharset
  *      Output charset. Must be supported by iconv
  * @param output
- *      Location where the pointer to the ouput string will be stored
+ *      Location where the pointer to the output string will be stored
  * @return
  *      1 on success, < 0 on error
  */
@@ -80,7 +80,7 @@ int strnconvl(const char *str, const char *icharset, const char *ocharset,
  * @param input
  *      Input string
  * @param output
- *      Location where the pointer to the ouput string will be stored
+ *      Location where the pointer to the output string will be stored
  * @return
  *      1 on success, < 0 on error
  */
@@ -95,7 +95,7 @@ int str2ascii(const char *icharset, const char *input, char **output);
  * @param input
  *      Input string
  * @param output
- *      Location where the pointer to the ouput string will be stored
+ *      Location where the pointer to the output string will be stored
  * @return
  *      1 on success, < 0 on error
  */
@@ -111,7 +111,7 @@ int str2ucs(const char *icharset, const char *input, uint16_t **output);
  * @param input
  *      Input string
  * @param output
- *      Location where the pointer to the ouput string will be stored
+ *      Location where the pointer to the output string will be stored
  * @return
  *      1 on success, < 0 on error
  */
@@ -258,7 +258,7 @@ void iso_handle_split_utf16(uint16_t *utf_word);
 /**
  * Convert a given input string to d-chars.
  * @return
- *      1 on succes, < 0 error, 0 if input was null (output is set to null)
+ *      1 on success, < 0 error, 0 if input was null (output is set to null)
  */
 int str2d_char(const char *icharset, const char *input, char **output);
 int str2a_char(const char *icharset, const char *input, char **output);
@@ -400,7 +400,7 @@ size_t iso_rbtree_get_size(IsoRBTree *tree);
  *    without counting the final NULL item.
  * @return
  *    A sorted array with the contents of the tree, or NULL if there is not
- *    enought memory to allocate the array. You should free(3) the array when
+ *    enough memory to allocate the array. You should free(3) the array when
  *    no more needed. Note that the array is NULL-terminated, and thus it
  *    has size + 1 length.
  */
@@ -646,7 +646,7 @@ int iso_clone_mgtd_mem(char *in, char **out, size_t size);
     (Also accepts capital letters.)
     @param text Input like "42", "223062s", "3m" or "-1g"
     @param flag Bitfield for control purposes:
-                bit0= return -1 rathern than 0 on failure
+                bit0= return -1 rather than 0 on failure
                 bit1= if scaled then compute the last byte of the last unit
     @return The derived value
 */

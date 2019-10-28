@@ -283,7 +283,7 @@ cmp_node(const void *f1, const void *f2)
     /**
      * TODO #00027 Follow ISO 9660:1999 specs when sorting files
      * strcmp do not does exactly what ISO 9660:1999, 9.3, as characters
-     * < 0x20 " " are allowed, so name len must be taken into accout
+     * < 0x20 " " are allowed, so name len must be taken into account
      */
     return strcmp(f->name, g->name);
 }
@@ -358,7 +358,7 @@ int mangle_single_dir(Ecma119Image *img, Iso1999Node *dir)
         }
 
         /*
-         * A max of 7 characters is good enought, it allows handling up to
+         * A max of 7 characters is good enough, it allows handling up to
          * 9,999,999 files with same name.
          */
         while (digits < 8) {
@@ -919,7 +919,7 @@ int write_path_table(Ecma119Image *t, Iso1999Node **pathlist, int l_type)
     int ret= ISO_SUCCESS;
     uint8_t *zeros = NULL;
 
-    /* 256 is just a convenient size large enought */
+    /* 256 is just a convenient size large enough */
     LIBISO_ALLOC_MEM(buf, uint8_t, 256);
 
     path_table_size = 0;

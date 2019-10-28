@@ -33,7 +33,7 @@
 #define MAX_ISO_FILE_SECTION_SIZE   0xffffffff
 
 /*
- * When a file need to be splitted in several sections, the maximum size
+ * When a file need to be split in several sections, the maximum size
  * of such sections, but the last one. Set to a multiple of BLOCK_SIZE.
  * Default to 4GB - 2048 = 0xFFFFF800
  */
@@ -88,7 +88,7 @@
 
 
 /* How many warnings to issue about writing Joliet names which cannot be
-   properly represented in UCS-2 and thus had to be defaultet to '_'.
+   properly represented in UCS-2 and thus had to be defaulted to '_'.
 */
 #define ISO_JOLIET_UCS2_WARN_MAX 3
 
@@ -111,7 +111,7 @@ struct iso_write_opts {
 
     unsigned int aaip :1; /* whether to write eventual ACL and EAs */
 
-    /* allways write timestamps in GMT */
+    /* always write timestamps in GMT */
     unsigned int always_gmt :1;
 
     /*
@@ -183,7 +183,7 @@ struct iso_write_opts {
 
     /**
      * Allow all characters to be part of Volume and Volset identifiers on
-     * the Primary Volume Descriptor. This breaks ISO-9660 contraints, but
+     * the Primary Volume Descriptor. This breaks ISO-9660 constraints, but
      * should work on modern systems.
      */
     unsigned int relaxed_vol_atts :1;
@@ -287,7 +287,7 @@ struct iso_write_opts {
     /**
      * The following options set the default values for files and directory
      * permissions, gid and uid. All these take one of three values: 0, 1 or 2.
-     * If 0, the corresponding attribute will be kept as setted in the IsoNode.
+     * If 0, the corresponding attribute will be kept as set in the IsoNode.
      * Unless you have changed it, it corresponds to the value on disc, so it
      * is suitable for backup purposes. If set to 1, the corresponding attrib.
      * will be changed by a default suitable value. Finally, if you set it to
@@ -349,7 +349,7 @@ struct iso_write_opts {
      * or write to an .iso file for future burning or distribution.
      *
      * On the other side, an appendable image is not self contained, it refers
-     * to serveral files that are stored outside the image. Its usage is for
+     * to several files that are stored outside the image. Its usage is for
      * multisession discs, where you add data in a new session, while the
      * previous session data can still be accessed. In those cases, the old
      * data is not written again. Instead, the new image refers to it, and thus
@@ -381,7 +381,7 @@ struct iso_write_opts {
     /**
      * When not NULL, it should point to a buffer of at least 64KiB, where
      * libisofs will write the contents that should be written at the beginning
-     * of a overwriteable media, to grow the image. The growing of an image is
+     * of a overwritable media, to grow the image. The growing of an image is
      * a way, used by first time in growisofs by Andy Polyakov, to allow the
      * appending of new data to non-multisession media, such as DVD+RW, in the
      * same way you append a new session to a multisession disc, i.e., without
@@ -393,7 +393,7 @@ struct iso_write_opts {
      *
      * You should initialize the buffer either with 0s, or with the contents of
      * the first blocks of the image you're growing. In most cases, 0 is good
-     * enought.
+     * enough.
      */
     uint8_t *overwrite;
 

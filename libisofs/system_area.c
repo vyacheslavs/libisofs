@@ -2075,7 +2075,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 
             /* >>> ??? Do this in any case of  t->gpt_req_count > ? */;
 
-            /* Re-write partion entry 1 : protective MBR for GPT */
+            /* Re-write partition entry 1 : protective MBR for GPT */
             part_type = 0xee;
             risk_of_ee = 1;
             ret = write_mbr_partition_entry(1, part_type,

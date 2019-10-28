@@ -160,7 +160,7 @@ int iso_init_with_flag(int flag)
     If everything matches, then it produces no C code. In case of mismatch,
     intentionally faulty C code will be inserted.
  */ 
- /* The indendation is an advise of man gcc to help old compilers ignoring */
+ /* The indentation is an advise of man gcc to help old compilers ignoring */
  #if iso_libjte_req_major > LIBJTE_VERSION_MAJOR
  #define Libisofs_libjte_dot_h_too_olD 1
  #endif

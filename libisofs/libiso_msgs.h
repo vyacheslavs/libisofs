@@ -2,7 +2,12 @@
 /* libiso_msgs   (generated from libdax_msgs : Fri Feb 22 19:42:52 CET 2008)
    Message handling facility of libisofs.
    Copyright (C) 2006-2016 Thomas Schmitt <scdbackup@gmx.net>,
-   provided under GPL version 2 or later
+
+   This file is part of the libisofs project; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License version 2
+   or later as published by the Free Software Foundation.
+   See COPYING file for details.
+
 */
 
 
@@ -422,7 +427,7 @@ Range "elmom"              :  0x00010000 to 0x0001ffff
 ------------------------------------------------------------------------------
 Range "scdbackup"          :  0x00020000 to 0x0002ffff
 
- Acessing and defending drives:
+ Accessing and defending drives:
 
  0x00020001 (SORRY,LOW)    = Cannot open busy device
  0x00020002 (SORRY,HIGH)   = Encountered error when closing drive
@@ -554,11 +559,11 @@ Range "vreixo"              :  0x00030000 to 0x0003ffff
  0x0003ffbc (FAILURE,HIGH) = Image already bootable
  0x0003ffbb (FAILURE,HIGH) = Trying to use an invalid file as boot image
  0x0003ff80 (FAILURE,HIGH) = Error on file operation
- 0x0003ff7f (FAILURE,HIGH) = Trying to open an already openned file
+ 0x0003ff7f (FAILURE,HIGH) = Trying to open an already opened file
  0x0003ff7e (FAILURE,HIGH) = Access to file is not allowed
  0x0003ff7d (FAILURE,HIGH) = Incorrect path to file
  0x0003ff7c (FAILURE,HIGH) = The file does not exist in the filesystem
- 0x0003ff7b (FAILURE,HIGH) = Trying to read or close a file not openned
+ 0x0003ff7b (FAILURE,HIGH) = Trying to read or close a file not opened
  0x0003ff7a (FAILURE,HIGH) = Directory used where no dir is expected
  0x0003ff79 (FAILURE,HIGH) = File read error
  0x0003ff78 (FAILURE,HIGH) = Not dir used where a dir is expected
@@ -609,7 +614,7 @@ X 0x00030203 (HINT,MEDIUM)   = Unsupported El-Torito feature
 X 0x00030204 (SORRY,HIGH)    = Invalid file to be an El-Torito image
 X 0x00030205 (WARNING,MEDIUM)= Cannot properly patch isolinux image
 X 0x00030206 (WARNING,MEDIUM)= Copying El-Torito from a previous image without
-X                              enought info about it
+X                              enough info about it
 X 0x00030301 (NOTE,MEDIUM)   = Unsupported file type for Joliet tree
 
 

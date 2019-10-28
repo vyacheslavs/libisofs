@@ -65,7 +65,7 @@ int get_next(struct find_iter_data *iter, IsoNode **n)
             iter->itersec = NULL;
         }
         if (ret != 0) {
-            /* succes or error */
+            /* success or error */
             return ret;
         }
     }

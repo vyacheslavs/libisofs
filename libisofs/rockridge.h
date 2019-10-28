@@ -219,7 +219,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
  *      Pointer to the struct susp_info where the entries will be stored.
  *      If some entries need to go to a Continuation Area, they will be added
  *      to the existing ce_susp_fields, and ce_len will be incremented
- *      propertly. Please ensure ce_block is initialized propertly.
+ *      properly. Please ensure ce_block is initialized properly.
  * @return
  *      1 success, < 0 error
  */
@@ -231,7 +231,7 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
  * fields are not written.
  * If info does not contain any SUSP entry this function just return. 
  * After written, the info susp_fields array will be freed, and the counters
- * updated propertly.
+ * updated properly.
  */
 void rrip_write_susp_fields(Ecma119Image *t, struct susp_info *info,
                             uint8_t *buf);

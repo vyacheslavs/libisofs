@@ -37,7 +37,7 @@ void iso_stream_get_file_name(IsoStream *stream, char *name);
 /**
  * Create a stream to read from a IsoFileSource.
  * The stream will take the ref. to the IsoFileSource, so after a successfully
- * exectution of this function, you musn't unref() the source, unless you
+ * execution of this function, you must not unref() the source, unless you
  * take an extra ref.
  *
  * @return
