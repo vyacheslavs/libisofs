@@ -477,7 +477,7 @@ struct iso_write_opts {
     int efi_boot_part_flag;
 
     /* Disk file paths of prepared images which shall be appended
-       after the ISO image and described by partiton table entries in a MBR.
+       after the ISO image and described by partition table entries in a MBR.
        NULL means unused.
     */
     char *appended_partitions[ISO_MAX_PARTITIONS]; 

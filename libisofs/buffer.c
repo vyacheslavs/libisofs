@@ -196,7 +196,7 @@ int iso_ring_buffer_write(IsoRingBuffer *buf, uint8_t *data, size_t count)
 
 /**
  * Read count bytes from the buffer into dest. It blocks until the desired
- * bytes has been read. If the writer finishes before outputting enought
+ * bytes has been read. If the writer finishes before outputting enough
  * bytes, 0 (EOF) is returned, the number of bytes already read remains
  * unknown.
  *

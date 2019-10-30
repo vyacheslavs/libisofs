@@ -3856,7 +3856,7 @@ int el_torito_get_boot_media_type(ElToritoBootImage *bootimg,
  * 
  * The Platform ID gets written into the boot catalog at byte 1 of the
  * Validation Entry, or at byte 1 of a Section Header Entry.
- * If Platform ID and ID String of two consequtive bootimages are the same
+ * If Platform ID and ID String of two consecutive bootimages are the same
  *
  * @param bootimg
  *      The image to manipulate.
@@ -4769,7 +4769,7 @@ int iso_image_get_alpha_boot(IsoImage *img, char **boot_loader_path);
 void iso_node_ref(IsoNode *node);
 
 /**
- * Decrements the reference couting of the given node.
+ * Decrements the reference counting of the given node.
  * If it reach 0, the node is free, and, if the node is a directory,
  * its children will be unref() too.
  *
@@ -6148,7 +6148,7 @@ int iso_tree_get_ignore_special(IsoImage *image);
  *
  * the directory /home/user/data/private won't be added to image.
  *
- * However, if you explicity add a deeper dir, it won't be excluded. i.e.,
+ * However, if you explicitly add a deeper dir, it won't be excluded. i.e.,
  * in the following example.
  *
  *   iso_tree_add_exclude(image, "/home/user/data");

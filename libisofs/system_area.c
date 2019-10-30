@@ -2085,7 +2085,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
             if (ret < 0)
                 return ret;
         } else if (t->opts->partition_offset == 0) {
-            /* Re-write partion entry 1 : start at 0, type Linux */
+            /* Re-write partition entry 1 : start at 0, type Linux */
             blk = ((uint64_t) img_blocks) * 4 - t->post_iso_part_pad / 512;
             part_type = 0x83;
             if (t->opts->iso_mbr_part_type >= 0 &&
