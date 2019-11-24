@@ -2393,7 +2393,7 @@ int iso_write_opts_set_part_offset(IsoWriteOpts *opts,
     tests. It can be prevented by ./configure option --disable-libjte .
     @since 0.6.38
 */
-#define iso_libjte_req_major 1
+#define iso_libjte_req_major 2
 #define iso_libjte_req_minor 0
 #define iso_libjte_req_micro 0
 

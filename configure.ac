@@ -50,11 +50,11 @@ AC_SUBST(LIBISOFS_MICRO_VERSION)
 AC_SUBST(LIBISOFS_VERSION)
 
 dnl Libtool versioning
-LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
-# 2019.10.24 development jump has not yet happened
-# SONAME = 94 - 88 = 6 . Library name = libisofs.6.88.0
-LT_CURRENT=94
-LT_AGE=88
+dnl LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
+dnl 2019.11.23 development jump has happened
+dnl SONAME = 95 - 89 = 6 . Library name = libisofs.6.89.0
+LT_CURRENT=95
+LT_AGE=89
 LT_REVISION=0
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
@@ -307,11 +307,11 @@ AC_SUBST(ZLIB_DEF)
 
 dnl ts B00927
 AC_ARG_ENABLE(libjte,
-[  --enable-libjte           Enable use of libjte by libisofs, default=yes],
+[  --enable-libjte           Enable use of libjte >= 2.0 by libisofs, default=yes],
                , enable_libjte=yes)
 if test "x$enable_libjte" = xyes; then
     LIBJTE_DEF="-DLibisofs_with_libjtE"
-    AC_CHECK_HEADER(libjte/libjte.h, AC_CHECK_LIB(jte, libjte_new, , LIBJTE_DEF= ), LIBJTE_DEF= )
+    AC_CHECK_HEADER(libjte/libjte.h, AC_CHECK_LIB(jte, libjte_set_checksum_algorithm, , LIBJTE_DEF= ), LIBJTE_DEF= )
 else
     LIBJTE_DEF=
 fi
