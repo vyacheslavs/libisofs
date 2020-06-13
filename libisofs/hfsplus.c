@@ -1790,9 +1790,9 @@ int hfsplus_writer_create(Ecma119Image *target)
 
     if (target->hfsp_nnodes > (cat_node_size - 0x100) * 8)
       {
-	iso_msg_submit(target->image->id, ISO_MANGLE_TOO_MUCH_FILES, 0,
+	iso_msg_submit(target->image->id, ISO_HFSPLUS_TOO_MANY_FILES, 0,
 			"HFS+ map nodes aren't implemented");
-	ret = ISO_MANGLE_TOO_MUCH_FILES;
+	ret = ISO_HFSPLUS_TOO_MANY_FILES;
 	goto ex;
       }
 

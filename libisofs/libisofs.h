@@ -9043,6 +9043,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** El-Torito EFI image is hidden                         (NOTE,HIGH, -421) */
 #define ISO_ELTO_EFI_HIDDEN         0xB030FE5B
 
+/** Too many files in HFS+ directory tree             (FAILURE, HIGH, -422) */
+#define ISO_HFSPLUS_TOO_MANY_FILES  0xE830FE5A
+
 
 /* Internal developer note: 
    Place new error codes directly above this comment. 
