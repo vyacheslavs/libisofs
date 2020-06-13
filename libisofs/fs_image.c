@@ -2913,7 +2913,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         goto fs_cleanup;
     }
 
-    strncpy(ifs->type, "iso ", 4);
+    memcpy(ifs->type, "iso ", 4);
     ifs->data = data;
     ifs->refcount = 1;
     ifs->version = 0;

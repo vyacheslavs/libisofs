@@ -815,7 +815,7 @@ int iso_local_filesystem_new(IsoFilesystem **fs)
         }
 
         /* fill struct */
-        strncpy(lfs->type, "file", 4);
+        memcpy(lfs->type, "file", 4);
         lfs->refcount = 1;
         lfs->version = 0;
         lfs->data = NULL; /* we don't need private data */
