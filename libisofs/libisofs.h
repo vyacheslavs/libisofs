@@ -8116,7 +8116,7 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
 */
 
 /**
- * Eventually obtain the recorded MD5 checksum of the session which was
+ * Obtain the recorded MD5 checksum of the session which was
  * loaded as ISO image. Such a checksum may be stored together with others
  * in a contiguous array at the end of the session. The session checksum
  * covers the data blocks from address start_lba to address end_lba - 1.
@@ -8126,15 +8126,17 @@ int iso_gzip_get_refcounts(off_t *gzip_count, off_t *gunzip_count, int flag);
  * @param image
  *      The image to inquire
  * @param start_lba
- *      Eventually returns the first block address covered by md5
+ *      Returns the first block address covered by md5
  * @param end_lba
- *      Eventually returns the first block address not covered by md5 any more
+ *      Returns the first block address not covered by md5 any more
  * @param md5
- *      Eventually returns 16 byte of MD5 checksum 
+ *      Returns 16 byte of MD5 checksum 
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0
  * @return
- *      1= md5 found , 0= no md5 available , <0 indicates error
+ *      1= md5 found
+ *      0= no md5 available (i.e. start_lba, end_lba, md5 are invalid)
+ *     <0 indicates error
  *
  * @since 0.6.22
  */
