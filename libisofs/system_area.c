@@ -555,9 +555,12 @@ static int make_mips_volume_header(Ecma119Image *t, uint8_t *buf, int flag)
         stream = iso_file_get_stream((IsoFile *) node);
         file_size = iso_stream_get_size(stream);
 
-        /* Shall i really round up to 2048 ? Steve says yes.*/
-        iso_msb(buf + (72 + 16 * idx) + 12,
-                ((file_size + 2047) / 2048 ) * 2048, 4);
+        /* genisoimage rounds up to full multiples of 2048.
+           libisofs did this too until 2020, but the arcload mips boot loader
+           throws error if the rounded size is stored here.
+           So now the exact bytecount gets stored.
+        */
+        iso_msb(buf + (72 + 16 * idx) + 12, file_size, 4);
         
     }
 
