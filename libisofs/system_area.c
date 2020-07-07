@@ -794,7 +794,7 @@ static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
 
     /* 0 - 127 |      label | ASCII Label */
     if (t->opts->ascii_disc_label[0])
-        strncpy((char *) buf, t->opts->ascii_disc_label, 128);
+        memcpy((char *) buf, t->opts->ascii_disc_label, 128);
     else
         strcpy((char *) buf,
                "CD-ROM Disc with Sun sparc boot created by libisofs");
@@ -1040,8 +1040,8 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
         return ISO_OUT_OF_MEM;
     entry->start_block = start_block;
     entry->block_count = block_count;
-    strncpy((char *) entry->name, name, 32);
-    strncpy((char *) entry->type, type, 32);
+    memcpy((char *) entry->name, name, 32);
+    memcpy((char *) entry->type, type, 32);
     entry->req_status = 0;
     ret = iso_register_apm_entry(req_array, apm_req_count, entry, 0);
     free(entry);
