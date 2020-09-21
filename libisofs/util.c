@@ -1597,6 +1597,22 @@ void iso_datetime_7(unsigned char *buf, time_t t, int always_gmt)
         gmtime_r(&t, &tm);
         tzoffset = 0;
     }
+
+    if (tm.tm_year < 0) {
+        tm.tm_year = 0;
+        tm.tm_mon = 0;
+        tm.tm_mday = 1;
+        tm.tm_hour = 0;
+        tm.tm_min = 0;
+        tm.tm_sec = 0;
+    } else if (tm.tm_year > 255) {
+        tm.tm_year = 255;
+        tm.tm_mon = 11;
+        tm.tm_mday = 31;
+        tm.tm_hour = 23;
+        tm.tm_min = 59;
+        tm.tm_sec = 59;
+    }
     buf[0] = tm.tm_year;
     buf[1] = tm.tm_mon + 1;
     buf[2] = tm.tm_mday;
@@ -1650,12 +1666,18 @@ void iso_datetime_17(unsigned char *buf, time_t t, int always_gmt)
         tzoffset = 0;
     }
 
-    sprintf((char*)&buf[0], "%04d", tm.tm_year + 1900);
-    sprintf((char*)&buf[4], "%02d", tm.tm_mon + 1);
-    sprintf((char*)&buf[6], "%02d", tm.tm_mday);
-    sprintf((char*)&buf[8], "%02d", tm.tm_hour);
-    sprintf((char*)&buf[10], "%02d", tm.tm_min);
-    sprintf((char*)&buf[12], "%02d", MIN(59, tm.tm_sec));
+    if (tm.tm_year <= -1900) {
+        strcpy((char *) buf, "00010101000000");
+    } else if (tm.tm_year >= 8100) {
+        strcpy((char *) buf, "99991231235959");
+    } else {
+        sprintf((char*)&buf[0], "%04d", tm.tm_year + 1900);
+        sprintf((char*)&buf[4], "%02d", tm.tm_mon + 1);
+        sprintf((char*)&buf[6], "%02d", tm.tm_mday);
+        sprintf((char*)&buf[8], "%02d", tm.tm_hour);
+        sprintf((char*)&buf[10], "%02d", tm.tm_min);
+        sprintf((char*)&buf[12], "%02d", MIN(59, tm.tm_sec));
+    }
     memcpy(&buf[14], "00", 2);
     buf[16] = tzoffset;
 
