@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2020 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -956,8 +956,8 @@ int pseudo_susp_add_PAD(Ecma119Image *t, struct susp_info *susp)
  */
 static
 int zisofs_add_ZF(Ecma119Image *t, struct susp_info *susp, int to_ce,
-                  int header_size_div4, int block_size_log2,
-                  uint32_t uncompressed_size, int flag)
+                  uint8_t algo[2], int header_size_div4, int block_size_log2,
+                  uint64_t uncompressed_size, int flag)
 {
     unsigned char *ZF = malloc(16);
 
@@ -967,12 +967,21 @@ int zisofs_add_ZF(Ecma119Image *t, struct susp_info *susp, int to_ce,
     ZF[0] = 'Z';
     ZF[1] = 'F';
     ZF[2] = (unsigned char) 16;
-    ZF[3] = (unsigned char) 1;
-    ZF[4] = (unsigned char) 'p';
-    ZF[5] = (unsigned char) 'z';
+    if (algo[0] == 'p' && algo[1] == 'z')
+        ZF[3] = (unsigned char) 1;
+    else
+        ZF[3] = (unsigned char) 2;
+    ZF[4] = (unsigned char) algo[0];
+    ZF[5] = (unsigned char) algo[1];
     ZF[6] = (unsigned char) header_size_div4;
     ZF[7] = (unsigned char) block_size_log2;
-    iso_bb(&ZF[8], uncompressed_size, 4);
+    if (algo[0] == 'p' && algo[1] == 'z') {
+        if (uncompressed_size > (uint64_t) 0xffffffff)
+            return ISO_ZISOFS_TOO_LARGE;
+        iso_bb(&ZF[8], (uint32_t) uncompressed_size, 4);
+    } else {
+        iso_lsb64(&ZF[8], uncompressed_size);
+    }
     if (to_ce) {
         return susp_append_ce(t, susp, ZF);
     } else {
@@ -991,17 +1000,19 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
 {
     int ret, will_copy = 1, stream_type = 0, do_zf = 0;
     int header_size_div4 = 0, block_size_log2 = 0;
-    uint32_t uncompressed_size = 0;
+    uint64_t uncompressed_size = 0;
     IsoStream *stream = NULL, *input_stream, *last_stream, *first_stream;
     IsoStream *first_filter = NULL;
     IsoFile *file;
     void *xipt;
     struct zisofs_zf_info *zf;
+    uint8_t algo[2];
 
     /* Intimate friendship with this function in filters/zisofs.c */
     int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
+                              uint8_t zisofs_algo[2],
                               int *header_size_div4, int *block_size_log2,
-                              uint32_t *uncompressed_size, int flag);
+                              uint64_t *uncompressed_size, int flag);
 
     if (!(flag & 1))
         flag |= 2;
@@ -1043,7 +1054,8 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
     }
 
     /* Determine stream type : 1=ziso , -1=osiz , 0=other */
-    ret = ziso_is_zisofs_stream(stream, &stream_type, &header_size_div4,
+    algo[0] = algo[1] = 0;
+    ret = ziso_is_zisofs_stream(stream, &stream_type, algo, &header_size_div4,
                                 &block_size_log2, &uncompressed_size, 0);
     if (ret < 0)
         return ret;
@@ -1054,7 +1066,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
         do_zf = 1;
     } else if(first_stream == last_stream || !will_copy) {
         /* Try whether the image side stream remembers a ZF field */
-        ret = iso_stream_get_src_zf(first_stream, &header_size_div4,
+        ret = iso_stream_get_src_zf(first_stream, algo, &header_size_div4,
                                     &block_size_log2, &uncompressed_size, 0);
         if (ret == 1 && header_size_div4 > 0)
             do_zf = 1;
@@ -1068,6 +1080,8 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
             header_size_div4 = zf->header_size_div4;
             block_size_log2 = zf->block_size_log2;
             uncompressed_size = zf->uncompressed_size;
+            algo[0] = zf->zisofs_algo[0];
+            algo[1] = zf->zisofs_algo[1];
             if (header_size_div4 > 0)
                 do_zf = 1;
         }
@@ -1086,7 +1100,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
         return 1;
 
     /* write ZF field */
-    ret = zisofs_add_ZF(t, info, (*ce_len > 0), header_size_div4,
+    ret = zisofs_add_ZF(t, info, (*ce_len > 0), algo, header_size_div4,
                        block_size_log2, uncompressed_size, 0);
     if (ret < 0)
         return ret;

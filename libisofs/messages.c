@@ -402,13 +402,13 @@ const char *iso_error_to_msg(int errcode)
     case ISO_ZLIB_NOT_ENABLED:
         return "Use of zlib was not enabled at compile time";
     case ISO_ZISOFS_TOO_LARGE:
-        return "Cannot apply zisofs filter to file >= 4 GiB";
+        return "File too large. Cannot apply zisofs filter.";
     case ISO_FILTER_WRONG_INPUT:
         return "Filter input differs from previous run";
     case ISO_ZLIB_COMPR_ERR:
         return "zlib compression/decompression error";
     case ISO_ZISOFS_WRONG_INPUT:
-        return "Input stream is not in zisofs format";
+        return "Input stream is not in a supported zisofs format";
     case ISO_ZISOFS_PARAM_LOCK:
         return "Cannot set global zisofs parameters while filters exist";
     case ISO_ZLIB_EARLY_EOF:
@@ -557,6 +557,10 @@ const char *iso_error_to_msg(int errcode)
         return "El-Torito EFI image is hidden";
     case ISO_HFSPLUS_TOO_MANY_FILES:
         return "Too many files in HFS+ directory tree";
+    case ISO_ZISOFS_TOO_MANY_PTR:
+        return "Too many zisofs block pointers needed overall";
+    case ISO_ZISOFS_BPT_UNDERRUN:
+        return "Prevented zisofs block pointer counter underrun";
     default:
         return "Unknown error";
     }

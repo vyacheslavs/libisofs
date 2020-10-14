@@ -1483,6 +1483,14 @@ void iso_lsb(uint8_t *buf, uint32_t num, int bytes)
         buf[i] = (num >> (8 * i)) & 0xff;
 }
 
+void iso_lsb64(uint8_t *buf, uint64_t num)
+{
+    int i;
+
+    for (i = 0; i < 8; ++i)
+        buf[i] = (num >> (8 * i)) & 0xff;
+}
+
 void iso_msb(uint8_t *buf, uint32_t num, int bytes)
 {
     int i;

@@ -65,9 +65,9 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
  * type, though, unless fsrc_stream_class would be used without FSrcStreamData.
  * @return  1= returned parameters are valid, 0=no ZF info found , <0 error
  */
-int iso_stream_get_src_zf(IsoStream *stream, int *header_size_div4,
-                          int *block_size_log2, uint32_t *uncompressed_size,
-                          int flag);
+int iso_stream_get_src_zf(IsoStream *stream, uint8_t zisofs_algo[2],
+                          int *header_size_div4, int *block_size_log2,
+                          uint64_t *uncompressed_size, int flag);
 
 /**
  * Set the inode number of a stream that is based on FSrcStreamData, i.e.

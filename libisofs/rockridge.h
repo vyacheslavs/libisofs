@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2020 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -359,7 +359,7 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
  */
 int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
                    uint8_t *header_size_div4, uint8_t *block_size_log2,
-                   uint32_t *uncompressed_size, int flag);
+                   uint64_t *uncompressed_size, int flag);
 
 /**
  * Convert a RR filename to the requested charset.

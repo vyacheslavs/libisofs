@@ -266,6 +266,7 @@ iso_stream_get_id;
 iso_stream_get_input_stream;
 iso_stream_get_size;
 iso_stream_get_source_path;
+iso_stream_get_zisofs_par;
 iso_stream_is_repeatable;
 iso_stream_open;
 iso_stream_read;

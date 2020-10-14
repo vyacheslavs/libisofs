@@ -418,9 +418,10 @@ struct image_fs_data
     unsigned int opened : 2; /**< 0 not opened, 1 opened file, 2 opened dir */
 
 #ifdef Libisofs_with_zliB
+    uint8_t zisofs_algo[2];
     uint8_t header_size_div4;
     uint8_t block_size_log2;
-    uint32_t uncompressed_size;
+    uint64_t uncompressed_size;
 #endif
 
     /* info for content reading */
@@ -1252,9 +1253,9 @@ IsoFileSourceIface ifs_class = {
 
 
 /* Used from libisofs/stream.c : iso_stream_get_src_zf() */
-int iso_ifs_source_get_zf(IsoFileSource *src, int *header_size_div4,
-                          int *block_size_log2, uint32_t *uncompressed_size,
-                          int flag)
+int iso_ifs_source_get_zf(IsoFileSource *src, uint8_t zisofs_algo[2],
+                          int *header_size_div4, int *block_size_log2, 
+                          uint64_t *uncompressed_size, int flag)
 {
 
 #ifdef Libisofs_with_zliB
@@ -1264,6 +1265,8 @@ int iso_ifs_source_get_zf(IsoFileSource *src, int *header_size_div4,
     if (src->class != &ifs_class)
         return 0;
     data = src->data;
+    zisofs_algo[0] = data->zisofs_algo[0];
+    zisofs_algo[1] = data->zisofs_algo[1];
     *header_size_div4 = data->header_size_div4;
     *block_size_log2 = data->block_size_log2;
     *uncompressed_size = data->uncompressed_size;
@@ -1460,7 +1463,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
 
 #ifdef Libisofs_with_zliB
     uint8_t zisofs_alg[2], zisofs_hs4 = 0, zisofs_bsl2 = 0;
-    uint32_t zisofs_usize = 0;
+    uint64_t zisofs_usize = 0;
 #endif
 
     if (fs == NULL || fs->data == NULL || record == NULL || src == NULL) {
@@ -1593,7 +1596,7 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         while ((ret = susp_iter_next(iter, &sue, 0)) > 0) {
 
             /* ignore entries from different version */
-            if (sue->version[0] != 1)
+            if (sue->version[0] != 1 && !(SUSP_SIG(sue, 'Z', 'F')))
                 continue;
 
             if (SUSP_SIG(sue, 'P', 'X')) {
@@ -1804,13 +1807,23 @@ if (name != NULL && !namecont) {
 
                 ret = read_zisofs_ZF(sue, zisofs_alg, &zisofs_hs4,
                                      &zisofs_bsl2, &zisofs_usize, 0);
-                if (ret < 0 || zisofs_alg[0] != 'p' || zisofs_alg[1] != 'z') {
+                if (ret < 0) {
+invalid_zf:
                     /* notify and continue */
                     ret = iso_rr_msg_submit(fsdata, 13, ISO_WRONG_RR_WARN, ret,
                                  "Invalid ZF entry");
                     zisofs_hs4 = 0;
                     continue;
                 }
+                if (zisofs_alg[0] == 'p' || zisofs_alg[1] == 'z') {
+                   if (sue->version[0] != 1)
+                       goto invalid_zf;
+               } else if (zisofs_alg[0] == 'P' || zisofs_alg[1] == 'Z') {
+                   if (sue->version[0] != 2)
+                       goto invalid_zf;
+               } else {
+                   goto invalid_zf;
+               }
 
 #endif /* Libisofs_with_zliB */
 
@@ -2085,6 +2098,8 @@ if (name != NULL && !namecont) {
 
 #ifdef Libisofs_with_zliB
     if (zisofs_hs4 > 0) {
+        ifsdata->zisofs_algo[0] = zisofs_alg[0];
+        ifsdata->zisofs_algo[1] = zisofs_alg[1];
         ifsdata->header_size_div4 = zisofs_hs4;
         ifsdata->block_size_log2 = zisofs_bsl2;
         ifsdata->uncompressed_size = zisofs_usize;
@@ -3172,8 +3187,8 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 
 #ifdef Libisofs_with_zliB
     /* Intimate friendship with this function in filters/zisofs.c */
-    int ziso_add_osiz_filter(IsoFile *file, uint8_t header_size_div4,
-                             uint8_t block_size_log2,
+    int ziso_add_osiz_filter(IsoFile *file, uint8_t zisofs_algo[2],
+                             uint8_t header_size_div4, uint8_t block_size_log2,
                              uint32_t uncompressed_size, int flag);
 #endif /* Libisofs_with_zliB */
 
@@ -3288,7 +3303,8 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
 #ifdef Libisofs_with_zliB
 
                 if (data->header_size_div4 > 0) {
-                    ret = ziso_add_osiz_filter(file, data->header_size_div4,
+                    ret = ziso_add_osiz_filter(file, data->zisofs_algo,
+                                               data->header_size_div4,
                                                data->block_size_log2,
                                                data->uncompressed_size, 0);
                     if (ret < 0) {

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2019 Thomas Schmitt
+ * Copyright (c) 2009 - 2020 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2447,15 +2447,17 @@ int zisofs_zf_xinfo_cloner(void *old_data, void **new_data, int flag)
 int iso_file_zf_by_magic(IsoFile *file, int flag)
 {
     int ret, stream_type, header_size_div4, block_size_log2;
-    uint32_t uncompressed_size;
+    uint64_t uncompressed_size;
     IsoStream *stream, *input_stream;
     struct zisofs_zf_info *zf = NULL;
     void *xipt;
+    uint8_t algo[2];
 
     /* Intimate friendship with this function in filters/zisofs.c */
     int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
+                              uint8_t zisofs_algo[2],
                               int *header_size_div4, int *block_size_log2,
-                              uint32_t *uncompressed_size, int flag);
+                              uint64_t *uncompressed_size, int flag);
 
     ret = iso_node_get_xinfo((IsoNode *) file, zisofs_zf_xinfo_func, &xipt);
     if (ret == 1) {
@@ -2472,13 +2474,14 @@ int iso_file_zf_by_magic(IsoFile *file, int flag)
     break;
         stream = input_stream;
     }
-    ret = ziso_is_zisofs_stream(stream, &stream_type, &header_size_div4,
-                                &block_size_log2, &uncompressed_size, 3);
+    ret = ziso_is_zisofs_stream(stream, &stream_type, algo, &header_size_div4,
+                                &block_size_log2, &uncompressed_size, 7);
     if (ret < 0)
         return ret;
     if (ret != 1 || stream_type != 2) {
         if (flag & 4)
             return 0;
+        algo[0] = algo[1] = 0;
         header_size_div4 = 0;
         block_size_log2 = 0;
         uncompressed_size = 0;
@@ -2486,6 +2489,8 @@ int iso_file_zf_by_magic(IsoFile *file, int flag)
     zf = calloc(1, sizeof(struct zisofs_zf_info));
     if (zf == NULL)
         return ISO_OUT_OF_MEM;
+    zf->zisofs_algo[0] = algo[0];
+    zf->zisofs_algo[1] = algo[1];
     zf->uncompressed_size = uncompressed_size;
     zf->header_size_div4 = header_size_div4;
     zf->block_size_log2 = block_size_log2;

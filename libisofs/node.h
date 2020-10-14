@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2016 Thomas Schmitt
+ * Copyright (c) 2009 - 2020 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -437,9 +437,10 @@ int zisofs_zf_xinfo_func(void *data, int flag);
  * Parameter structure which is to be managed by zisofs_zf_xinfo_func.
  */
 struct zisofs_zf_info {
-    uint32_t uncompressed_size;
+    uint64_t uncompressed_size;
     uint8_t header_size_div4;
     uint8_t block_size_log2;
+    uint8_t zisofs_algo[2];
 };
 
 /**

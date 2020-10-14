@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2019 Thomas Schmitt
+ * Copyright (c) 2009-2020 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -7942,7 +7942,7 @@ int iso_stream_get_external_filter(IsoStream *stream,
 /**
  * Install a zisofs filter on top of the content stream of a data file.
  * zisofs is a compression format which is decompressed by some Linux kernels.
- * See also doc/zisofs_format.txt .
+ * See also doc/zisofs_format.txt and doc/zisofs2_format.txt.
  * The filter will not be installed if its output size is not smaller than
  * the size of the input stream.
  * This is only enabled if the use of libz was enabled at compile time.
@@ -7963,6 +7963,37 @@ int iso_stream_get_external_filter(IsoStream *stream,
  * @since 0.6.18
  */
 int iso_file_add_zisofs_filter(IsoFile *file, int flag);
+
+
+/**
+ * Obtain the parameters of a zisofs filter stream.
+ * @param stream
+ *      The stream to be inquired.
+ * @param stream_type
+ *      1=compressing ("ziso")
+ *     -1=uncompressing ("osiz")
+ *      0 other (any obtained parameters have invalid content)
+ * @param zisofs_algo
+ *      Algorithm as of ZF field:
+ *      {'p', 'z'} = zisofs version 1 (Zlib)
+ *      {'P', 'Z'} = zisofs version 2 (Zlib)
+ * @param algo_num
+ *      Algorithm as of zisofs header:
+ *      0 = zisofs version 1 (Zlib)
+ *      1 = zisofs version 2 (Zlib)
+ * @param block_size_log2
+ *      Log2 of the compression block size
+ *      15 = 32 kiB , 16 = 64 kiB , 17 = 128 kiB, ...
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, 0 if the stream has not class->type "ziso" or "osiz"
+ * @since 1.5.4
+ */
+int iso_stream_get_zisofs_par(IsoStream *stream, int *stream_type,
+                              uint8_t zisofs_algo[2], uint8_t* algo_num,
+                              int *block_size_log2, int flag);
+
 
 /**
  * Inquire the number of zisofs compression and uncompression filters which
@@ -7988,7 +8019,11 @@ int iso_zisofs_get_refcounts(off_t *ziso_count, off_t *osiz_count, int flag);
  */
 struct iso_zisofs_ctrl {
 
-    /* Set to 0 for this version of the structure */
+    /* Set to 0 or 1 for this version of the structure
+     * 0 = only members up to .block_size_log2 are valid
+     * 1 = members up to .max_file_blocks are valid
+     *     @since 1.5.4
+     */
     int version;
 
     /* Compression level for zlib function compress2(). From <zlib.h>:
@@ -7998,10 +8033,58 @@ struct iso_zisofs_ctrl {
      */
     int compression_level;
 
-    /* Log2 of the block size for compression filters. Allowed values are:
+    /* Log2 of the block size for compression filters of zisofs version 1.
+     * Allowed values are:
      *   15 = 32 kiB ,  16 = 64 kiB ,  17 = 128 kiB
      */
     uint8_t block_size_log2;
+
+    /* ------------------- Only valid with .version >= 1 ------------------- */
+
+    /* 
+     * @since 1.5.4
+     * Whether to produce zisofs2 (zisofs version 2) file headers and ZF
+     * entries for files which get compressed:
+     *  0 = do not produce zisofs2,
+     *      do not recognize zisofs2 file headers by magic
+     *      This is the default.
+     *  1 = zisofs2 is enabled for file size 4 GiB or more
+     *  2 = zisofs2 shall be used if zisofs is used at all
+     */
+    int v2_enabled;
+
+    /*
+     * @since 1.5.4
+     * Log2 of block size for zisofs2 files. 0 keeps current setting.
+     * Allowed are 15 = 32 kiB to 20 = 1024 kiB.
+     */
+    uint8_t v2_block_size_log2;
+
+    /*
+     * @since 1.5.4
+     * Maximum overall number of blocklist pointers. 0 keeps current setting.
+     */
+    uint64_t max_total_blocks;
+
+    /*
+     * @since 1.5.4
+     * Ignored as input value: Number of allocated zisofs block pointers.
+     */
+    uint64_t current_total_blocks;
+
+    /*
+     * @since 1.5.4
+     * Maximum number of blocklist pointers per file. 0 keeps current setting.
+     */
+    uint64_t max_file_blocks;
+
+    /* >>> ??? zisofs2: ISO_ZISOFS_MANY_BLOCKS , 0 = default 65537 */
+
+    /* >>> ??? zisofs2: a limit for number of zisofs2 files in order to keep
+                        the number of these old kernel warnings bearable:
+                          "isofs: Unknown ZF compression algorithm: PZ"
+                        0 = default >>> ??? value ? no limit ?
+    */
 
 };
 
@@ -8011,6 +8094,9 @@ struct iso_zisofs_ctrl {
  * i.e. ziso_count returned by iso_zisofs_get_refcounts() has to be 0.
  * @param params
  *      Pointer to a structure with the intended settings.
+ *      The caller sets params->version to indicate which set of members
+ *      has been filled. I.e. params->version == 0 causes all members after
+ *      params->block_size_log2 to be ignored.
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0
  * @return
@@ -8024,6 +8110,9 @@ int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag);
  * Get the current global parameters for zisofs filtering.
  * @param params
  *      Pointer to a caller provided structure which shall take the settings.
+ *      The caller sets params->version to indicate which set of members
+ *      shall be filled. I.e. params->version == 0 leaves all members after
+ *      params->block_size_log2 untouched.
  * @param flag
  *      Bitfield for control purposes, unused yet, submit 0
  * @return
@@ -8040,7 +8129,7 @@ int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
  * by an xinfo data record if not already marked by a zisofs compressor filter.
  * This does not install any filter but only a hint for image generation
  * that the already compressed files shall get written with zisofs ZF entries.
- * Use this if you insert the compressed reults of program mkzftree from disk
+ * Use this if you insert the compressed results of program mkzftree from disk
  * into the image.
  * @param node
  *      The node which shall be checked and eventually marked.
@@ -8756,7 +8845,7 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** Use of zlib was not enabled at compile time (FAILURE, HIGH, -345) */
 #define ISO_ZLIB_NOT_ENABLED      0xE830FEA7
 
-/** Cannot apply zisofs filter to file >= 4 GiB  (FAILURE, HIGH, -346) */
+/** File too large. Cannot apply zisofs filter.  (FAILURE, HIGH, -346) */
 #define ISO_ZISOFS_TOO_LARGE      0xE830FEA6
 
 /** Filter input differs from previous run  (FAILURE, HIGH, -347) */
@@ -8765,7 +8854,7 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** zlib compression/decompression error  (FAILURE, HIGH, -348) */
 #define ISO_ZLIB_COMPR_ERR        0xE830FEA4
 
-/** Input stream is not in zisofs format  (FAILURE, HIGH, -349) */
+/** Input stream is not in a supported zisofs format   (FAILURE, HIGH, -349) */
 #define ISO_ZISOFS_WRONG_INPUT    0xE830FEA3
 
 /** Cannot set global zisofs parameters while filters exist
@@ -9045,6 +9134,12 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Too many files in HFS+ directory tree             (FAILURE, HIGH, -422) */
 #define ISO_HFSPLUS_TOO_MANY_FILES  0xE830FE5A
+
+/** Too many zisofs block pointers needed overall     (FAILURE, HIGH, -423) */
+#define ISO_ZISOFS_TOO_MANY_PTR     0xE830FE59
+
+/** Prevented zisofs block pointer counter underrun  (WARNING,MEDIUM, -424) */
+#define ISO_ZISOFS_BPT_UNDERRUN     0xD020FE58
 
 
 /* Internal developer note: 

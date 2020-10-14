@@ -264,6 +264,7 @@ int str2d_char(const char *icharset, const char *input, char **output);
 int str2a_char(const char *icharset, const char *input, char **output);
 
 void iso_lsb(uint8_t *buf, uint32_t num, int bytes);
+void iso_lsb64(uint8_t *buf, uint64_t num);
 void iso_msb(uint8_t *buf, uint32_t num, int bytes);
 void iso_bb(uint8_t *buf, uint32_t num, int bytes);
 

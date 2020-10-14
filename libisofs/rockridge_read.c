@@ -624,7 +624,7 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
  */
 int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
                    uint8_t *header_size_div4, uint8_t *block_size_log2,
-                   uint32_t *uncompressed_size, int flag)
+                   uint64_t *uncompressed_size, int flag)
 {
     if (zf == NULL) {
         return ISO_NULL_POINTER;
@@ -635,11 +635,17 @@ int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
     if (zf->len_sue[0] != 16) {
         return ISO_WRONG_RR;
     }
+    if (zf->version[0] > 2)
+        return ISO_WRONG_RR;
     algorithm[0] = zf->data.ZF.parameters[0];
     algorithm[1] = zf->data.ZF.parameters[1];
     *header_size_div4 = zf->data.ZF.parameters[2];
     *block_size_log2 = zf->data.ZF.parameters[3];
-    *uncompressed_size = iso_read_bb(&(zf->data.ZF.parameters[4]), 4, NULL);
+    if (zf->version[0] == 1)
+        *uncompressed_size = iso_read_bb(&(zf->data.ZF.parameters[4]), 4,
+                                         NULL);
+    else
+        *uncompressed_size = iso_read_lsb64(&(zf->data.ZF.parameters[4]));
     return ISO_SUCCESS;
 }
 
