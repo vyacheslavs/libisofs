@@ -555,7 +555,12 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                 if (rng->block_pointer_rpos >= rng->block_pointer_fill) {
                     rng->buffer_fill = rng->buffer_rpos = 0;
                     rng->block_counter = 0;
-                    data->block_pointers[0] = 16 + rng->block_pointer_fill * 4;
+                    if (rng->zisofs_version == 1)
+                        data->block_pointers[0] = 16 +
+                                                  rng->block_pointer_fill * 4;
+                    else
+                        data->block_pointers[0] = 24 +
+                                                  rng->block_pointer_fill * 8;
                     rng->state = 2; /* block pointers are delivered */
                 } else {
                     /* Provide a buffer full of block pointers */
