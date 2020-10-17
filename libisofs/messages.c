@@ -561,6 +561,8 @@ const char *iso_error_to_msg(int errcode)
         return "Too many zisofs block pointers needed overall";
     case ISO_ZISOFS_BPT_UNDERRUN:
         return "Prevented zisofs block pointer counter underrun";
+    case ISO_ZISOFS_UNKNOWN_SIZE:
+        return "Cannot obtain size of zisofs compressed stream";
     default:
         return "Unknown error";
     }

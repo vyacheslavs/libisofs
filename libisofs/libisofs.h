@@ -8021,7 +8021,7 @@ struct iso_zisofs_ctrl {
 
     /* Set to 0 or 1 for this version of the structure
      * 0 = only members up to .block_size_log2 are valid
-     * 1 = members up to .max_file_blocks are valid
+     * 1 = members up to .block_number_target are valid
      *     @since 1.5.4
      */
     int version;
@@ -8077,6 +8077,21 @@ struct iso_zisofs_ctrl {
      * Maximum number of blocklist pointers per file. 0 keeps current setting.
      */
     uint64_t max_file_blocks;
+
+    /*
+     * @since 1.5.4
+     * Number of block pointers of a file, which is considered low enough to
+     * justify a reduction of block size. If this number is > 0, then the
+     * lowest permissible block size is used, with which not more than the
+     * given number of block pointers gets produced. Upper limit is the
+     * setting of block size log2.
+     * The inavoidable end block pointer counts. E.g. a file of 55 KiB has
+     * 3 blocks pointers with block size log2 15, and 2 blocks pointers with
+     * block size log2 16.
+     * -1 disables this automatic block size adjustment.
+     *  0 keeps the current setting.
+     */
+    int64_t block_number_target;
 
     /* >>> ??? zisofs2: ISO_ZISOFS_MANY_BLOCKS , 0 = default 65537 */
 
@@ -9140,6 +9155,9 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Prevented zisofs block pointer counter underrun  (WARNING,MEDIUM, -424) */
 #define ISO_ZISOFS_BPT_UNDERRUN     0xD020FE58
+
+/** Cannot obtain size of zisofs compressed stream    (FAILURE, HIGH, -425) */
+#define ISO_ZISOFS_UNKNOWN_SIZE     0xE830FE57
 
 
 /* Internal developer note: 
