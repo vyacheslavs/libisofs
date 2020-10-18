@@ -1822,6 +1822,7 @@ invalid_zf:
                    if (sue->version[0] != 2)
                        goto invalid_zf;
                } else {
+                   ret = 0;
                    goto invalid_zf;
                }
 

@@ -709,6 +709,14 @@ int ziso_algo_to_num(uint8_t zisofs_algo[2])
         return 0;
     if (zisofs_algo[0] == 'P' && zisofs_algo[1] == 'Z')
         return 1;
+    if (zisofs_algo[0] == 'X' && zisofs_algo[1] == 'Z')
+        return 2;
+    if (zisofs_algo[0] == 'L' && zisofs_algo[1] == '4')
+        return 3;
+    if (zisofs_algo[0] == 'Z' && zisofs_algo[1] == 'D')
+        return 4;
+    if (zisofs_algo[0] == 'B' && zisofs_algo[1] == '2')
+        return 5;
     return -1;
 }
 
@@ -723,6 +731,22 @@ int ziso_num_to_algo(uint8_t num, uint8_t zisofs_algo[2])
     } else if (num == 1) {
         zisofs_algo[0] = 'P';
         zisofs_algo[1] = 'Z';
+        return 1;
+    } else if (num == 2) {
+        zisofs_algo[0] = 'X';
+        zisofs_algo[1] = 'Z';
+        return 2;
+    } else if (num == 3) {
+        zisofs_algo[0] = 'L';
+        zisofs_algo[1] = '4';
+        return 2;
+    } else if (num == 4) {
+        zisofs_algo[0] = 'Z';
+        zisofs_algo[1] = 'D';
+        return 2;
+    } else if (num == 5) {
+        zisofs_algo[0] = 'B';
+        zisofs_algo[1] = '2';
         return 2;
     }
     return -1;
@@ -730,6 +754,7 @@ int ziso_num_to_algo(uint8_t num, uint8_t zisofs_algo[2])
 
 
 /* @param flag bit0= recognize zisofs2 only if ziso_v2_enabled
+               bit1= do not accept algorithms which libisofs does not support
 */
 static
 int ziso_parse_zisofs_head(IsoStream *stream, uint8_t *ziso_algo_num,
@@ -775,7 +800,8 @@ int ziso_parse_zisofs_head(IsoStream *stream, uint8_t *ziso_algo_num,
         *uncompressed_size = iso_read_lsb64(((uint8_t *) zisofs_head) + 12);
         if (*header_size_div4 < 4 ||
             *block_size_log2 < ISO_ZISOFS_V2_MIN_LOG2 ||
-            *block_size_log2 > ISO_ZISOFS_V2_MAX_LOG2 || *ziso_algo_num != 1)
+            *block_size_log2 > ISO_ZISOFS_V2_MAX_LOG2 ||
+            (*ziso_algo_num != 1 && (flag & 2)))
             return ISO_ZISOFS_WRONG_INPUT;
     } else {
         return ISO_ZISOFS_WRONG_INPUT;
@@ -829,7 +855,7 @@ int ziso_stream_uncompress(IsoStream *stream, void *buf, size_t desired)
         if (rng->state == 0) {
             /* Reading file header */
             ret = ziso_parse_zisofs_head(data->orig, &algo_num, &header_size,
-                                         &bs_log2, &uncompressed_size, 0);
+                                         &bs_log2, &uncompressed_size, 2);
             if (ret < 0)
                 return (rng->error_ret = ret);
             if (algo_num == 0)
