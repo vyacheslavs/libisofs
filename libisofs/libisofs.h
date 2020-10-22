@@ -8021,7 +8021,7 @@ struct iso_zisofs_ctrl {
 
     /* Set to 0 or 1 for this version of the structure
      * 0 = only members up to .block_size_log2 are valid
-     * 1 = members up to .block_number_target are valid
+     * 1 = members up to .bpt_discard_free_ratio are valid
      *     @since 1.5.4
      */
     int version;
@@ -8042,7 +8042,6 @@ struct iso_zisofs_ctrl {
     /* ------------------- Only valid with .version >= 1 ------------------- */
 
     /* 
-     * @since 1.5.4
      * Whether to produce zisofs2 (zisofs version 2) file headers and ZF
      * entries for files which get compressed:
      *  0 = do not produce zisofs2,
@@ -8050,36 +8049,36 @@ struct iso_zisofs_ctrl {
      *      This is the default.
      *  1 = zisofs2 is enabled for file size 4 GiB or more
      *  2 = zisofs2 shall be used if zisofs is used at all
+     * @since 1.5.4
      */
     int v2_enabled;
 
     /*
-     * @since 1.5.4
      * Log2 of block size for zisofs2 files. 0 keeps current setting.
      * Allowed are 15 = 32 kiB to 20 = 1024 kiB.
+     * @since 1.5.4
      */
     uint8_t v2_block_size_log2;
 
     /*
-     * @since 1.5.4
      * Maximum overall number of blocklist pointers. 0 keeps current setting.
+     * @since 1.5.4
      */
     uint64_t max_total_blocks;
 
     /*
-     * @since 1.5.4
      * Ignored as input value: Number of allocated zisofs block pointers.
+     * @since 1.5.4
      */
     uint64_t current_total_blocks;
 
     /*
-     * @since 1.5.4
      * Maximum number of blocklist pointers per file. 0 keeps current setting.
+     * @since 1.5.4
      */
     uint64_t max_file_blocks;
 
     /*
-     * @since 1.5.4
      * Number of block pointers of a file, which is considered low enough to
      * justify a reduction of block size. If this number is > 0, then the
      * lowest permissible block size is used, with which not more than the
@@ -8090,10 +8089,34 @@ struct iso_zisofs_ctrl {
      * block size log2 16.
      * -1 disables this automatic block size adjustment.
      *  0 keeps the current setting.
+     * @since 1.5.4
      */
     int64_t block_number_target;
 
-    /* >>> ??? zisofs2: ISO_ZISOFS_MANY_BLOCKS , 0 = default 65537 */
+    /*
+     * The number of blocks from which on the block pointer list shall be
+     * discarded on iso_stream_close() of a compressing stream. This means that
+     * the pointers have to be determined again on next ziso_stream_compress(),
+     * so that adding a zisofs compression filter and writing the compressed
+     * stream needs in the sum three read runs of the input stream.
+     * 0 keeps the current setting.
+     * < 0 disables this file size based discarding.
+     * @since 1.5.4
+     */
+    int64_t bpt_discard_file_blocks;
+
+    /*
+     * A ratio describing the part of max_file_blocks which shall be kept free
+     * by intermediate discarding of block pointers.
+     * See above bpt_discard_file_blocks .
+     * It makes sense to set this to 1.0 if max_file_blocks is substantially
+     * smaller than max_total_blocks.
+     * 0.0 keeps the current setting.
+     * < 0.0 disables this memory consumption based discarding.
+     * @since 1.5.4
+     */
+    double bpt_discard_free_ratio;
+
 
     /* >>> ??? zisofs2: a limit for number of zisofs2 files in order to keep
                         the number of these old kernel warnings bearable:
