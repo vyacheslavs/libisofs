@@ -85,9 +85,9 @@ static uint64_t ziso_block_pointer_mgt(uint64_t num, int mode);
 
 /* A ratio describing the part of the maximum number of block pointers which
  * shall be kept free by intermediate discarding of block pointers. See above
- * ISO_ZISOFS_MANY_BLOCKS.
+ * ISO_ZISOFS_MANY_BLOCKS. -1.0 disables this feature.
  */
-#define ISO_ZISOFS_KBF_RATIO   0.5
+#define ISO_ZISOFS_KBF_RATIO  -1.0 
 
 
 /* --------------------------- Runtime parameters ------------------------- */
@@ -105,6 +105,12 @@ static int64_t ziso_max_file_blocks = ISO_ZISOFS_MAX_BLOCKS_F;
 
 static int64_t ziso_many_block_limit = ISO_ZISOFS_MANY_BLOCKS;
 static double ziso_keep_blocks_free_ratio = ISO_ZISOFS_KBF_RATIO;
+
+/* Discard block pointers on last stream close even if the size constraints
+ * are not met. To be set to 1 at block pointer overflow. To be set to 0
+ * when all compression filters are deleted.
+ */
+static int ziso_early_bpt_discard = 0;
 
 
 static
@@ -376,6 +382,50 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired);
 
 
 /*
+ * @param flag  bit0= discard even if the size conditions are not met
+                bit1= check for open_counter == 1 rather than == 0
+ */
+static
+int ziso_discard_bpt(IsoStream *stream, int flag)
+{
+    ZisofsFilterStreamData *data;
+    ZisofsComprStreamData *cstd = NULL;
+    int block_size;
+    double max_blocks, free_blocks;
+
+    data = stream->data;
+    if (stream->class->read == &ziso_stream_compress)
+        cstd = (ZisofsComprStreamData *) data;
+    if (cstd == NULL)
+        return 0;
+
+    block_size = (1 << ziso_decide_bs_log2(cstd->orig_size));
+    max_blocks = ziso_max_file_blocks;
+    if (max_blocks < 1.0)
+        max_blocks = 1.0;
+    free_blocks = ziso_max_total_blocks -
+                  ziso_block_pointer_mgt((uint64_t) 0, 3);
+    if (cstd->block_pointers == NULL) {
+        return 0;
+    } else if (cstd->open_counter != !!(flag & 2)) {
+        return 0;
+    } else if (!((flag & 1) || ziso_early_bpt_discard)) {
+        if (ziso_many_block_limit <= 0 ||
+            cstd->orig_size / block_size + !!(cstd->orig_size % block_size)
+            + 1 < (uint64_t) ziso_many_block_limit)
+            if (ziso_keep_blocks_free_ratio < 0.0 ||
+                free_blocks / max_blocks >= ziso_keep_blocks_free_ratio)
+                return 0;
+    }
+    ziso_block_pointer_mgt(cstd->block_pointer_counter, 2);
+    free((char *) cstd->block_pointers);
+    cstd->block_pointers_dropped = 1;
+    cstd->block_pointers = NULL;
+    cstd->block_pointer_counter = 0;
+    return 1;
+}
+
+/*
  * @param flag  bit0= original stream is not open
  *              bit1= do not destroy large
  *                    ZisofsComprStreamData->block_pointers
@@ -385,8 +435,6 @@ int ziso_stream_close_flag(IsoStream *stream, int flag)
 {
     ZisofsFilterStreamData *data;
     ZisofsComprStreamData *cstd = NULL;
-    int block_size, discard;
-    double max_blocks, free_blocks;
 
     if (stream == NULL) {
         return ISO_NULL_POINTER;
@@ -395,35 +443,8 @@ int ziso_stream_close_flag(IsoStream *stream, int flag)
     if (stream->class->read == &ziso_stream_compress)
         cstd = (ZisofsComprStreamData *) data;
 
-    if (cstd != NULL) {
-        block_size = (1 << ziso_decide_bs_log2(cstd->orig_size));
-        max_blocks = ziso_max_file_blocks;
-        if (max_blocks < 1.0)
-            max_blocks = 1.0;
-        free_blocks = ziso_max_total_blocks -
-                      ziso_block_pointer_mgt((uint64_t) 0, 3);
-        discard = 1;
-        if (flag & 2) {
-            discard = 0;
-        } else if (cstd->block_pointers == NULL) {
-            discard = 0;
-        } else if (cstd->open_counter != 1) {
-            discard = 0;
-        } else if (ziso_many_block_limit <= 0 ||
-                cstd->orig_size / block_size + !!(cstd->orig_size % block_size)
-                + 1 < (uint64_t) ziso_many_block_limit) {
-            if (ziso_keep_blocks_free_ratio < 0.0 ||
-                free_blocks / max_blocks >= ziso_keep_blocks_free_ratio)
-                discard = 0;
-        }
-        if (discard) {
-            ziso_block_pointer_mgt(cstd->block_pointer_counter, 2);
-            free((char *) cstd->block_pointers);
-            cstd->block_pointers_dropped = 1;
-            cstd->block_pointers = NULL;
-            cstd->block_pointer_counter = 0;
-        }
-    }
+    if (cstd != NULL && !(flag & 2))
+        ziso_discard_bpt(stream, 2);
 
     if (data->running == NULL) {
         return 1;
@@ -601,8 +622,10 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                              1 + !!(orig_size % rng->block_size);
                 if (num_blocks > (uint64_t) ziso_max_file_blocks)
                     return (rng->error_ret = ISO_ZISOFS_TOO_LARGE);
-                if (ziso_block_pointer_mgt((uint64_t) num_blocks, 0) == 0)
-                   return (rng->error_ret = ISO_ZISOFS_TOO_MANY_PTR);
+                if (ziso_block_pointer_mgt((uint64_t) num_blocks, 0) == 0) {
+                    ziso_early_bpt_discard = 1;
+                    return (rng->error_ret = ISO_ZISOFS_TOO_MANY_PTR);
+                }
                 if (orig_size != (off_t) data->orig_size)
                     return (rng->error_ret = ISO_FILTER_WRONG_INPUT);
                 if (ziso_decide_v2_usage(orig_size)) {
@@ -651,6 +674,7 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
                     /* On the first pass, create pointer array with all 0s */
                     if (ziso_block_pointer_mgt(num_blocks, 1) == 0) {
                         rng->block_pointer_fill = 0;
+                        ziso_early_bpt_discard = 1;
                         return (rng->error_ret = ISO_ZISOFS_TOO_MANY_PTR);
                     }
                     data->block_pointers = calloc(rng->block_pointer_fill, 8);
@@ -1152,6 +1176,8 @@ void ziso_stream_free(IsoStream *stream)
         }
         if (--ziso_ref_count < 0)
             ziso_ref_count = 0;
+        if (ziso_ref_count == 0)
+            ziso_early_bpt_discard = 0;
     }
     iso_stream_unref(data->orig);
     free(data);
@@ -1673,8 +1699,6 @@ int iso_zisofs_set_params(struct iso_zisofs_ctrl *params, int flag)
     if (params->bpt_discard_free_ratio != 0.0)
         ziso_keep_blocks_free_ratio = params->bpt_discard_free_ratio;
 
-    /* >>> zisofs2: more parameters */
-
     return 1;
     
 #else
@@ -1723,9 +1747,14 @@ int iso_stream_get_zisofs_par(IsoStream *stream, int *stream_type,
                               uint8_t zisofs_algo[2], uint8_t* algo_num,
                               int *block_size_log2, int flag)
 {
+
+#ifdef Libisofs_with_zliB
+
     uint64_t uncompressed_size;
     int header_size_div4, ret;
     
+    if (stream == NULL)
+        return ISO_NULL_POINTER;
     ret = ziso_is_zisofs_stream(stream, stream_type, zisofs_algo,
                                 &header_size_div4, block_size_log2,
                                 &uncompressed_size, 0);
@@ -1733,5 +1762,33 @@ int iso_stream_get_zisofs_par(IsoStream *stream, int *stream_type,
         return 0;
     *algo_num = ziso_algo_to_num(zisofs_algo);
     return 1;
+
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+    
+#endif /* ! Libisofs_with_zliB */
+
 }
 
+
+/* API */
+int iso_stream_zisofs_discard_bpt(IsoStream *stream, int flag)
+{
+
+#ifdef Libisofs_with_zliB
+
+    int ret;
+
+    if (stream == NULL)
+        return ISO_NULL_POINTER;
+    ret = ziso_discard_bpt(stream, 1);
+    return ret;
+
+#else
+
+    return ISO_ZLIB_NOT_ENABLED;
+    
+#endif /* ! Libisofs_with_zliB */
+
+}

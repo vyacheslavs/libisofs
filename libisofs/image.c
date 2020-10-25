@@ -1144,9 +1144,69 @@ int iso_image_was_blind_attrs(IsoImage *image, int flag)
 {
     int ret;
 
+    if (image == NULL)
+        return ISO_NULL_POINTER;
     ret = image->blind_on_local_get_attrs;
     if (flag & 1)
         image->blind_on_local_get_attrs = 0;
+    return ret;
+}
+
+
+/*
+ * @param flag bit0= recursion is active
+ */
+static
+int iso_dir_zisofs_discard_bpt(IsoDir *dir, int flag)
+{
+    int ret;
+    IsoDirIter *iter = NULL;
+    IsoNode *node;
+    IsoDir *subdir;
+    IsoFile *file;
+    IsoStream *stream;
+
+    ret = iso_dir_get_children(dir, &iter);
+    if (ret < 0)
+        return ret;
+    while (iso_dir_iter_next(iter, &node) == 1) {
+        if (iso_node_get_type(node) == LIBISO_DIR) {
+            subdir = (IsoDir *) node;
+            ret = iso_dir_zisofs_discard_bpt(subdir, flag | 1);
+            if (ret < 0)
+                goto ex;
+    continue;
+        }
+        if (iso_node_get_type(node) != LIBISO_FILE)
+    continue;
+        file = (IsoFile *) node;
+        stream = iso_file_get_stream(file);
+        if (stream == NULL)
+    continue;
+        ret = iso_stream_zisofs_discard_bpt(stream, 0);
+        if (ret < 0)
+            goto ex;
+    }
+    ret = ISO_SUCCESS;
+ex:;
+    if (iter != NULL)
+        iso_dir_iter_free(iter);
+    return ret;
+}
+
+
+/* API */
+int iso_image_zisofs_discard_bpt(IsoImage *image, int flag)
+{
+    int ret;
+    IsoDir *dir;
+
+    if (image == NULL)
+        return ISO_NULL_POINTER;
+    dir = image->root;
+    if (dir == NULL)
+        return ISO_SUCCESS;
+    ret = iso_dir_zisofs_discard_bpt(dir, 0);
     return ret;
 }
 

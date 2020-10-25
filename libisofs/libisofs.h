@@ -7988,11 +7988,39 @@ int iso_file_add_zisofs_filter(IsoFile *file, int flag);
  *      Bitfield for control purposes, unused yet, submit 0
  * @return
  *      1 on success, 0 if the stream has not class->type "ziso" or "osiz"
+ *      <0 on error
  * @since 1.5.4
  */
 int iso_stream_get_zisofs_par(IsoStream *stream, int *stream_type,
                               uint8_t zisofs_algo[2], uint8_t* algo_num,
                               int *block_size_log2, int flag);
+
+
+/**
+ * Discard the buffered zisofs compression block pointers of a stream, if the
+ * stream is a zisofs compression stream and not currently opened.
+ * @param stream
+ *      The stream to be manipulated.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      1 on success, 0 if no block pointers were reoved, <0 on error
+ * @since 1.5.4
+ */
+int iso_stream_zisofs_discard_bpt(IsoStream *stream, int flag);
+
+/**
+ * Discard all buffered zisofs compression block pointers of streams in the
+ * given image, which are zisofs compression streams and not currently opened.
+ * @param image
+ *      The image to be manipulated.
+ * @param flag
+ *      Bitfield for control purposes, unused yet, submit 0
+ * @return
+ *      ISO_SUCCESS on success, <0 on error
+ * @since 1.5.4
+ */
+int iso_image_zisofs_discard_bpt(IsoImage *image, int flag);
 
 
 /**
@@ -8116,13 +8144,6 @@ struct iso_zisofs_ctrl {
      * @since 1.5.4
      */
     double bpt_discard_free_ratio;
-
-
-    /* >>> ??? zisofs2: a limit for number of zisofs2 files in order to keep
-                        the number of these old kernel warnings bearable:
-                          "isofs: Unknown ZF compression algorithm: PZ"
-                        0 = default >>> ??? value ? no limit ?
-    */
 
 };
 
