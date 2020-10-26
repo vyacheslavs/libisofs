@@ -813,6 +813,8 @@ int ziso_stream_compress(IsoStream *stream, void *buf, size_t desired)
 }
 
 
+#ifdef Libisofs_with_zliB
+
 static
 int ziso_algo_to_num(uint8_t zisofs_algo[2])
 {
@@ -831,6 +833,7 @@ int ziso_algo_to_num(uint8_t zisofs_algo[2])
     return -1;
 }
 
+#endif /* Libisofs_with_zliB */
 
 static
 int ziso_num_to_algo(uint8_t num, uint8_t zisofs_algo[2])
