@@ -2440,13 +2440,14 @@ int zisofs_zf_xinfo_cloner(void *old_data, void **new_data, int flag)
  *             bit1= permission to overwrite existing zisofs_zf_info
  *             bit2= if no zisofs header is found:
  *                   create xinfo with parameters which indicate no zisofs
+ *             bit8-bit15= maximum zisofs version to be recognized (0 means 1)
  * @return 1= zf xinfo added, 0= no zisofs data found ,
  *         2= found existing zf xinfo and flag bit1 was not set
  *         <0 means error
  */
 int iso_file_zf_by_magic(IsoFile *file, int flag)
 {
-    int ret, stream_type, header_size_div4, block_size_log2;
+    int ret, stream_type, header_size_div4, block_size_log2, version;
     uint64_t uncompressed_size;
     IsoStream *stream, *input_stream;
     struct zisofs_zf_info *zf = NULL;
@@ -2474,12 +2475,16 @@ int iso_file_zf_by_magic(IsoFile *file, int flag)
     break;
         stream = input_stream;
     }
+    version = ((flag >> 8) & 0xff);
+    algo[0] = algo[1] = 0;
     ret = ziso_is_zisofs_stream(stream, &stream_type, algo, &header_size_div4,
-                                &block_size_log2, &uncompressed_size, 7);
+                                &block_size_log2, &uncompressed_size, 3);
     if (ret < 0)
         return ret;
+    if (version < 2 && ret > 0 && (algo[0] != 'p' || algo[1] != 'z'))
+        ret = 0;
     if (ret != 1 || stream_type != 2) {
-        if (flag & 4)
+        if (!(flag & 4))
             return 0;
         algo[0] = algo[1] = 0;
         header_size_div4 = 0;
@@ -2508,7 +2513,7 @@ int iso_node_zf_by_magic(IsoNode *node, int flag)
     IsoDir *dir;
 
     if (node->type == LIBISO_FILE)
-        return iso_file_zf_by_magic((IsoFile *) node, flag);
+        return iso_file_zf_by_magic((IsoFile *) node, flag & 0xff06);
     if (node->type != LIBISO_DIR || (flag & 8))
         return 0;
 
@@ -2529,7 +2534,7 @@ int iso_node_zf_by_magic(IsoNode *node, int flag)
                     return 0; /* Will not be zisofs format */
                 }
             }
-            hflag = flag & ~6;
+            hflag = flag & 0xff06;
             if ((flag & 1) && file->from_old_session)
                 hflag |= 1;
             ret = iso_file_zf_by_magic(file, hflag);

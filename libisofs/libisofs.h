@@ -8191,9 +8191,9 @@ int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
  * Use this if you insert the compressed results of program mkzftree from disk
  * into the image.
  * @param node
- *      The node which shall be checked and eventually marked.
+ *      The node which shall be checked and, if appropriate, be marked.
  * @param flag
- *      Bitfield for control purposes, unused yet, submit 0
+ *      Bitfield for control purposes
  *      bit0= prepare for a run with iso_write_opts_set_appendable(,1).
  *            Take into account that files from the imported image
  *            do not get their content filtered.
@@ -8202,6 +8202,7 @@ int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
  *            create xinfo with parameters which indicate no zisofs
  *      bit3= no tree recursion if node is a directory
  *      bit4= skip files which stem from the imported image
+ *      bit8-bit15= maximum zisofs version to be recognized (0 means 1)
  * @return
  *      0= no zisofs data found
  *      1= zf xinfo added
