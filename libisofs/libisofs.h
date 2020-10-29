@@ -8183,6 +8183,21 @@ int iso_zisofs_get_params(struct iso_zisofs_ctrl *params, int flag);
 
 
 /**
+ * Enable or disable the production and recognition of "Z2" SUSP entries
+ * instead of "ZF" entries for zisofs2 compressed files.
+ * "ZF" with zisofs2 causes unaware Linux kernels to complian like:
+ *   isofs: Unknown ZF compression algorithm: PZ
+ * "Z2" is silently ignored by unaware Linux kernels.
+ * @param enable
+ *      1 = produce and recognize "Z2" , 0 = only "ZF" , -1 = do not change
+ * @return
+ *      1 = enabled , 0 = not enabled
+ * @since 1.5.4
+ */
+int iso_zisofs_ctrl_susp_z2(int enable);
+
+
+/**
  * Check for the given node or for its subtree whether the data file content
  * effectively bears zisofs file headers and eventually mark the outcome
  * by an xinfo data record if not already marked by a zisofs compressor filter.

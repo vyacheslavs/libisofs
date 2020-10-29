@@ -112,6 +112,11 @@ static double ziso_keep_blocks_free_ratio = ISO_ZISOFS_KBF_RATIO;
  */
 static int ziso_early_bpt_discard = 0;
 
+/* 1 = produce Z2 entries for zisofs2 , 0 = produce ZF for zisofs2
+ * This is used as extern variable in rockridge.c
+ */
+int iso_zisofs2_enable_susp_z2 = 0;
+
 
 static
 int ziso_decide_v2_usage(off_t orig_size)
@@ -1795,4 +1800,13 @@ int iso_stream_zisofs_discard_bpt(IsoStream *stream, int flag)
     
 #endif /* ! Libisofs_with_zliB */
 
+}
+
+
+/* API */
+int iso_zisofs_ctrl_susp_z2(int enable)
+{
+    if (enable == 0 || enable == 1)
+        iso_zisofs2_enable_susp_z2 = enable;
+    return iso_zisofs2_enable_susp_z2;
 }

@@ -1596,7 +1596,8 @@ int iso_file_source_new_ifs(IsoImageFilesystem *fs, IsoFileSource *parent,
         while ((ret = susp_iter_next(iter, &sue, 0)) > 0) {
 
             /* ignore entries from different version */
-            if (sue->version[0] != 1 && !(SUSP_SIG(sue, 'Z', 'F')))
+            if (sue->version[0] != 1 &&
+                !(SUSP_SIG(sue, 'Z', 'F') || SUSP_SIG(sue, 'Z', '2')))
                 continue;
 
             if (SUSP_SIG(sue, 'P', 'X')) {
@@ -1803,7 +1804,7 @@ if (name != NULL && !namecont) {
 
 #ifdef Libisofs_with_zliB
 
-            } else if (SUSP_SIG(sue, 'Z', 'F')) {
+            } else if (SUSP_SIG(sue, 'Z', 'F') || SUSP_SIG(sue, 'Z', '2')) {
 
                 ret = read_zisofs_ZF(sue, zisofs_alg, &zisofs_hs4,
                                      &zisofs_bsl2, &zisofs_usize, 0);
@@ -1811,7 +1812,9 @@ if (name != NULL && !namecont) {
 invalid_zf:
                     /* notify and continue */
                     ret = iso_rr_msg_submit(fsdata, 13, ISO_WRONG_RR_WARN, ret,
-                                 "Invalid ZF entry");
+                                            SUSP_SIG(sue, 'Z', 'F') ?
+                                            "Invalid ZF entry" :
+                                            "Invalid Z2 entry");
                     zisofs_hs4 = 0;
                     continue;
                 }

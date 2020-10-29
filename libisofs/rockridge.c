@@ -961,16 +961,22 @@ int zisofs_add_ZF(Ecma119Image *t, struct susp_info *susp, int to_ce,
 {
     unsigned char *ZF = malloc(16);
 
+    /* Intimate friendship with this variable in filters/zisofs.c */
+    extern int iso_zisofs2_enable_susp_z2;
+
     if (ZF == NULL) {
         return ISO_OUT_OF_MEM;
     }
     ZF[0] = 'Z';
     ZF[1] = 'F';
     ZF[2] = (unsigned char) 16;
-    if (algo[0] == 'p' && algo[1] == 'z')
+    if (algo[0] == 'p' && algo[1] == 'z') {
         ZF[3] = (unsigned char) 1;
-    else
+    } else {
         ZF[3] = (unsigned char) 2;
+        if (iso_zisofs2_enable_susp_z2)
+            ZF[1] = '2';
+    }
     ZF[4] = (unsigned char) algo[0];
     ZF[5] = (unsigned char) algo[1];
     ZF[6] = (unsigned char) header_size_div4;

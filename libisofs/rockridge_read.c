@@ -629,9 +629,9 @@ int read_zisofs_ZF(struct susp_sys_user_entry *zf, uint8_t algorithm[2],
     if (zf == NULL) {
         return ISO_NULL_POINTER;
     }
-    if (zf->sig[0] != 'Z' || zf->sig[1] != 'F') {
+    if ((zf->sig[0] != 'Z' || zf->sig[1] != 'F') &&
+        (zf->sig[0] != 'Z' || zf->sig[1] != '2'))
         return ISO_WRONG_ARG_VALUE;
-    }
     if (zf->len_sue[0] != 16) {
         return ISO_WRONG_RR;
     }
