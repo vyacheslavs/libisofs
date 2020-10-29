@@ -1608,15 +1608,16 @@ int ziso_is_zisofs_stream(IsoStream *stream, int *stream_type,
     if (stream->class == &ziso_stream_compress_class && !(flag & 2)) {
         *stream_type = 1;
         cnstd = stream->data;
-        *header_size_div4 = 4;
         *uncompressed_size = cnstd->orig_size;
         *block_size_log2 = ziso_decide_bs_log2((off_t) *uncompressed_size);
         if (ziso_decide_v2_usage((off_t) *uncompressed_size)) {
           zisofs_algo[0] = 'P';
           zisofs_algo[1] = 'Z';
+          *header_size_div4 = 6;
         } else if (*uncompressed_size < (uint64_t) ISO_ZISOFS_V1_LIMIT) {
           zisofs_algo[0] = 'p';
           zisofs_algo[1] = 'z';
+          *header_size_div4 = 4;
         } else {
           return 0;
         }
