@@ -617,7 +617,8 @@ int read_aaip_AL(struct susp_sys_user_entry *sue,
 }
 
 /**
- * Reads the zisofs parameters from a ZF field (see doc/zisofs_format.txt).
+ * Reads the zisofs parameters from a ZF field (see doc/zisofs_format.txt
+ * and doc/zisofs2_format.txt).
  * 
  * @return 
  *      1 on success, < 0 on error

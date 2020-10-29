@@ -953,6 +953,7 @@ int pseudo_susp_add_PAD(Ecma119Image *t, struct susp_info *susp)
 
 /**
  * see doc/zisofs_format.txt : "ZF System Use Entry Format"
+ * see doc/zisofs2_format.txt : "ZF System Use Entry Format", "Z2 ..."
  */
 static
 int zisofs_add_ZF(Ecma119Image *t, struct susp_info *susp, int to_ce,

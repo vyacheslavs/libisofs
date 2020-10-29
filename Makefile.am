@@ -285,6 +285,7 @@ EXTRA_DIST = \
 	doc/susp_aaip_2_0.txt \
 	doc/susp_aaip_isofs_names.txt \
 	doc/zisofs_format.txt \
+	doc/zisofs2_format.txt \
 	doc/checksums.txt \
 	doc/boot_sectors.txt \
 	libisofs/libisofs.ver \
