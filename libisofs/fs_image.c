@@ -3193,7 +3193,7 @@ int image_builder_create_node(IsoNodeBuilder *builder, IsoImage *image,
     /* Intimate friendship with this function in filters/zisofs.c */
     int ziso_add_osiz_filter(IsoFile *file, uint8_t zisofs_algo[2],
                              uint8_t header_size_div4, uint8_t block_size_log2,
-                             uint32_t uncompressed_size, int flag);
+                             uint64_t uncompressed_size, int flag);
 #endif /* Libisofs_with_zliB */
 
 
