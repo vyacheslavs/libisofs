@@ -566,10 +566,8 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
 
         /* get both the dir and the name */
         catname = strrchr(catdir, '/');
-        if (catname == NULL) {
-            free(catdir);
-            return ISO_WRONG_ARG_VALUE;
-        }
+        if (catname == NULL)
+            catname = catdir;
         if (catname == catdir) {
             /* we are appending catalog to root node */
             parent = image->root;
@@ -590,7 +588,8 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
             }
             parent = (IsoDir*)p;
         }
-        catname++;
+        if (catname[0] == '/')
+            catname++;
         ret = iso_tree_add_boot_node(parent, catname, &cat_node);
         free(catdir);
         if (ret < 0) {
