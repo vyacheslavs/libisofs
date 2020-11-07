@@ -588,7 +588,7 @@ int iso_image_set_boot_image(IsoImage *image, const char *image_path,
             }
             parent = (IsoDir*)p;
         }
-        if (catname[0] == '/')
+        if (catname[0] == '/' || catname[0] == 0)
             catname++;
         ret = iso_tree_add_boot_node(parent, catname, &cat_node);
         free(catdir);
