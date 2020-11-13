@@ -543,10 +543,13 @@ int hfsplus_writer_compute_data_blocks(IsoImageWriter *writer)
 }
 
 
-static void set_time (uint32_t *tm, uint32_t t)
+static inline uint32_t mac_time_offset(uint32_t t)
 {
-  iso_msb ((uint8_t *) tm, t + 2082844800, 4);
+    uint32_t val;
+    iso_msb ((uint8_t *) &val, t + 2082844800, sizeof(val));
+    return val;
 }
+
 
 int nop_writer_write_vol_desc(IsoImageWriter *writer)
 {
@@ -615,9 +618,9 @@ write_sb (Ecma119Image *t)
     /* Cleanly unmounted, software locked.  */
     iso_msb ((uint8_t *) &sb.attributes, (1 << 8) | (1 << 15), 4);
     iso_msb ((uint8_t *) &sb.last_mounted_version, 0x6c69736f, 4);
-    set_time (&sb.ctime, t->now);
-    set_time (&sb.utime, t->now);
-    set_time (&sb.fsck_time, t->now);
+    sb.ctime = mac_time_offset(t->now);
+    sb.utime = mac_time_offset(t->now);
+    sb.fsck_time = mac_time_offset(t->now);
     iso_msb ((uint8_t *) &sb.file_count, t->hfsp_nfiles, 4);
     iso_msb ((uint8_t *) &sb.folder_count, t->hfsp_ndirs - 1, 4);
     iso_msb ((uint8_t *) &sb.blksize, block_size, 4);
@@ -850,12 +853,11 @@ int hfsplus_writer_write_data(IsoImageWriter *writer)
 		    ((uint8_t *) &common->type)[1] = t->hfsp_leafs[curnode].type;
 		    iso_msb ((uint8_t *) &common->valence, t->hfsp_leafs[curnode].nchildren, 4);
 		    iso_msb ((uint8_t *) &common->fileid, t->hfsp_leafs[curnode].cat_id, 4);
-		    set_time (&common->ctime, t->hfsp_leafs[curnode].node->ctime);
-		    set_time (&common->mtime, t->hfsp_leafs[curnode].node->mtime);
+		    common->ctime = mac_time_offset(t->hfsp_leafs[curnode].node->ctime);
+		    common->mtime = mac_time_offset(t->hfsp_leafs[curnode].node->mtime);
 		    /* FIXME: distinguish attr_mtime and mtime.  */
-		    set_time (&common->attr_mtime, t->hfsp_leafs[curnode].node->mtime);
-		    set_time (&common->atime, t->hfsp_leafs[curnode].node->atime);
-
+		    common->attr_mtime = mac_time_offset(t->hfsp_leafs[curnode].node->mtime);
+		    common->atime = mac_time_offset(t->hfsp_leafs[curnode].node->atime);
 		    iso_msb ((uint8_t *) &common->uid, px_get_uid (t, t->hfsp_leafs[curnode].node), 4);
 		    iso_msb ((uint8_t *) &common->gid, px_get_gid (t, t->hfsp_leafs[curnode].node), 4);
 		    iso_msb ((uint8_t *) &common->mode, px_get_mode (t, t->hfsp_leafs[curnode].node, (t->hfsp_leafs[curnode].type == HFSPLUS_DIR)), 2);
