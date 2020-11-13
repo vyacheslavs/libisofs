@@ -1035,7 +1035,7 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
                         uint32_t start_block, uint32_t block_count,
                         char *name, char *type)
 {
-    int ret;
+    int ret, l;
     struct iso_apm_partition_request *entry;
 
     entry = calloc(1, sizeof(struct iso_apm_partition_request));
@@ -1043,8 +1043,12 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
         return ISO_OUT_OF_MEM;
     entry->start_block = start_block;
     entry->block_count = block_count;
-    memcpy((char *) entry->name, name, 32);
-    memcpy((char *) entry->type, type, 32);
+    memset((char *) entry->name, 0, 32);
+    for (l = 0; l < 32 && name[l] != 0; l++);
+    memcpy((char *) entry->name, name, l);
+    memset((char *) entry->type, 0, 32);
+    for (l = 0; l < 32 && type[l] != 0; l++);
+    memcpy((char *) entry->type, type, l);
     entry->req_status = 0;
     ret = iso_register_apm_entry(req_array, apm_req_count, entry, 0);
     free(entry);
