@@ -1043,12 +1043,12 @@ int iso_quick_apm_entry(struct iso_apm_partition_request **req_array,
         return ISO_OUT_OF_MEM;
     entry->start_block = start_block;
     entry->block_count = block_count;
-    memset((char *) entry->name, 0, 32);
     for (l = 0; l < 32 && name[l] != 0; l++);
-    memcpy((char *) entry->name, name, l);
-    memset((char *) entry->type, 0, 32);
+    if (l > 0)
+        memcpy((char *) entry->name, name, l);
     for (l = 0; l < 32 && type[l] != 0; l++);
-    memcpy((char *) entry->type, type, l);
+    if (l > 0)
+        memcpy((char *) entry->type, type, l);
     entry->req_status = 0;
     ret = iso_register_apm_entry(req_array, apm_req_count, entry, 0);
     free(entry);
