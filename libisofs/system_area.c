@@ -789,18 +789,21 @@ static int write_sun_partition_entry(int partition_number,
  */
 static int make_sun_disk_label(Ecma119Image *t, uint8_t *buf, int flag)
 {
-    int ret, i;
+    int ret, i, l;
     uint64_t blk;
 
     /* Bytes 512 to 32767 may come from image or external file */
     memset(buf, 0, 512);
 
     /* 0 - 127 |      label | ASCII Label */
-    if (t->opts->ascii_disc_label[0])
-        memcpy((char *) buf, t->opts->ascii_disc_label, 128);
-    else
+    if (t->opts->ascii_disc_label[0]) {
+        for (l = 0; l < 128 && t->opts->ascii_disc_label[l] != 0; l++);
+        if (l > 0)
+            memcpy((char *) buf, t->opts->ascii_disc_label, l);
+    } else {
         strcpy((char *) buf,
                "CD-ROM Disc with Sun sparc boot created by libisofs");
+    }
     
     /* 128 - 131 |          1 | Layout version */
     iso_msb(buf + 128, 1, 4);
