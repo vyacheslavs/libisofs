@@ -2705,6 +2705,7 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     target->hfsp_cat_node_size = 0;
     target->hfsp_iso_block_fac = 0;
     target->hfsp_collision_count = 0;
+    iso_setup_hfsplus_block_size(target);
     target->apm_req_count = 0;
     target->apm_req_flags = 0;
     for (i = 0; i < ISO_APM_ENTRIES_MAX; i++)

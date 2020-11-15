@@ -1403,8 +1403,13 @@ static int iso_write_apm(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf,
         /* Adjust last partition to img_size. This size was not known when the
            number of APM partitions was determined.
         */
-        t->apm_req[t->apm_req_count - 1]->block_count =
-        img_blocks * block_fac - t->apm_req[t->apm_req_count - 1]->start_block;
+        if (img_blocks * block_fac <
+            t->apm_req[t->apm_req_count - 1]->start_block)
+            t->apm_req[t->apm_req_count - 1]->block_count = 0;
+        else
+            t->apm_req[t->apm_req_count - 1]->block_count =
+                                 img_blocks * block_fac -
+                                 t->apm_req[t->apm_req_count - 1]->start_block;
         /* If it is still empty, remove it */
         if(t->apm_req[t->apm_req_count - 1]->block_count == 0) {
           free(t->apm_req[t->apm_req_count - 1]);
@@ -2158,7 +2163,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     /* This possibly overwrites the non-mbr_req partition table entries
        made so far. Overwriting those from t->mbr_req is not allowed.
     */
-    if (sa_type == 3 || !t->opts->appended_as_gpt) {
+    if (sa_type == 3 ||
+        !(t->opts->appended_as_gpt || t->opts->appended_as_apm)) {
         for (i = first_partition - 1; i <= last_partition - 1; i++) {
             if (t->opts->appended_partitions[i] == NULL)
         continue;
@@ -2640,9 +2646,14 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
        0x28, 0x73, 0x2a, 0xc1, 0x1f, 0xf8, 0xd2, 0x11,
        0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b
     };
+    static uint8_t hfs_plus_uuid[16] = {
+        0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
+        0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
+    };
     static uint8_t zero_uuid[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     int i, ret, do_apm = 0, do_gpt = 0, index, already_in_gpt = 0;
     uint8_t gpt_name[72], *type_uuid;
+    char apm_type[33];
 
 #ifndef Libisofs_appended_partitions_inlinE
     if (!t->gpt_backup_outside)
@@ -2666,10 +2677,16 @@ int assess_appended_gpt(Ecma119Image *t, int flag)
         if (do_apm) {
             memset(gpt_name, 0, 32);
             sprintf((char *) gpt_name, "Appended%d", i + 1);
+            strcpy(apm_type, "Data");
+            if (t->opts->appended_part_gpt_flags[i] & 1) {
+                if (memcmp(t->opts->appended_part_type_guids[i], hfs_plus_uuid,
+                           16) == 0)
+                    strcpy(apm_type, "Apple_HFS");
+            }
             ret = iso_quick_apm_entry(t->apm_req, &(t->apm_req_count),
                             t->appended_part_start[i] * t->hfsp_iso_block_fac,
                             t->appended_part_size[i] * t->hfsp_iso_block_fac,
-                            (char *) gpt_name, "Data");
+                            (char *) gpt_name, apm_type);
             if (ret < 0)
                 return ret;
         }
@@ -2752,6 +2769,11 @@ static int precompute_gpt(Ecma119Image *t)
                                   do not adjust final APM partition size */
     }
 
+    /* Assess impact of appended partitions on GPT */
+    ret = assess_appended_gpt(t, 0);
+    if (ret < 0)
+        return ret;
+
     /* Rectify APM requests early in order to learn the size of GPT.
        iso_write_apm() relies on this being already done here.
        So perform even if no GPT is required.
@@ -2759,9 +2781,6 @@ static int precompute_gpt(Ecma119Image *t)
     ret = rectify_apm(t);
     if (ret < 0)
         return ret;
-
-    /* Assess impact of appended partitions on GPT */
-    ret = assess_appended_gpt(t, 0);
 
 #ifdef NIX
     /* Disabled */

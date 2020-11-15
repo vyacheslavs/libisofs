@@ -1579,6 +1579,14 @@ int mangle_leafs(Ecma119Image *target, int flag)
     return ISO_SUCCESS;
 }
 
+void iso_setup_hfsplus_block_size(Ecma119Image *target)
+{
+    if (target->opts->hfsp_block_size == 0)
+        target->opts->hfsp_block_size = HFSPLUS_DEFAULT_BLOCK_SIZE;
+    target->hfsp_cat_node_size = 2 * target->opts->hfsp_block_size;
+    target->hfsp_iso_block_fac = 2048 / target->opts->hfsp_block_size;
+}
+
 int hfsplus_writer_create(Ecma119Image *target)
 {
     int ret;
@@ -1599,10 +1607,7 @@ int hfsplus_writer_create(Ecma119Image *target)
     make_hfsplus_decompose_pages();
     make_hfsplus_class_pages();
 
-    if (target->opts->hfsp_block_size == 0)
-        target->opts->hfsp_block_size = HFSPLUS_DEFAULT_BLOCK_SIZE;
-    target->hfsp_cat_node_size = 2 * target->opts->hfsp_block_size;
-    target->hfsp_iso_block_fac = 2048 / target->opts->hfsp_block_size;
+    iso_setup_hfsplus_block_size(target);
     cat_node_size = target->hfsp_cat_node_size;
 
     writer->compute_data_blocks = hfsplus_writer_compute_data_blocks;
