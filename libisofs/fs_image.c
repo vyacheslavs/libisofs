@@ -103,12 +103,20 @@ struct iso_read_opts
      * If neither Rock Ridge nor Joliet is used, the ECMA-119 names are mapped
      * according to one of these rules
      *  0 = unmapped:  show name as recorded in ECMA-119 directory record
-     *                 (not suitable for writing them to a new ISO filesystem)
+     *                 (not suitable for writing it to a new ISO filesystem)
      *  1 = stripped:  like unmapped, but strip off trailing ";1" or ".;1"
      *  2 = uppercase: like stripped, but {a-z} mapped to {A-Z} 
      *  3 = lowercase: like stripped, but {A-Z} mapped to {a-z} 
      */
     unsigned int ecma119_map : 2;
+
+    /**
+     * If Joliet is used, apply one of these mapping rules:
+     *  0 = unmapped:  show name as recorded in Joliet directory record
+     *                 (not suitable for writing it to a new ISO filesystem)
+     *  1 = stripped:  strip off trailing ";1" or ".;1"
+     */
+    unsigned int joliet_map : 1;
 
     uid_t uid; /**< Default uid when no RR */
     gid_t gid; /**< Default uid when no RR */
@@ -309,6 +317,7 @@ typedef struct
     int truncate_mode;
     int truncate_length;
     unsigned int ecma119_map : 2;
+    unsigned int joliet_map : 1;
 
     /** Whether AAIP info shall be loaded if it is present.
      *  1 = yes , 0 = no
@@ -1960,9 +1969,10 @@ invalid_zf:
 
             /* remove trailing version number */
             len = strlen(name);
-            ecma119_map = fsdata->ecma119_map;
             if (fsdata->iso_root_block == fsdata->svd_root_block)
-                ecma119_map = 0;
+                ecma119_map = fsdata->joliet_map;
+            else
+                ecma119_map = fsdata->ecma119_map;
             if (ecma119_map >= 1 && ecma119_map <= 3 &&
                 len > 2 && name[len-2] == ';' && name[len-1] == '1') {
                 if (len > 3 && name[len-3] == '.') {
@@ -3107,6 +3117,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     data->truncate_mode = opts->truncate_mode;
     data->truncate_length = opts->truncate_length;
     data->ecma119_map = opts->ecma119_map;
+    data->joliet_map = opts->joliet_map;
 
     if (data->input_charset == NULL) {
         if (opts->input_charset != NULL) {
@@ -6273,6 +6284,7 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
     ropts->dir_mode = 0555;
     ropts->noaaip = 1;
     ropts->ecma119_map = 1;
+    ropts->joliet_map = 1;
     ropts->nomd5 = 1;
     ropts->load_system_area = 0;
     ropts->keep_import_src = 0;
@@ -6374,6 +6386,16 @@ int iso_read_opts_set_ecma119_map(IsoReadOpts *opts, int ecma119_map)
     if (ecma119_map < 0 || ecma119_map > 3)
         return 0;
     opts->ecma119_map = ecma119_map;
+    return ISO_SUCCESS;
+}
+
+int iso_read_opts_set_joliet_map(IsoReadOpts *opts, int joliet_map)
+{
+    if (opts == NULL)
+        return ISO_NULL_POINTER;
+    if (joliet_map < 0 || joliet_map > 1)
+        return 0;
+    opts->joliet_map = joliet_map;
     return ISO_SUCCESS;
 }
 
