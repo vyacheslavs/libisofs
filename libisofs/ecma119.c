@@ -1374,6 +1374,8 @@ ex:
 
 /* @param flag bit0= initialize system area by target->opts_overwrite
                bit1= fifo is not yet draining. Inquire write_count from fifo.
+               bit2= target->opts->ms_block is not counted in
+                     target->total_size
 */
 static
 int write_head_part1(Ecma119Image *target, int *write_count, int flag)
@@ -1396,7 +1398,7 @@ int write_head_part1(Ecma119Image *target, int *write_count, int flag)
     /* Write System Area (ECMA-119, 6.2.1) */
     if ((flag & 1) && target->opts_overwrite != NULL)
         memcpy(sa, target->opts_overwrite, 16 * BLOCK_SIZE);
-    res = iso_write_system_area(target, sa);
+    res = iso_write_system_area(target, sa, (flag & 4) >> 2);
     if (res < 0)
         goto write_error;
     res = iso_write(target, sa, 16 * BLOCK_SIZE);
@@ -1500,7 +1502,7 @@ int write_head_part(Ecma119Image *target, int flag)
     int res, write_count = 0;
 
     /* System area and volume descriptors */
-    res = write_head_part1(target, &write_count, 0);
+    res = write_head_part1(target, &write_count, 4);
     if (res < 0)
         return res;
 

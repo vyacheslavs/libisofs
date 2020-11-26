@@ -1875,7 +1875,10 @@ static void iso_dummy_mbr_partition(uint8_t *buf, int mode)
 }
 
 
-int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
+/* @param flag
+          bit0= t->opts->ms_block is not counted in t->total_size
+*/
+int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
 {
     int ret, int_img_blocks, sa_type, i, will_append = 0, do_isohybrid = 0;
     int first_partition = 1, last_partition = 4, apm_flag, part_type = 0;
@@ -1984,7 +1987,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
     }
 
     if (t->gpt_backup_outside)
-        gpt_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
+        gpt_blocks = t->total_size / BLOCK_SIZE +
+                     (flag & 1) * t->opts->ms_block;
     else
         gpt_blocks = img_blocks;
     ret = iso_write_gpt(t, gpt_blocks, buf);
@@ -2146,7 +2150,8 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf)
 #endif
 
         if (part_type == 0xee && t->gpt_req_count > 0) {
-            mbrp1_blocks = t->total_size / BLOCK_SIZE + t->opts->ms_block;
+            mbrp1_blocks = t->total_size / BLOCK_SIZE +
+                           (flag & 1) * t->opts->ms_block;
             offset_flag |= 2 | 1; /* protective MBR, no other partitions */
         } else {
             mbrp1_blocks = img_blocks;

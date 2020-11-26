@@ -42,10 +42,12 @@ int make_isohybrid_mbr(int bin_lba, int *img_blocks, char *mbr, int flag);
  *
  * @param buf
  *      A buffer with at least 32 K allocated
+ * @param flag
+ *      bit0= t->opts->ms_block is not counted in t->total_size
  * @return
  *      1 if success, < 0 on error
  */
-int iso_write_system_area(Ecma119Image *t, uint8_t *buf);
+int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag);
 
 /**
  * Adjust t->tail_blocks to the eventual alignment needs of isohybrid booting.
