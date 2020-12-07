@@ -235,6 +235,8 @@ iso_read_image_features_has_eltorito;
 iso_read_image_features_has_iso1999;
 iso_read_image_features_has_joliet;
 iso_read_image_features_has_rockridge;
+iso_read_image_features_rr_loaded;
+iso_read_image_features_tree_loaded;
 iso_read_opts_auto_input_charset;
 iso_read_opts_free;
 iso_read_opts_keep_import_src;

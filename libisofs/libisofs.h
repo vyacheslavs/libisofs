@@ -3278,6 +3278,22 @@ int iso_read_image_features_has_iso1999(IsoReadImageFeatures *f);
 int iso_read_image_features_has_eltorito(IsoReadImageFeatures *f);
 
 /**
+ * Tells what directory tree was loaded:
+ *     0= ISO 9660 , 1 = Joliet , 2 = ISO 9660:1999
+ *
+ * @since 1.5.4
+ */
+int iso_read_image_features_tree_loaded(IsoReadImageFeatures *f);
+
+/**
+ * Tells whether Rock Ridge information was used while loading the tree:
+ *   1= yes, 0= no
+ *
+ * @since 1.5.4
+ */
+int iso_read_image_features_rr_loaded(IsoReadImageFeatures *f);
+
+/**
  * Increments the reference counting of the given image.
  *
  * @since 0.6.2

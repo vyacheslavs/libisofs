@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2018 Thomas Schmitt
+ * Copyright (c) 2009 - 2020 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -187,6 +187,16 @@ struct iso_read_image_features
 
     /** It will be set to 1 if El-Torito boot record is present, to 0 if not.*/
     unsigned int hasElTorito :1;
+
+    /**
+     * Which tree was loaded:
+     *   0= ISO 9660 + Rock Ridge , 1= Joliet , 2= ISO 9660:1999 
+     */
+    int tree_loaded;
+
+    /** Whether Rock Ridge info was used while loading: 0= no, 1= yes */
+    int rr_loaded;
+
 };
 
 static int ifs_fs_open(IsoImageFilesystem *fs);
@@ -2898,6 +2908,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         free(data);
         {ret = ISO_OUT_OF_MEM; goto ex;}
     }
+    data->rr = RR_EXT_NO;
 
     /* get our ref to IsoDataSource */
     data->src = src;
@@ -3068,16 +3079,11 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
     } while (buffer[0] != 255);
 
     /* 4. check if RR extensions are being used */
-    if (opts->norock) {
-        /* user doesn't want to read RR extensions */
-        data->rr = RR_EXT_NO;
-    } else {
-        ret = read_root_susp_entries(data, data->pvd_root_block);
-        if (ret < 0) {
-            goto fs_cleanup;
-        }
+    ret = read_root_susp_entries(data, data->pvd_root_block);
+    if (ret < 0)
+       goto fs_cleanup;
+    if (!opts->norock)
         data->rr = data->rr_version;
-    }
 
     /* select what tree to read */
     if (data->rr) {
@@ -6099,6 +6105,12 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         (*features)->hasIso1999 = data->iso1999;
         (*features)->hasElTorito = data->eltorito;
         (*features)->size = data->nblocks;
+        (*features)->tree_loaded = 0;
+        if (data->iso_root_block == data->svd_root_block)
+            (*features)->tree_loaded = 1;
+        else if (data->iso_root_block == data->evd_root_block)
+            (*features)->tree_loaded = 2;
+        (*features)->rr_loaded = (data->rr != RR_EXT_NO);
     }
 
     if (data->md5_load) {
@@ -6515,6 +6527,22 @@ int iso_read_image_features_has_eltorito(IsoReadImageFeatures *f)
     return f->hasElTorito;
 }
 
+/**
+ * Tells what directory tree was loaded:
+ *     0= ISO 9660 , 1 = Joliet , 2 = ISO 9660:1999
+ */
+int iso_read_image_features_tree_loaded(IsoReadImageFeatures *f)
+{
+    return f->tree_loaded;
+}
+
+/**
+ * Tells whether Rock Ridge information was used while loading the tree.
+ */
+int iso_read_image_features_rr_loaded(IsoReadImageFeatures *f)
+{
+    return f->rr_loaded;
+}
 
 /**
  * Get the start addresses and the sizes of the data extents of a file node
