@@ -6108,7 +6108,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         (*features)->tree_loaded = 0;
         if (data->iso_root_block == data->svd_root_block)
             (*features)->tree_loaded = 1;
-        else if (data->iso_root_block == data->evd_root_block)
+        else if (data->iso_root_block == data->evd_root_block &&
+                 data->iso_root_block != data->pvd_root_block)
             (*features)->tree_loaded = 2;
         (*features)->rr_loaded = (data->rr != RR_EXT_NO);
     }
