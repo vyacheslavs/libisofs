@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2020 Thomas Schmitt
+ * Copyright (c) 2009-2021 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -94,7 +94,7 @@ extern "C" {
  */
 #define iso_lib_header_version_major  1
 #define iso_lib_header_version_minor  5
-#define iso_lib_header_version_micro  3
+#define iso_lib_header_version_micro  4
 
 /**
  * Get version of the libisofs library at runtime.

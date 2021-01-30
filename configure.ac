@@ -1,4 +1,4 @@
-AC_INIT([libisofs], [1.5.3], [http://libburnia-project.org])
+AC_INIT([libisofs], [1.5.4], [http://libburnia-project.org])
 AC_PREREQ([2.50])
 dnl AC_CONFIG_HEADER([config.h])	
 
@@ -41,7 +41,7 @@ dnl If LIBISOFS_*_VERSION changes, be sure to change AC_INIT above to match.
 dnl
 LIBISOFS_MAJOR_VERSION=1
 LIBISOFS_MINOR_VERSION=5
-LIBISOFS_MICRO_VERSION=3
+LIBISOFS_MICRO_VERSION=4
 LIBISOFS_VERSION=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION.$LIBISOFS_MICRO_VERSION
 
 AC_SUBST(LIBISOFS_MAJOR_VERSION)
@@ -51,10 +51,10 @@ AC_SUBST(LIBISOFS_VERSION)
 
 dnl Libtool versioning
 LT_RELEASE=$LIBISOFS_MAJOR_VERSION.$LIBISOFS_MINOR_VERSION
-dnl 2019.11.23 development jump has happened
-dnl SONAME = 95 - 89 = 6 . Library name = libisofs.6.89.0
-LT_CURRENT=95
-LT_AGE=89
+dnl 2021.01.30 development jump has not yet happened
+dnl SONAME = 97 - 91 = 6 . Library name = libisofs.6.91.0
+LT_CURRENT=97
+LT_AGE=91
 LT_REVISION=0
 LT_CURRENT_MINUS_AGE=`expr $LT_CURRENT - $LT_AGE`
 
