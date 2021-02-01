@@ -1166,7 +1166,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                        size_t *su_size, size_t *ce, size_t base_ce, int flag)
 {
     char *name;
-    size_t namelen, su_mem, ce_mem;
+    size_t namelen, su_mem, ce_mem, ce_prepad = 0;
     void *xipt;
     size_t num_aapt = 0, sua_free = 0;
     int ret;
@@ -1197,7 +1197,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
 
 #endif /* Libisofs_ce_calc_debuG */
 
-            *ce += BLOCK_SIZE - (base_ce % BLOCK_SIZE);
+            ce_prepad = BLOCK_SIZE - (base_ce % BLOCK_SIZE);
         }
     }
 
@@ -1210,8 +1210,10 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
 
     if (flag & 1) {
        /* Account for 28 bytes of CE field */
-       if (*su_size + 28 > space)
+       if (*su_size + 28 > space) {
+           *ce += ce_prepad;
            return -1;
+       }
        *su_size += 28;
     }
 
@@ -1242,8 +1244,10 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         int cew = (*ce != 0); /* are we writing to CA ? */
 
         dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
-        if (dest == NULL)
+        if (dest == NULL) {
+            *ce += ce_prepad;
             return -2;
+        }
         prev = dest;
         cur = strchr(prev, '/');
         while (1) {
@@ -1405,6 +1409,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         }
     }
 
+    *ce += ce_prepad;
     return 1;
 
 unannounced_ca:;
