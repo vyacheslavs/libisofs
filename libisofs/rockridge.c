@@ -1357,6 +1357,9 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     if (*ce > 0 && !(flag & 1))
         goto unannounced_ca;
 
+    *ce += ce_prepad;
+    ce_prepad = 0;
+
     /* obtain num_aapt from node */
     xipt = NULL;
     num_aapt = 0;
