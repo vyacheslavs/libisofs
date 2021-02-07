@@ -748,7 +748,21 @@ ChangeLog
 libisofs/changelog.txt
 Updated change log
 
------------------------------------- release - libisofs-1.5.4 - 30 Jan 2021
+07 Feb 2021  [release-1.5.4.branch: 408eb3f]
+libisofs/rockridge.c
+Bug fix: Large amounts of AAIP data or many long file names could cause with
+zisofs an unreadable filesystem after the warning "Calculated and written
+ECMA-119 tree end differ"
+
+07 Feb 2021  [release-1.5.4.branch: ]
+ChangeLog
+libisofs/changelog.txt
+Updated change log
+
+------------------------------------ release - libisofs-1.5.4 - 07 Feb 2021
+* Bug fix: Large amounts of AAIP data or many long file names could cause with
+           zisofs an unreadable filesystem after the warning "Calculated and
+           written ECMA-119 tree end differ"
 * Bug fix: Big-Endian MIPS Volume Header boot file size was rounded up to
            full 2048. Thanks René Rebe.
 * Bug fix: El Torito production failed if no catalog path is given and the

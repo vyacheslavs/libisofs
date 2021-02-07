@@ -1,5 +1,8 @@
-libisofs-1.5.4.tar.gz Sat Jan 30 2021
+libisofs-1.5.4.tar.gz Sun Feb 07 2021
 ===============================================================================
+* Bug fix: Large amounts of AAIP data or many long file names could cause with
+           zisofs an unreadable filesystem after the warning "Calculated and
+           written ECMA-119 tree end differ"
 * Bug fix: Big-Endian MIPS Volume Header boot file size was rounded up to
            full 2048. Thanks René Rebe.
 * Bug fix: El Torito production failed if no catalog path is given and the
