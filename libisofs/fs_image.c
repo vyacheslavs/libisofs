@@ -3800,17 +3800,18 @@ void iso_get_hc_sh(uint8_t *matches, uint32_t iso_image_size,
 }
 
 static
-int iso_analyze_mbr_ptable(IsoImage *image, int flag)
+int iso_analyze_mbr_ptable(IsoImage *image, IsoDataSource *src, int flag)
 {
-    int i, j, ret, cyl_align_mode, part_after_image = 0;
+    int i, j, ret, cyl_align_mode, part_after_image = 0, ignore_part;
     uint32_t start_h, start_s, start_c, end_h, end_s, end_c, sph = 0, hpc = 0;
     uint32_t start_lba, num_blocks, end_chs_lba, image_size, lba, cyl_size;
-    uint8_t *data, pstatus, ptype, *hc_sh = NULL;
+    uint8_t *data, pstatus, ptype, *hc_sh = NULL, *buf = NULL;
     struct iso_imported_sys_area *sai;
 
     /* Bitmap for finding head_per_cyl and sectors_per_head. */
     LIBISO_ALLOC_MEM(hc_sh, uint8_t, 32 * 63);
     memset(hc_sh, 0xff,  32 * 63);
+    LIBISO_ALLOC_MEM(buf, uint8_t, 2048);
 
     sai = image->imported_sa_info;
     image_size = sai->image_size;
@@ -3833,6 +3834,30 @@ int iso_analyze_mbr_ptable(IsoImage *image, int flag)
         num_blocks = iso_read_lsb(data + 12, 4);
         if (num_blocks <= 0)
     continue;
+
+        /* Check whether the partition fits into size of medium */
+        ignore_part= ((off_t) num_blocks + (off_t) start_lba - (off_t) 1 >
+                      (off_t) 0xffffffff);
+        if (!ignore_part) {
+            ret= src->read_block(src, start_lba / 4, buf);
+            if (ret != 1)
+                ignore_part = 1;
+        }
+        if (!ignore_part) {
+            lba = (start_lba + num_blocks - 1) / 4;
+            /* make sure not to ignore because of incomplete last 2048 block */
+            if (lba > 0 && (off_t) lba * (off_t) 4 + (off_t) 3 !=
+                           (off_t) (start_lba + num_blocks - 1))
+                lba--;
+            ret= src->read_block(src, lba, buf);
+            if (ret != 1)
+                ignore_part = 1;
+        }
+        if (ignore_part) {
+            iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+                 "Ignored non-empty MBR partition outside of medium capacity");
+    continue;
+        }
         if (sph > 0) {
             if (end_s != sph)
                 sph = 0xffffffff;
@@ -3902,6 +3927,7 @@ int iso_analyze_mbr_ptable(IsoImage *image, int flag)
     sai->system_area_options |= (cyl_align_mode << 8);
     ret = 1;
 ex:
+    LIBISO_FREE_MEM(buf);
     LIBISO_FREE_MEM(hc_sh);
     return ret;
     
@@ -4016,7 +4042,7 @@ int iso_analyze_mbr(IsoImage *image, IsoDataSource *src, int flag)
         ((unsigned char *) sad)[511] != 0xaa)
         {ret = 0; goto ex;}
 
-    ret = iso_analyze_mbr_ptable(image, 0);
+    ret = iso_analyze_mbr_ptable(image, src, 0);
     if (ret <= 0)
         goto ex;
 
