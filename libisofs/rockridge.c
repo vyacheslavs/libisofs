@@ -930,27 +930,6 @@ int susp_add_ES(Ecma119Image *t, struct susp_info *susp, int to_ce, int seqno)
 }
 
 
-/** 
- * A field beginning by 0 causes rrip_write_ce_fields() to pad up to the
- * next block.
- */
-static
-int pseudo_susp_add_PAD(Ecma119Image *t, struct susp_info *susp)
-{
-    unsigned char *pad;
-    int ret;
-
-    pad = malloc(1);
-    if (pad == NULL)
-        return ISO_OUT_OF_MEM;
-    pad[0] = 0;
-    ret = susp_append_ce(t, susp, pad);
-    if (ret < 0)
-        return ret;
-    return ISO_SUCCESS;
-}
-
-
 /**
  * see doc/zisofs_format.txt : "ZF System Use Entry Format"
  * see doc/zisofs2_format.txt : "ZF System Use Entry Format", "Z2 ..."
@@ -1166,7 +1145,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                        size_t *su_size, size_t *ce, size_t base_ce, int flag)
 {
     char *name;
-    size_t namelen, su_mem, ce_mem, ce_prepad = 0;
+    size_t namelen, su_mem, ce_mem;
     void *xipt;
     size_t num_aapt = 0, sua_free = 0;
     int ret;
@@ -1185,21 +1164,8 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     if (*ce > 0 && !(flag & 1))
         goto unannounced_ca;
 
-    if (flag & 2) {
+    if (flag & 2)
         flag |= 1;
-        if (base_ce % BLOCK_SIZE) {
-
-#ifdef Libisofs_ce_calc_debuG
-
-            fprintf(stderr,
-                "\nlibburn_DEBUG: Accounting for %d bytes CE padding : %s\n\n",
-                (int) (BLOCK_SIZE - (base_ce % BLOCK_SIZE)), n->node->name);
-
-#endif /* Libisofs_ce_calc_debuG */
-
-            ce_prepad = BLOCK_SIZE - (base_ce % BLOCK_SIZE);
-        }
-    }
 
     namelen = 0;
     name = get_rr_fname(t, n->node->name);
@@ -1210,10 +1176,8 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
 
     if (flag & 1) {
        /* Account for 28 bytes of CE field */
-       if (*su_size + 28 > space) {
-           *ce += ce_prepad;
+       if (*su_size + 28 > space)
            return -1;
-       }
        *su_size += 28;
     }
 
@@ -1244,10 +1208,8 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         int cew = (*ce != 0); /* are we writing to CA ? */
 
         dest = get_rr_fname(t, ((IsoSymlink*)n->node)->dest);
-        if (dest == NULL) {
-            *ce += ce_prepad;
+        if (dest == NULL)
             return -2;
-        }
         prev = dest;
         cur = strchr(prev, '/');
         while (1) {
@@ -1357,9 +1319,6 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     if (*ce > 0 && !(flag & 1))
         goto unannounced_ca;
 
-    *ce += ce_prepad;
-    ce_prepad = 0;
-
     /* obtain num_aapt from node */
     xipt = NULL;
     num_aapt = 0;
@@ -1412,7 +1371,6 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
         }
     }
 
-    *ce += ce_prepad;
     return 1;
 
 unannounced_ca:;
@@ -1997,26 +1955,6 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
         }
 
         if (ce_is_predicted) {
-            if ((info->ce_len % BLOCK_SIZE) &&
-                (info->ce_len + ce_len_pd - 1 ) / BLOCK_SIZE !=
-                info->ce_len / BLOCK_SIZE) {
-                /* Linux fs/isofs wants byte_offset + ce_len <= BLOCK_SIZE
-                 * Insert padding to shift CE offset to next block start
-                 */
-
-#ifdef Libisofs_ce_calc_debuG
-
-                fprintf(stderr,
-                  "\nlibburn_DEBUG: Inserting %d bytes of CE padding : %s\n\n",
-                  (int) (BLOCK_SIZE - (info->ce_len % BLOCK_SIZE)),
-                   n->node->name);
-
-#endif /* Libisofs_ce_calc_debuG */
-
-                ret = pseudo_susp_add_PAD(t, info);
-                if (ret < 0)
-                    goto add_susp_cleanup;
-            }
             /* Add the CE entry */
             ret = susp_add_CE(t, ce_len_pd, info);
             if (ret < 0) {
