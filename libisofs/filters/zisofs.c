@@ -46,7 +46,9 @@
 
 
 /* The lowest size of a file which shall not be represented by zisofs v1 */
-#define ISO_ZISOFS_V1_LIMIT 4294967296
+/* The constant 4294967296 causes protests about int size on 32 bit machines */
+#define ISO_ZISOFS_V1_LIMIT ((off_t) (1 << 16) * (off_t) (1 << 16))
+
 
 /* zisofs2: Test value for small mixed-version ISOs: 1 million
             ISO_ZISOFS_V1_LIMIT 1000000
