@@ -1737,6 +1737,7 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
 
     uint32_t p_arr_crc = 0;
     uint64_t start_lba, end_lba, goal, part_end, next_end, backup_end_lba;
+    uint64_t eff_gpt_flags;
     int ret, i, gap_counter = 0, up_to;
     struct iso_gpt_partition_request *req;
     uint8_t gpt_name[72];
@@ -1791,11 +1792,16 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
         } else if (part_end < goal) {
             memset(gpt_name, 0, 72);
             type_guid = basic_data_uuid;
+            eff_gpt_flags= gpt_flags;
             if (goal == t->vol_space_size * (uint64_t) 4 &&
                 part_end == t->opts->partition_offset * (uint64_t) 4) {
                 sprintf((char *) gpt_name, "ISO9660");
                 if (t->opts->iso_gpt_flag & 1)
                     type_guid = t->opts->iso_gpt_type_guid;
+                if (t->system_area_options & (1 << 16))
+                    eff_gpt_flags|= 4; /* Legacy BIOS bootable */
+                if (t->system_area_options & (1 << 17))
+                    eff_gpt_flags&= ~(((uint64_t) 1) << 60);/* Not read-only */
             } else {
                 sprintf((char *) gpt_name, "Gap%d", gap_counter);
             }
@@ -1804,7 +1810,7 @@ static int iso_write_gpt(Ecma119Image *t, uint32_t img_blocks, uint8_t *buf)
             ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
                                       part_end, goal - part_end,
                                       type_guid, zero_uuid,
-                                      gpt_flags, gpt_name);
+                                      eff_gpt_flags, gpt_name);
             if (ret < 0)
                 return ret;
             /* Mark as automatically placed filler request */

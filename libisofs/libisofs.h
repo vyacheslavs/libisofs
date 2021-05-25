@@ -2277,9 +2277,19 @@ int iso_write_opts_set_fifo_size(IsoWriteOpts *opts, size_t fifo_size);
  *              Is normally combined with options bit0.
  *              Will not be in effect if options bit1 is set.
  *        bit15= Only with System area type MBR but not with CHRP
+ *              @since 1.4.4
  *              Enforce MBR "bootable/active" flag. In worst case by dummy
  *              partition of type 0x00 which occupies block 0.
- *              @since 1.4.4
+ *        bit16= "Legacy BIOS bootable" in GPT
+ *              @since 1.5.6
+ *              If this bit is set and a GPT partition for the ISO 9660
+ *              filesystem gets written, then set the GPT partition flags bit 2
+ *              "Legacy BIOS bootable".
+ *        bit17= ISO not read-only
+ *              @since 1.5.6
+ *              Do not set GPT partition flag bit 60 "read-only" for the
+ *              ISO 9660 filesystem partition, if such a partition gets
+ *              written.
  * @param flag
  *        bit0 = invalidate any attached system area data. Same as data == NULL
  *               (This re-activates eventually loaded image System Area data.

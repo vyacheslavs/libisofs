@@ -4207,7 +4207,7 @@ int iso_write_opts_set_system_area(IsoWriteOpts *opts, char data[32768],
         opts->system_area_size = 32768;
     }
     if (!(flag & 4))
-        opts->system_area_options = options & 0xffff;
+        opts->system_area_options = options & 0x3ffff;
     return ISO_SUCCESS;
 }
 
