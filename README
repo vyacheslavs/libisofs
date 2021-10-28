@@ -5,7 +5,7 @@
 Released under GNU General Public License version 2 or later.
 See COPYING file for details.
 
-Copyright (C) 2008 - 2018 Vreixo Formoso,
+Copyright (C) 2008 - 2021 Vreixo Formoso,
                           Mario Danic,
                           Vladimir Serbinenko,
                           Thomas Schmitt
@@ -15,25 +15,24 @@ libisofs is part of the libburnia project (libburnia-project.org)
 
                         Download, Build and Installation
 
-libisofs code is maintained in a Bazaar repository at Launchpad 
-(https://launchpad.net/libisofs/). You can download it with:
+libisofs code is maintained in a git repository at dev.lovelyhq.com
+(https://dev.lovelyhq.com/libburnia/libisofs). You can download it with:
 
-$ bzr branch lp:libisofs/for-libisoburn
+$ git clone https://dev.lovelyhq.com/libburnia/libisofs.git
 
 Our build system is based on autotools. For preparing the build you will need 
-autotools of at least version 1.7. If you have download the code from the
+autotools of at least version 1.7. If you have downloaded the code from the
 repository, first of all you need to execute
 
-   ./autogen.sh
+   ./bootstrap
    
-on toplevel dir to execute autotools.
+in the toplevel directory ./libisofs, in order to execute autotools.
 
 Alternatively you may unpack a release tarball for which you do not need
 autotools installed. For the most recent release of libisofs see:
-   http://libburnia-project.org/wiki/Releases
+   https://dev.lovelyhq.com/libburnia/web/wiki/Releases
 
-To build libisofs it should be sufficient to go into its toplevel directory 
-and execute
+To build libisofs go into its toplevel directory and execute
 
    ./configure --prefix=/usr
    make
