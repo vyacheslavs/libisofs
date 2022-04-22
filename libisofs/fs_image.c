@@ -3854,9 +3854,14 @@ int iso_analyze_mbr_ptable(IsoImage *image, IsoDataSource *src, int flag)
                 ignore_part = 1;
         }
         if (ignore_part) {
-            iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+            if (ptype == 0xee) {
+                iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+       "Found Protective MBR with size range larger than the medium capacity");
+            } else {
+                iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
                  "Ignored non-empty MBR partition outside of medium capacity");
     continue;
+            }
         }
         if (sph > 0) {
             if (end_s != sph)
@@ -5063,6 +5068,11 @@ int iso_impsysa_report(IsoImage *image, struct iso_impsysa_result *target,
     strcpy(msg, "System area summary:");
     if (sa_type == 0) {
         if ((sao & 3) || sa_sub == 1 || sa_sub == 2) {
+
+            /* >>> ??? Should isohybrid and protective-msdos-label be
+                       combinable ?
+            */
+
             strcat(msg, " MBR");
             if (sao & 2)
                 strcat(msg, " isohybrid");
