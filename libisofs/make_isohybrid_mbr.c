@@ -420,8 +420,8 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         0x00, 0x53, 0x46, 0x48, 0x00, 0x00, 0xaa, 0x11,
         0xaa, 0x11, 0x00, 0x30, 0x65, 0x43, 0xec, 0xac
     };
-    uint8_t *uuid;
-    static uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
+    uint8_t *uuid, *type_guid;
+    uint64_t gpt_flags = (((uint64_t) 1) << 60) | 1;
 
     *gpt_count = 0;
     *apm_count = 0;
@@ -504,12 +504,20 @@ int assess_isohybrid_gpt_apm(Ecma119Image *t, int *gpt_count, int gpt_idx[128],
         memset(gpt_name, 0, 72);
         sprintf((char *) gpt_name, "ISOHybrid");
         iso_ascii_utf_16le(gpt_name);
+        if (t->opts->iso_gpt_flag & 1)
+            type_guid = t->opts->iso_gpt_type_guid;
+        else
+            type_guid = basic_data_uuid;
+        if (t->system_area_options & (1 << 16))
+            gpt_flags|= 4; /* Legacy BIOS bootable */
+        if (t->opts->system_area_options & (1 << 17))
+            gpt_flags &= ~(((uint64_t) 1) << 60); /* Not read-only */
         /* Let it be open ended. iso_write_gpt() will truncate it as needed. */
         block_count = 0xffffffff;
         ret = iso_quick_gpt_entry(t->gpt_req, &(t->gpt_req_count),
                                   (uint64_t) t->opts->partition_offset * 4,
                                   ((uint64_t) block_count) * 4,
-                                  basic_data_uuid, zero_uuid, gpt_flags,
+                                  type_guid, zero_uuid, gpt_flags,
                                   (uint8_t *) gpt_name);
         if (ret < 0)
             return ret;
