@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008 Vreixo Formoso
- * Copyright (c) 2010 - 2019 Thomas Schmitt
+ * Copyright (c) 2010 - 2022 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -1881,6 +1881,56 @@ static void iso_dummy_mbr_partition(uint8_t *buf, int mode)
 }
 
 
+/* flag bit0= only accept partition 1 as match for partition_offset
+*/
+static
+int iso_ensure_mbr_part_table(Ecma119Image *t, uint32_t img_blocks,
+                              uint8_t *buf, int flag)
+{
+    int part_type, ret, i, found_part = 0;
+    uint32_t start_lba, num_blocks;
+
+    /* Look for MBR partition which starts at t->opts->partition_offset * 4
+       and has non-zero length
+    */
+    if (buf[510] == 0x55 && buf[511] == 0xaa &&
+        t->opts->partition_offset < 0x3fffffff && img_blocks < 0x3fffffff ) {
+        for (i = 0; i < 4; i++) {
+            start_lba = iso_read_lsb(buf + 446 + i * 16 + 8, 4);
+            num_blocks = iso_read_lsb(buf + 446 + i * 16 + 12, 4);
+            if (t->opts->partition_offset * 4 == start_lba && num_blocks > 0) {
+                found_part = i + 1;
+        break;
+            }
+            if (flag & 1)
+        break;
+        }
+    }
+    if (found_part > 0) {
+        /* Update size fields in found_part */
+        part_type = buf[446 + (found_part - 1) * 16 + 4];
+        if (t->opts->iso_mbr_part_type >= 0 &&
+            t->opts->iso_mbr_part_type <= 255)
+            part_type= t->opts->iso_mbr_part_type;
+        ret = write_mbr_partition_entry(found_part, part_type,
+                                        start_lba, img_blocks * 4,
+                                        t->partition_secs_per_head,
+                                        t->partition_heads_per_cyl, buf, 2);
+    } else {
+        part_type = 0xcd;
+        if (t->opts->iso_mbr_part_type >= 0 &&
+            t->opts->iso_mbr_part_type <= 255)
+            part_type= t->opts->iso_mbr_part_type;
+        ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
+                                    t->partition_heads_per_cyl,
+                                    (uint8_t) part_type, buf, 2);
+    }
+    if (ret != ISO_SUCCESS) /* error should never happen */
+        return ISO_ASSERT_FAILURE;
+    return ISO_SUCCESS;
+}
+
+
 /* @param flag
           bit0= t->opts->ms_block is not counted in t->total_size
 */
@@ -2085,14 +2135,9 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
             return ret;
     } else if ((t->opts->partition_offset > 0 || will_append) &&
                sa_type == 0 && t->mbr_req_count == 0) {
-        /* Write a simple partition table. */
-        part_type = 0xcd;
-        if (t->opts->iso_mbr_part_type >= 0 &&
-            t->opts->iso_mbr_part_type <= 255)
-            part_type= t->opts->iso_mbr_part_type;
-        ret = make_grub_msdos_label(img_blocks, t->partition_secs_per_head,
-                                    t->partition_heads_per_cyl,
-                                    (uint8_t) part_type, buf, 2);
+        ret= iso_ensure_mbr_part_table(t, img_blocks, buf,
+                  ((t->opts->appended_as_gpt && t->have_appended_partitions) ||
+                   t->opts->partition_offset == 0));
         if (ret != ISO_SUCCESS) /* error should never happen */
             return ISO_ASSERT_FAILURE;
         risk_of_ee = 1;
