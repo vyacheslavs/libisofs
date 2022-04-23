@@ -1912,7 +1912,7 @@ int iso_ensure_mbr_part_table(Ecma119Image *t, uint32_t img_blocks,
         if (t->opts->iso_mbr_part_type >= 0 &&
             t->opts->iso_mbr_part_type <= 255)
             part_type= t->opts->iso_mbr_part_type;
-        ret = write_mbr_partition_entry(found_part, part_type,
+        ret = write_mbr_partition_entry(found_part, part_type, 
                                         start_lba, img_blocks * 4,
                                         t->partition_secs_per_head,
                                         t->partition_heads_per_cyl, buf, 2);
@@ -2006,8 +2006,10 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
     */
 
     apm_flag = 0;
-    if (sa_type == 0 && (t->system_area_options & 3) == 2) {
-        do_isohybrid = 1;
+    if (sa_type == 0 && ((t->system_area_options & 3) == 2 ||
+                          t->opts->part_like_isohybrid)) {
+        if (sa_type == 0 && (t->system_area_options & 3) == 2)
+            do_isohybrid = 1;
 
         /* >>> Coordinate with partprepend writer */
         /* <<< provisory trap */
@@ -2078,9 +2080,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
            /* >>> ??? change first partition type to 0xee */;
 
         }
-    } else if (do_isohybrid) {
-        /* Patch externally provided system area as isohybrid MBR */
-        if (t->catalog == NULL || t->system_area_data == NULL) {
+    } else if (do_isohybrid || t->opts->part_like_isohybrid) {
+        /* Patch externally provided system area as isohybrid MBR
+           or at least write an MBR partition table as of isohybrid
+        */
+        if ((t->catalog == NULL || t->system_area_data == NULL) &&
+            do_isohybrid) {
             /* isohybrid makes only sense together with ISOLINUX boot image
                and externally provided System Area.
             */
@@ -2089,12 +2094,13 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
 
         if (gpt_count > 0 || apm_count > 0)
             part_type = 0x00;
-        else {
+        else
             part_type = 0x17;
+        /* By tradition, real isohybrid insists in 0x00 if GPT or APM */
+        if (part_type != 0x00 || !do_isohybrid)
             if (t->opts->iso_mbr_part_type >= 0 &&
                 t->opts->iso_mbr_part_type <= 255)
                 part_type= t->opts->iso_mbr_part_type;
-        }
 
         if (t->opts->appended_as_gpt && t->have_appended_partitions) {
             part_type = 0xee;
@@ -2109,7 +2115,7 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
         */;
 
         ret = make_isolinux_mbr(&img_blocks, t, 0, 1, part_type, buf,
-                                1 | no_boot_mbr);
+                                1 | no_boot_mbr | ((!do_isohybrid) << 2));
         if (ret != 1)
             return ret;
     } else if (sa_type == 1) {

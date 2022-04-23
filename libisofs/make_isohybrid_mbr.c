@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2002 - 2008 H. Peter Anvin
- * Copyright (c) 2008 - 2015 Thomas Schmitt
+ * Copyright (c) 2008 - 2022 Thomas Schmitt
  * with special credits to Matthew Garrett for isohybrid with GPT and APM
  *
  * This file is part of the libisofs project; you can redistribute it and/or
@@ -625,8 +625,12 @@ static uint32_t iso_make_mbr_id(Ecma119Image *t, int flag)
 
 /*
  * @param flag  bit0= make own random MBR Id from current time
- *                    >>> or from overridden modification time
+ *                    or from overridden modification time
  *              bit1= create protective MBR as of UEFI/GPT specs
+ *              bit2= write only partition table
+ *                    do not insert APM mockup head
+ *                    do not treat bytes before code as isohybrid MBR
+ *                    do not create MBR id
  */
 int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
@@ -662,39 +666,44 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     if (ret < 0)
         return ret;
 
-    /* The rest of APM has already been written by iso_write_apm().
-       But the isohybrid APM head differs from the hfsplus_writer APM head.
-    */
-    ret = insert_apm_head(buf, apm_count);
-    if (ret < 0)
-        return ret;
-
-    /* Padding of image_size to a multiple of sector_count*head_count
-       happens already at compute time and is implemented by
-       an appropriate increase of Ecma119Image->tail_blocks.
-    */
-
-    wpt = (char *) buf + 432;
-
-    /* write qword boot_lba            # Offset 432
-    */
-    hd_boot_lba = ((off_t) boot_lba) * (off_t) 4;
-    lsb_to_buf(&wpt, hd_boot_lba & 0xffffffff, 32, 0);
-    lsb_to_buf(&wpt, hd_boot_lba >> 32, 32, 0);
-
-    /* write dword mbr_id              # Offset 440 
-       (here some 32-bit random value with no crypto strength)
-    */
-    if (flag & 1) {
-        id = iso_make_mbr_id(t, 0);
-        lsb_to_buf(&wpt, id, 32, 0);
+    if(flag & 4) {
+        wpt= (char *) buf + 446;
     } else {
-        wpt+= 4;
-    }
 
-    /* write word 0                    # Offset 444
-    */
-    lsb_to_buf(&wpt, 0, 16, 0);
+        /* The rest of APM has already been written by iso_write_apm().
+           But the isohybrid APM head differs from the hfsplus_writer APM head.
+        */
+        ret = insert_apm_head(buf, apm_count);
+        if (ret < 0)
+            return ret;
+
+        /* Padding of image_size to a multiple of sector_count*head_count
+           happens already at compute time and is implemented by
+           an appropriate increase of Ecma119Image->tail_blocks.
+        */
+
+        wpt = (char *) buf + 432;
+
+        /* write qword boot_lba            # Offset 432
+        */
+        hd_boot_lba = ((off_t) boot_lba) * (off_t) 4;
+        lsb_to_buf(&wpt, hd_boot_lba & 0xffffffff, 32, 0);
+        lsb_to_buf(&wpt, hd_boot_lba >> 32, 32, 0);
+
+        /* write dword mbr_id              # Offset 440 
+           (here some 32-bit random value with no crypto strength)
+        */
+        if (flag & 1) {
+            id = iso_make_mbr_id(t, 0);
+            lsb_to_buf(&wpt, id, 32, 0);
+        } else {
+            wpt+= 4;
+        }
+
+        /* write word 0                    # Offset 444
+        */
+        lsb_to_buf(&wpt, 0, 16, 0);
+    }
 
     /* # Offset 446
     */
