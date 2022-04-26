@@ -337,7 +337,7 @@ off_t lfs_lseek(IsoFileSource *src, off_t offset, int flag)
     int whence;
 
     if (src == NULL) {
-        return (off_t)ISO_NULL_POINTER;
+        return (off_t)((int) ISO_NULL_POINTER);
     }
     switch (flag) {
     case 0: 
@@ -347,7 +347,7 @@ off_t lfs_lseek(IsoFileSource *src, off_t offset, int flag)
     case 2: 
         whence = SEEK_END; break;
     default: 
-        return (off_t)ISO_WRONG_ARG_VALUE;
+        return (off_t)((int) ISO_WRONG_ARG_VALUE);
     }
 
     data = src->data;
@@ -360,19 +360,19 @@ off_t lfs_lseek(IsoFileSource *src, off_t offset, int flag)
                 /* error on read */
                 switch (errno) {
                 case ESPIPE:
-                    ret = (off_t)ISO_FILE_ERROR;
+                    ret = (off_t)((int) ISO_FILE_ERROR);
                     break;
                 default:
-                    ret = (off_t)ISO_ERROR;
+                    ret = (off_t)((int) ISO_ERROR);
                     break;
                 }
             }
             return ret;
         }
     case 2: /* directory */
-        return (off_t)ISO_FILE_IS_DIR;
+        return (off_t)((int) ISO_FILE_IS_DIR);
     default:
-        return (off_t)ISO_FILE_NOT_OPENED;
+        return (off_t)((int) ISO_FILE_NOT_OPENED);
     }
 }
 
