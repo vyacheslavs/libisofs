@@ -852,12 +852,24 @@ void iso_stream_get_file_name(IsoStream *stream, char *name)
         strncpy(name, path, PATH_MAX - 1);
         name[PATH_MAX - 1] = 0;
         free(path);
-    } else if (!strncmp(type, "boot", 4)) {
-        strcpy(name, "BOOT CATALOG");
+    } else if (!strncmp(type, "cout", 4)) {
+        strcpy(name, "CUT_OUT FILE");
     } else if (!strncmp(type, "mem ", 4)) {
         strcpy(name, "MEM SOURCE");
+    } else if (!strncmp(type, "boot", 4)) {
+        strcpy(name, "BOOT CATALOG");
     } else if (!strncmp(type, "extf", 4)) {
         strcpy(name, "EXTERNAL FILTER");
+    } else if (!strncmp(type, "ziso", 4)) {
+        strcpy(name, "ZISOFS COMPRESSION FILTER");
+    } else if (!strncmp(type, "osiz", 4)) {
+        strcpy(name, "ZISOFS DECOMPRESSION FILTER");
+    } else if (!strncmp(type, "gzip", 4)) {
+        strcpy(name, "GZIP COMPRESSION FILTER");
+    } else if (!strncmp(type, "pizg", 4)) {
+        strcpy(name, "GZIP DECOMPRESSION FILTER");
+    } else if (!strncmp(type, "user", 4)) {
+        strcpy(name, "USER SUPPLIED STREAM");
     } else {
         strcpy(name, "UNKNOWN SOURCE");
     }
