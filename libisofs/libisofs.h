@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2021 Thomas Schmitt
+ * Copyright (c) 2009-2022 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -6349,8 +6349,9 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
  *      according to iso_image_set_truncate_mode().
  *      Its directory path depends on the parent node.
  * @param path
- *      The absolute path of the file in the local filesystem. For now
- *      only regular files and symlinks to regular files are supported.
+ *      The absolute path of the random-access capable file in the local
+ *      filesystem. Only regular files and device files are supported.
+ *      On Linux, only regular files and block device offer random-access.
  * @param offset
  *      Byte number in the given file from where to start reading data.
  * @param size
@@ -6368,8 +6369,11 @@ int iso_tree_add_new_node(IsoImage *image, IsoDir *parent, const char *name,
  *         ISO_NODE_NAME_NOT_UNIQUE, a node with same name already exists
  *         ISO_OUT_OF_MEM
  *         ISO_RR_NAME_TOO_LONG
+ *         ISO_WRONG_ARG_VALUE, if path is not suitable for random access
  *
  * @since 0.6.4
+ *
+ * Device files as path: @since 1.5.6
  */
 int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
                                   const char *name, const char *path,

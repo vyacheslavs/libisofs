@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -330,6 +330,7 @@ int cut_out_open(IsoStream *stream)
 {
     int ret;
     struct stat info;
+    off_t src_size, pos;
     IsoFileSource *src;
     struct cut_out_stream *data;
 
@@ -348,20 +349,25 @@ int cut_out_open(IsoStream *stream)
         return ret;
     }
 
-    {
-        off_t ret;
-        if (data->offset > info.st_size) {
-            /* file is smaller than expected */
-            ret = iso_file_source_lseek(src, info.st_size, 0);
-        } else {
-            ret = iso_file_source_lseek(src, data->offset, 0);
-        }
-        if (ret < 0) {
-            return (int) ret;
-        }
+    if (S_ISREG(info.st_mode)) {
+        src_size= info.st_size;
+    } else {
+        /* Determine src_size and lseekability of device */
+        src_size = iso_file_source_lseek_capacity(src, 0);
+        if (src_size <= 0)
+            return ISO_WRONG_ARG_VALUE;
+    }
+    if (data->offset > src_size) {
+        /* file is smaller than expected */
+        pos = iso_file_source_lseek(src, src_size, 0);
+    } else {
+        pos = iso_file_source_lseek(src, data->offset, 0);
+    }
+    if (pos < 0) {
+        return (int) pos;
     }
     data->pos = 0;
-    if (data->offset + data->size > info.st_size) {
+    if (data->offset + data->size > src_size) {
         return 3; /* file smaller than expected */
     } else {
         return ISO_SUCCESS;
@@ -508,6 +514,7 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
                            IsoStream **stream)
 {
     int r;
+    off_t src_size;
     struct stat info;
     IsoStream *str;
     struct cut_out_stream *data;
@@ -523,10 +530,16 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
     if (r < 0) {
         return r;
     }
-    if (!S_ISREG(info.st_mode)) {
-        return ISO_WRONG_ARG_VALUE;
+
+    if (S_ISREG(info.st_mode)) {
+        src_size = info.st_size;
+    } else {
+        /* Open src, do iso_source_lseek(SEEK_END), close src */
+        src_size = iso_file_source_lseek_capacity(src, 1);
+        if (src_size <= 0)
+            return ISO_WRONG_ARG_VALUE;
     }
-    if (offset > info.st_size) {
+    if (offset > src_size) {
         return ISO_FILE_OFFSET_TOO_BIG;
     }
 
@@ -551,7 +564,7 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
     iso_file_source_ref(src);
 
     data->offset = offset;
-    data->size = MIN(info.st_size - offset, size);
+    data->size = MIN(src_size - offset, size);
 
     /* get the id numbers */
     data->dev_id = (dev_t) 0;

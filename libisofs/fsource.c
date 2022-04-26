@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
+ * Copyright (c) 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -131,5 +132,61 @@ int iso_file_source_get_aa_string(IsoFileSource *src,
         return 1;
     }
     return src->class->get_aa_string(src, aa_string, flag);
+}
+
+
+/* Determine whether src is random-access readable and return its capacity.
+   @flag  bit0= Open and close src
+   @return <0 iso_file_source_lseek failed , >= 0 readable capacity
+*/
+off_t iso_file_source_lseek_capacity(IsoFileSource *src, int flag)
+{
+    int ret, opened = 0;
+    off_t end, old, reset;
+    struct stat info;
+
+    ret = iso_file_source_stat(src, &info);
+    if (ret < 0) {
+        end = -1;
+        goto ex;
+    }
+    if (S_ISDIR(info.st_mode) || S_ISLNK(info.st_mode) || 
+        S_ISFIFO(info.st_mode) || S_ISSOCK(info.st_mode)) {
+        /* open(2) on fifo can block and have side effects.
+           Active Unix sockets have not been tested but they make as few sense
+           as directories or symbolic links.
+        */
+        end = -1;
+        goto ex;
+    }
+
+    if (flag & 1) {
+        ret = iso_file_source_open(src);
+        if (ret < 0) {
+            end = -1;
+            goto ex;
+        }
+        opened = 1;
+    }
+    old = iso_file_source_lseek(src, 0, 1);
+    if (old < 0) {
+        end = -1;
+        goto ex;
+    }
+    end = iso_file_source_lseek(src, 0, 2);
+    if (end < 0) {
+        end = -1;
+        goto ex;
+    }
+    reset = iso_file_source_lseek(src, old, 0);
+    if (reset != old) {
+        end = -1;
+        goto ex;
+    }
+ex:;
+    if (opened) {
+        iso_file_source_close(src);
+    }
+    return end;
 }
 

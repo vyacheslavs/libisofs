@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2011 - 2015 Thomas Schmitt
+ * Copyright (c) 2011 - 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -677,6 +677,7 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
                                   IsoNode **node)
 {
     int result;
+    off_t src_size;
     struct stat info;
     IsoFilesystem *fs;
     IsoFileSource *src;
@@ -715,17 +716,23 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
         iso_file_source_unref(src);
         return result;
     }
-    if (!S_ISREG(info.st_mode)) {
-        return ISO_WRONG_ARG_VALUE;
+
+    if (S_ISREG(info.st_mode)) {
+        src_size = info.st_size;
+    } else {
+        /* Open src, do iso_source_lseek(SEEK_END), close src */
+        src_size = iso_file_source_lseek_capacity(src, 1);
+        if (src_size <= 0)
+            return ISO_WRONG_ARG_VALUE;
     }
-    if (offset >= info.st_size) {
+    if (offset >= src_size) {
         return ISO_WRONG_ARG_VALUE;
     }
 
     /* force regular file */
     result = image->builder->create_file(image->builder, image, src, &new);
     
-    /* free the file */
+    /* Give up the newly acquired surplus reference to src */
     iso_file_source_unref(src);
     
     if (result < 0) {

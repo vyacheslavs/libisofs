@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2016 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -47,6 +47,12 @@ int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int *cmp_ret,
 */
 int iso_ifs_source_clone(IsoFileSource *old_source, IsoFileSource **new_source,
                          int flag);
+
+
+/* Determine whether src is random-access readable and return its capacity.
+   @return -1 iso_file_source_lseek failed , >= 0 readable capacity
+*/
+off_t iso_file_source_lseek_capacity(IsoFileSource *src, int flag);
 
 
 #endif /*LIBISO_FSOURCE_H_*/
