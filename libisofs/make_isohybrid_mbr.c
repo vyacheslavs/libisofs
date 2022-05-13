@@ -639,16 +639,17 @@ static uint32_t iso_make_mbr_id(Ecma119Image *t, int flag)
  *                    do not insert APM mockup head
  *                    do not treat bytes before code as isohybrid MBR
  *                    do not create MBR id
+ *              bit3= replace fs_type 0x00 by 0x17 if appropriate
  */
 int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                       int part_offset, int part_number, int fs_type,
                       uint8_t *buf, int flag)
 {
-    uint32_t id, part, nominal_part_size;
+    uint32_t id, part, nominal_part_size, mbr_part_start;
     off_t hd_img_blocks, hd_boot_lba;
-    char *wpt;
+    char *wpt, *fs_type_wpt = NULL;
     uint32_t boot_lba;
-    int head_count, sector_count, ret;
+    int head_count, sector_count, ret, part_is_in_img = 0;
     int gpt_count = 0, gpt_idx[128], apm_count = 0, gpt_cursor, i;
 
     if (t->bootsrc[0] == NULL)
@@ -730,6 +731,13 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
                 if (ret < 0)
                     return ret;
             }
+
+            /* Will this hit the part_number partition ? */
+            mbr_part_start = iso_read_lsb((uint8_t *) (wpt + 8), 4);
+            if (mbr_part_start > 0 &&
+                mbr_part_start < hd_img_blocks + part_offset)
+                part_is_in_img = 1;
+
             wpt+= 16;
     continue;
         }
@@ -745,6 +753,7 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
         else
             lsb_to_buf(&wpt, 0x80, 8, 0);
         lba512chs_to_buf(&wpt, part_offset, head_count, sector_count);
+        fs_type_wpt = wpt;
         lsb_to_buf(&wpt, fs_type, 8, 0);
         lba512chs_to_buf(&wpt, hd_img_blocks - 1, head_count, sector_count);
         lsb_to_buf(&wpt, part_offset, 32, 0);
@@ -758,6 +767,17 @@ int make_isolinux_mbr(uint32_t *img_blocks, Ecma119Image *t,
     /*  write word 0xaa55            # Offset 510
     */
     lsb_to_buf(&wpt, 0xaa55, 16, 0);
+
+    /* Check whether automatically determined fs_type 0x00 can become 0x17 */
+    if ((flag & 8) && fs_type_wpt != NULL && fs_type == 0x00 &&
+        t->opts->iso_mbr_part_type != fs_type && !part_is_in_img) {
+        if (t->opts->iso_mbr_part_type >= 0 &&
+            t->opts->iso_mbr_part_type <= 255) {
+            lsb_to_buf(&fs_type_wpt, t->opts->iso_mbr_part_type, 8, 0);
+        } else {
+            lsb_to_buf(&fs_type_wpt, 0x17, 8, 0);
+        }
+    }
 
     return(1);
 }

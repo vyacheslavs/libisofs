@@ -2092,10 +2092,12 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
             return ISO_ISOLINUX_CANT_PATCH;
         }
 
-        if (gpt_count > 0 || apm_count > 0)
+        if (gpt_count > 0 || apm_count > 0) {
+            /* Decision can be revoked in make_isolinux_mbr if !do_isohybrid */
             part_type = 0x00;
-        else
+        } else {
             part_type = 0x17;
+        }
         /* By tradition, real isohybrid insists in 0x00 if GPT or APM */
         if (part_type != 0x00 || !do_isohybrid)
             if (t->opts->iso_mbr_part_type >= 0 &&
@@ -2109,13 +2111,16 @@ int iso_write_system_area(Ecma119Image *t, uint8_t *buf, int flag)
             no_boot_mbr = 2;
         }
 
-        /* >>> ??? Why is partition_offset 0 here ?
-                   It gets adjusted later by iso_offset_partition_start()
-                   Would it harm to give the real offset here ?
-        */;
-
-        ret = make_isolinux_mbr(&img_blocks, t, 0, 1, part_type, buf,
-                                1 | no_boot_mbr | ((!do_isohybrid) << 2));
+        /* ??? Why was partition_offset 0 here ?
+               It gets adjusted later by iso_offset_partition_start()
+               Does it harm to give the real offset here ?
+           Now this is really needed for checking whether partitions
+           are inside the ISO 9660 partition if !do_isohybrid
+        */
+        ret = make_isolinux_mbr(&img_blocks, t, t->opts->partition_offset * 4,
+                                1, part_type, buf,
+                                1 | no_boot_mbr | ((!do_isohybrid) << 2) |
+                                ((!do_isohybrid) << 3));
         if (ret != 1)
             return ret;
     } else if (sa_type == 1) {
