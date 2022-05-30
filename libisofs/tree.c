@@ -720,8 +720,7 @@ int iso_tree_add_new_cut_out_node(IsoImage *image, IsoDir *parent,
     if (S_ISREG(info.st_mode)) {
         src_size = info.st_size;
     } else {
-        /* Open src, do iso_source_lseek(SEEK_END), close src */
-        src_size = iso_file_source_lseek_capacity(src, 1);
+        src_size = iso_file_source_determine_capacity(src, offset + size, 3);
         if (src_size <= 0)
             return ISO_WRONG_ARG_VALUE;
     }

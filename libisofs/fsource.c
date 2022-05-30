@@ -135,11 +135,12 @@ int iso_file_source_get_aa_string(IsoFileSource *src,
 }
 
 
-/* Determine whether src is random-access readable and return its capacity.
-   @flag  bit0= Open and close src
+/* @flag  bit0= Open and close src
+          bit1= Try iso_file_source_lseek(, 0) (=SEEK_SET) with wanted_size
    @return <0 iso_file_source_lseek failed , >= 0 readable capacity
 */
-off_t iso_file_source_lseek_capacity(IsoFileSource *src, int flag)
+off_t iso_file_source_lseek_capacity(IsoFileSource *src, off_t wanted_size,
+                                     int flag)
 {
     int ret, opened = 0;
     off_t end, old, reset;
@@ -173,7 +174,11 @@ off_t iso_file_source_lseek_capacity(IsoFileSource *src, int flag)
         end = -1;
         goto ex;
     }
-    end = iso_file_source_lseek(src, 0, 2);
+    if(flag & 2) {
+        end = iso_file_source_lseek(src, wanted_size, 0);
+    } else {
+        end = iso_file_source_lseek(src, 0, 2);
+    }
     if (end < 0) {
         end = -1;
         goto ex;
@@ -190,3 +195,43 @@ ex:;
     return end;
 }
 
+
+/* Determine whether src is random-access readable and return its capacity.
+   @flag bit0= For iso_file_source_lseek_capacity(): Open and close src
+         bit1= wanted_size is valid
+*/
+off_t iso_file_source_determine_capacity(IsoFileSource *src, off_t wanted_size,
+                                         int flag)
+{
+    int ret;
+    off_t src_size, src_seek_size= -1;
+    struct stat info;
+
+    ret = iso_file_source_stat(src, &info);
+    if (ret < 0) {
+        return (off_t) -1;
+    }
+    if (S_ISREG(info.st_mode)) {
+        return info.st_size;
+    }
+    src_size = iso_file_source_lseek_capacity(src, wanted_size, (flag & 1));
+    if (src_size > 0) {
+        return src_size;
+    }
+    if (!(flag & 2)) {
+        if (src_size == 0) {
+            return 0;
+        }
+        return -1;
+    }
+    src_seek_size= src_size;
+
+    src_size = iso_file_source_lseek_capacity(src, wanted_size,
+                                              2 | (flag & 1));
+    if (src_size >= 0) {
+        return src_size;
+    } else if (src_seek_size >= 0) {
+        return src_seek_size;
+    }
+    return -1;
+}

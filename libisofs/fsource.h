@@ -49,10 +49,14 @@ int iso_ifs_source_clone(IsoFileSource *old_source, IsoFileSource **new_source,
                          int flag);
 
 
+off_t iso_file_source_lseek_capacity(IsoFileSource *src, off_t wanted_size, 
+                                     int flag);
+
 /* Determine whether src is random-access readable and return its capacity.
-   @return -1 iso_file_source_lseek failed , >= 0 readable capacity
 */
-off_t iso_file_source_lseek_capacity(IsoFileSource *src, int flag);
+off_t iso_file_source_determine_capacity(IsoFileSource *src, off_t wanted_size,
+                                         int flag);
+
 
 
 #endif /*LIBISO_FSOURCE_H_*/

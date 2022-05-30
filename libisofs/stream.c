@@ -353,7 +353,8 @@ int cut_out_open(IsoStream *stream)
         src_size= info.st_size;
     } else {
         /* Determine src_size and lseekability of device */
-        src_size = iso_file_source_lseek_capacity(src, 0);
+        src_size = iso_file_source_determine_capacity(src,
+                                                 data->offset + data->size, 2);
         if (src_size <= 0)
             return ISO_WRONG_ARG_VALUE;
     }
@@ -535,7 +536,7 @@ int iso_cut_out_stream_new(IsoFileSource *src, off_t offset, off_t size,
         src_size = info.st_size;
     } else {
         /* Open src, do iso_source_lseek(SEEK_END), close src */
-        src_size = iso_file_source_lseek_capacity(src, 1);
+        src_size = iso_file_source_determine_capacity(src, offset + size, 3);
         if (src_size <= 0)
             return ISO_WRONG_ARG_VALUE;
     }
