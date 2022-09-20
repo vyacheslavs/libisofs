@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2017 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -252,6 +252,13 @@ struct Iso_Image
      */
     int blind_on_local_get_attrs;
 
+    /* Deeper tree inspection when reading an IsoImage assesses traces of the
+       used write options.
+    */
+    int do_deeper_tree_inspection;
+    int tree_loaded; /* 0=ISO 9660/ECMA-119 1=Joliet 2=ISO 9660:1999 */
+    int rr_loaded;   /* 0=plain ISO 9660/ECMA-119 1=Rock Ridge */ 
+    IsoWriteOpts *tree_compliance;
 };
 
 
@@ -443,5 +450,9 @@ int iso_imported_sa_new(struct iso_imported_sys_area **sa_info, int flag);
 
 int iso_imported_sa_unref(struct iso_imported_sys_area **sa_info, int flag);
 
+void iso_image_assess_ecma119_name(IsoImage *image, struct stat *info,
+                                   char *path, char *name);
+void iso_image_assess_joliet_name(IsoImage *image, struct stat *info,
+                                  char *path, char *name);
 
 #endif /*LIBISO_IMAGE_H_*/

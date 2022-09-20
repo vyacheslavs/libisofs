@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2019 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -803,18 +803,18 @@ int str2utf16be(const char *icharset, const char *input, uint16_t **output)
     return ISO_SUCCESS;
 }
 
-static int valid_d_char(char c)
+int valid_d_char(char c)
 {
     return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c == '_');
 }
 
-static int valid_a_char(char c)
+int valid_a_char(char c)
 {
     return (c >= ' ' && c <= '"') || (c >= '%' && c <= '?') || 
            (c >= 'A' && c <= 'Z') || (c == '_');
 }
 
-static int valid_j_char(uint16_t c)
+int valid_j_char(uint16_t c)
 {
     return cmp_ucsbe(&c, ' ') != -1 && cmp_ucsbe(&c, '*') && cmp_ucsbe(&c, '/')
         && cmp_ucsbe(&c, ':') && cmp_ucsbe(&c, ';') && cmp_ucsbe(&c, '?') 

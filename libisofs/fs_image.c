@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2020 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -27,6 +27,7 @@
 #include "node.h"
 #include "aaip_0_2.h"
 #include "system_area.h"
+#include "ecma119.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -158,13 +159,80 @@ struct iso_read_opts
     int truncate_mode;
     int truncate_length;
 
+    /**
+     * Whether to inspect during image load the directory tree for features
+     * like relaxed compliance. The result then gets recorded in a IsoWriteOpts
+     * object which is attached to IsoImage as .tree_compliance .
+     *  bit0: 0= No such inspection
+     *        1= Do the deeper inspection
+     *  bit1: 0= let iso_image_import() create a new IsoReadImageFeatures
+     *           object
+     *        1= re-use in iso_image_import() the submitted *features object
+     *  bit2: 0= normal image loading
+     *        1= filesystem assessment with less warning messages,
+     *           no assessment of system area
+     */
+    int read_features;
 };
 
 /**
  * Return information for image.
- * Both size, hasRR and hasJoliet will be filled by libisofs with suitable
- * values.
  */
+
+struct iso_read_img_feature
+{
+    const char *name;  /* Name by which the feature will be set and inquired */
+    int valid;         /* -1= invalid , 0= not yet set , 1= valid */
+    const int type;    /* 0= num_value , 1= pt_value */
+    int64_t num_value;
+    void *pt_value;
+    ssize_t pt_size;
+};
+
+static struct iso_read_img_feature iso_read_img_feature_list[] = {
+    {"size", 0, 0, 0, NULL, 0},
+    {"iso_level", 0, 0, 0, NULL, 0},
+    {"rockridge", 0, 0, 0, NULL, 0},
+    {"joliet", 0, 0, 0, NULL, 0},
+    {"hfsplus", 0, 0, 0, NULL, 0},
+    {"iso1999", 0, 0, 0, NULL, 0},
+    {"fat", 0, 0, 0, NULL, 0},
+    {"eltorito", 0, 0, 0, NULL, 0},
+    {"tree_loaded", 0, 0, 0, NULL, 0},
+    {"tree_loaded_text", 0, 1, 0, NULL, 0},
+    {"rr_loaded", 0, 0, 0, NULL, 0},
+    {"hfsp_serial_number", 0, 1, 0, NULL, 0},
+    {"hfsp_block_size", 0, 0, 0, NULL, 0},
+    {"hardlinks", 0, 0, 0, NULL, 0},
+    {"aaip", 0, 0, 0, NULL, 0},
+    {"untranslated_name_len", 0, 0, 0, NULL, 0},
+    {"allow_dir_id_ext", 0, 0, 0, NULL, 0},
+    {"omit_version_numbers", 0, 0, 0, NULL, 0},
+    {"allow_deep_paths", 0, 0, 0, NULL, 0},
+    {"rr_reloc_dir", 0, 1, 0, NULL, 0},
+    {"rr_reloc_flags", 0, 0, 0, NULL, 0},
+    {"allow_longer_paths", 0, 0, 0, NULL, 0},
+    {"max_37_char_filenames", 0, 0, 0, NULL, 0},
+    {"no_force_dots", 0, 0, 0, NULL, 0},
+    {"allow_lowercase", 0, 0, 0, NULL, 0},
+    {"allow_full_ascii", 0, 0, 0, NULL, 0},
+    {"allow_7bit_ascii", 0, 0, 0, NULL, 0},
+    {"relaxed_vol_atts", 0, 0, 0, NULL, 0},
+    {"joliet_longer_paths", 0, 0, 0, NULL, 0},
+    {"joliet_long_names", 0, 0, 0, NULL, 0},
+    {"joliet_utf16", 0, 0, 0, NULL, 0},
+    {"rrip_version_1_10", 0, 0, 0, NULL, 0},
+    {"rrip_1_10_px_ino", 0, 0, 0, NULL, 0},
+    {"aaip_susp_1_10", 0, 0, 0, NULL, 0},
+    {"record_md5_session", 0, 0, 0, NULL, 0},
+    {"record_md5_files", 0, 0, 0, NULL, 0},
+    {"scdbackup_tag_name", 0, 1, 0, NULL, 0},
+    {"scdbackup_tag_time", 0, 1, 0, NULL, 0},
+    {"always_gmt", 0, 0, 0, NULL, 0},
+
+    {"", 0, 0, 0, NULL, 0}
+};
+
 struct iso_read_image_features
 {
     /**
@@ -196,6 +264,10 @@ struct iso_read_image_features
 
     /** Whether Rock Ridge info was used while loading: 0= no, 1= yes */
     int rr_loaded;
+
+    /* List of features by name. Especially those of deep inspection. */
+    int num_named_feat;
+    struct iso_read_img_feature *named_feat;
 
 };
 
@@ -338,6 +410,13 @@ typedef struct
      *  2 = yes, but do not check tags , 1 = yes , 0 = no
      */
     int md5_load;
+
+    /** Whether MD5 sums were checked during filesystem assessment
+     *  bit0= root checksum tag
+     *  bit1= tree checksum tag
+     *  (not yet: bit2= session checksum tag)
+     */
+    int md5_checked;
 
     /** Whether AAIP is present. Version major.minor = major * 100 + minor
      *  Value -1 means that no AAIP ER was detected yet.
@@ -2933,6 +3012,7 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
         data->md5_load = 2;
     else
         data->md5_load = 0;
+    data->md5_checked = 0;
     data->aaip_version = -1;
     data->make_new_ino = opts->make_new_ino;
     data->num_bootimgs = 0;
@@ -2977,6 +3057,8 @@ int iso_image_filesystem_new(IsoDataSource *src, struct iso_read_opts *opts,
                             0, "HINT", 0);
             goto fs_cleanup;
         }
+        if (ret == 1)
+            data->md5_checked = 3;
     }
 
     /* 1. first, open the filesystem */
@@ -5803,6 +5885,484 @@ int iso_image_report_el_torito(IsoImage *image,
 }
 
 
+/* Set named feature name to num_value or pt_value depending on its type.
+   @param pt_size >=0 : size with .type == 1 ,
+                   <0 : determine pt_size by strlen()
+   @return -1= name unknown , 1= ok
+*/
+int iso_img_features_set_named_pts(IsoReadImageFeatures *f, char *name,
+                               int64_t num_value, void *pt_value,
+                               ssize_t pt_size)
+{
+    int i;
+
+    for (i = 0; i < f->num_named_feat; i++)
+        if (strcmp(f->named_feat[i].name, name) == 0)
+    break;
+    if (i >= f->num_named_feat)
+        return -1;
+    if (f->named_feat[i].type == 1) {
+        if (f->named_feat[i].pt_value != NULL)
+            free(f->named_feat[i].pt_value);
+        if (pt_size >= 0)
+            f->named_feat[i].pt_size = pt_size;
+        else
+            f->named_feat[i].pt_size = strlen(pt_value) + 1;
+        f->named_feat[i].pt_value = calloc(1, f->named_feat[i].pt_size);
+        if (f->named_feat[i].pt_value == NULL)
+            return ISO_OUT_OF_MEM;
+        memcpy(f->named_feat[i].pt_value, pt_value, f->named_feat[i].pt_size);
+    } else {
+        f->named_feat[i].num_value = num_value;
+    }
+    f->named_feat[i].valid = 1;
+    return 1;
+}
+
+
+int iso_img_features_set_named(IsoReadImageFeatures *f, char *name,
+                               int64_t num_value, void *pt_value)
+{
+    int ret;
+
+    ret = iso_img_features_set_named_pts(f, name, num_value, pt_value,
+                                         (ssize_t) -1);
+    return ret;
+}
+
+
+static
+int iso_img_feature_to_text(struct iso_read_img_feature *f, char **result)
+{
+    int count= 0, pass, i;
+    char num_text[81], *t;
+
+    *result = NULL;
+    if (f->valid != 1)
+        return(0);
+
+    for (pass = 0; pass < 2; pass++) {
+        if (pass == 0)
+            count = strlen(f->name) + 1;
+        else
+            sprintf(t, "%s=", f->name);
+        if (f->type == 0) {
+
+            /* >>> sprintf int64_t */;
+
+            sprintf(num_text, "%.f", (double) f->num_value);
+            if (pass == 0)
+                count += strlen(num_text);
+            else
+                strcat(t, num_text);
+        } else if (strcmp(f->name, "tree_loaded_text") == 0 ||
+                   strcmp(f->name, "rr_reloc_dir") == 0 ||
+                   strcmp(f->name, "scdbackup_tag_name") == 0 ||
+                   strcmp(f->name, "scdbackup_tag_time") == 0) {
+            if (pass == 0)
+                count += f->pt_size;
+            else
+                strcat(t, (char *) f->pt_value);
+        } else if (strcmp(f->name, "hfsp_serial_number") == 0) {
+            if (pass == 0) {
+                count += 16;
+            } else {
+                for (i = 0; i < 8 && i < f->pt_size; i++)
+                    sprintf(t + strlen(t), "%2.2X",
+                                           ((uint8_t *) f->pt_value)[i]);
+            }
+        }
+        if (pass == 0) {
+            *result = calloc(1, count + 1);
+            if (*result == NULL)
+                return ISO_OUT_OF_MEM;
+            t = *result;
+        }
+    }
+    return 1;
+}
+
+
+/* API */
+/* Get named feature as text, num_value, or pt_value depending on its type.
+   @return 0 = Feature was not yet examined. Reply is not valid.
+           1 = Reply is valid
+           ISO_UNDEF_READ_FEATURE = Given name is not known
+           <0 = other error
+*/
+int iso_read_image_feature_named(IsoReadImageFeatures *f, char *name,
+                                 char **text, int *type,
+                                 int64_t *num_value, void **pt_value,
+                                 size_t *pt_size)
+{
+    int i, ret;
+
+    *num_value = 0;
+    *pt_value = NULL;
+    *pt_size = 0;
+
+    for (i = 0; i < f->num_named_feat; i++)
+        if (strcmp(f->named_feat[i].name, name) == 0)
+    break;
+    if (i >= f->num_named_feat)
+        return ISO_UNDEF_READ_FEATURE;
+    if (text != NULL) {
+        ret = iso_img_feature_to_text(&(f->named_feat[i]), text);
+        if (ret < 0)
+            return ret;
+    }
+    if (f->named_feat[i].type == 1) {
+        if (pt_value != NULL)
+            *pt_value = f->named_feat[i].pt_value;
+        if (pt_size != NULL)
+            *pt_size = (size_t) f->named_feat[i].pt_size;
+    } else {
+        if (num_value != NULL)
+            *num_value = f->named_feat[i].num_value;
+    }
+    *type = f->named_feat[i].type;
+    return 1;
+}
+
+
+/* API */
+/* Get all valid named features as one string
+*/
+int iso_read_image_features_text(IsoReadImageFeatures *f, int with_values,
+                                 char **feature_text)
+{
+    int i, ret, count = 0, pass;
+    char *r = NULL;
+
+
+    *feature_text = NULL;
+
+    for (pass = 0; pass < 2; pass++) {
+        for (i = 0; i < f->num_named_feat; i++) {
+            if(f->named_feat[i].valid != 1)
+        continue;
+            if (!with_values) {
+                r = strdup(f->named_feat[i].name);
+                if (r == NULL)
+                    return ISO_OUT_OF_MEM;
+            } else {
+                ret = iso_img_feature_to_text(&(f->named_feat[i]), &r);
+                if (ret < 0)
+                    return ret;
+                if (ret == 0)
+        continue;
+            }
+            if (pass == 0) {
+                count += strlen(r) + 1;
+            } else {
+                strcat(*feature_text, r);
+                if (i < f->num_named_feat - 1)
+                    strcat(*feature_text, "\n");
+            }
+            free(r);
+        }
+        if (pass == 0) {
+            *feature_text = calloc(1, count + 1);
+            if (*feature_text == NULL)
+                return ISO_OUT_OF_MEM;
+        }
+    }
+    return 1;
+}
+
+
+/* @param cset which charset to test for: d or a
+   @param with_separators   0=no separators 1=accept "." and ";"
+*/
+static
+int iso_is_valid_id(char *name, char cset, int with_separators,
+                    int main_length, int suffix_length)
+{
+    int l = 0, ml = -1, sep2_count= 0 ;
+    char *cpt;
+    int (*valid)(char c);
+
+    if (cset == 'a')
+        valid = valid_a_char;
+    else
+        valid = valid_d_char;
+    for(cpt = name; *cpt != 0; cpt++) {
+        if (*cpt == '.') {
+            if (!with_separators)
+                return 0;
+            if (ml >= 0)
+                return 0; /* more than one . */
+            ml = l;
+            l = 0;
+            if (main_length > 0 && ml > main_length)
+                return 0;
+    continue;
+        } else if (*cpt == ';') {
+            if (!with_separators)
+                return 0;
+            if (sep2_count > 0 || ml < 0)
+                return 0;  /* multiple ; or ; before . */
+            sep2_count++;
+    continue;
+        }
+        if (!(*valid)(*cpt))
+            return 0;
+        l++;
+    }
+    if (ml >= 0 && suffix_length > 0 && l > suffix_length)
+        return(0);
+    return 1;
+}
+
+
+/*
+ File identifier:      d or d1, . , ;
+                       level 1: 8.3
+                       level 2 and 3: no length restrictions
+ Directory identifier: 0x00, 0x01, d or d1
+
+ volset_id:   d
+ volume_id:   d
+ publisher_id:  a
+ data_preparer_id:  a
+ system_id:  a
+ application_id:  a
+ copyright_file_id:  d , . , ;
+ abstract_file_id:  d , . , ;
+ biblio_file_id:  d , . , ;
+*/
+
+static
+int iso_image_has_relaxed_vol_atts(IsoImage *image)
+{
+    if (!iso_is_valid_id(image->volset_id, 'c', 0, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->volume_id, 'c', 0, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->publisher_id, 'a', 0, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->data_preparer_id, 'a', 0, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->system_id, 'a', 0, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->application_id, 'a', 0, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->copyright_file_id, 'd', 1, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->abstract_file_id, 'd', 1, 0, 0))
+        return 1;
+    if (!iso_is_valid_id(image->biblio_file_id, 'd', 1, 0, 0))
+        return 1;
+
+    return 0;
+}
+
+
+static
+int iso_image_assess_tree_compliance(IsoImage *image,
+                                     struct iso_read_opts *opts,
+                                     IsoReadImageFeatures *features)
+{
+    int ret;
+    IsoWriteOpts *wopts;
+
+    if (features == NULL)
+        return 2;
+
+    /* (Put features here which do not depend on deeper tree inspection) */
+
+    wopts = image->tree_compliance;
+    if (wopts == NULL || !(opts->read_features & 1))
+        return 2;
+
+    /* From here on only features which depend on deeper tree inspection */
+
+    if (features->tree_loaded == 0 && features->rr_loaded) {
+        /* >>> hardlinks */;
+        /* >>> ??? always_gmt */;
+
+    } else if (features->tree_loaded == 0 && !features->rr_loaded) {
+        /* ECMA-119 tree */
+        if ((ret = iso_img_features_set_named(features, "iso_level",
+                               (int64_t) (wopts->iso_level), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features,
+                           "untranslated_name_len",
+                          (int64_t) (wopts->untranslated_name_len), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "allow_dir_id_ext",
+                               (int64_t) (wopts->allow_dir_id_ext), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "omit_version_numbers",
+                           (int64_t) (wopts->omit_version_numbers), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "allow_deep_paths",
+                               (int64_t) (wopts->allow_deep_paths), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "allow_longer_paths",
+                             (int64_t) (wopts->allow_longer_paths), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features,
+                                              "max_37_char_filenames",
+                          (int64_t) (wopts->max_37_char_filenames), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "no_force_dots",
+                                  (int64_t) (wopts->no_force_dots), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "allow_lowercase",
+                                (int64_t) (wopts->allow_lowercase), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "allow_full_ascii",
+                               (int64_t) (wopts->allow_full_ascii), NULL)) < 0)
+            return ret;
+
+    } else if (features->tree_loaded == 1) {
+        /* Joliet tree */
+        if ((ret = iso_img_features_set_named(features, "joliet_longer_paths",
+                            (int64_t) (wopts->joliet_longer_paths), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "joliet_long_names",
+                              (int64_t) (wopts->joliet_long_names), NULL)) < 0)
+            return ret;
+        if ((ret = iso_img_features_set_named(features, "joliet_utf16",
+                                   (int64_t) (wopts->joliet_utf16), NULL)) < 0)
+            return ret;
+        /* (wopts->no_force_dots still has bit0 as set by tree_loaded == 0) */
+        if ((ret = iso_img_features_set_named(features, "no_force_dots",
+                                  (int64_t) (wopts->no_force_dots), NULL)) < 0)
+            return ret;
+
+    } else if (features->tree_loaded == 2) {
+        /* ISO 9960:1999  tree */
+        /* ??? is there anything to record ? */;
+
+    }
+    return 1;
+}
+
+
+void iso_image_assess_ecma119_name(IsoImage *image, struct stat *info,
+                                   char *path, char *name)
+{
+    char *dpt, *spt;
+    int lname, lpref, lid, lpid, slash_count = 0, is_dir, i, was_dot;
+    IsoWriteOpts *tc;
+
+    tc = image->tree_compliance;
+    if (tc == NULL)
+        return;
+    is_dir = S_ISDIR(info->st_mode);
+    dpt = strchr(name, '.');
+    spt = strchr(name, ';');
+    lname = strlen(name);
+    if (spt == NULL) {
+        lid = lname;
+        lpid = strlen(path);
+    } else {
+        lid = spt - name;
+        lpid = strlen(path) - lname + lid;
+    }
+    if (dpt == NULL) {
+        if (!is_dir)
+            tc->no_force_dots |= 1;
+    } else {
+        if (is_dir)
+            tc->allow_dir_id_ext = 1;
+        lpref = dpt - name;
+        if (tc->iso_level <= 1) {
+            if (lpref > 8)
+                tc->iso_level = 2;
+            if (spt == NULL) {
+                if (lname - lpref - 1 > 3)
+                    tc->iso_level = 2;
+            } else {
+                if (spt - dpt - 1 > 3)
+                    tc->iso_level = 2;
+            }
+        }
+    }
+    if (spt == NULL && !is_dir)
+        tc->omit_version_numbers = 1;
+    for (i = 0; path[i] != 0; i++)
+        if (path[i] == '/')
+            slash_count++;
+    if (slash_count + is_dir > 8)
+        tc->allow_deep_paths = 1;
+    if (lpid > 255)
+        tc->allow_longer_paths = 1;
+    if (lid > 31 && lid <= 37) {
+        tc->max_37_char_filenames = 1;
+    } else if (lid > 37) {
+        if (tc->untranslated_name_len < (unsigned int) lid)
+            tc->untranslated_name_len = lid;
+    }
+
+    was_dot = 1; 
+    for (i = 0; i < lid; i++) {
+        if (islower(name[i])) {
+            tc->allow_lowercase = 1;
+        } else if (name[i] == '.' && !was_dot) {
+            was_dot = 1;
+        } else if (!valid_d_char(name[i])) {
+            tc->allow_full_ascii = 1;
+        }
+    }
+}
+
+
+void iso_image_assess_joliet_name(IsoImage *image, struct stat *info,
+                                  char *path, char *name)
+{
+    char *local_charset, *joliet_str = NULL, *str;
+    size_t str_len, joliet_len;
+    int ret, pass, is_dir;
+    IsoWriteOpts *tc;
+
+    tc = image->tree_compliance;
+    if (tc == NULL)
+        return;
+
+    local_charset = iso_get_local_charset(0);
+    for (pass = 0; pass < 2; pass++) {
+        if (pass == 0) {
+            str = name;
+        } else {
+            str = path;
+        }
+        str_len = strlen(str);
+        ret = strnconvl(str, local_charset, "UCS-2BE", str_len,
+                        &joliet_str, &joliet_len);
+        if (ret != 1) {
+            ret = strnconvl(str, local_charset, "UTF-16BE", str_len,
+                            &joliet_str, &joliet_len);
+            if (ret != 1) {
+
+                /* >>> Warn ? return ? */;
+
+            } else {
+                tc->joliet_utf16 = 1;
+            }
+        }
+        if (joliet_str != NULL) {
+            free(joliet_str);
+            joliet_str = NULL;
+        }
+        if (pass == 0) {
+            if (joliet_len > 64)
+                tc->joliet_long_names = 1;
+            is_dir = S_ISDIR(info->st_mode);
+            if (strchr(name, ';') == NULL && !is_dir)
+                tc->omit_version_numbers = 2;
+            if (strchr(name, '.') == NULL && !is_dir)
+                tc->no_force_dots |= 2;
+        } else {
+            if (joliet_len > 240)
+                tc->joliet_longer_paths = 1;
+        }
+    }
+}
+
+
 int iso_image_import(IsoImage *image, IsoDataSource *src,
                      struct iso_read_opts *opts,
                      IsoReadImageFeatures **features)
@@ -5828,6 +6388,9 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     char md5[16];
     struct el_torito_boot_catalog *catalog = NULL;
     ElToritoBootImage *boot_image = NULL;
+    int features_allocated = 0;
+    static char *tree_loaded_names[3]= {"ISO9660", "Joliet", "ISO9660:1999"};
+    int root_has_aaip = 0, rrip_version_1_10;
 
     if (image == NULL || src == NULL || opts == NULL) {
         return ISO_NULL_POINTER;
@@ -5840,7 +6403,13 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         return ret;
     }
     data = fs->data;
-
+    image->tree_loaded = 0;
+    if (data->iso_root_block == data->svd_root_block)
+        image->tree_loaded = 1;
+    else if (data->iso_root_block == data->evd_root_block &&
+             data->iso_root_block != data->pvd_root_block)
+        image->tree_loaded = 2;
+    image->rr_loaded = (data->rr != RR_EXT_NO);
 
     if (opts->keep_import_src) {
         iso_data_source_ref(src);
@@ -5883,6 +6452,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         ret = iso_aa_lookup_attr(aa_string, "isofs.cs",
                                    &attr_value_length, &attr_value, 0);
         free(aa_string);
+        root_has_aaip = 1;
     } else {
         ret = 0;
     }
@@ -5891,13 +6461,15 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             if (data->input_charset != NULL)
                 free(data->input_charset);
             data->input_charset = attr_value;
-            iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+            if (!(opts->read_features & 4))
+                iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
                          "Learned from ISO image: input character set '%.80s'",
-                          attr_value);
+                               attr_value);
         } else {
-            iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+            if (!(opts->read_features & 4))
+                iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
                    "Ignored character set name recorded in ISO image: '%.80s'",
-                           attr_value);
+                               attr_value);
             free(attr_value);
         }
         attr_value = NULL;
@@ -5923,6 +6495,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     /* create new root, and set root attributes from source */
     ret = iso_node_new_root(&image->root);
     if (ret < 0) {
+        iso_node_builder_unref(image->builder);
         goto import_revert;
     }
     {
@@ -5939,14 +6512,18 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
 
         /* This might fail in iso_node_add_xinfo() */
         ret = src_aa_to_node(newroot, &(image->root->node), 0);
-        if (ret < 0)
+        if (ret < 0) {
+            iso_node_builder_unref(image->builder);
             goto import_revert;
+        }
 
         /* Attach ino as xinfo if valid */
         if (info.st_ino != 0 && !data->make_new_ino) {
             ret = iso_node_set_ino(&(image->root->node), info.st_ino, 0);
-            if (ret < 0)
+            if (ret < 0) {
+                iso_node_builder_unref(image->builder);
                 goto import_revert;
+            }
         }
     }
 
@@ -5961,9 +6538,11 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                                                                  truncate_mode;
         data->truncate_length = opts->truncate_length =
                                       image->truncate_length = truncate_length;
-        iso_msg_submit(image->id, ISO_TRUNCATE_ISOFSNT, 0,
+        if (!(opts->read_features & 4)) {
+            iso_msg_submit(image->id, ISO_TRUNCATE_ISOFSNT, 0,
                 "File name truncation length changed by loaded image info: %d",
-                (int) truncate_length);
+                           (int) truncate_length);
+        }
     }
 
     /* if old image has el-torito, add a new catalog */
@@ -5972,6 +6551,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
         catalog = calloc(1, sizeof(struct el_torito_boot_catalog));
         if (catalog == NULL) {
             ret = ISO_OUT_OF_MEM;
+            iso_node_builder_unref(image->builder);
             goto import_revert;
         }
 
@@ -5980,6 +6560,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             boot_image = calloc(1, sizeof(ElToritoBootImage));
             if (boot_image == NULL) {
                 ret = ISO_OUT_OF_MEM;
+                iso_node_builder_unref(image->builder);
                 goto import_revert;
             }
             boot_image->image = NULL;
@@ -6012,6 +6593,19 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     }
 
     /* recursively add image */
+
+    if (opts->read_features & 1) {
+        image->do_deeper_tree_inspection = 1;
+        if (image->tree_compliance == NULL) {
+            ret = iso_write_opts_new(&(image->tree_compliance), 0);
+            if (ret < 0) {
+                iso_node_builder_unref(image->builder);
+                goto import_revert;
+            }
+            image->tree_compliance->iso_level = 1;
+        }
+    }
+
     ret = iso_add_dir_src_rec(image, image->root, newroot);
     if (ret < 0) {
         /* error during recursive image addition */
@@ -6071,20 +6665,23 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             
 
             /* warn about hidden images */
-            if (image->bootcat->bootimages[idx]->platform_id == 0xef) {
-                iso_msg_submit(image->id, ISO_ELTO_EFI_HIDDEN, 0,
-                               "Found hidden El-Torito image for EFI.");
-                iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
+
+            if (!(opts->read_features & 4)) {
+                if (image->bootcat->bootimages[idx]->platform_id == 0xef) {
+                    iso_msg_submit(image->id, ISO_ELTO_EFI_HIDDEN, 0,
+                                   "Found hidden El-Torito image for EFI.");
+                    iso_msg_submit(image->id, ISO_GENERAL_NOTE, 0,
                             "EFI image start and size: %lu * 2048 , %lu * 512",
-                               (unsigned long int)
+                                   (unsigned long int)
                                image->bootcat->bootimages[idx]->appended_start,
-                               (unsigned long int)
-                               image->bootcat->bootimages[idx]->load_size);
-            } else {
-                iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
+                                   (unsigned long int)
+                                   image->bootcat->bootimages[idx]->load_size);
+                } else {
+                    iso_msg_submit(image->id, ISO_EL_TORITO_HIDDEN, 0,
                            "Found hidden El-Torito image. Its size could not "
                            "be figured out, so image modify or boot image "
                            "patching may lead to bad results.");
+                }
             }
         }
         if (image->bootcat->node == NULL) {
@@ -6093,6 +6690,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
             node = calloc(1, sizeof(IsoBoot));
             if (node == NULL) {
                 ret = ISO_OUT_OF_MEM;
+                iso_node_builder_unref(image->builder);
                 goto import_revert;
             }
             bootcat = (IsoBoot *) node;
@@ -6104,6 +6702,7 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 if (bootcat->content == NULL) {
                     free(node);
                     ret = ISO_OUT_OF_MEM;
+                    iso_node_builder_unref(image->builder);
                     goto import_revert;
                 }
                 memcpy(bootcat->content, data->catcontent, bootcat->size);
@@ -6130,26 +6729,136 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     iso_image_set_pvd_times(image, data->creation_time,
          data->modification_time, data->expiration_time, data->effective_time);
 
-    if (features != NULL) {
+    if ((opts->read_features & 2) && features != NULL) {
+        if (*features == NULL) {
+            ret = ISO_NULL_POINTER;
+            goto import_revert;
+        }
+    } else if (features != NULL) {
         *features = malloc(sizeof(IsoReadImageFeatures));
         if (*features == NULL) {
             ret = ISO_OUT_OF_MEM;
             goto import_revert;
         }
-        (*features)->hasJoliet = data->joliet;
-        (*features)->hasRR = data->rr_version != 0;
-        (*features)->hasIso1999 = data->iso1999;
-        (*features)->hasElTorito = data->eltorito;
-        (*features)->size = data->nblocks;
-        (*features)->tree_loaded = 0;
-        if (data->iso_root_block == data->svd_root_block)
-            (*features)->tree_loaded = 1;
-        else if (data->iso_root_block == data->evd_root_block &&
-                 data->iso_root_block != data->pvd_root_block)
-            (*features)->tree_loaded = 2;
-        (*features)->rr_loaded = (data->rr != RR_EXT_NO);
-    }
+        features_allocated = 1;
 
+        (*features)->num_named_feat = 0;
+        (*features)->named_feat = NULL;
+        for (i = 0; iso_read_img_feature_list[i].name[0] != 0; i++);
+        (*features)->named_feat =
+                                calloc(i, sizeof(struct iso_read_img_feature));
+        if ((*features)->named_feat == NULL) {
+            ret = ISO_OUT_OF_MEM;
+            goto import_revert;
+        }
+        for (i = 0; iso_read_img_feature_list[i].name[0] != 0; i++)
+            memcpy((*features)->named_feat + i, iso_read_img_feature_list + i,
+                   sizeof(struct iso_read_img_feature));
+        (*features)->num_named_feat = i;
+
+        (*features)->hasJoliet = data->joliet;
+        if ((ret = iso_img_features_set_named((*features), "joliet",
+                                (int64_t) ((*features)->hasJoliet), NULL)) < 0)
+            goto import_revert;
+        if (image->tree_compliance != NULL)
+            iso_write_opts_set_joliet(image->tree_compliance,
+                                      (*features)->hasJoliet);
+        (*features)->hasRR = data->rr_version != 0;
+        if ((ret = iso_img_features_set_named((*features), "rockridge",
+                                    (int64_t) ((*features)->hasRR), NULL)) < 0)
+            goto import_revert;
+        if (image->tree_compliance != NULL)
+            iso_write_opts_set_rockridge(image->tree_compliance,
+                                         (*features)->hasRR);
+        (*features)->hasIso1999 = data->iso1999;
+        if ((ret = iso_img_features_set_named((*features), "iso1999",
+                               (int64_t) ((*features)->hasIso1999), NULL)) < 0)
+            goto import_revert;
+        if (image->tree_compliance != NULL)
+            iso_write_opts_set_iso1999(image->tree_compliance,
+                                       (*features)->hasIso1999);
+        (*features)->hasElTorito = data->eltorito;
+        if ((ret = iso_img_features_set_named((*features), "eltorito",
+                              (int64_t) ((*features)->hasElTorito), NULL)) < 0)
+            goto import_revert;
+        (*features)->size = data->nblocks;
+        if ((ret = iso_img_features_set_named((*features), "size",
+                                     (int64_t) ((*features)->size), NULL)) < 0)
+            goto import_revert;
+        if ((ret = iso_img_features_set_named((*features), "relaxed_vol_atts",
+                   (int64_t) iso_image_has_relaxed_vol_atts(image), NULL)) < 0)
+            goto import_revert;
+        if (image->tree_compliance != NULL)
+            iso_write_opts_set_relaxed_vol_atts(image->tree_compliance,
+                                      !!iso_image_has_relaxed_vol_atts(image));
+    }
+    if (*features != NULL) {
+        (*features)->tree_loaded = image->tree_loaded;
+        if ((ret = iso_img_features_set_named((*features), "tree_loaded",
+                                 (int64_t)(*features)->tree_loaded, NULL)) < 0)
+            goto import_revert;
+        if ((ret = iso_img_features_set_named((*features), "tree_loaded_text",
+                (int64_t) 0, tree_loaded_names[(*features)->tree_loaded])) < 0)
+            goto import_revert;
+        (*features)->rr_loaded = image->rr_loaded;
+        if ((ret = iso_img_features_set_named((*features), "rr_loaded",
+                            (int64_t) ((*features)->rr_loaded), NULL)) < 0)
+            goto import_revert;
+    }
+    if (features != NULL && image->tree_loaded == 0) {
+        /* ISO 9660 tree with or without Rock Ridge */
+        if (image->rr_loaded) {
+            rrip_version_1_10 = (data->rr_version == RR_EXT_110);
+            if ((ret = iso_img_features_set_named((*features),
+                                                  "rrip_version_1_10",
+                                       (int64_t) rrip_version_1_10, NULL)) < 0)
+                goto import_revert;
+            if (image->tree_compliance != NULL)
+                iso_write_opts_set_rrip_version_1_10(image->tree_compliance,
+                                                     rrip_version_1_10);
+            if ((ret = iso_img_features_set_named((*features),
+                                                  "rrip_1_10_px_ino",
+                                        (int64_t) ((data->px_ino_status & 1) &&
+                                                   rrip_version_1_10),
+                                                  NULL)) < 0)
+                goto import_revert;
+            if (image->tree_compliance != NULL)
+                iso_write_opts_set_rrip_1_10_px_ino(image->tree_compliance,
+                                                   (data->px_ino_status & 1) &&
+                                                   rrip_version_1_10);
+        }
+        if (data->aaip_version > 0) {
+            if ((ret = iso_img_features_set_named((*features), "aaip",
+                                                  (int64_t) 1, NULL)) < 0)
+                goto import_revert;
+            if (image->tree_compliance != NULL)
+                iso_write_opts_set_aaip(image->tree_compliance, 1);
+        } else {
+            if ((ret = iso_img_features_set_named((*features), "aaip",
+                                         (int64_t) !!root_has_aaip, NULL)) < 0)
+                goto import_revert;
+            if (image->tree_compliance != NULL)
+                iso_write_opts_set_aaip(image->tree_compliance,
+                                        !!root_has_aaip);
+        }
+        if ((ret = iso_img_features_set_named((*features), "aaip_susp_1_10",
+                          (int64_t) (root_has_aaip && data->aaip_version == 0),
+                                              NULL)) < 0)
+            goto import_revert;
+        if (image->tree_compliance != NULL)
+            iso_write_opts_set_aaip_susp_1_10(image->tree_compliance,
+                                     root_has_aaip && data->aaip_version == 0);
+        if ((ret = iso_img_features_set_named((*features), "record_md5_session",
+                                           (int64_t) !!(data->md5_checked & 3),
+                                               NULL)) < 0)
+            goto import_revert;
+        if ((ret = iso_img_features_set_named((*features), "record_md5_files",
+                                              (int64_t) 0, NULL)) < 0)
+            goto import_revert;
+        if (image->tree_compliance != NULL)
+            iso_write_opts_set_record_md5(image->tree_compliance,
+                                          !!(data->md5_checked & 3), 0);
+    }
     if (data->md5_load) {
         /* Read checksum array */
         ret = iso_root_get_isofsca((IsoNode *) image->root,
@@ -6175,7 +6884,17 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                 rpt = (uint8_t *) (image->checksum_array + i * 2048);
                 ret = src->read_block(src, image->checksum_end_lba + i, rpt);
                 if (ret <= 0)
-                    goto import_cleanup;
+                    goto import_revert;
+            }
+            if (features != NULL && (image->tree_loaded == 0 ||
+                                    data->aaip_version > 0 || root_has_aaip)) {
+                if ((ret = iso_img_features_set_named((*features),
+                                                      "record_md5_files",
+                                                      (int64_t) 1, NULL)) < 0)
+                    goto import_revert;
+                if (image->tree_compliance != NULL)
+                    iso_write_opts_set_record_md5(image->tree_compliance,
+                                          !!(data->md5_checked & 3), 1);
             }
 
             /* Compute MD5 and compare with recorded MD5 */
@@ -6206,7 +6925,8 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     if (ret < 0)
         goto import_revert;
 
-    if (opts->load_system_area && image->system_area_data != NULL) {
+    if (opts->load_system_area && image->system_area_data != NULL &&
+        !(opts->read_features & 4)) {
         ret = iso_analyze_system_area(image, src, opts, data->nblocks, 0);
         if (ret < 0) {
             iso_msg_submit(-1, ISO_SYSAREA_PROBLEMS, 0,
@@ -6215,6 +6935,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
                            iso_error_to_msg(ret));
         }
     }
+
+    ret = iso_image_assess_tree_compliance(image, opts, *features);
+    if (ret < 0)
+        goto import_revert;
 
     ret = ISO_SUCCESS;
     goto import_cleanup;
@@ -6229,6 +6953,10 @@ int iso_image_import(IsoImage *image, IsoDataSource *src,
     oldbootcat = NULL;
     image->checksum_array = old_checksum_array;
     old_checksum_array = NULL;
+    if (features_allocated) {
+        iso_read_image_features_destroy(*features);
+        *features = NULL;
+    }
 
     import_cleanup:;
 
@@ -6339,6 +7067,7 @@ int iso_read_opts_new(IsoReadOpts **opts, int profile)
     ropts->keep_import_src = 0;
     ropts->truncate_mode = 1;
     ropts->truncate_length = LIBISOFS_NODE_NAME_MAX;
+    ropts->read_features = 0;
 
     *opts = ropts;
     return ISO_SUCCESS;
@@ -6513,14 +7242,32 @@ int iso_read_opts_keep_import_src(IsoReadOpts *opts, int mode)
     return ISO_SUCCESS;
 }
 
+/* (Not API) */
+int iso_read_opts_read_features(IsoReadOpts *opts, int mode)
+{
+    if (opts == NULL) {
+        return ISO_NULL_POINTER;
+    }
+    opts->read_features = mode & 7;
+    return ISO_SUCCESS;
+}
+
 /**
  * Destroy an IsoReadImageFeatures object obtained with iso_image_import.
  */
 void iso_read_image_features_destroy(IsoReadImageFeatures *f)
 {
-    if (f) {
-        free(f);
+    int i;
+
+    if (f == NULL)
+        return;
+    if (f->named_feat != NULL) {
+        for (i = 0; i < f->num_named_feat; i++)
+            if (f->named_feat[i].pt_value != NULL)
+                free(f->named_feat[i].pt_value);
+        free (f->named_feat);
     }
+    free(f);
 }
 
 /**
@@ -6737,5 +7484,98 @@ int iso_ifs_sections_cmp(IsoFileSource *s1, IsoFileSource *s2, int *cmp_ret,
     }
     *cmp_ret = 0;
     return 1;
+}
+
+
+/* API */
+int iso_assess_written_features(IsoDataSource *src, IsoReadOpts *opts,
+                                IsoReadImageFeatures **features,
+                                IsoWriteOpts **write_opts)
+{
+    int pass, ret, reuse_features = 0, omit, opts_mem[5];
+    IsoImage *image = NULL;
+
+    if (features == NULL)
+        return ISO_NULL_POINTER;
+
+    *features = NULL;
+    *write_opts = NULL;
+
+    ret = iso_write_opts_new(write_opts, 0);
+    if (ret < 0)
+        goto ex;
+
+    /* Memorize read_opts values which might change */
+    opts_mem[0]= opts->norock;
+    opts_mem[1]= opts->nojoliet;
+    opts_mem[2]= opts->noiso1999;
+    opts_mem[3]= opts->preferjoliet;
+    opts_mem[4]= opts->read_features;
+
+    for (pass= 0; pass < 4; pass++) {
+        ret = iso_image_new("ISOIMAGE", &image);
+        if (ret < 0)
+            goto ex;
+        image->tree_compliance = *write_opts;
+        iso_read_opts_set_no_rockridge(opts, 1);
+        iso_read_opts_set_no_joliet(opts, 1);
+        iso_read_opts_set_no_iso1999(opts, 1);
+        iso_read_opts_set_preferjoliet(opts, 0);
+        omit = 0;
+        if (pass == 0) {
+            image->tree_compliance->iso_level = 1;
+        } else if(pass == 1) {
+            if (*features != NULL)
+                if (!iso_read_image_features_has_rockridge(*features))
+                    omit = 1;
+            iso_read_opts_set_no_rockridge(opts, 0);
+        } else if(pass == 2) {
+            if (*features != NULL)
+                if (!iso_read_image_features_has_joliet(*features))
+                    omit = 1;
+            iso_read_opts_set_no_joliet(opts, 0);
+        } else if(pass == 3) {
+            if (*features != NULL)
+                if (!iso_read_image_features_has_iso1999(*features))
+                    omit = 1;
+            iso_read_opts_set_no_iso1999(opts, 0);
+        }
+        if (!omit) {
+            iso_read_opts_read_features(opts, 1 | reuse_features | 4);
+            ret = iso_image_import(image, src, opts, features);
+            image->tree_compliance = NULL;
+            if (ret < 0)
+                goto ex;
+            reuse_features = 2;
+        } else {
+            image->tree_compliance = NULL;
+        }
+        iso_image_unref(image);
+        image = NULL;
+    }
+
+    /* >>> ??? copy some features to write_opts if not set by image import ?*/;
+
+    ret = 1;
+ex:;
+    if (image != NULL)
+        iso_image_unref(image);
+    if (ret < 0) {
+        if (*features != NULL)
+            iso_read_image_features_destroy(*features);
+        *features = NULL;
+        if (*write_opts != NULL)
+            iso_write_opts_free(*write_opts);
+        *write_opts = NULL;
+    }
+
+    /* Restore memorized read_opts settings */
+    opts->norock= opts_mem[0];
+    opts->nojoliet= opts_mem[1];
+    opts->noiso1999= opts_mem[2];
+    opts->preferjoliet= opts_mem[3];
+    opts->read_features= opts_mem[4];
+
+    return ret;
 }
 

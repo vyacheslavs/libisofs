@@ -3245,7 +3245,40 @@ int iso_image_import(IsoImage *image, IsoDataSource *src, IsoReadOpts *opts,
                      IsoReadImageFeatures **features);
 
 /**
- * Destroy an IsoReadImageFeatures object obtained with iso_image_import.
+ * Assess features of the importable directory trees of src and an estimation
+ * of the write options which would cause the recognized features.
+ * This goes deeper than the feature assessment of iso_image_import(), e.g. by
+ * inspecting file names.
+ *
+ * For the parameters "src", "opts", and "features" see also the description of
+ * iso_image_import().
+ *
+ * @param src
+ *     Data Source from which old image will be read.
+ * @param opts
+ *     Options for image import. Settings about tree choice will be ignored.
+ * @param features
+ *     Returns the pointer to a newly allocated and filled IsoReadImageFeatures
+ *     object. NULL is not allowed, other than with iso_image_import().
+ *     If *features is returned as non-NULL, then it should be freed with
+ *     iso_read_image_features_destroy() when no more needed.
+ * @param write_opts
+ *     Returns the pointer to a newly allocated and filled IsoWriteOpts object.
+ *     If *write_opts is returned as non-NULL, then it should be freed with
+ *     iso_write_opts_free() when no more needed.
+ *
+ * @return
+ *     1 on success, < 0 on error
+ *
+ * @since 1.5.6
+ */
+int iso_assess_written_features(IsoDataSource *src, IsoReadOpts *opts,
+                                IsoReadImageFeatures **features,
+                                IsoWriteOpts **write_opts);
+
+/**
+ * Destroy an IsoReadImageFeatures object obtained with iso_image_import() or
+ * iso_assess_written_features().
  *
  * @since 0.6.2
  */
@@ -3302,6 +3335,99 @@ int iso_read_image_features_tree_loaded(IsoReadImageFeatures *f);
  * @since 1.5.4
  */
 int iso_read_image_features_rr_loaded(IsoReadImageFeatures *f);
+
+/**
+ * Get a named feature as text, num_value, or pt_value depending on its type.
+ * The set of named features includes the features which can be inquired by
+ * own iso_read_image_features_*() functions:
+ *   size                     See iso_read_image_features_get_size()
+ *   rockridge                See iso_read_image_features_has_rockridge()
+ *                                iso_write_opts_set_rockridge()
+ *   joliet                   See iso_read_image_features_has_joliet()
+ *                                iso_write_opts_set_joliet()
+ *   iso1999                  See iso_read_image_features_has_iso1999()
+ *                                iso_write_opts_set_iso1999()
+ *   eltorito                 See iso_read_image_features_has_eltorito()
+ *   tree_loaded              See iso_read_image_features_tree_loaded()
+ *   rr_loaded                See iso_read_image_features_rr_loaded()
+ * Other named features are:
+ *   tree_loaded_text         Text form of "tree_loaded":
+ *                            0="ISO9660", 1="Joliet", 2="ISO9660:1999"
+ *   aaip                     1=AAIP information was seen, 0= no AAIP seen
+ * Detected traces of potential write option settings:
+ *   iso_level                See iso_write_opts_set_iso_level()
+ *   untranslated_name_len    See iso_write_opts_set_untranslated_name_len()
+ *   allow_dir_id_ext         See iso_write_opts_set_allow_dir_id_ext()
+ *   omit_version_numbers     See iso_write_opts_set_omit_version_numbers()
+ *   allow_deep_paths         See iso_write_opts_set_allow_deep_paths()
+ *   allow_longer_paths       See iso_write_opts_set_allow_longer_paths()
+ *   max_37_char_filenames    See iso_write_opts_set_max_37_char_filenames()
+ *   no_force_dots            See iso_write_opts_set_no_force_dots()
+ *   allow_lowercase          See iso_write_opts_set_allow_lowercase()
+ *   allow_full_ascii         See iso_write_opts_set_allow_full_ascii()
+ *   relaxed_vol_atts         See iso_write_opts_set_relaxed_vol_atts()
+ *   joliet_longer_paths      See iso_write_opts_set_joliet_longer_paths()
+ *   joliet_long_names        See iso_write_opts_set_joliet_long_names()
+ *   joliet_utf16             See iso_write_opts_set_joliet_utf16()
+ *   rrip_version_1_10        See iso_write_opts_set_rrip_version_1_10()
+ *   rrip_1_10_px_ino         See iso_write_opts_set_rrip_1_10_px_ino()
+ *   aaip_susp_1_10           See iso_write_opts_set_aaip_susp_1_10()
+ *   record_md5_session       See iso_write_opts_set_record_md5() param session
+ *   record_md5_files         See iso_write_opts_set_record_md5() param files
+ *
+ * @param f
+ *      A features object returned by iso_image_import() or
+ *      iso_assess_written_features().
+ * @param name
+ *      The name of the feature to be inquired.
+ * @param text
+ *      If text is not NULL, *text returns a textual representation of the
+ *      reply. Dispose *text by free(2) when no longer needed.
+ * @param type
+ *      Returns which of num_value or pt_value is valid:
+ *      0= *num_value is valid
+ *      1= *pt_value is valid
+ * @param num_value
+ *      Returns the numerical value of the feature if type == 0.
+ * @param pt_value
+ *      Returns a pointer to a memory area inside the features object if type
+ *      is 1. The area is not necessarily 0-terminated.
+ *      Do _not_ dispose *pt_value and do not use it after f was disposed.
+ * @param pt_size
+ *      Returns the size of the pt_value memory area if type is 1.
+ *      This counting includes a terminating 0-byte if it is present.
+ * @return
+ *      0 = Feature was not yet examined. Reply is not valid.
+ *      1 = Reply is valid
+ *      ISO_UNDEF_READ_FEATURE = Given name is not known
+ *      <0 = other error
+ *
+ * @since 1.5.6
+ */
+int iso_read_image_feature_named(IsoReadImageFeatures *f, char *name,
+                                 char **text, int *type,
+                                 int64_t *num_value, void **pt_value,
+                                 size_t *pt_size);
+
+/**
+ * Get all validly assessed named features as one single 0-terminated string
+ * consisting of single lines for each feature.
+ *
+ * @param f
+ *      A features object returned by iso_image_import() or
+ *      iso_assess_written_features().
+ * @param with_values
+ *      If set to 1: return lines of form  name=value\n
+ *      If set to 0: return lines of form  name\n
+ * @param feature_text
+ *      Returns the result string. Dispose by free(2) when no longer needed.
+ * @return
+ *      1 = result is valid, <0 indicates error
+ *
+ * @since 1.5.6
+ */
+int iso_read_image_features_text(IsoReadImageFeatures *f, int with_values,
+                                 char **feature_text);
 
 /**
  * Increments the reference counting of the given image.
@@ -9271,6 +9397,10 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Cannot obtain size of zisofs compressed stream    (FAILURE, HIGH, -425) */
 #define ISO_ZISOFS_UNKNOWN_SIZE     0xE830FE57
+
+/** Undefined IsoReadImageFeatures name                 (SORRY, HIGH, -426) */
+#define ISO_UNDEF_READ_FEATURE      0xE030FE56
+
 
 
 /* Internal developer note: 

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2016 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -392,8 +392,10 @@ const char *iso_error_to_msg(int errcode)
     case ISO_AAIP_BAD_AASTRING:
         return "Error with decoding AAIP info for ACL or xattr";
     case ISO_AAIP_NO_GET_LOCAL:
+    case ISO_AAIP_NO_GET_LOCAL_S:
         return "Error with reading ACL or xattr from local file";
     case ISO_AAIP_NO_SET_LOCAL:
+    case ISO_AAIP_NO_SET_LOCAL_S:
         return "Error with attaching ACL or xattr to local file";
     case ISO_AAIP_NON_USER_NAME:
         return "Unallowed attempt to set an xattr with non-userspace name";
@@ -563,6 +565,8 @@ const char *iso_error_to_msg(int errcode)
         return "Prevented zisofs block pointer counter underrun";
     case ISO_ZISOFS_UNKNOWN_SIZE:
         return "Cannot obtain size of zisofs compressed stream";
+    case ISO_UNDEF_READ_FEATURE:
+        return "Undefined IsoReadImageFeatures name";
     default:
         return "Unknown error";
     }

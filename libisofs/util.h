@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2012 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -262,6 +262,12 @@ void iso_handle_split_utf16(uint16_t *utf_word);
  */
 int str2d_char(const char *icharset, const char *input, char **output);
 int str2a_char(const char *icharset, const char *input, char **output);
+
+/* Check for membership in the d-, a-, or j-character set */
+int valid_d_char(char c);
+int valid_a_char(char c);
+int valid_j_char(uint16_t c);
+
 
 void iso_lsb(uint8_t *buf, uint32_t num, int bytes);
 void iso_lsb64(uint8_t *buf, uint64_t num);

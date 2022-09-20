@@ -24,6 +24,7 @@
 #include "messages.h"
 #include "tree.h"
 #include "util.h"
+#include "ecma119.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -1050,6 +1051,17 @@ int iso_add_dir_src_rec(IsoImage *image, IsoDir *parent, IsoFileSource *dir)
             ret = iso_msg_submit(image->id, ISO_FILE_CANT_ADD, ret,
                                  "Error when adding file %s", path);
             goto dir_rec_continue;
+        }
+            
+	if (image->do_deeper_tree_inspection) {
+            if (image->tree_loaded == 0 && image->rr_loaded == 0) {
+                iso_image_assess_ecma119_name(image, &info, path, name);
+            } else if (image->tree_loaded == 1) {
+                iso_image_assess_joliet_name(image, &info, path, name);
+            }
+            if (info.st_size > MAX_ISO_FILE_SECTION_SIZE &&
+                image->tree_compliance != NULL)
+                image->tree_compliance->iso_level = 3;
         }
 
         if (check_excludes(image, path)) {

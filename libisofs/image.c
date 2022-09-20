@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2015 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -204,6 +204,10 @@ int iso_image_new(const char *name, IsoImage **image)
     img->collision_warnings = 0;
     img->imported_sa_info = NULL;
     img->blind_on_local_get_attrs = 0;
+    img->do_deeper_tree_inspection = 0;
+    img->tree_loaded = 0;
+    img->rr_loaded = 0;
+    img->tree_compliance = NULL;
 
     *image = img;
     return ISO_SUCCESS;
@@ -271,6 +275,8 @@ void iso_image_unref(IsoImage *image)
             free(image->system_area_data);
         iso_image_free_checksums(image, 0);
         iso_imported_sa_unref(&(image->imported_sa_info), 0);
+        if (image->tree_compliance != NULL)
+            iso_write_opts_free(image->tree_compliance);
         free(image);
     }
 }
