@@ -8954,9 +8954,13 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 
 /** Error with reading ACL or xattr from local file (FAILURE, HIGH, -341) */
 #define ISO_AAIP_NO_GET_LOCAL     0xE830FEAB
+/** Error with reading ACL or xattr from local file (SORRY, HIGH, -341) */
+#define ISO_AAIP_NO_GET_LOCAL_S   0xE030FEAB
 
 /** Error with attaching ACL or xattr to local file (FAILURE, HIGH, -342) */
 #define ISO_AAIP_NO_SET_LOCAL     0xE830FEAA
+/** Error with attaching ACL or xattr to local file (SORRY, HIGH, -342) */
+#define ISO_AAIP_NO_SET_LOCAL_S   0xE030FEAA
 
 /** Unallowed attempt to set an xattr with non-userspace name
                                                     (FAILURE, HIGH, -343) */

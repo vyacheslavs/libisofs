@@ -7,7 +7,7 @@
 
  To be included by aaip_0_2.c for Linux
 
- Copyright (c) 2009 - 2018 Thomas Schmitt
+ Copyright (c) 2009 - 2022 Thomas Schmitt
 
  This file is part of the libisofs project; you can redistribute it and/or
  modify it under the terms of the GNU General Public License version 2
@@ -75,6 +75,44 @@ int aaip_local_attr_support(int flag)
 
  return(ret);
 }
+
+
+/* -------------------------- Error reporting ----------------------------- */
+
+
+/* Report an error with local ACL or xattr calls.
+   @param flag bit0-7: mode 0=NO_GET_LOCAL , 1=NO_SET_LOCAL
+*/
+static
+void aaip_local_error(char *function_name, char *path, int err, int flag)
+{
+ int mode, err_code;
+ 
+ mode= (flag & 255);
+ if(mode == 1)
+   err_code= ISO_AAIP_NO_SET_LOCAL_S;
+ else
+   err_code= ISO_AAIP_NO_GET_LOCAL_S;
+ if(err > 0) {
+   if(path[0])
+     iso_msg_submit(-1, err_code, 0,
+                    "Function %s(\"%s\") failed with errno %d '%s'",
+                    function_name, path, err, strerror(err));
+   else
+     iso_msg_submit(-1, err_code, 0, "Function %s() failed with %d '%s'",
+                    function_name, err, strerror(err));
+ } else {
+   if(path[0])
+     iso_msg_submit(-1, err_code, 0,
+                    "Function %s(\"%s\") failed without error code",
+                    function_name, path);
+   else
+     iso_msg_submit(-1, err_code, 0,
+                    "Function %s() failed without error code",
+                    function_name);
+ }
+}
+
 
 
 /* ------------------------------ Getters --------------------------------- */
@@ -181,8 +219,10 @@ static int get_single_attr(char *path, char *name, size_t *value_length,
    value_ret= getxattr(path, name, NULL, 0);
  else
    value_ret= lgetxattr(path, name, NULL, 0);
- if(value_ret == -1)
+ if(value_ret == -1) {
+   aaip_local_error((flag & 32) ? "getxattr" : "lgetxattr", path, errno, 0);
    return(0);
+ }
  *value_bytes= calloc(value_ret + 1, 1);
  if(*value_bytes == NULL)
    return(-1);
@@ -191,6 +231,7 @@ static int get_single_attr(char *path, char *name, size_t *value_length,
  else
    value_ret= lgetxattr(path, name, *value_bytes, value_ret);
  if(value_ret == -1) {
+   aaip_local_error((flag & 32) ? "getxattr" : "lgetxattr", path, errno, 0);
    free(*value_bytes);
    *value_bytes= NULL;
    *value_length= 0;
@@ -275,10 +316,13 @@ ex:;
     else
       list_size= llistxattr(path, list, 0);
     if(list_size == -1) {
-      if(errno == ENOSYS) /* Function not implemented */
+      if(errno == ENOSYS) { /* Function not implemented */
         list_size= 0;     /* Handle as if xattr was disabled at compile time */
-      else
+      } else {
+        aaip_local_error((flag & 32) ? "listxattr" : "llistxattr", path, errno,
+                         0);
         {ret= -1; goto ex;}
+      }
     }
     if(list_size > 0) {
       list= calloc(list_size, 1);
@@ -288,8 +332,11 @@ ex:;
         list_size= listxattr(path, list, list_size);
       else
         list_size= llistxattr(path, list, list_size);
-      if(list_size == -1)
+      if(list_size == -1) {
+        aaip_local_error((flag & 32) ? "listxattr" : "llistxattr", path, errno,
+                         0);
         {ret= -1; goto ex;}
+      }
     }
     for(i= 0; i < list_size; i+= strlen(list + i) + 1)
       num_names++;
@@ -443,11 +490,14 @@ int aaip_set_acl_text(char *path, char *text, int flag)
 
  acl= acl_from_text(text);
  if(acl == NULL) {
+   aaip_local_error("acl_from_text", "", errno, 1);
    ret= -1; goto ex;
  }
  ret= acl_set_file(path, (flag & 1) ? ACL_TYPE_DEFAULT : ACL_TYPE_ACCESS, acl);
- if(ret == -1)
+ if(ret == -1) {
+   aaip_local_error("acl_set_file", path, errno, 1);
    goto ex;
+ }
  ret= 1;
 ex:
  if(acl != NULL)
@@ -533,8 +583,11 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
      list_size= listxattr(path, list, list_size);
    else
      list_size= llistxattr(path, list, list_size);
-   if(list_size == -1)
+   if(list_size == -1) {
+     aaip_local_error((flag & 32) ? "listxattr" : "llistxattr", path, errno,
+                      1);
      {ret= -5; goto ex;}
+   }
    for(i= 0; i < (size_t) list_size; i+= strlen(list + i) + 1) {
       if(!(flag & 8))
         if(strncmp(list + i, "user.", 5))
@@ -543,8 +596,11 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
        ret= removexattr(path, list + i);
      else
        ret= lremovexattr(path, list + i);
-     if(ret == -1)
+     if(ret == -1) {
+       aaip_local_error((flag & 32) ? "removexattr" : "lremovexattr", path,
+                        errno, 1);
        {ret= -5; goto ex;}
+     }
    }
    free(list); list= NULL;
  }
@@ -587,6 +643,8 @@ int aaip_set_attr_list(char *path, size_t num_attrs, char **names,
      else
        ret= lsetxattr(path, names[i], values[i], value_lengths[i], 0);
      if(ret == -1) {
+       aaip_local_error((flag & 32) ? "setxattr" : "lsetxattr", path, errno,
+                        1);
        register_errno(errnos, i);
        end_ret= -4;
  continue;
