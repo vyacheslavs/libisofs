@@ -5935,7 +5935,7 @@ static
 int iso_img_feature_to_text(struct iso_read_img_feature *f, char **result)
 {
     int count= 0, pass, i;
-    char num_text[81], *t;
+    char num_text[81], *t= NULL;
 
     *result = NULL;
     if (f->valid != 1)
@@ -7495,6 +7495,13 @@ int iso_assess_written_features(IsoDataSource *src, IsoReadOpts *opts,
     int pass, ret, reuse_features = 0, omit, opts_mem[5];
     IsoImage *image = NULL;
 
+    /* Memorize read_opts values which might change */
+    opts_mem[0]= opts->norock;
+    opts_mem[1]= opts->nojoliet;
+    opts_mem[2]= opts->noiso1999;
+    opts_mem[3]= opts->preferjoliet;
+    opts_mem[4]= opts->read_features;
+
     if (features == NULL)
         return ISO_NULL_POINTER;
 
@@ -7504,13 +7511,6 @@ int iso_assess_written_features(IsoDataSource *src, IsoReadOpts *opts,
     ret = iso_write_opts_new(write_opts, 0);
     if (ret < 0)
         goto ex;
-
-    /* Memorize read_opts values which might change */
-    opts_mem[0]= opts->norock;
-    opts_mem[1]= opts->nojoliet;
-    opts_mem[2]= opts->noiso1999;
-    opts_mem[3]= opts->preferjoliet;
-    opts_mem[4]= opts->read_features;
 
     for (pass= 0; pass < 4; pass++) {
         ret = iso_image_new("ISOIMAGE", &image);
@@ -7524,6 +7524,7 @@ int iso_assess_written_features(IsoDataSource *src, IsoReadOpts *opts,
         omit = 0;
         if (pass == 0) {
             image->tree_compliance->iso_level = 1;
+            iso_read_opts_set_ecma119_map(opts, 0);
         } else if(pass == 1) {
             if (*features != NULL)
                 if (!iso_read_image_features_has_rockridge(*features))
