@@ -1453,6 +1453,8 @@ int iso_tree_clone_file(IsoFile *old_file,
     if (ret < 0)
         goto ex;
     new_stream = NULL; /* now owned by new_file */
+    new_file->from_old_session = old_file->from_old_session;
+    new_file->explicit_weight = old_file->explicit_weight;
     new_file->sort_weight = old_file->sort_weight;
     *new_node = (IsoNode *) new_file;
     ret = ISO_SUCCESS;
