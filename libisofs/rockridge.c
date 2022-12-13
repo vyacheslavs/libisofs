@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2020 Thomas Schmitt
+ * Copyright (c) 2009 - 2022 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -94,7 +94,7 @@ int susp_append_ce(Ecma119Image *t, struct susp_info *susp, uint8_t *data)
         /* Insert CE entry (actual CE size later by susp_update_CE_sizes) */
         ret = susp_make_CE(t, &CE, (uint32_t) (susp->ce_block +
                                                susp->ce_len / BLOCK_SIZE + 1),
-                           (uint32_t) 0, (uint32_t) 2048);
+                           (uint32_t) 0, (uint32_t) 0);
         if (ret < 0)
             return ret;
         susp->ce_susp_fields[susp->n_ce_susp_fields] = CE;
@@ -2142,7 +2142,7 @@ int susp_update_CE_sizes(Ecma119Image *t, struct susp_info *info, int flag)
     curr_pos = 0;
     for (i = info->current_ce_start; i < info->n_ce_susp_fields; i++) {
        if (info->ce_susp_fields[i][0] == 0) {
-           curr_pos = 0; /* pseudo SUSP PAD */
+           /* ignore pseudo SUSP PAD */
     continue;
        }
        if (info->ce_susp_fields[i][0] == 'C' &&
@@ -2152,11 +2152,20 @@ int susp_update_CE_sizes(Ecma119Image *t, struct susp_info *info, int flag)
               size = BLOCK_SIZE;
           iso_bb(curr_ce + 20, size, 4);
           curr_ce = info->ce_susp_fields[i];
+          /* Start a new CE Area */
+          curr_pos = 0;
+    continue;
        }
        curr_pos = (curr_pos + info->ce_susp_fields[i][2]) % 2048;
     }
     if (curr_pos > 0) {
-        size = curr_pos % BLOCK_SIZE;
+        size = curr_pos;
+        if (size > BLOCK_SIZE) {
+            /* Should never happen */
+            iso_msg_submit(t->image->id, ISO_WRONG_RR_WARN, 0,
+                      "Encountered and truncated oversized Continuation Area");
+            size = BLOCK_SIZE;
+        }
         iso_bb(curr_ce + 20, size, 4);
     }
     return ISO_SUCCESS;
