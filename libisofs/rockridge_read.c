@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -38,6 +38,9 @@ struct susp_iterator
     /* Number of blocks in the ISO 9660 filesystem */
     uint32_t fs_blocks;
 
+    /* For detecting (nearly) endless loops */
+    uint32_t ce_counter;
+
     /* block and offset for next continuation area */
     uint32_t ce_block;
     uint32_t ce_off;
@@ -65,7 +68,10 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
     iter->msgid = msgid;
     iter->fs_blocks = fs_blocks;
 
+    iter->ce_counter = 0;
     iter->ce_len = 0;
+    iter->ce_block = 0;
+    iter->ce_off = 0;
     iter->buffer = NULL;
 
     return iter;
@@ -73,6 +79,9 @@ susp_iter_new(IsoDataSource *src, struct ecma119_dir_record *record,
 
 /* More than 1 MiB in a single file's CE area is suspicious */
 #define ISO_SUSP_MAX_CE_BYTES (1024 * 1024)
+
+/* More than 100000 CE entries in a file is suspicious */
+#define ISO_SUSP_MAX_CE_HOPS 100000
 
 
 /* @param flag bit0 = First call on root:
@@ -83,6 +92,7 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
 {
     struct susp_sys_user_entry *entry;
 
+process_entry:;
     entry = (struct susp_sys_user_entry*)(iter->base + iter->pos);
 
     if (flag & 1) {
@@ -94,6 +104,9 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
         if (entry->len_sue[0] < 7)
             return 0;
         /* Looks like SUSP enough to pass the further processing here. */
+
+        /* In case of CE hop do not run this check again */
+        flag &= ~1;
     }
     if ( (iter->pos + 4 > iter->size) || (SUSP_SIG(entry, 'S', 'T'))) {
 
@@ -151,9 +164,9 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
         if (iter->ce_len) {
             int ret;
             ret = iso_msg_submit(iter->msgid, ISO_UNSUPPORTED_SUSP, 0,
-                "More than one CE System user entry has found in a single "
+                "More than one CE System user entry was found in a single "
                 "System Use field or continuation area. This breaks SUSP "
-                "standard and it's not supported. Ignoring last CE. Maybe "
+                "standard and is not supported. Ignoring last CE. Maybe "
                 "the image is damaged.");
             if (ret < 0) {
                 return ret;
@@ -165,10 +178,15 @@ int susp_iter_next(SuspIterator *iter, struct susp_sys_user_entry **sue,
         }
 
         /* we don't want to return CE entry to the user */
-        return susp_iter_next(iter, sue, 0);
+        if (++(iter->ce_counter) > ISO_SUSP_MAX_CE_HOPS) {
+            iso_msg_submit(iter->msgid, ISO_WRONG_RR, 0,
+                          "Damaged RR/SUSP information: Too many CE hops.");
+            return ISO_WRONG_RR;
+        }
+        goto process_entry;
     } else if (SUSP_SIG(entry, 'P', 'D')) {
         /* skip padding */
-        return susp_iter_next(iter, sue, 0);
+        goto process_entry;
     }
 
     *sue = entry;
