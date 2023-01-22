@@ -4,7 +4,7 @@
 
 /*
  * Copyright (c) 2007-2008 Vreixo Formoso, Mario Danic
- * Copyright (c) 2009-2022 Thomas Schmitt
+ * Copyright (c) 2009-2023 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2683,6 +2683,39 @@ int iso_write_opts_set_efi_bootp(IsoWriteOpts *opts, char *image_path,
  */
 int iso_write_opts_set_gpt_guid(IsoWriteOpts *opts, uint8_t guid[16],
                                 int mode);
+
+/**
+ * Set the maximum number of SUSP CE entries and thus continuation areas.
+ * Each continuation area can hold at most 2048 bytes of SUSP data (Rock Ridge
+ * or AAIP). The first area can be smaller. There might be some waste at the
+ * end of each area.
+ * When the maximum number is exceeded during ISO filesystem production
+ * then possibly xattr and ACL get removed or error ISO_TOO_MANY_CE gets
+ * reported and filesystem production is prevented.
+ * 
+ * Files with 32 or more CE entries do not show up in mounted filesystems on
+ * Linux. So the default setting is 31 with drop mode 2. If a higher limit is
+ * chosen and 31 gets surpassed, then a warning message gets reported.
+ *
+ * @param opts
+ *        The option set to be manipulated.
+ * @param num
+ *        The maximum number of CE entries per file.
+ *        Not more than 100000 may be set here.
+ *        0 gets silently mapped to 1, because the root directory needs one CE.
+ * @param flag
+ *        bit0-bit3 = Drop mode: What to do with AAIP data on too many CE:
+ *                    0 = throw ISO_TOO_MANY_CE, without dropping anything
+ *                    1 = permanently drop non-isofs fattr from IsoNode and
+ *                        retry filesystem production
+ *                    2 = drop ACL if dropping non-isofs fattr does not suffice
+ * @return
+ *        ISO_SUCCESS or ISO_TOO_MANY_CE
+ *        
+ * @since 1.5.6
+*/
+int iso_write_opts_set_max_ce_entries(IsoWriteOpts *opts, uint32_t num,
+                                      int flag);
 
 /**
  * Generate a pseudo-random GUID suitable for iso_write_opts_set_gpt_guid().
@@ -9401,6 +9434,16 @@ int iso_conv_name_chars(IsoWriteOpts *opts, char *name, size_t name_len,
 /** Undefined IsoReadImageFeatures name                 (SORRY, HIGH, -426) */
 #define ISO_UNDEF_READ_FEATURE      0xE030FE56
 
+/** Too many CE entries for single file                (FAILURE,HIGH, -427) */
+#define ISO_TOO_MANY_CE             0xE830FE55
+
+/** Too many CE entries for single file when mounted by Linux
+                                                       (WARNING,HIGH, -428) */
+#define ISO_TOO_MANY_CE_FOR_LINUX   0xD030FE54
+
+/** Too many CE entries for single file, omitting attributes
+                                                       (WARNING,HIGH, -429) */
+#define ISO_CE_REMOVING_ATTR        0xD030FE53
 
 
 /* Internal developer note: 

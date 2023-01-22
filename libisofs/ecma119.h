@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2019 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -543,6 +543,17 @@ struct iso_write_opts {
      */
     uint8_t gpt_disk_guid[16];
     int gpt_disk_guid_mode;
+
+    /* Maximum number of CE entries per file */
+    uint32_t max_ce_entries;
+    /* Whether to try dropping AAIP data on too many CE:
+       bit0-3 = Mode:
+                0 = throw ISO_TOO_MANY_CE, without trying to drop anything
+                1 = drop non-isofs fattr
+                2 = drop ACL if dropping non-isofs fattr does not suffice
+    */
+    int max_ce_drop_attr;
+
 };
 
 typedef struct ecma119_image Ecma119Image;
@@ -913,6 +924,8 @@ struct ecma119_image
     uint32_t filesrc_start;
     uint32_t filesrc_blocks;
 
+    /* Number of CE entries in currently processed node */
+    uint32_t curr_ce_entries;
 };
 
 #define BP(a,b) [(b) - (a) + 1]

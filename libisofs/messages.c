@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2022 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -567,6 +567,12 @@ const char *iso_error_to_msg(int errcode)
         return "Cannot obtain size of zisofs compressed stream";
     case ISO_UNDEF_READ_FEATURE:
         return "Undefined IsoReadImageFeatures name";
+    case ISO_TOO_MANY_CE:
+        return "Too many CE entries for single file";
+    case ISO_TOO_MANY_CE_FOR_LINUX:
+        return "Too many CE entries for single file when mounted by Linux";
+    case ISO_CE_REMOVING_ATTR:
+        return "Too many CE entries for single file, removing attributes";
     default:
         return "Unknown error";
     }

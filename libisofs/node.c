@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2020 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -2046,11 +2046,58 @@ int iso_node_set_attrs(IsoNode *node, size_t num_attrs, char **names,
     }
     ret = 1;
 ex:;
-    /* Dispose eventual merged list */
+    /* Dispose merged list if it was created */
     iso_node_merge_xattr(node, num_attrs, names, value_lengths, values,
                        &m_num, &m_names, &m_value_lengths, &m_values, 1 << 15);
+    /* Dispose ACL if saved */
+    iso_node_get_acl_text(node, &a_acl, &d_acl, 1 << 15);
     return ret;
 } 
+
+
+/* @param flag
+        bit0= delete ACL, too
+*/
+int iso_node_remove_fattr(IsoNode *node, int flag)
+{
+    int ret;
+    size_t num_attrs, *value_lengths = NULL, i, w;
+    char **names = NULL, **values = NULL;
+
+    ret = iso_node_get_attrs(node, &num_attrs, &names, &value_lengths, &values,
+                             flag & 1);
+    if (ret < 0)
+        goto ex;
+
+    /* Delete variables of all namespaces except isofs */
+    w = 0;
+    for (i = 0; i < num_attrs; i++) {
+        if (strncmp(names[i], "isofs.", 6) != 0) {
+            free(names[i]);
+            names[i] = NULL;
+            free(values[i]);
+            values[i] = NULL;
+            continue;
+        }
+        if (w != i) {
+            /* move i to w , nullify i */
+            names[w] = names[i];
+            names[i] = NULL;
+            values[w] = values[i];
+            values[i] = NULL;
+            value_lengths[w] = value_lengths[i];
+        }
+        w++;
+    }
+    num_attrs = w;
+    ret = iso_node_set_attrs(node, num_attrs, names, value_lengths, values,
+                             (flag & 1) | 8);
+ex:;
+    if (names != NULL)
+        iso_node_get_attrs(NULL, &num_attrs, &names, &value_lengths, &values,
+                           1 << 15);
+    return ret;
+}
 
 
 static

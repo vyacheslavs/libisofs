@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2022 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -618,13 +618,15 @@ int rrip_add_SL(Ecma119Image *t, struct susp_info *susp, uint8_t **comp,
 
 /* @param flag bit1= care about crossing block boundaries */
 static
-int susp_calc_add_to_ce(size_t *ce, size_t base_ce, int add, int flag)
+int susp_calc_add_to_ce(Ecma119Image *t, size_t *ce, size_t base_ce, int add,
+                        int flag)
 {
     if (flag & 2) {
         /* Account for inserted CE before size exceeds block size */
         if ((*ce + base_ce + add + ISO_CE_ENTRY_SIZE - 1) / BLOCK_SIZE !=
             (*ce + base_ce) / BLOCK_SIZE) {
             /* Insert CE and padding */
+            t->curr_ce_entries++;
             *ce += ISO_CE_ENTRY_SIZE;
             if ((*ce + base_ce) % BLOCK_SIZE)
                 *ce += BLOCK_SIZE - ((*ce + base_ce) % BLOCK_SIZE);
@@ -658,12 +660,12 @@ int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
         es_extra = 5;
     if (*sua_free < num_data + es_extra || *ce_len > 0) {
         if (es_extra > 0)
-            susp_calc_add_to_ce(ce_len, ce_mem, es_extra, flag & 2);
+            susp_calc_add_to_ce(t, ce_len, ce_mem, es_extra, flag & 2);
         done = 0;
         for (aapt = *data; !done; aapt += aapt[2]) {
             done = !(aapt[4] & 1);
             len = aapt[2];
-            susp_calc_add_to_ce(ce_len, ce_mem, len, flag & 2);
+            susp_calc_add_to_ce(t, ce_len, ce_mem, len, flag & 2);
             count += len;
         }
     } else {
@@ -704,7 +706,7 @@ int aaip_add_AL(Ecma119Image *t, struct susp_info *susp,
         } else {
             ret = susp_append(t, susp, cpt);
         }
-        if (ret == -1)
+        if (ret < 0)
             return ret;
     }
     free(*data);
@@ -1078,7 +1080,7 @@ int add_zf_field(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
 
     /* Account for field size */
     if (*sua_free < 16 || *ce_len > 0) {
-        susp_calc_add_to_ce(ce_len, base_ce, 16, flag & 2);
+        susp_calc_add_to_ce(t, ce_len, base_ce, 16, flag & 2);
     } else {
         *sua_free -= 16;
     }
@@ -1139,6 +1141,7 @@ int aaip_xinfo_cloner(void *old_data, void **new_data, int flag)
  *                 <0= error:
  *                 -1= not enough SUA space for 28 bytes of CE entry
  *                 -2= out of memory
+ *                 (int) ISO_TOO_MANY_CE
  */
 static
 int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
@@ -1150,17 +1153,20 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     size_t num_aapt = 0, sua_free = 0;
     int ret;
     uint8_t *aapt;
+    uint32_t curr_ce_entries_mem;
 
 #ifdef Libisofs_ce_calc_debug_extrA
 
     if (n->node->name != NULL)
-        fprintf(stderr, "libburn_DEBUG: susp_calc_nm_sl_al : %.f %s \n",
+        fprintf(stderr, "libburn_DEBUG: susp_calc_nm_sl_al : %u %.f %s \n",
+                        (unsigned int) t->curr_ce_entries,
                         (double) base_ce, n->node->name);
 
 #endif /* Libisofs_ce_calc_debug_extrA */
 
     su_mem = *su_size;
     ce_mem = *ce;
+    curr_ce_entries_mem = t->curr_ce_entries;
     if (*ce > 0 && !(flag & 1))
         goto unannounced_ca;
 
@@ -1175,10 +1181,11 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
     }
 
     if (flag & 1) {
-       /* Account for 28 bytes of CE field */
-       if (*su_size + 28 > space)
-           return -1;
-       *su_size += 28;
+        /* Account for 28 bytes of CE field */
+        if (*su_size + 28 > space)
+            return -1;
+        *su_size += 28;
+        t->curr_ce_entries++;
     }
 
     /* NM entry */
@@ -1196,7 +1203,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                 of the name will always fit into the directory entry.)
         */;
 
-        susp_calc_add_to_ce(ce, base_ce, 5 + namelen, flag & 2);
+        susp_calc_add_to_ce(t, ce, base_ce, 5 + namelen, flag & 2);
         *su_size = space;
     }
     if (n->type == ECMA119_SYMLINK) {
@@ -1267,7 +1274,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                              * and another SL entry
                              */
                             /* Will fill up old SL and write it */
-                            susp_calc_add_to_ce(ce, base_ce, 255, flag & 2);
+                            susp_calc_add_to_ce(t, ce, base_ce, 255, flag & 2);
                             sl_len = 5 + (clen - fit); /* Start new SL */
                         } else {
                             /*
@@ -1276,15 +1283,16 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
                              * anything in this SL
                              */
                             /* Will write non-full old SL */
-                            susp_calc_add_to_ce(ce, base_ce, sl_len, flag & 2);
+                            susp_calc_add_to_ce(t, ce, base_ce, sl_len,
+                                                flag & 2);
                             /* Will write another full SL */
-                            susp_calc_add_to_ce(ce, base_ce, 255, flag & 2);
+                            susp_calc_add_to_ce(t, ce, base_ce, 255, flag & 2);
                             sl_len = 5 + (clen - 250) + 2; /* Start new SL */
                         }
                     } else {
                         /* case 2, create a new SL entry */
                         /* Will write non-full old SL */
-                        susp_calc_add_to_ce(ce, base_ce, sl_len, flag & 2);
+                        susp_calc_add_to_ce(t, ce, base_ce, sl_len, flag & 2);
                         sl_len = 5 + clen; /* Start new SL */
                     }
                 } else {
@@ -1307,7 +1315,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
             /* the whole SL fits into the SUA */
             *su_size += sl_len;
         } else {
-            susp_calc_add_to_ce(ce, base_ce, sl_len, flag & 2);
+            susp_calc_add_to_ce(t, ce, base_ce, sl_len, flag & 2);
         }
 
     }
@@ -1367,6 +1375,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
             /* Crossed a block boundary */
             *su_size = su_mem;
             *ce = ce_mem;
+            t->curr_ce_entries = curr_ce_entries_mem;
             return 0;
         }
     }
@@ -1376,6 +1385,7 @@ int susp_calc_nm_sl_al(Ecma119Image *t, Ecma119Node *n, size_t space,
 unannounced_ca:;
     *su_size = su_mem;
     *ce = ce_mem;
+    t->curr_ce_entries = curr_ce_entries_mem;
     return 0;
 }
 
@@ -1422,6 +1432,21 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
 }
 
 
+static
+void iso_msg_too_many_ce(Ecma119Image *t, Ecma119Node *n, int err)
+{
+    if (n->node->name != NULL) {
+        iso_msg_submit(t->image->id, err, 0,
+                       "Too many CE entries for file with name: %s",
+                       n->node->name);
+    } else {
+        iso_msg_submit(t->image->id, err, 0,
+                       "Too many CE entries for a single file",
+                       n->node->name);
+    }
+}
+
+
 /**
  * Compute the length needed for write all RR and SUSP entries for a given
  * node.
@@ -1438,12 +1463,14 @@ int add_aa_string(Ecma119Image *t, Ecma119Node *n, struct susp_info *info,
  * @return
  *      The size needed for the RR entries in the System Use Area
  */
-size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
-                     size_t *ce, size_t base_ce)
+ssize_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
+                      size_t *ce, size_t base_ce)
 {
     size_t su_size, space;
-    int ret;
+    int ret, retry = 0;
     size_t aaip_sua_free= 0, aaip_len= 0;
+
+try_again:
 
     /* Directory record length must be even (ECMA-119, 9.1.13). Maximum is 254.
     */
@@ -1457,6 +1484,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
 
     *ce = 0;
     su_size = 0;
+    t->curr_ce_entries = 0;
 
     /* If AAIP enabled and announced by ER : account for 5 bytes of ES */;
     if (t->opts->aaip && !t->opts->aaip_susp_1_10)
@@ -1506,9 +1534,18 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
         if (ret == 0) /* Retry with CE but no block crossing */
             ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, base_ce, 1);
         if (ret == 0) /* Retry with aligned CE and block hopping */
-            ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, base_ce, 1 | 2);
+            ret = susp_calc_nm_sl_al(t, n, space, &su_size, ce, base_ce,
+                                     1 | 2);
         if (ret == -2)
            return ISO_OUT_OF_MEM;
+        /* -1 should not occur. By tradition it would not cause return */
+        if (ret < -2) {
+            if (n->node->name != NULL)
+                iso_msg_submit(t->image->id, ret, 0,
+                               "SUSP planning failed for file with name: %s",
+                               n->node->name);
+            return ret;
+        }
 
     } else {
 
@@ -1524,6 +1561,7 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
              * ER needs a Continuation Area, thus we also need a CE entry
              */
             su_size += 7 + 28; /* SP + CE */
+            t->curr_ce_entries++;
             /* ER of RRIP */
             if (t->opts->rrip_version_1_10) {
                 *ce = 237;
@@ -1544,6 +1582,40 @@ size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t used_up,
                return ret;
             *ce += aaip_len;
         }
+    }
+
+    if (t->curr_ce_entries > t->opts->max_ce_entries) {
+        /* If permitted by API setting: Remove non-isofs-non-ACL fattr */
+        retry++;
+        if (retry == 1) {
+            if ((t->opts->max_ce_drop_attr & 15) >= 1) {
+                ret = iso_node_remove_fattr(n->node, 0);
+                if (ret > 0) {
+                    iso_msg_too_many_ce(t, n, ISO_CE_REMOVING_ATTR);
+                    iso_msg_submit(t->image->id, ISO_CE_REMOVING_ATTR, 0,
+                                   "Removed non-isofs attributes");
+                    goto try_again;
+                }
+            }
+        } else if (retry == 2) {
+            if ((t->opts->max_ce_drop_attr & 15) >= 2) {
+                ret = iso_node_remove_fattr(n->node, 1);
+                if (ret > 0) {
+                    iso_msg_submit(t->image->id, ISO_CE_REMOVING_ATTR, 0,
+                                   "Removed ACL");
+                    goto try_again;
+                }
+            }
+        }
+        iso_msg_too_many_ce(t, n, ISO_TOO_MANY_CE);
+        return (ssize_t) (int) ISO_TOO_MANY_CE;
+    } else if (t->curr_ce_entries >= 32) {
+        if (n->node->name != NULL)
+            iso_msg_submit(t->image->id, ISO_TOO_MANY_CE_FOR_LINUX, 0,
+                           "SUSP planning risky for file with name: %s",
+                           n->node->name);
+        iso_msg_submit(t->image->id, ISO_TOO_MANY_CE_FOR_LINUX, 0,
+                  "Too many CE entries for single file when mounted by Linux");
     }
 
     /*
@@ -1762,6 +1834,9 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
            ret = ISO_OUT_OF_MEM;
            goto add_susp_cleanup;
         }
+        /* -1 should not occur. By tradition it would not cause return */
+        if (ret < -2)
+            goto add_susp_cleanup;
 
         /* NM entry */
         if (5 + namelen <= sua_free) {
@@ -2064,6 +2139,8 @@ int rrip_get_susp_fields(Ecma119Image *t, Ecma119Node *n, int type,
 
             /* Compute length of AAIP string of root node */
             aaip_sua_free= 0;
+            /* (just to give t->curr_ce_entries a defined state) */
+            t->curr_ce_entries = 0;
             ret = add_aa_string(t, n, NULL, &aaip_sua_free, &aaip_len, ce_mem,
                                 1 | 2);
             if (ret < 0)

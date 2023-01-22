@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2019 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -205,17 +205,24 @@ size_t calc_dirent_len(Ecma119Image *t, Ecma119Node *n)
  *      taking into account the continuation areas.
  */
 static
-size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
+ssize_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
 {
     size_t i, len;
+    ssize_t ret;
     size_t ce_len = 0;
 
     /* size of "." and ".." entries */
     len = 34 + 34;
     if (t->opts->rockridge) {
-        len += rrip_calc_len(t, dir, 1, 34, &ce_len, *ce);
+        ret = rrip_calc_len(t, dir, 1, 34, &ce_len, *ce);
+        if (ret < 0) 
+            return ret;
+        len += ret;
         *ce += ce_len;
-        len += rrip_calc_len(t, dir, 2, 34, &ce_len, *ce);
+        ret = rrip_calc_len(t, dir, 2, 34, &ce_len, *ce);
+        if (ret < 0) 
+            return ret;
+        len += ret;
         *ce += ce_len;
     }
 
@@ -228,8 +235,10 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
         for (section = 0; section < nsections; ++section) {
             size_t dirent_len = calc_dirent_len(t, child);
             if (t->opts->rockridge) {
-                dirent_len += rrip_calc_len(t, child, 0, dirent_len, &ce_len,
-                                            *ce);
+                ret = rrip_calc_len(t, child, 0, dirent_len, &ce_len, *ce);
+                if (ret < 0) 
+                    return ret;
+                dirent_len += ret;
                 *ce += ce_len;
             }
             remaining = BLOCK_SIZE - (len % BLOCK_SIZE);
@@ -255,14 +264,18 @@ size_t calc_dir_size(Ecma119Image *t, Ecma119Node *dir, size_t *ce)
 }
 
 static
-void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
+int calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
 {
     size_t i, len;
+    ssize_t ret;
     size_t ce_len = 0;
 
     t->ndirs++;
     dir->info.dir->block = t->curblock;
-    len = calc_dir_size(t, dir, &ce_len);
+    ret = calc_dir_size(t, dir, &ce_len);
+    if (ret < 0)
+        return (int) ret;
+    len = ret;
     t->curblock += DIV_UP(len, BLOCK_SIZE);
     if (t->opts->rockridge) {
         t->curblock += DIV_UP(ce_len, BLOCK_SIZE);
@@ -270,9 +283,12 @@ void calc_dir_pos(Ecma119Image *t, Ecma119Node *dir)
     for (i = 0; i < dir->info.dir->nchildren; i++) {
         Ecma119Node *child = dir->info.dir->children[i];
         if (child->type == ECMA119_DIR) {
-            calc_dir_pos(t, child);
+            ret = calc_dir_pos(t, child);
+            if (ret < 0)
+                return (int) ret;
         }
     }
+    return ISO_SUCCESS;
 }
 
 /**
@@ -305,6 +321,7 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     Ecma119Image *target;
     uint32_t path_table_size;
     size_t ndirs;
+    int ret;
 
     if (writer == NULL) {
         return ISO_ASSERT_FAILURE;
@@ -315,7 +332,9 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
     /* compute position of directories */
     iso_msg_debug(target->image->id, "Computing position of dir structure");
     target->ndirs = 0;
-    calc_dir_pos(target, target->root);
+    ret = calc_dir_pos(target, target->root);
+    if (ret < 0)
+        return ret;
 
     /* compute length of pathlist */
     iso_msg_debug(target->image->id, "Computing length of pathlist");
@@ -338,7 +357,9 @@ int ecma119_writer_compute_data_blocks(IsoImageWriter *writer)
         /* Take into respect the second directory tree */
         ndirs = target->ndirs;
         target->ndirs = 0;
-        calc_dir_pos(target, target->partition_root);
+        ret = calc_dir_pos(target, target->partition_root);
+        if (ret < 0)
+            return ret;
         if (target->ndirs != ndirs) {
             iso_msg_submit(target->image->id, ISO_ASSERT_FAILURE, 0,
                     "Number of directories differs in ECMA-119 partiton_tree");
@@ -2737,6 +2758,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     target->filesrc_start = 0;
     target->filesrc_blocks = 0;
 
+    target->curr_ce_entries = 0;
+
     target->joliet_ucs2_failures = 0;
 
     /* If partitions get appended, then the backup GPT cannot be part of
@@ -3611,6 +3634,8 @@ int iso_write_opts_new(IsoWriteOpts **opts, int profile)
     wopts->hfsp_block_size = 0;
     memset(wopts->gpt_disk_guid, 0, 16);
     wopts->gpt_disk_guid_mode = 0;
+    wopts->max_ce_entries = 31; /* Linux hates >= RR_MAX_CE_ENTRIES = 32 */
+    wopts->max_ce_drop_attr = 2; /* If needed drop non-isofs fattr and ACL */
 
     *opts = wopts;
     return ISO_SUCCESS;
@@ -4403,6 +4428,17 @@ int iso_write_opts_set_gpt_guid(IsoWriteOpts *opts, uint8_t guid[16], int mode)
     return ISO_SUCCESS;
 }
 
+int iso_write_opts_set_max_ce_entries(IsoWriteOpts *opts, uint32_t num,
+                                      int flag)
+{
+    if (num > 100000)
+        return ISO_TOO_MANY_CE;
+    if (num == 0)
+        num = 1;
+    opts->max_ce_entries = num;
+    opts->max_ce_drop_attr = flag & 15;
+    return ISO_SUCCESS;
+}
 
 /*
  * @param flag

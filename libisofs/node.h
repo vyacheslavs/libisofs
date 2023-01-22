@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
- * Copyright (c) 2009 - 2020 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  *
  * This file is part of the libisofs project; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2 
@@ -422,6 +422,12 @@ int iso_aa_get_attrs(unsigned char *aa_string, size_t *num_attrs,
 int iso_aa_lookup_attr(unsigned char *aa_string, char *name,
                        size_t *value_length, char **value, int flag);
 
+/**
+ * Delete variables of all namespaces except isofs
+ *
+ * @param flag  bit0= delete ACL, too
+*/
+int iso_node_remove_fattr(IsoNode *node, int flag);
 
 /**
  * Function to identify and manage ZF parameters which do not stem from ZF

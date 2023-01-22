@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007 Vreixo Formoso
  * Copyright (c) 2007 Mario Danic
- * Copyright (c) 2009 - 2020 Thomas Schmitt
+ * Copyright (c) 2009 - 2023 Thomas Schmitt
  * 
  * This file is part of the libisofs project; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License version 2 
@@ -203,8 +203,8 @@ struct susp_sys_user_entry
  * @return
  *      The size needed for the RR entries in the System Use Area
  */
-size_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
-                     size_t *ce, size_t base_ce);
+ssize_t rrip_calc_len(Ecma119Image *t, Ecma119Node *n, int type, size_t space,
+                      size_t *ce, size_t base_ce);
 
 /**
  * Fill a struct susp_info with the RR/SUSP entries needed for a given
