@@ -301,14 +301,36 @@ int create_tree(Ecma119Image *t, IsoNode *iso, JolietNode **tree, int pathlen)
         }
         break;
     case LIBISO_SYMLINK:
-    case LIBISO_SPECIAL:
-        {
+        t->joliet_symlinks++;
+        if (t->joliet_symlinks == 1) {
             char *ipath = iso_tree_get_node_path(iso);
+            /* This first ret might indicate the need to abort */
             ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
-                 "Cannot add %s to Joliet tree. %s can only be added to a "
-                 "Rock Ridge tree.", ipath, (iso->type == LIBISO_SYMLINK ?
-                                             "Symlinks" : "Special files"));
+               "Cannot add %s to Joliet tree. Symlinks can only be added to a "
+               "Rock Ridge tree.", ipath);
             free(ipath);
+        } else {
+            if (t->joliet_symlinks == 2)
+                iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
+                         "More symbolic links were omitted from Joliet tree.");
+            ret = 0;
+        }
+        break;
+    case LIBISO_SPECIAL:
+        t->joliet_specials++;
+        if (t->joliet_specials == 1) {
+            char *ipath = iso_tree_get_node_path(iso);
+            /* This first ret might indicate the need to abort */
+            ret = iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
+                       "Cannot add %s to Joliet tree. "
+                       "Special files can only be added to a Rock Ridge tree.",
+                       ipath);
+            free(ipath);
+        } else {
+            if (t->joliet_specials == 2)
+                iso_msg_submit(t->image->id, ISO_FILE_IGNORED, 0,
+                          "More special files were omitted from Joliet tree.");
+            ret = 0;
         }
         break;
     default:

@@ -2761,6 +2761,8 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
     target->curr_ce_entries = 0;
 
     target->joliet_ucs2_failures = 0;
+    target->joliet_symlinks = 0;
+    target->joliet_specials = 0;
 
     /* If partitions get appended, then the backup GPT cannot be part of
        the ISO filesystem.
@@ -3290,6 +3292,16 @@ int ecma119_image_new(IsoImage *src, IsoWriteOpts *in_opts, Ecma119Image **img)
      * even modified by the read thread (look inside bs_* functions)
      */
 
+    if (target->joliet_symlinks > 0) {
+        iso_msg_submit(target->image->id, ISO_FILE_IGNORED, 0,
+                      "Number of symbolic links omitted from Joliet tree: %lu",
+                      target->joliet_symlinks);
+    }
+    if (target->joliet_specials > 0) {
+        iso_msg_submit(target->image->id, ISO_FILE_IGNORED, 0,
+                       "Number of special files omitted from Joliet tree: %lu",
+                        target->joliet_specials);
+    }
     *img = target;
     return ISO_SUCCESS;
 

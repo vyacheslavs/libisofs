@@ -926,6 +926,13 @@ struct ecma119_image
 
     /* Number of CE entries in currently processed node */
     uint32_t curr_ce_entries;
+
+    /* Count of symbolic links and special files which could not be represented
+       in Joliet.
+    */
+    unsigned long joliet_symlinks;
+    unsigned long joliet_specials;
+
 };
 
 #define BP(a,b) [(b) - (a) + 1]
