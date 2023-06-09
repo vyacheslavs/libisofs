@@ -36,6 +36,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <unistd.h>
 
 
 /* Enable this and write the correct absolute path into the include statement
@@ -1791,7 +1792,7 @@ if (name != NULL && !namecont) {
                 if (linkdest != NULL && linkdestcont == 0) {
                     /* ups, RR standard violation */
                     ret = iso_rr_msg_submit(fsdata, 4, ISO_WRONG_RR_WARN, 0,
-                                 "New SL entry found without previous"
+                                 "New SL entry found without previous "
                                  "CONTINUE flag. Ignored");
                     continue;
                 }

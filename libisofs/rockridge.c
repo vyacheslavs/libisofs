@@ -15,6 +15,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "rockridge.h"
 #include "node.h"
