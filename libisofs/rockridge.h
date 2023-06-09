@@ -41,6 +41,9 @@
 
 #include "ecma119.h"
 
+/* For ssize_t */
+#include <unistd.h>
+
 
 #define SUSP_SIG(entry, a, b) ((entry->sig[0] == a) && (entry->sig[1] == b))
 

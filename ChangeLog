@@ -1,3 +1,13 @@
+git clone git@dev.lovelyhq.com:libburnia/libisofs.git
+(to become libisofs-1.5.8 or higher)
+===============================================================================
+- no novelties yet -
+
+libisofs-1.5.6.pl01.tar.gz Fri Jun 09 2023
+===============================================================================
+* Bug fix: On non-GNU/Linux systems ssize_t was not defined in rockridge.h .
+           Report and fix proposal by Rui Chen
+
 libisofs-1.5.6.tar.gz Wed Jun 07 2023
 ===============================================================================
 * Bug fix: iso_write_opts_set_part_like_isohybrid() did not cause a MBR
@@ -16,7 +26,6 @@ libisofs-1.5.6.tar.gz Wed Jun 07 2023
 * Allowed lseekable device files with iso_tree_add_new_cut_out_node().
   Proof-of-concept by Ivan Shmakov.
 * New API call iso_write_opts_set_max_ce_entries()
-
 
 libisofs-1.5.4.tar.gz Sat Jan 30 2021
 ===============================================================================
